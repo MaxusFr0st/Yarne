@@ -1,5 +1,16 @@
-// Default 8080 for Docker. For local dotnet run use VITE_API_URL=http://localhost:5000
-const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:8080";
+// In local development we default to local API; in production prefer explicit VITE_API_URL.
+const explicitApiBase = (import.meta.env.VITE_API_URL as string | undefined)?.trim();
+const isBrowser = typeof window !== "undefined";
+const isLocalHost = isBrowser && ["localhost", "127.0.0.1"].includes(window.location.hostname);
+const API_BASE = explicitApiBase && explicitApiBase.length > 0
+  ? explicitApiBase.replace(/\/+$/, "")
+  : isLocalHost
+    ? "http://localhost:8080"
+    : "";
+
+function buildApiUrl(endpoint: string): string {
+  return API_BASE ? `${API_BASE}${endpoint}` : endpoint;
+}
 
 function getAuthToken(): string | null {
   return localStorage.getItem("auth_token");
@@ -20,9 +31,9 @@ export async function apiRequest<T>(
 
   let res: Response;
   try {
-    res = await fetch(`${API_BASE}${endpoint}`, { ...options, headers });
+    res = await fetch(buildApiUrl(endpoint), { ...options, headers });
   } catch {
-    throw new Error(`Failed to reach API (${API_BASE}). Check backend/CORS and retry.`);
+    throw new Error(`Failed to reach API (${API_BASE || "relative /api route"}). Check VITE_API_URL/backend/CORS and retry.`);
   }
 
   if (res.status === 401) {

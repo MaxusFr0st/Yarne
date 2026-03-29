@@ -47,7 +47,12 @@ export function BestSellersCarousel() {
   const selectedProducts = selectedProductCodes
     .map((code) => products.find((p) => p.id === code))
     .filter((p): p is (typeof products)[number] => Boolean(p));
-  const carouselProducts = selectedProducts;
+  const fallbackProducts = products
+    .filter((p) => p.isBestseller || p.isNew)
+    .slice(0, 8);
+  const carouselProducts = selectedProducts.length > 0
+    ? selectedProducts
+    : (fallbackProducts.length > 0 ? fallbackProducts : products.slice(0, 8));
 
   useEffect(() => {
     const syncSelection = () => {
