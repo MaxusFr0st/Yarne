@@ -1,4 +1,4 @@
-import { resolveApiBase } from "./base";
+import { buildApiUrl, resolveApiBase } from "./base";
 
 const API_BASE = resolveApiBase();
 
@@ -21,7 +21,7 @@ export async function apiRequest<T>(
 
   let res: Response;
   try {
-    res = await fetch(`${API_BASE}${endpoint}`, { ...options, headers });
+    res = await fetch(buildApiUrl(API_BASE, endpoint), { ...options, headers });
   } catch {
     throw new Error(`Failed to reach API (${API_BASE}). Check backend/CORS and retry.`);
   }

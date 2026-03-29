@@ -1,4 +1,4 @@
-import { resolveApiBase } from "./base";
+import { buildApiUrl, resolveApiBase } from "./base";
 
 const API_BASE = resolveApiBase();
 
@@ -17,7 +17,7 @@ export async function uploadImage(file: File): Promise<string> {
   }
   // Do NOT set Content-Type - browser sets multipart/form-data with boundary
 
-  const res = await fetch(`${API_BASE}/api/images/upload`, {
+  const res = await fetch(buildApiUrl(API_BASE, "/api/images/upload"), {
     method: "POST",
     headers,
     body: formData,

@@ -2,6 +2,18 @@ function trimTrailingSlash(url: string): string {
   return url.replace(/\/+$/, "");
 }
 
+export function buildApiUrl(baseUrl: string, endpoint: string): string {
+  const base = trimTrailingSlash(baseUrl);
+  const path = endpoint.startsWith("/") ? endpoint : `/${endpoint}`;
+
+  // Avoid duplicated "/api/api" when base URL already ends with /api.
+  if (base.toLowerCase().endsWith("/api") && path.toLowerCase().startsWith("/api/")) {
+    return `${base}${path.slice(4)}`;
+  }
+
+  return `${base}${path}`;
+}
+
 export function resolveApiBase(): string {
   const configured = import.meta.env.VITE_API_URL as string | undefined;
   if (configured && configured.trim()) {
@@ -14,8 +26,8 @@ export function resolveApiBase(): string {
     if (host === "localhost" || host === "127.0.0.1") {
       return "http://localhost:8080";
     }
-    // Production fallback when env is missing: assume reverse-proxy path.
-    return `${trimTrailingSlash(window.location.origin)}/api`;
+    // Production fallback when env is missing: same-origin host.
+    return trimTrailingSlash(window.location.origin);
   }
 
   return "http://localhost:8080";
