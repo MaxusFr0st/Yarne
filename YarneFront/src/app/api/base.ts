@@ -14,8 +14,8 @@ export function resolveApiBase(): string {
     if (host === "localhost" || host === "127.0.0.1") {
       return "http://localhost:8080";
     }
-    // Production fallback when env is missing: call same origin /api.
-    return trimTrailingSlash(window.location.origin);
+    // Production fallback when env is missing: assume reverse-proxy path.
+    return `${trimTrailingSlash(window.location.origin)}/api`;
   }
 
   return "http://localhost:8080";

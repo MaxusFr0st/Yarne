@@ -44,5 +44,9 @@ export async function apiRequest<T>(
   }
 
   if (res.status === 204) return undefined as T;
+  const contentType = res.headers.get("content-type")?.toLowerCase() ?? "";
+  if (!contentType.includes("application/json")) {
+    throw new Error(`API returned non-JSON response from ${API_BASE}. Set VITE_API_URL to your backend Railway URL.`);
+  }
   return res.json();
 }
