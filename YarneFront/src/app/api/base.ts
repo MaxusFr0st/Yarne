@@ -2,6 +2,24 @@ function trimTrailingSlash(url: string): string {
   return url.replace(/\/+$/, "");
 }
 
+function normalizeConfiguredBaseUrl(raw: string): string {
+  const trimmed = raw.trim();
+  // Railway variables should be unquoted, but handle accidental quotes safely.
+  const unquoted = trimmed.replace(/^["']|["']$/g, "");
+  if (!unquoted) return "";
+
+  if (unquoted.startsWith("//")) {
+    return `https:${unquoted}`;
+  }
+
+  if (/^https?:\/\//i.test(unquoted)) {
+    return unquoted;
+  }
+
+  // If scheme is omitted, default to HTTPS for deployed environments.
+  return `https://${unquoted}`;
+}
+
 export function buildApiUrl(baseUrl: string, endpoint: string): string {
   const base = trimTrailingSlash(baseUrl);
   const path = endpoint.startsWith("/") ? endpoint : `/${endpoint}`;
@@ -15,9 +33,9 @@ export function buildApiUrl(baseUrl: string, endpoint: string): string {
 }
 
 export function resolveApiBase(): string {
-  const configured = import.meta.env.VITE_API_URL as string | undefined;
-  if (configured && configured.trim()) {
-    return trimTrailingSlash(configured.trim());
+  const configuredRaw = import.meta.env.VITE_API_URL as string | undefined;
+  if (configuredRaw && configuredRaw.trim()) {
+    return trimTrailingSlash(normalizeConfiguredBaseUrl(configuredRaw));
   }
 
   // Local development default.
