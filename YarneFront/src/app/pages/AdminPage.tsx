@@ -2,7 +2,7 @@ import React, { useState, useMemo, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { useAdminData } from "../hooks/useAdminData";
 import { uploadImage } from "../api/images";
-import type { Product } from "../data/products";
+import type { Product } from "../types/product";
 import { getCarouselSelection, saveCarouselSelection } from "../utils/carouselSelection";
 import {
   LayoutDashboard,

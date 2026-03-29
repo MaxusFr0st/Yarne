@@ -2,7 +2,7 @@ import React, { useState, type MouseEvent } from "react";
 import { Link } from "react-router";
 import { motion, AnimatePresence } from "motion/react";
 import { Heart, ShoppingBag } from "lucide-react";
-import type { Product } from "../data/products";
+import type { Product } from "../types/product";
 import { useApp } from "../context/AppContext";
 import { ImageWithFallback } from "./figma/ImageWithFallback";
 

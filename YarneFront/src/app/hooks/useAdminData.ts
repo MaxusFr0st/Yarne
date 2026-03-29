@@ -33,7 +33,7 @@ import {
   type UserDto,
 } from "../api/admin";
 import { register } from "../api/auth";
-import type { Product } from "../data/products";
+import type { Product } from "../types/product";
 
 function mapProductDtoToProduct(d: ProductDto): Product & { idNum: number; sku: string; stock: number } {
   const colors = d.colors && d.colors.length > 0

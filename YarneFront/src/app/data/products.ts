@@ -1,31 +1,5 @@
-export interface ColorVariant {
-  name: string;
-  hex: string;
-  /** Thumbnail for cards */
-  image: string;
-  /** Full gallery for detail page (first = thumbnail) */
-  images: string[];
-  /** Optional size-scoped galleries */
-  sizeImages?: Record<string, string[]>;
-  /** Optional size-scoped stock values */
-  sizeStocks?: Record<string, number>;
-}
-
-export interface Product {
-  id: string;
-  name: string;
-  subtitle: string;
-  price: number;
-  stock?: number;
-  category: string;
-  isNew?: boolean;
-  isBestseller?: boolean;
-  sizes: string[];
-  defaultSize?: string;
-  description: string;
-  details: string[];
-  colors: ColorVariant[];
-}
+import type { Product } from "../types/product";
+export type { Product, ColorVariant } from "../types/product";
 
 const IMG = {
   cream: "https://images.unsplash.com/photo-1572187076010-85d894e06d82?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=1080",
