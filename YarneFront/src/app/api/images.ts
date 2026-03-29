@@ -1,11 +1,6 @@
-const explicitApiBase = (import.meta.env.VITE_API_URL as string | undefined)?.trim();
-const isBrowser = typeof window !== "undefined";
-const isLocalHost = isBrowser && ["localhost", "127.0.0.1"].includes(window.location.hostname);
-const API_BASE = explicitApiBase && explicitApiBase.length > 0
-  ? explicitApiBase.replace(/\/+$/, "")
-  : isLocalHost
-    ? "http://localhost:8080"
-    : "";
+import { resolveApiBase } from "./base";
+
+const API_BASE = resolveApiBase();
 
 function getAuthToken(): string | null {
   return localStorage.getItem("auth_token");

@@ -47,12 +47,11 @@ export function BestSellersCarousel() {
   const selectedProducts = selectedProductCodes
     .map((code) => products.find((p) => p.id === code))
     .filter((p): p is (typeof products)[number] => Boolean(p));
-  const fallbackProducts = products
-    .filter((p) => p.isBestseller || p.isNew)
-    .slice(0, 8);
-  const carouselProducts = selectedProducts.length > 0
-    ? selectedProducts
-    : (fallbackProducts.length > 0 ? fallbackProducts : products.slice(0, 8));
+  const fallbackProducts =
+    products.filter((p) => p.isBestseller).slice(0, 8).length > 0
+      ? products.filter((p) => p.isBestseller).slice(0, 8)
+      : products.slice(0, 8);
+  const carouselProducts = selectedProducts.length > 0 ? selectedProducts : fallbackProducts;
 
   useEffect(() => {
     const syncSelection = () => {
