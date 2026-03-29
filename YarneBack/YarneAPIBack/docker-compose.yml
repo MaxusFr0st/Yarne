@@ -1,0 +1,72 @@
+services:
+  db:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: yarne-db
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_SA_PASSWORD: "${MSSQL_SA_PASSWORD}"
+      MSSQL_PID: "Developer"
+    ports:
+      - "1433:1433"
+    volumes:
+      - sql_data:/var/opt/mssql
+      - ../../YarneDB/SQLQuery1.sql:/tmp/SQLQuery1.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P \"$$MSSQL_SA_PASSWORD\" -C -Q \"SELECT 1\" -b -o /dev/null || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
+  db-init:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: yarne-db-init
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      MSSQL_SA_PASSWORD: "${MSSQL_SA_PASSWORD}"
+    volumes:
+      - ../../YarneDB/SQLQuery1.sql:/tmp/SQLQuery1.sql:ro
+    entrypoint: ["/bin/bash", "-c"]
+    command:
+      - |
+        set -e
+        echo "=== Yarne DB Init ==="
+        for i in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30; do
+          if /opt/mssql-tools18/bin/sqlcmd -S db -U sa -P "$$MSSQL_SA_PASSWORD" -C -Q "SELECT 1" -b -o /dev/null 2>/dev/null; then
+            echo "SQL Server ready"
+            break
+          fi
+          echo "Waiting for SQL Server... $$i/30"
+          sleep 3
+          if [ "$$i" = "30" ]; then echo "ERROR: SQL Server not ready"; exit 1; fi
+        done
+        sleep 5
+        if /opt/mssql-tools18/bin/sqlcmd -S db -U sa -P "$$MSSQL_SA_PASSWORD" -C -Q "SELECT name FROM sys.databases WHERE name='Yarne1.0'" -h -1 -W 2>/dev/null | grep -q "Yarne1.0"; then
+          echo "Database Yarne1.0 already exists - preserving data (skip init)"
+        else
+          echo "Running fresh schema script..."
+          /opt/mssql-tools18/bin/sqlcmd -S db -U sa -P "$$MSSQL_SA_PASSWORD" -C -i /tmp/SQLQuery1.sql -b
+          echo "=== Database initialized successfully ==="
+        fi
+
+  api:
+    build:
+      context: ./YarneAPIBack
+      dockerfile: Dockerfile
+    container_name: yarne-api
+    depends_on:
+      db:
+        condition: service_healthy
+      db-init:
+        condition: service_completed_successfully
+    environment:
+      ASPNETCORE_ENVIRONMENT: "Production"
+      ConnectionStrings__DefaultConnection: "Server=db;Database=Yarne1.0;User Id=sa;Password=${MSSQL_SA_PASSWORD};TrustServerCertificate=True"
+      Jwt__Secret: "${JWT_SECRET}"
+    ports:
+      - "8080:8080"
+
+volumes:
+  sql_data:
