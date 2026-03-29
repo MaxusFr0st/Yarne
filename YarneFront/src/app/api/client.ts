@@ -11,12 +11,13 @@ export async function apiRequest<T>(
   options: RequestInit = {}
 ): Promise<T> {
   const token = getAuthToken();
-  const headers: HeadersInit = {
-    "Content-Type": "application/json",
-    ...options.headers,
-  };
+  const headers = new Headers(options.headers);
+  const hasBody = options.body !== undefined && options.body !== null;
+  if (hasBody && !(options.body instanceof FormData) && !headers.has("Content-Type")) {
+    headers.set("Content-Type", "application/json");
+  }
   if (token) {
-    (headers as Record<string, string>)["Authorization"] = `Bearer ${token}`;
+    headers.set("Authorization", `Bearer ${token}`);
   }
 
   let res: Response;
