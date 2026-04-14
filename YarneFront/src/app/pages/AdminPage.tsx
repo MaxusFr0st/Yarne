@@ -1,9 +1,17 @@
 import React, { useState, useMemo, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { useAdminData } from "../hooks/useAdminData";
+import { useApp } from "../context/AppContext";
 import { uploadImage } from "../api/images";
 import type { Product } from "../types/product";
 import { getCarouselSelection, saveCarouselSelection } from "../utils/carouselSelection";
+import {
+  DEFAULT_FEATURED_TITLE,
+  DEFAULT_MORE_FROM_COLLECTION_TITLE,
+  getHomeSectionsSelection,
+  saveHomeSectionsSelection,
+  type HomeSectionsSelection,
+} from "../utils/homeSectionsSelection";
 import {
   LayoutDashboard,
   Package,
@@ -16,12 +24,13 @@ import {
   ShieldCheck,
   DollarSign,
   ShoppingCart,
-  UserCheck,
   AlertTriangle,
+  Check,
   Tag,
   Globe,
   ImagePlus,
   Palette,
+  Info,
 } from "lucide-react";
 
 const easing = [0.25, 0.1, 0.25, 1] as const;
@@ -93,6 +102,40 @@ function RolePill({ role }: { role: "customer" | "admin" }) {
     >
       {role === "admin" && <ShieldCheck size={11} />}
       <span className="capitalize">{role}</span>
+    </span>
+  );
+}
+
+const ORDER_STATUSES = ["Pending", "Processing", "Shipped", "Delivered", "Cancelled"] as const;
+type OrderStatus = (typeof ORDER_STATUSES)[number];
+
+function toOrderStatus(value: string): OrderStatus {
+  const match = ORDER_STATUSES.find((status) => status.toLowerCase() === value.trim().toLowerCase());
+  return match ?? "Pending";
+}
+
+function OrderStatusPill({ status }: { status: string }) {
+  const normalized = status.trim().toLowerCase();
+  const styleByStatus: Record<string, { color: string; bg: string }> = {
+    pending: { color: "#6B6B6B", bg: "rgba(107,107,107,0.08)" },
+    processing: { color: "#9B6B2E", bg: "rgba(155,107,46,0.1)" },
+    shipped: { color: "#0A1128", bg: "rgba(10,17,40,0.08)" },
+    delivered: { color: "#2D6A4F", bg: "rgba(45,106,79,0.1)" },
+    cancelled: { color: "#4A0E0E", bg: "rgba(74,14,14,0.1)" },
+  };
+  const style = styleByStatus[normalized] ?? styleByStatus.pending;
+
+  return (
+    <span
+      className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs"
+      style={{
+        backgroundColor: style.bg,
+        color: style.color,
+        fontFamily: "'DM Sans', sans-serif",
+        letterSpacing: "0.06em",
+      }}
+    >
+      {status}
     </span>
   );
 }
@@ -1273,9 +1316,10 @@ function DeleteModal({ name, onClose, onConfirm }: { name: string; onClose: () =
 /* ─────────────────────────────────────────────
    MAIN ADMIN PAGE
 ───────────────────────────────────────────── */
-type AdminTab = "dashboard" | "contents" | "products" | "users" | "categories" | "countries" | "colors" | "sizes";
+type AdminTab = "dashboard" | "contents" | "products" | "users" | "orders" | "usefulData" | "categories" | "countries" | "colors" | "sizes";
 
 export function AdminPage() {
+  const { user } = useApp();
   const {
     products,
     users,
@@ -1301,6 +1345,9 @@ export function AdminPage() {
     addSize,
     editSize,
     removeSize,
+    orders,
+    ordersSummary,
+    setOrderStatus,
     addUser,
   } = useAdminData();
 
@@ -1308,8 +1355,14 @@ export function AdminPage() {
   const [productSearch, setProductSearch] = useState("");
   const [mobileProductsPage, setMobileProductsPage] = useState(1);
   const [userSearch, setUserSearch] = useState("");
+  const [orderSearch, setOrderSearch] = useState("");
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [orderActionError, setOrderActionError] = useState<string | null>(null);
+  const [savingOrderId, setSavingOrderId] = useState<number | null>(null);
+  const [orderStatusDrafts, setOrderStatusDrafts] = useState<Record<number, OrderStatus>>({});
+  const [orderDeliveryDrafts, setOrderDeliveryDrafts] = useState<Record<number, string>>({});
   const [carouselProductCodes, setCarouselProductCodes] = useState<string[]>([]);
+  const [homeSectionsSelection, setHomeSectionsSelection] = useState<HomeSectionsSelection>(getHomeSectionsSelection);
 
   const [productModal, setProductModal] = useState<{ open: boolean; editing: AdminProduct | null }>({ open: false, editing: null });
   const [userModal, setUserModal] = useState<{ open: boolean }>({ open: false });
@@ -1334,10 +1387,25 @@ export function AdminPage() {
     [users, userSearch]
   );
 
+  const filteredOrders = useMemo(
+    () =>
+      orders.filter((o) => {
+        const search = orderSearch.toLowerCase();
+        return (
+          o.id.toString().includes(search) ||
+          o.customerName.toLowerCase().includes(search) ||
+          o.customerEmail.toLowerCase().includes(search) ||
+          o.status.toLowerCase().includes(search)
+        );
+      }),
+    [orders, orderSearch]
+  );
+
   useEffect(() => {
     const syncSelection = () => {
       const { productCodes } = getCarouselSelection();
       setCarouselProductCodes(productCodes);
+      setHomeSectionsSelection(getHomeSectionsSelection());
     };
     syncSelection();
     if (typeof window === "undefined") return;
@@ -1356,6 +1424,14 @@ export function AdminPage() {
   }, [mobileProductsPage, mobileProductsTotalPages]);
 
   const carouselProductSet = useMemo(() => new Set(carouselProductCodes), [carouselProductCodes]);
+  const featuredHomeProductSet = useMemo(
+    () => new Set(homeSectionsSelection.featuredProductCodes),
+    [homeSectionsSelection.featuredProductCodes]
+  );
+  const moreFromCollectionProductSet = useMemo(
+    () => new Set(homeSectionsSelection.moreFromCollectionProductCodes),
+    [homeSectionsSelection.moreFromCollectionProductCodes]
+  );
 
   const carouselProducts = useMemo(
     () =>
@@ -1368,6 +1444,57 @@ export function AdminPage() {
   const updateCarouselSelection = (nextCodes: string[]) => {
     const savedCodes = saveCarouselSelection(nextCodes);
     setCarouselProductCodes(savedCodes);
+  };
+
+  const featuredHomeProducts = useMemo(
+    () =>
+      homeSectionsSelection.featuredProductCodes
+        .map((code) => products.find((p) => p.id === code))
+        .filter((p): p is AdminProduct => Boolean(p)),
+    [homeSectionsSelection.featuredProductCodes, products]
+  );
+
+  const moreFromCollectionProducts = useMemo(
+    () =>
+      homeSectionsSelection.moreFromCollectionProductCodes
+        .map((code) => products.find((p) => p.id === code))
+        .filter((p): p is AdminProduct => Boolean(p)),
+    [homeSectionsSelection.moreFromCollectionProductCodes, products]
+  );
+
+  const updateHomeSelection = (next: HomeSectionsSelection) => {
+    const saved = saveHomeSectionsSelection(next);
+    setHomeSectionsSelection(saved);
+  };
+
+  const addFeaturedHomeProduct = (productCode: string) => {
+    if (featuredHomeProductSet.has(productCode)) return;
+    updateHomeSelection({
+      ...homeSectionsSelection,
+      featuredProductCodes: [...homeSectionsSelection.featuredProductCodes, productCode],
+    });
+  };
+
+  const removeFeaturedHomeProduct = (productCode: string) => {
+    updateHomeSelection({
+      ...homeSectionsSelection,
+      featuredProductCodes: homeSectionsSelection.featuredProductCodes.filter((code) => code !== productCode),
+    });
+  };
+
+  const addMoreFromCollectionProduct = (productCode: string) => {
+    if (moreFromCollectionProductSet.has(productCode)) return;
+    updateHomeSelection({
+      ...homeSectionsSelection,
+      moreFromCollectionProductCodes: [...homeSectionsSelection.moreFromCollectionProductCodes, productCode],
+    });
+  };
+
+  const removeMoreFromCollectionProduct = (productCode: string) => {
+    updateHomeSelection({
+      ...homeSectionsSelection,
+      moreFromCollectionProductCodes: homeSectionsSelection.moreFromCollectionProductCodes.filter((code) => code !== productCode),
+    });
   };
 
   const addToCarousel = (productCode: string) => {
@@ -1613,9 +1740,36 @@ export function AdminPage() {
     }
   };
 
-  const totalRevenue = products.reduce((s, p) => s + p.price * 50, 0);
+  const totalRevenue = Number(ordersSummary.totalRevenue ?? 0);
   const activeUsers = users.filter((u) => u.status === "active").length;
   const lowStockCount = products.filter((p) => (p.stock ?? 0) < 10).length;
+  const criticalLowStockCount = products.filter((p) => (p.stock ?? 0) <= 2).length;
+  const pendingOrdersCount = Number(ordersSummary.pendingOrders ?? 0);
+  const adminDisplayName = user?.name || "Administrator";
+  const adminDisplayEmail = user?.email || "admin@yarne.local";
+  const adminDisplayRole = user?.role || "Admin";
+
+  const handleUpdateOrderStatus = async (orderId: number, nextStatus: OrderStatus, estimatedDelivery: string | null) => {
+    setOrderActionError(null);
+    setSavingOrderId(orderId);
+    try {
+      await setOrderStatus(orderId, nextStatus, estimatedDelivery);
+      setOrderStatusDrafts((prev) => {
+        const next = { ...prev };
+        delete next[orderId];
+        return next;
+      });
+      setOrderDeliveryDrafts((prev) => {
+        const next = { ...prev };
+        delete next[orderId];
+        return next;
+      });
+    } catch (e) {
+      setOrderActionError(e instanceof Error ? e.message : "Failed to update order status.");
+    } finally {
+      setSavingOrderId(null);
+    }
+  };
 
   return (
     <main style={{ backgroundColor: "#F5F2ED", minHeight: "100vh" }} className="relative">
@@ -1632,7 +1786,7 @@ export function AdminPage() {
       )}
       {/* Admin Page Header */}
       <section
-        className="pt-32 pb-10 md:pt-40 md:pb-12"
+        className="pt-24 pb-8 md:pt-28 md:pb-10"
         style={{ borderBottom: "1px solid rgba(45,36,30,0.08)" }}
       >
         <div className="max-w-[1400px] mx-auto px-6 md:px-10">
@@ -1657,18 +1811,18 @@ export function AdminPage() {
                   className="text-[#2D241E]"
                   style={{
                     fontFamily: "'Cormorant Garamond', serif",
-                    fontSize: "clamp(1.6rem, 4vw, 2.2rem)",
+                    fontSize: "clamp(1.4rem, 3.4vw, 2rem)",
                     fontWeight: 400,
                     lineHeight: 1.2,
                   }}
                 >
-                  The Knit Gallery
+                  {adminDisplayName}
                 </h1>
                 <p
                   className="text-[#2D241E]/40 mt-0.5"
                   style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "0.8rem" }}
                 >
-                  admin@knitgallery.com · Super Administrator
+                  {adminDisplayEmail} · {adminDisplayRole}
                 </p>
               </div>
             </div>
@@ -1678,6 +1832,7 @@ export function AdminPage() {
               {[
                 { label: "Products", value: products.length.toString(), color: "#2D241E" },
                 { label: "Users", value: users.length.toString(), color: "#0A1128" },
+                { label: "Orders", value: orders.length.toString(), color: "#4A0E0E" },
                 { label: "Low Stock", value: lowStockCount.toString(), color: lowStockCount > 0 ? "#9B6B2E" : "#2D6A4F" },
               ].map((s) => (
                 <div
@@ -1706,9 +1861,8 @@ export function AdminPage() {
 
       {/* Tab Nav */}
       <div
-        className="sticky z-30"
+        className="sticky top-[calc(60px+max(env(safe-area-inset-top),12px))] md:top-[calc(96px+max(env(safe-area-inset-top),12px))] z-30"
         style={{
-          top: "80px",
           backgroundColor: "rgba(245,242,237,0.95)",
           backdropFilter: "blur(16px)",
           borderBottom: "1px solid rgba(45,36,30,0.08)",
@@ -1721,6 +1875,8 @@ export function AdminPage() {
               { key: "contents" as AdminTab, label: "Contents", icon: <ImagePlus size={14} /> },
               { key: "products" as AdminTab, label: "Products", icon: <Package size={14} /> },
               { key: "users" as AdminTab, label: "Users", icon: <Users size={14} /> },
+              { key: "orders" as AdminTab, label: "Orders", icon: <ShoppingCart size={14} /> },
+              { key: "usefulData" as AdminTab, label: "Useful data", icon: <AlertTriangle size={14} /> },
               { key: "categories" as AdminTab, label: "Categories", icon: <Tag size={14} /> },
               { key: "countries" as AdminTab, label: "Countries", icon: <Globe size={14} /> },
               { key: "colors" as AdminTab, label: "Colors", icon: <Palette size={14} /> },
@@ -1769,10 +1925,19 @@ export function AdminPage() {
               {/* Stat Cards */}
               <div className="grid grid-cols-2 md:grid-cols-4 gap-5 mb-12">
                 {[
-                  { icon: <DollarSign size={20} />, label: "Est. Revenue", value: `€${totalRevenue.toLocaleString()}`, sub: "Based on sales data", color: "#2D6A4F" },
-                  { icon: <ShoppingCart size={20} />, label: "Total Orders", value: "127", sub: "+12 this week", color: "#0A1128" },
-                  { icon: <Package size={20} />, label: "Products", value: products.length.toString(), sub: `${lowStockCount} low stock`, color: lowStockCount > 0 ? "#9B6B2E" : "#2D241E" },
-                  { icon: <UserCheck size={20} />, label: "Active Users", value: activeUsers.toString(), sub: `of ${users.length} total`, color: "#4A0E0E" },
+                  { icon: <DollarSign size={20} />, label: "Est. Revenue", value: `€${totalRevenue.toLocaleString()}`, sub: "Sum of all placed orders", color: "#2D6A4F" },
+                  { icon: <ShoppingCart size={20} />, label: "Total Orders", value: String(ordersSummary.totalOrders ?? 0), sub: `${pendingOrdersCount} pending`, color: "#0A1128", goTo: "orders" as AdminTab },
+                  {
+                    icon: <Package size={20} />,
+                    label: "Products",
+                    value: products.length.toString(),
+                    sub: criticalLowStockCount === 1
+                      ? "1 product low stock"
+                      : `${criticalLowStockCount} products low stock`,
+                    color: criticalLowStockCount > 0 ? "#9B6B2E" : "#2D241E",
+                    goTo: "products" as AdminTab,
+                  },
+                  { icon: <Info size={20} />, label: "Usefulll data", value: "Info", sub: "Planned insights page", color: "#4A0E0E", goTo: "usefulData" as AdminTab },
                 ].map((card, i) => (
                   <motion.div
                     key={card.label}
@@ -1781,6 +1946,9 @@ export function AdminPage() {
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: i * 0.07, duration: 0.5, ease: easing }}
+                    onClick={() => card.goTo && setActiveTab(card.goTo)}
+                    role={card.goTo ? "button" : undefined}
+                    tabIndex={card.goTo ? 0 : -1}
                   >
                     <div
                       className="w-9 h-9 rounded-full flex items-center justify-center mb-4"
@@ -1901,7 +2069,7 @@ export function AdminPage() {
               <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
                 {[
                   { name: "Hero Section", status: "Coming soon" },
-                  { name: "Collection Highlights", status: "Coming soon" },
+                  { name: "Collection Highlights", status: "Active editor below" },
                   { name: "Lookbook", status: "Coming soon" },
                   { name: "Best Sellers Carousel", status: "Active editor below" },
                 ].map((section) => (
@@ -2020,6 +2188,155 @@ export function AdminPage() {
                   </div>
                 </div>
               </div>
+
+              {/* Home Collection Sections Editor */}
+              <div className="rounded-[28px] overflow-hidden mb-8" style={{ border: "1px solid rgba(45,36,30,0.08)" }}>
+                <div className="px-6 py-4" style={{ backgroundColor: "rgba(45,36,30,0.03)", borderBottom: "1px solid rgba(45,36,30,0.06)" }}>
+                  <p className="text-[#2D241E] uppercase tracking-widest text-xs" style={{ fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.12em" }}>
+                    Home Collection Sections
+                  </p>
+                  <p className="text-[#2D241E]/45 text-xs mt-1" style={{ fontFamily: "'DM Sans', sans-serif" }}>
+                    Edit title and products for "Featured this season" and "More from the collection".
+                  </p>
+                </div>
+                <div className="px-6 py-5 space-y-8">
+                  <div>
+                    <div className="mb-3">
+                      <p className="text-[#2D241E]/45 text-xs uppercase tracking-widest mb-2" style={{ fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.1em" }}>
+                        Featured This Season
+                      </p>
+                      <input
+                        type="text"
+                        value={homeSectionsSelection.featuredTitle}
+                        onChange={(e) =>
+                          updateHomeSelection({
+                            ...homeSectionsSelection,
+                            featuredTitle: e.target.value || DEFAULT_FEATURED_TITLE,
+                          })
+                        }
+                        placeholder={DEFAULT_FEATURED_TITLE}
+                        className="w-full max-w-lg rounded-[14px] border bg-transparent px-4 py-2.5 text-[#2D241E] focus:outline-none"
+                        style={{ borderColor: "rgba(45,36,30,0.15)", fontFamily: "'DM Sans', sans-serif", fontSize: "0.85rem" }}
+                      />
+                    </div>
+                    {featuredHomeProducts.length > 0 && (
+                      <div className="mb-4 flex flex-wrap gap-2">
+                        {featuredHomeProducts.map((product) => (
+                          <span
+                            key={`featured-home-chip-${product.id}`}
+                            className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs"
+                            style={{ backgroundColor: "rgba(45,36,30,0.06)", color: "#2D241E", fontFamily: "'DM Sans', sans-serif" }}
+                          >
+                            {product.name}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                    <div className="max-h-[280px] overflow-y-auto divide-y rounded-[18px]" style={{ border: "1px solid rgba(45,36,30,0.08)", borderColor: "rgba(45,36,30,0.08)" }}>
+                      {products.map((product) => {
+                        const isSelected = featuredHomeProductSet.has(product.id);
+                        return (
+                          <div key={`featured-home-list-${product.id}`} className="grid items-center px-4 py-3" style={{ gridTemplateColumns: "2fr 1fr 110px" }}>
+                            <div className="min-w-0">
+                              <p className="text-[#2D241E] truncate" style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "0.88rem" }}>
+                                {product.name}
+                              </p>
+                              <p className="text-[#2D241E]/40 text-xs truncate" style={{ fontFamily: "'DM Sans', sans-serif" }}>
+                                {product.sku}
+                              </p>
+                            </div>
+                            <p className="text-[#2D241E]/60 text-sm truncate" style={{ fontFamily: "'DM Sans', sans-serif" }}>
+                              {product.category}
+                            </p>
+                            <div className="flex justify-end">
+                              <button
+                                onClick={() => (isSelected ? removeFeaturedHomeProduct(product.id) : addFeaturedHomeProduct(product.id))}
+                                className="px-4 py-1.5 rounded-full text-xs uppercase tracking-widest transition-all duration-300 hover:opacity-85"
+                                style={{
+                                  fontFamily: "'DM Sans', sans-serif",
+                                  letterSpacing: "0.1em",
+                                  backgroundColor: isSelected ? "rgba(74,14,14,0.1)" : "#2D241E",
+                                  color: isSelected ? "#4A0E0E" : "#F5F2ED",
+                                }}
+                              >
+                                {isSelected ? "Delete" : "Add"}
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  <div>
+                    <div className="mb-3">
+                      <p className="text-[#2D241E]/45 text-xs uppercase tracking-widest mb-2" style={{ fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.1em" }}>
+                        More From The Collection
+                      </p>
+                      <input
+                        type="text"
+                        value={homeSectionsSelection.moreFromCollectionTitle}
+                        onChange={(e) =>
+                          updateHomeSelection({
+                            ...homeSectionsSelection,
+                            moreFromCollectionTitle: e.target.value || DEFAULT_MORE_FROM_COLLECTION_TITLE,
+                          })
+                        }
+                        placeholder={DEFAULT_MORE_FROM_COLLECTION_TITLE}
+                        className="w-full max-w-lg rounded-[14px] border bg-transparent px-4 py-2.5 text-[#2D241E] focus:outline-none"
+                        style={{ borderColor: "rgba(45,36,30,0.15)", fontFamily: "'DM Sans', sans-serif", fontSize: "0.85rem" }}
+                      />
+                    </div>
+                    {moreFromCollectionProducts.length > 0 && (
+                      <div className="mb-4 flex flex-wrap gap-2">
+                        {moreFromCollectionProducts.map((product) => (
+                          <span
+                            key={`more-home-chip-${product.id}`}
+                            className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs"
+                            style={{ backgroundColor: "rgba(45,36,30,0.06)", color: "#2D241E", fontFamily: "'DM Sans', sans-serif" }}
+                          >
+                            {product.name}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                    <div className="max-h-[280px] overflow-y-auto divide-y rounded-[18px]" style={{ border: "1px solid rgba(45,36,30,0.08)", borderColor: "rgba(45,36,30,0.08)" }}>
+                      {products.map((product) => {
+                        const isSelected = moreFromCollectionProductSet.has(product.id);
+                        return (
+                          <div key={`more-home-list-${product.id}`} className="grid items-center px-4 py-3" style={{ gridTemplateColumns: "2fr 1fr 110px" }}>
+                            <div className="min-w-0">
+                              <p className="text-[#2D241E] truncate" style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "0.88rem" }}>
+                                {product.name}
+                              </p>
+                              <p className="text-[#2D241E]/40 text-xs truncate" style={{ fontFamily: "'DM Sans', sans-serif" }}>
+                                {product.sku}
+                              </p>
+                            </div>
+                            <p className="text-[#2D241E]/60 text-sm truncate" style={{ fontFamily: "'DM Sans', sans-serif" }}>
+                              {product.category}
+                            </p>
+                            <div className="flex justify-end">
+                              <button
+                                onClick={() => (isSelected ? removeMoreFromCollectionProduct(product.id) : addMoreFromCollectionProduct(product.id))}
+                                className="px-4 py-1.5 rounded-full text-xs uppercase tracking-widest transition-all duration-300 hover:opacity-85"
+                                style={{
+                                  fontFamily: "'DM Sans', sans-serif",
+                                  letterSpacing: "0.1em",
+                                  backgroundColor: isSelected ? "rgba(74,14,14,0.1)" : "#2D241E",
+                                  color: isSelected ? "#4A0E0E" : "#F5F2ED",
+                                }}
+                              >
+                                {isSelected ? "Delete" : "Add"}
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+              </div>
             </motion.div>
           )}
 
@@ -2075,7 +2392,13 @@ export function AdminPage() {
                   ) : (
                     mobileVisibleProducts.map((p) => (
                       <div key={`mobile-product-${p.id}`} className="px-4 py-3">
-                        <div className="rounded-[18px] p-3.5" style={{ border: "1px solid rgba(45,36,30,0.09)", backgroundColor: "rgba(245,242,237,0.8)" }}>
+                        <div
+                          className="rounded-[18px] p-3.5"
+                          style={{
+                            border: (p.stock ?? 0) <= 2 ? "1px solid rgba(196,48,48,0.35)" : "1px solid rgba(45,36,30,0.09)",
+                            backgroundColor: (p.stock ?? 0) <= 2 ? "rgba(196,48,48,0.12)" : "rgba(245,242,237,0.8)",
+                          }}
+                        >
                           <div className="flex items-start gap-3">
                             <div className="w-12 h-12 rounded-[12px] overflow-hidden shrink-0" style={{ backgroundColor: "#EDE9E2" }}>
                               <img src={p.colors[0].image} alt={p.name} className="w-full h-full object-cover" />
@@ -2121,15 +2444,6 @@ export function AdminPage() {
                               <p className="text-[11px] text-[#2D241E]/55" style={{ fontFamily: "'DM Sans', sans-serif" }}>
                                 Stock: {p.stock}
                               </p>
-                              <div className="h-1.5 rounded-full mt-1.5" style={{ backgroundColor: "rgba(45,36,30,0.1)" }}>
-                                <div
-                                  className="h-full rounded-full"
-                                  style={{
-                                    width: `${Math.max(8, Math.min(100, Math.round((p.stock / 100) * 100)))}%`,
-                                    backgroundColor: p.stock < 10 ? "#9B6B2E" : "#2D241E",
-                                  }}
-                                />
-                              </div>
                               <p className="text-[11px] text-[#2D241E]/38 mt-1" style={{ fontFamily: "'DM Sans', sans-serif" }}>
                                 SKU: {p.sku}
                               </p>
@@ -2226,7 +2540,10 @@ export function AdminPage() {
                       <div
                         key={p.id}
                         className="grid items-center px-6 py-4 hover:bg-[#2D241E]/[0.02] transition-colors"
-                        style={{ gridTemplateColumns: "2fr 1fr 80px 80px 100px 80px 100px" }}
+                        style={{
+                          gridTemplateColumns: "2fr 1fr 80px 80px 100px 80px 100px",
+                          backgroundColor: (p.stock ?? 0) <= 2 ? "rgba(196,48,48,0.12)" : "transparent",
+                        }}
                       >
                         {/* Product */}
                         <div className="flex items-center gap-3">
@@ -2413,6 +2730,279 @@ export function AdminPage() {
                     Showing {filteredUsers.length} of {users.length} users · {activeUsers} active
                   </span>
                 </div>
+              </div>
+            </motion.div>
+          )}
+
+          {/* ── ORDERS ── */}
+          {activeTab === "orders" && (
+            <motion.div
+              key="orders"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              transition={{ duration: 0.4, ease: easing }}
+            >
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-8">
+                <div className="relative">
+                  <Search size={15} className="absolute left-4 top-1/2 -translate-y-1/2" style={{ color: "rgba(45,36,30,0.35)" }} />
+                  <input
+                    type="text"
+                    placeholder="Search orders..."
+                    value={orderSearch}
+                    onChange={(e) => setOrderSearch(e.target.value)}
+                    className="pl-10 pr-4 py-3 rounded-[14px] border bg-transparent text-[#2D241E] focus:outline-none w-64 placeholder:text-[#2D241E]/30"
+                    style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "0.85rem", borderColor: "rgba(45,36,30,0.15)" }}
+                  />
+                </div>
+                <p className="text-[#2D241E]/45 text-sm" style={{ fontFamily: "'DM Sans', sans-serif" }}>
+                  {orders.length} placed orders
+                </p>
+              </div>
+
+              {orderActionError && (
+                <p className="mb-4 text-sm text-[#4A0E0E]" style={{ fontFamily: "'DM Sans', sans-serif" }}>
+                  {orderActionError}
+                </p>
+              )}
+
+              {/* Mobile Cards */}
+              <div className="md:hidden space-y-4">
+                {filteredOrders.length === 0 ? (
+                  <div className="rounded-[24px] p-8 text-center" style={{ border: "1px solid rgba(45,36,30,0.08)", backgroundColor: "rgba(45,36,30,0.02)" }}>
+                    <p className="text-[#2D241E]/35" style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "1.1rem" }}>
+                      No orders found
+                    </p>
+                  </div>
+                ) : (
+                  filteredOrders.map((order) => {
+                    const currentStatus = toOrderStatus(order.status);
+                    const draftStatus = orderStatusDrafts[order.id] ?? currentStatus;
+                    const currentDeliveryDate = order.estimatedDelivery ? order.estimatedDelivery.slice(0, 10) : "";
+                    const draftDeliveryDate = orderDeliveryDrafts[order.id] ?? currentDeliveryDate;
+                    const hasStatusChange = draftStatus !== currentStatus || draftDeliveryDate !== currentDeliveryDate;
+
+                    return (
+                      <div
+                        key={`mobile-order-${order.id}`}
+                        className="rounded-[22px] p-4 space-y-3"
+                        style={{ border: "1px solid rgba(45,36,30,0.1)", backgroundColor: "#F5F2ED" }}
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div>
+                            <p className="text-[#2D241E]" style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "1.15rem" }}>
+                              Order #{order.id}
+                            </p>
+                            <p className="text-[#2D241E]/45 text-xs mt-0.5" style={{ fontFamily: "'DM Sans', sans-serif" }}>
+                              {new Date(order.orderDate).toLocaleDateString()} · {order.itemCount} items
+                            </p>
+                          </div>
+                          <OrderStatusPill status={order.status} />
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-2 text-sm" style={{ fontFamily: "'DM Sans', sans-serif" }}>
+                          <p className="text-[#2D241E]/60 truncate">{order.customerName}</p>
+                          <p className="text-[#2D241E] text-right">€{order.total.toLocaleString()}</p>
+                          <p className="text-[#2D241E]/45 text-xs col-span-2 truncate">{order.customerEmail}</p>
+                        </div>
+
+                        <div className="space-y-2">
+                          <select
+                            value={draftStatus}
+                            onChange={(e) =>
+                              setOrderStatusDrafts((prev) => ({
+                                ...prev,
+                                [order.id]: e.target.value as OrderStatus,
+                              }))
+                            }
+                            disabled={savingOrderId === order.id}
+                            className="w-full px-3 py-2.5 rounded-[14px] border bg-transparent text-[#2D241E] focus:outline-none disabled:opacity-70"
+                            style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "0.82rem", borderColor: hasStatusChange ? "#4A0E0E" : "rgba(45,36,30,0.2)" }}
+                          >
+                            {ORDER_STATUSES.map((status) => (
+                              <option key={`mobile-${order.id}-${status}`} value={status}>
+                                {status}
+                              </option>
+                            ))}
+                          </select>
+                          <input
+                            type="date"
+                            value={draftDeliveryDate}
+                            onChange={(e) =>
+                              setOrderDeliveryDrafts((prev) => ({
+                                ...prev,
+                                [order.id]: e.target.value,
+                              }))
+                            }
+                            disabled={savingOrderId === order.id}
+                            className="w-full px-3 py-2.5 rounded-[14px] border bg-transparent text-[#2D241E] focus:outline-none disabled:opacity-70"
+                            style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "0.82rem", borderColor: hasStatusChange ? "#4A0E0E" : "rgba(45,36,30,0.2)" }}
+                          />
+                          <button
+                            onClick={() => handleUpdateOrderStatus(order.id, draftStatus, draftDeliveryDate || null)}
+                            disabled={!hasStatusChange || savingOrderId === order.id}
+                            className="w-full py-2.5 rounded-full text-[#F5F2ED] uppercase tracking-widest transition-all duration-300 disabled:opacity-45"
+                            style={{ backgroundColor: "#2D241E", fontFamily: "'DM Sans', sans-serif", fontSize: "0.72rem", letterSpacing: "0.1em" }}
+                          >
+                            <span className="inline-flex items-center gap-1">
+                              <Check size={11} />
+                              Confirm Changes
+                            </span>
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+
+              {/* Desktop Table */}
+              <div className="hidden md:block rounded-[28px] overflow-hidden" style={{ border: "1px solid rgba(45,36,30,0.08)" }}>
+                <div
+                  className="grid px-6 py-4 text-xs tracking-widest uppercase"
+                  style={{
+                    gridTemplateColumns: "80px 1.1fr 0.6fr 0.5fr 0.7fr 0.95fr 380px",
+                    fontFamily: "'DM Sans', sans-serif",
+                    letterSpacing: "0.12em",
+                    color: "rgba(45,36,30,0.4)",
+                    backgroundColor: "rgba(45,36,30,0.03)",
+                    borderBottom: "1px solid rgba(45,36,30,0.06)",
+                  }}
+                >
+                  <span>ID</span>
+                  <span>Customer</span>
+                  <span>Total</span>
+                  <span>Items</span>
+                  <span>Placed</span>
+                  <span>Status</span>
+                  <span className="text-right">Actions</span>
+                </div>
+                <div className="divide-y" style={{ borderColor: "rgba(45,36,30,0.06)" }}>
+                  {filteredOrders.length === 0 ? (
+                    <div className="text-center py-12">
+                      <p className="text-[#2D241E]/30" style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "1.1rem" }}>
+                        No orders found
+                      </p>
+                    </div>
+                  ) : (
+                    filteredOrders.map((order) => {
+                      const currentStatus = toOrderStatus(order.status);
+                      const draftStatus = orderStatusDrafts[order.id] ?? currentStatus;
+                      const currentDeliveryDate = order.estimatedDelivery ? order.estimatedDelivery.slice(0, 10) : "";
+                      const draftDeliveryDate = orderDeliveryDrafts[order.id] ?? currentDeliveryDate;
+                      const hasStatusChange = draftStatus !== currentStatus || draftDeliveryDate !== currentDeliveryDate;
+                      return (
+                        <div
+                          key={order.id}
+                          className="grid items-center px-6 py-4 hover:bg-[#2D241E]/[0.02] transition-colors"
+                          style={{ gridTemplateColumns: "80px 1.1fr 0.6fr 0.5fr 0.7fr 0.95fr 380px" }}
+                        >
+                          <span className="text-[#2D241E]" style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "1rem" }}>
+                            #{order.id}
+                          </span>
+                          <div className="min-w-0">
+                            <p className="text-[#2D241E] truncate" style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "0.9rem" }}>
+                              {order.customerName}
+                            </p>
+                            <p className="text-[#2D241E]/40 text-xs truncate" style={{ fontFamily: "'DM Sans', sans-serif" }}>
+                              {order.customerEmail}
+                            </p>
+                          </div>
+                          <span className="text-[#2D241E]" style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "1rem" }}>
+                            €{order.total.toLocaleString()}
+                          </span>
+                          <span className="text-[#2D241E]/60 text-sm" style={{ fontFamily: "'DM Sans', sans-serif" }}>
+                            {order.itemCount}
+                          </span>
+                          <span className="text-[#2D241E]/60 text-sm" style={{ fontFamily: "'DM Sans', sans-serif" }}>
+                            {new Date(order.orderDate).toLocaleDateString()}
+                          </span>
+                          <div className="pr-4">
+                            <OrderStatusPill status={order.status} />
+                          </div>
+                          <div className="flex items-center justify-end gap-2 pl-3 border-l border-[#2D241E]/10">
+                            <select
+                              value={draftStatus}
+                              onChange={(e) =>
+                                setOrderStatusDrafts((prev) => ({
+                                  ...prev,
+                                  [order.id]: e.target.value as OrderStatus,
+                                }))
+                              }
+                              disabled={savingOrderId === order.id}
+                              className="w-[100px] px-2.5 py-1.5 rounded-full border bg-transparent text-[#2D241E] focus:outline-none disabled:opacity-70"
+                              style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "0.68rem", borderColor: hasStatusChange ? "#4A0E0E" : "rgba(45,36,30,0.2)" }}
+                            >
+                              {ORDER_STATUSES.map((status) => (
+                                <option key={`${order.id}-${status}`} value={status}>
+                                  {status}
+                                </option>
+                              ))}
+                            </select>
+                            <input
+                              type="date"
+                              value={draftDeliveryDate}
+                              onChange={(e) =>
+                                setOrderDeliveryDrafts((prev) => ({
+                                  ...prev,
+                                  [order.id]: e.target.value,
+                                }))
+                              }
+                              disabled={savingOrderId === order.id}
+                              className="w-[120px] px-2 py-1.5 rounded-full border bg-transparent text-[#2D241E] focus:outline-none disabled:opacity-70"
+                              style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "0.68rem", borderColor: hasStatusChange ? "#4A0E0E" : "rgba(45,36,30,0.2)" }}
+                              title="Estimated delivery"
+                            />
+                            <button
+                              onClick={() => handleUpdateOrderStatus(order.id, draftStatus, draftDeliveryDate || null)}
+                              disabled={!hasStatusChange || savingOrderId === order.id}
+                              className="px-2.5 py-1.5 rounded-full text-[#F5F2ED] uppercase tracking-widest transition-all duration-300 disabled:opacity-45"
+                              style={{ backgroundColor: "#2D241E", fontFamily: "'DM Sans', sans-serif", fontSize: "0.6rem", letterSpacing: "0.09em" }}
+                              title="Confirm status change"
+                            >
+                              <span className="inline-flex items-center gap-1">
+                                <Check size={11} />
+                                Confirm
+                              </span>
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+
+                <div
+                  className="px-6 py-4 flex items-center justify-between"
+                  style={{
+                    borderTop: "1px solid rgba(45,36,30,0.06)",
+                    backgroundColor: "rgba(45,36,30,0.02)",
+                  }}
+                >
+                  <span className="text-xs text-[#2D241E]/40" style={{ fontFamily: "'DM Sans', sans-serif" }}>
+                    Showing {filteredOrders.length} of {orders.length} orders
+                  </span>
+                </div>
+              </div>
+            </motion.div>
+          )}
+
+          {/* ── USEFUL DATA ── */}
+          {activeTab === "usefulData" && (
+            <motion.div
+              key="useful-data"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              transition={{ duration: 0.4, ease: easing }}
+            >
+              <div className="rounded-[28px] p-10 text-center" style={{ border: "1px solid rgba(45,36,30,0.08)", backgroundColor: "rgba(45,36,30,0.02)" }}>
+                <p className="text-[#2D241E]/40 tracking-widest uppercase text-xs mb-3" style={{ fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.12em" }}>
+                  Usefulll data
+                </p>
+                <h3 className="text-[#2D241E]" style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "1.5rem", fontWeight: 400 }}>
+                  Empty page for future analytics
+                </h3>
               </div>
             </motion.div>
           )}

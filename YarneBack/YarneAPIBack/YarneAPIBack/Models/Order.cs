@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 
 namespace YarneAPIBack.Models;
@@ -18,6 +18,8 @@ public partial class Order
     public string Status { get; set; } = null!;
 
     public DateTime OrderDate { get; set; }
+
+    public DateTime? EstimatedDelivery { get; set; }
 
     public virtual Customer Customer { get; set; } = null!;
 

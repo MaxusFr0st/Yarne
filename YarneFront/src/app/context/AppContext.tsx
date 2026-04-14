@@ -22,6 +22,7 @@ interface AppContextType {
   addToCart: (item: Omit<CartItem, "cartId">) => void;
   removeFromCart: (cartId: string) => void;
   updateQuantity: (cartId: string, qty: number) => void;
+  clearCart: () => void;
   cartTotal: number;
   cartCount: number;
 
@@ -43,6 +44,46 @@ interface AppContextType {
 
 const AppContext = createContext<AppContextType | null>(null);
 
+const AUTH_TOKEN_KEY = "auth_token";
+const AUTH_USER_KEY = "auth_user";
+
+function readSessionAuth() {
+  return {
+    token: sessionStorage.getItem(AUTH_TOKEN_KEY),
+    user: sessionStorage.getItem(AUTH_USER_KEY),
+  };
+}
+
+function migrateLegacyLocalAuthIfNeeded() {
+  const hasSessionToken = sessionStorage.getItem(AUTH_TOKEN_KEY);
+  const hasSessionUser = sessionStorage.getItem(AUTH_USER_KEY);
+  if (hasSessionToken || hasSessionUser) return;
+
+  const legacyToken = localStorage.getItem(AUTH_TOKEN_KEY);
+  const legacyUser = localStorage.getItem(AUTH_USER_KEY);
+  if (legacyToken) sessionStorage.setItem(AUTH_TOKEN_KEY, legacyToken);
+  if (legacyUser) sessionStorage.setItem(AUTH_USER_KEY, legacyUser);
+  if (legacyToken || legacyUser) {
+    localStorage.removeItem(AUTH_TOKEN_KEY);
+    localStorage.removeItem(AUTH_USER_KEY);
+  }
+}
+
+function writeSessionAuth(token: string, user: string) {
+  sessionStorage.setItem(AUTH_TOKEN_KEY, token);
+  sessionStorage.setItem(AUTH_USER_KEY, user);
+  // Keep auth tab-scoped so different tabs can use different accounts.
+  localStorage.removeItem(AUTH_TOKEN_KEY);
+  localStorage.removeItem(AUTH_USER_KEY);
+}
+
+function clearAuthStorage() {
+  sessionStorage.removeItem(AUTH_TOKEN_KEY);
+  sessionStorage.removeItem(AUTH_USER_KEY);
+  localStorage.removeItem(AUTH_TOKEN_KEY);
+  localStorage.removeItem(AUTH_USER_KEY);
+}
+
 export function AppProvider({ children }: { children: React.ReactNode }) {
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
   const [cartOpen, setCartOpen] = useState(false);
@@ -52,15 +93,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [wishlist, setWishlist] = useState<string[]>([]);
 
   const logout = useCallback(() => {
-    localStorage.removeItem("auth_token");
-    localStorage.removeItem("auth_user");
+    clearAuthStorage();
     setUser(null);
     setIsLoggedIn(false);
   }, []);
 
   useEffect(() => {
-    const token = localStorage.getItem("auth_token");
-    const userData = localStorage.getItem("auth_user");
+    migrateLegacyLocalAuthIfNeeded();
+    const { token, user: userData } = readSessionAuth();
     if (token && userData) {
       try {
         const u = JSON.parse(userData);
@@ -81,7 +121,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   // Check token expiry every 60s - JWT expires after 15 mins, user must re-login
   useEffect(() => {
     const checkExpiry = () => {
-      const userData = localStorage.getItem("auth_user");
+      const userData = sessionStorage.getItem(AUTH_USER_KEY);
       if (!userData) return;
       try {
         const u = JSON.parse(userData);
@@ -132,13 +172,16 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  const clearCart = useCallback(() => {
+    setCartItems([]);
+  }, []);
+
   const login = useCallback(async (email: string, password: string): Promise<{ ok: boolean; error?: string }> => {
     try {
       const res = await apiLogin({ email, password });
       const role = res.role ?? "Customer";
       const userPayload = { email: res.email, fullName: res.fullName, userName: res.userName, role, expiresAt: res.expiresAt };
-      localStorage.setItem("auth_token", res.token);
-      localStorage.setItem("auth_user", JSON.stringify(userPayload));
+      writeSessionAuth(res.token, JSON.stringify(userPayload));
       setUser({ name: res.fullName, email: res.email, role });
       setIsLoggedIn(true);
       setLoginOpen(false);
@@ -154,8 +197,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       const res = await apiRegister(data);
       const role = res.role ?? "Customer";
       const userPayload = { email: res.email, fullName: res.fullName, userName: res.userName, role, expiresAt: res.expiresAt };
-      localStorage.setItem("auth_token", res.token);
-      localStorage.setItem("auth_user", JSON.stringify(userPayload));
+      writeSessionAuth(res.token, JSON.stringify(userPayload));
       setUser({ name: res.fullName, email: res.email, role });
       setIsLoggedIn(true);
       setLoginOpen(false);
@@ -182,6 +224,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         addToCart,
         removeFromCart,
         updateQuantity,
+        clearCart,
         cartTotal,
         cartCount,
         loginOpen,

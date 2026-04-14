@@ -77,7 +77,7 @@ export function Collection() {
       </section>
 
       {/* Filter Bar */}
-      <div className="sticky top-[calc(60px+max(env(safe-area-inset-top),12px))] md:top-24 z-30 border-y border-[#2D241E]/10" style={{ backgroundColor: "rgba(245,242,237,0.95)", backdropFilter: "blur(16px)" }}>
+      <div className="sticky top-[calc(60px+max(env(safe-area-inset-top),12px))] md:top-[calc(96px+max(env(safe-area-inset-top),12px))] z-30 border-y border-[#2D241E]/10" style={{ backgroundColor: "rgba(245,242,237,0.95)", backdropFilter: "blur(16px)" }}>
         <div className="max-w-[1400px] mx-auto px-6 md:px-10">
           <div className="flex items-center justify-between py-4 gap-4 overflow-x-auto scrollbar-hide">
             {/* Categories */}

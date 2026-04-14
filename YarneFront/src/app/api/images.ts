@@ -3,7 +3,7 @@ import { buildApiUrl, resolveApiBase } from "./base";
 const API_BASE = resolveApiBase();
 
 function getAuthToken(): string | null {
-  return localStorage.getItem("auth_token");
+  return sessionStorage.getItem("auth_token") ?? localStorage.getItem("auth_token");
 }
 
 export async function uploadImage(file: File): Promise<string> {

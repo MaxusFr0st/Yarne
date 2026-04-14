@@ -1,10 +1,9 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { Link } from "react-router";
 import {
   User,
   Package,
-  Settings,
   ChevronDown,
   ChevronRight,
   MapPin,
@@ -14,7 +13,6 @@ import {
   Heart,
   ShoppingBag,
   Star,
-  Truck,
   CheckCircle2,
   Clock,
   AlertCircle,
@@ -22,83 +20,61 @@ import {
   LogOut,
 } from "lucide-react";
 import { useApp } from "../context/AppContext";
+import { fetchMyOrders, type OrderDto } from "../api/orders";
+import { ImageWithFallback } from "../components/figma/ImageWithFallback";
 
 const easing = [0.25, 0.1, 0.25, 1] as const;
 
 type OrderStatus = "delivered" | "shipped" | "processing" | "pending" | "cancelled";
 
-interface OrderItem {
-  name: string;
-  quantity: number;
-  price: number;
-  color: string;
-  size: string;
-}
-
 interface Order {
   id: string;
   date: string;
   status: OrderStatus;
-  items: OrderItem[];
+  items: {
+    id: number;
+    name: string;
+    quantity: number;
+    lineTotal: number;
+    image: string;
+  }[];
   total: number;
-  trackingNumber?: string;
   estimatedDelivery?: string;
 }
 
-const MOCK_ORDERS: Order[] = [
-  {
-    id: "#KG-10055",
-    date: "March 13, 2026",
-    status: "processing",
-    estimatedDelivery: "March 17–19, 2026",
-    items: [
-      { name: "Côte Bouclé Jacket", quantity: 1, price: 395, color: "Camel", size: "S" },
-    ],
-    total: 395,
-  },
-  {
-    id: "#KG-10051",
-    date: "March 11, 2026",
-    status: "shipped",
-    estimatedDelivery: "March 14–15, 2026",
-    trackingNumber: "IT782934021IT",
-    items: [
-      { name: "Arles Cocoon Sweater", quantity: 1, price: 285, color: "Parchment", size: "S" },
-    ],
-    total: 285,
-  },
-  {
-    id: "#KG-10042",
-    date: "March 8, 2026",
-    status: "delivered",
-    trackingNumber: "IT492834923IT",
-    items: [
-      { name: "Mistral Turtleneck", quantity: 1, price: 360, color: "Midnight", size: "S" },
-    ],
-    total: 360,
-  },
-  {
-    id: "#KG-10038",
-    date: "February 14, 2026",
-    status: "delivered",
-    trackingNumber: "PT928374612PT",
-    items: [
-      { name: "Riviera Cardigan", quantity: 1, price: 245, color: "Bordeaux", size: "M" },
-      { name: "Provence Knit Vest", quantity: 1, price: 195, color: "Ecru", size: "XS" },
-    ],
-    total: 440,
-  },
-  {
-    id: "#KG-10021",
-    date: "January 3, 2026",
-    status: "delivered",
-    trackingNumber: "IT384729103IT",
-    items: [
-      { name: "Bretagne Pullover", quantity: 1, price: 320, color: "Oat", size: "S" },
-    ],
-    total: 320,
-  },
-];
+const IMAGE_PLACEHOLDER = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='400' viewBox='0 0 400 400'%3E%3Crect fill='%23EDE9E2' width='400' height='400'/%3E%3Cpath fill='%232D241E' fill-opacity='0.3' d='M80 200h240M200 80v240' stroke='%232D241E' stroke-opacity='0.2'/%3E%3C/svg%3E";
+
+function toOrderStatus(value: string): OrderStatus {
+  const normalized = value.trim().toLowerCase();
+  if (normalized === "delivered") return "delivered";
+  if (normalized === "shipped") return "shipped";
+  if (normalized === "processing") return "processing";
+  if (normalized === "cancelled") return "cancelled";
+  return "pending";
+}
+
+function toDisplayDate(value: string): string {
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return value;
+  return parsed.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
+}
+
+function mapOrderDto(order: OrderDto): Order {
+  return {
+    id: `#KG-${String(order.id).padStart(5, "0")}`,
+    date: toDisplayDate(order.orderDate),
+    status: toOrderStatus(order.status),
+    estimatedDelivery: order.estimatedDelivery ? toDisplayDate(order.estimatedDelivery) : undefined,
+    total: Number(order.total),
+    items: order.items.map((item) => ({
+      id: item.id,
+      name: item.productName,
+      quantity: item.quantity,
+      lineTotal: Number(item.lineTotal),
+      image: item.productImageUrl || IMAGE_PLACEHOLDER,
+    })),
+  };
+}
 
 const STATUS_CONFIG: Record<OrderStatus, { label: string; color: string; bg: string; icon: React.ReactNode }> = {
   delivered: {
@@ -111,7 +87,7 @@ const STATUS_CONFIG: Record<OrderStatus, { label: string; color: string; bg: str
     label: "Shipped",
     color: "#0A1128",
     bg: "rgba(10,17,40,0.08)",
-    icon: <Truck size={13} />,
+    icon: <Package size={13} />,
   },
   processing: {
     label: "Processing",
@@ -133,6 +109,14 @@ const STATUS_CONFIG: Record<OrderStatus, { label: string; color: string; bg: str
   },
 };
 
+const DELIVERY_PROGRESS_CONFIG: Record<OrderStatus, { progress: number; label: string; color: string }> = {
+  pending: { progress: 12, label: "Order received", color: "#6B6B6B" },
+  processing: { progress: 45, label: "Preparing your order", color: "#9B6B2E" },
+  shipped: { progress: 78, label: "In transit", color: "#0A1128" },
+  delivered: { progress: 100, label: "Delivered", color: "#2D6A4F" },
+  cancelled: { progress: 100, label: "Order cancelled", color: "#4A0E0E" },
+};
+
 type Tab = "overview" | "orders" | "profile";
 
 function StatusBadge({ status }: { status: OrderStatus }) {
@@ -150,6 +134,28 @@ function StatusBadge({ status }: { status: OrderStatus }) {
       {cfg.icon}
       {cfg.label}
     </span>
+  );
+}
+
+function DeliveryProgressPreview({ status }: { status: OrderStatus }) {
+  const cfg = DELIVERY_PROGRESS_CONFIG[status];
+  return (
+    <div className="mt-3">
+      <div className="flex items-center justify-between mb-1.5">
+        <span className="text-[11px] text-[#2D241E]/55" style={{ fontFamily: "'DM Sans', sans-serif" }}>
+          {cfg.label}
+        </span>
+        <span className="text-[11px] text-[#2D241E]/45" style={{ fontFamily: "'DM Sans', sans-serif" }}>
+          {cfg.progress}%
+        </span>
+      </div>
+      <div className="relative h-2 rounded-full overflow-hidden" style={{ backgroundColor: "rgba(45,36,30,0.08)" }}>
+        <div
+          className="h-full rounded-full transition-all duration-500"
+          style={{ width: `${cfg.progress}%`, backgroundColor: cfg.color }}
+        />
+      </div>
+    </div>
   );
 }
 
@@ -189,6 +195,7 @@ function OrderRow({ order }: { order: Order }) {
             >
               {order.date} · {order.items.length} {order.items.length === 1 ? "item" : "items"} · €{order.total}
             </p>
+            <DeliveryProgressPreview status={order.status} />
           </div>
         </div>
         <ChevronDown
@@ -218,15 +225,19 @@ function OrderRow({ order }: { order: Order }) {
             >
               {/* Items */}
               <div className="space-y-3 mt-5">
-                {order.items.map((item, i) => (
+                {order.items.map((item) => (
                   <div
-                    key={i}
-                    className="flex items-center justify-between py-3 px-4 rounded-[14px]"
+                    key={item.id}
+                    className="flex items-center justify-between py-3 px-4 rounded-[14px] gap-3"
                     style={{ backgroundColor: "rgba(45,36,30,0.03)" }}
                   >
-                    <div>
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="w-12 h-14 rounded-[10px] overflow-hidden bg-[#EDE9E2] flex-shrink-0">
+                        <ImageWithFallback src={item.image} alt={item.name} className="w-full h-full object-cover" />
+                      </div>
+                      <div className="min-w-0">
                       <p
-                        className="text-[#2D241E]"
+                        className="text-[#2D241E] truncate"
                         style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "0.95rem", fontWeight: 500 }}
                       >
                         {item.name}
@@ -235,14 +246,15 @@ function OrderRow({ order }: { order: Order }) {
                         className="text-[#2D241E]/50 text-xs mt-0.5"
                         style={{ fontFamily: "'DM Sans', sans-serif" }}
                       >
-                        {item.color} · Size {item.size} · Qty {item.quantity}
+                        Qty {item.quantity}
                       </p>
+                      </div>
                     </div>
                     <span
                       className="text-[#2D241E]"
                       style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "0.95rem" }}
                     >
-                      €{item.price}
+                      €{item.lineTotal.toLocaleString()}
                     </span>
                   </div>
                 ))}
@@ -250,17 +262,6 @@ function OrderRow({ order }: { order: Order }) {
 
               {/* Order Details */}
               <div className="flex flex-wrap gap-4 mt-5 pt-5" style={{ borderTop: "1px solid rgba(45,36,30,0.06)" }}>
-                {order.trackingNumber && (
-                  <div className="flex items-center gap-2">
-                    <Truck size={13} style={{ color: "#2D241E", opacity: 0.4 }} />
-                    <span
-                      className="text-xs"
-                      style={{ fontFamily: "'DM Sans', sans-serif", color: "#2D241E", opacity: 0.6 }}
-                    >
-                      Tracking: {order.trackingNumber}
-                    </span>
-                  </div>
-                )}
                 {order.estimatedDelivery && (
                   <div className="flex items-center gap-2">
                     <Calendar size={13} style={{ color: "#2D241E", opacity: 0.4 }} />
@@ -298,6 +299,9 @@ function OrderRow({ order }: { order: Order }) {
 export function AccountPage() {
   const { user, isLoggedIn, openLogin, logout, wishlist } = useApp();
   const [activeTab, setActiveTab] = useState<Tab>("overview");
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [ordersLoading, setOrdersLoading] = useState(false);
+  const [ordersError, setOrdersError] = useState<string | null>(null);
   const [profileForm, setProfileForm] = useState({
     name: user?.name || "Sophie",
     email: user?.email || "sophie@example.com",
@@ -306,8 +310,18 @@ export function AccountPage() {
   });
   const [saveSuccess, setSaveSuccess] = useState(false);
 
-  const totalSpent = MOCK_ORDERS.reduce((s, o) => s + o.total, 0);
-  const deliveredCount = MOCK_ORDERS.filter((o) => o.status === "delivered").length;
+  useEffect(() => {
+    if (!isLoggedIn) return;
+    setOrdersLoading(true);
+    setOrdersError(null);
+    fetchMyOrders()
+      .then((data) => setOrders(data.map(mapOrderDto)))
+      .catch((e) => setOrdersError(e instanceof Error ? e.message : "Failed to load your orders."))
+      .finally(() => setOrdersLoading(false));
+  }, [isLoggedIn]);
+
+  const totalSpent = useMemo(() => orders.reduce((s, o) => s + o.total, 0), [orders]);
+  const deliveredCount = useMemo(() => orders.filter((o) => o.status === "delivered").length, [orders]);
 
   const handleSaveProfile = () => {
     setSaveSuccess(true);
@@ -437,7 +451,7 @@ export function AccountPage() {
             {/* Stats */}
             <div className="flex gap-6 md:gap-10">
               {[
-                { label: "Orders", value: MOCK_ORDERS.length.toString() },
+                { label: "Orders", value: orders.length.toString() },
                 { label: "Wishlist", value: wishlist.length.toString() },
                 { label: "Total Spent", value: `€${totalSpent.toLocaleString()}` },
               ].map((stat) => (
@@ -515,7 +529,7 @@ export function AccountPage() {
               {/* Summary Cards */}
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-12">
                 {[
-                  { icon: <ShoppingBag size={20} />, label: "Total Orders", value: MOCK_ORDERS.length },
+                  { icon: <ShoppingBag size={20} />, label: "Total Orders", value: orders.length },
                   { icon: <CheckCircle2 size={20} />, label: "Delivered", value: deliveredCount },
                   { icon: <Heart size={20} />, label: "Wishlisted", value: wishlist.length },
                   { icon: <Star size={20} />, label: "Loyalty Points", value: "1,480" },
@@ -569,9 +583,14 @@ export function AccountPage() {
               </div>
 
               <div className="space-y-3">
-                {MOCK_ORDERS.slice(0, 3).map((order) => (
+                {orders.slice(0, 3).map((order) => (
                   <OrderRow key={order.id} order={order} />
                 ))}
+                {!ordersLoading && orders.length === 0 && (
+                  <p className="text-[#2D241E]/45 text-sm" style={{ fontFamily: "'DM Sans', sans-serif" }}>
+                    No orders yet for this account.
+                  </p>
+                )}
               </div>
 
               {/* Membership Banner */}
@@ -638,14 +657,29 @@ export function AccountPage() {
                   className="text-[#2D241E]/40 text-xs"
                   style={{ fontFamily: "'DM Sans', sans-serif" }}
                 >
-                  {MOCK_ORDERS.length} orders
+                  {orders.length} orders
                 </span>
               </div>
 
+              {ordersLoading && (
+                <p className="text-[#2D241E]/45 text-sm mb-3" style={{ fontFamily: "'DM Sans', sans-serif" }}>
+                  Loading your orders...
+                </p>
+              )}
+              {ordersError && (
+                <p className="text-[#4A0E0E] text-sm mb-3" style={{ fontFamily: "'DM Sans', sans-serif" }}>
+                  {ordersError}
+                </p>
+              )}
               <div className="space-y-3">
-                {MOCK_ORDERS.map((order) => (
+                {orders.map((order) => (
                   <OrderRow key={order.id} order={order} />
                 ))}
+                {!ordersLoading && orders.length === 0 && !ordersError && (
+                  <p className="text-[#2D241E]/45 text-sm" style={{ fontFamily: "'DM Sans', sans-serif" }}>
+                    No orders yet for this account.
+                  </p>
+                )}
               </div>
             </motion.div>
           )}

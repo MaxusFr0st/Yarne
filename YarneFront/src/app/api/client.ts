@@ -3,7 +3,7 @@ import { buildApiUrl, resolveApiBase } from "./base";
 const API_BASE = resolveApiBase();
 
 function getAuthToken(): string | null {
-  return localStorage.getItem("auth_token");
+  return sessionStorage.getItem("auth_token") ?? localStorage.getItem("auth_token");
 }
 
 export async function apiRequest<T>(
@@ -28,6 +28,8 @@ export async function apiRequest<T>(
   }
 
   if (res.status === 401) {
+    sessionStorage.removeItem("auth_token");
+    sessionStorage.removeItem("auth_user");
     localStorage.removeItem("auth_token");
     localStorage.removeItem("auth_user");
     window.dispatchEvent(new CustomEvent("auth-expired"));

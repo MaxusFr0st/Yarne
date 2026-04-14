@@ -65,8 +65,11 @@ services:
       ASPNETCORE_ENVIRONMENT: "Production"
       ConnectionStrings__DefaultConnection: "Server=db;Database=Yarne1.0;User Id=sa;Password=${MSSQL_SA_PASSWORD};TrustServerCertificate=True"
       Jwt__Secret: "${JWT_SECRET}"
+    volumes:
+      - api_uploads:/app/wwwroot/uploads
     ports:
       - "8080:8080"
 
 volumes:
   sql_data:
+  api_uploads:

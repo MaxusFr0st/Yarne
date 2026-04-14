@@ -237,6 +237,7 @@ public partial class YarneDbContext : DbContext
             entity.ToTable("Order");
 
             entity.Property(e => e.OrderDate).HasDefaultValueSql("(getdate())");
+            entity.Property(e => e.EstimatedDelivery).HasColumnType("datetime");
             entity.Property(e => e.Status)
                 .HasMaxLength(50)
                 .HasDefaultValue("Pending");

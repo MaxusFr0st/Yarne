@@ -33,6 +33,7 @@ import {
   type UserDto,
 } from "../api/admin";
 import { register } from "../api/auth";
+import { fetchAdminOrders, fetchAdminOrdersSummary, updateOrderStatus, type OrderDto, type AdminOrdersSummaryDto } from "../api/orders";
 import type { Product } from "../types/product";
 
 function mapProductDtoToProduct(d: ProductDto): Product & { idNum: number; sku: string; stock: number } {
@@ -54,7 +55,7 @@ function mapProductDtoToProduct(d: ProductDto): Product & { idNum: number; sku: 
     subtitle: d.material ?? d.producerName ?? "",
     price: Number(d.price),
     category: d.categoryName,
-    isNew: d.createdAt ? new Date(d.createdAt) > new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) : false,
+    isNew: false,
     isBestseller: false,
     sizes: d.sizes?.length ? d.sizes : ["XS", "S", "M", "L", "XL"],
     defaultSize: d.defaultSize ?? undefined,
@@ -88,6 +89,30 @@ function mapUserDtoToAdminUser(u: UserDto): {
   };
 }
 
+function mapOrderDtoToAdminOrder(o: OrderDto): {
+  id: number;
+  customerName: string;
+  customerEmail: string;
+  total: number;
+  status: string;
+  itemCount: number;
+  orderDate: string;
+  estimatedDelivery: string | null;
+  paymentMethodName: string;
+} {
+  return {
+    id: o.id,
+    customerName: o.customerName,
+    customerEmail: o.customerEmail,
+    total: Number(o.total),
+    status: o.status,
+    itemCount: o.items.length,
+    orderDate: o.orderDate,
+    estimatedDelivery: o.estimatedDelivery,
+    paymentMethodName: o.paymentMethodName,
+  };
+}
+
 export function useAdminData() {
   const [products, setProducts] = useState<(Product & { idNum: number; sku: string; stock: number })[]>([]);
   const [users, setUsers] = useState<ReturnType<typeof mapUserDtoToAdminUser>[]>([]);
@@ -95,19 +120,23 @@ export function useAdminData() {
   const [countries, setCountries] = useState<CountryDto[]>([]);
   const [colors, setColors] = useState<ColorDto[]>([]);
   const [sizes, setSizes] = useState<SizeDto[]>([]);
+  const [orders, setOrders] = useState<ReturnType<typeof mapOrderDtoToAdminOrder>[]>([]);
+  const [ordersSummary, setOrdersSummary] = useState<AdminOrdersSummaryDto>({ totalOrders: 0, totalRevenue: 0, pendingOrders: 0 });
   const [loading, setLoading] = useState(true);
   const [apiAvailable, setApiAvailable] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [prods, usrs, cats, ctrys, cols, szs] = await Promise.all([
+      const [prods, usrs, cats, ctrys, cols, szs, ords, ordSummary] = await Promise.all([
         fetchProducts({ includeInactive: true }),
         fetchUsers(),
         fetchCategories(),
         fetchCountries(),
         fetchColors(),
         fetchSizes(),
+        fetchAdminOrders(),
+        fetchAdminOrdersSummary(),
       ]);
       setProducts(prods.map(mapProductDtoToProduct));
       setUsers(usrs.map(mapUserDtoToAdminUser));
@@ -115,6 +144,8 @@ export function useAdminData() {
       setCountries(ctrys);
       setColors(cols);
       setSizes(szs);
+      setOrders(ords.map(mapOrderDtoToAdminOrder));
+      setOrdersSummary(ordSummary);
       setApiAvailable(true);
     } catch {
       setProducts([]);
@@ -123,6 +154,8 @@ export function useAdminData() {
       setCountries([]);
       setColors([]);
       setSizes([]);
+      setOrders([]);
+      setOrdersSummary({ totalOrders: 0, totalRevenue: 0, pendingOrders: 0 });
       setApiAvailable(false);
     } finally {
       setLoading(false);
@@ -240,6 +273,13 @@ export function useAdminData() {
     return res;
   }, [load]);
 
+  const setOrderStatus = useCallback(async (id: number, status: "Pending" | "Processing" | "Shipped" | "Delivered" | "Cancelled", estimatedDelivery?: string | null) => {
+    const updated = await updateOrderStatus(id, { status, estimatedDelivery });
+    const mapped = mapOrderDtoToAdminOrder(updated);
+    setOrders((prev) => prev.map((o) => (o.id === id ? mapped : o)));
+    return updated;
+  }, []);
+
   return {
     products,
     users,
@@ -265,6 +305,9 @@ export function useAdminData() {
     addSize,
     editSize,
     removeSize,
+    orders,
+    ordersSummary,
+    setOrderStatus,
     addUser,
   };
 }

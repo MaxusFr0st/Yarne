@@ -113,6 +113,19 @@ builder.Services.AddSwaggerGen(c =>
 
 var app = builder.Build();
 
+using (var scope = app.Services.CreateScope())
+{
+    var db = scope.ServiceProvider.GetRequiredService<YarneDbContext>();
+    await db.Database.ExecuteSqlRawAsync(
+        """
+        IF COL_LENGTH('[Order]', 'EstimatedDelivery') IS NULL
+        BEGIN
+            ALTER TABLE [Order] ADD [EstimatedDelivery] datetime NULL;
+        END
+        """
+    );
+}
+
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();

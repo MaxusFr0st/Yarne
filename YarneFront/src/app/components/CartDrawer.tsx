@@ -1,9 +1,11 @@
 import { motion, AnimatePresence } from "motion/react";
 import { X, Minus, Plus, ShoppingBag, ArrowRight } from "lucide-react";
+import { useNavigate } from "react-router";
 import { useApp } from "../context/AppContext";
 import { ImageWithFallback } from "./figma/ImageWithFallback";
 
 export function CartDrawer() {
+  const navigate = useNavigate();
   const { cartItems, cartOpen, closeCart, removeFromCart, updateQuantity, cartTotal } = useApp();
 
   return (
@@ -196,6 +198,10 @@ export function CartDrawer() {
                   Shipping & taxes calculated at checkout
                 </p>
                 <button
+                  onClick={() => {
+                    closeCart();
+                    navigate("/checkout");
+                  }}
                   className="w-full py-4 rounded-full flex items-center justify-center gap-3 text-white transition-all duration-300 hover:opacity-90"
                   style={{ backgroundColor: "#2D241E", fontFamily: "'DM Sans', sans-serif", fontSize: "0.8rem", letterSpacing: "0.15em" }}
                 >

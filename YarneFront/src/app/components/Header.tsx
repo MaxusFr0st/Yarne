@@ -5,9 +5,11 @@ import { motion, AnimatePresence } from "motion/react";
 import { useApp } from "../context/AppContext";
 const logoImg = "/logo.png";
 
-const NAV_LINKS = [
+const LEFT_NAV_LINKS = [
+  { label: "Home", href: "/" },
   { label: "Collection", href: "/collection" },
-  { label: "New Arrivals", href: "/collection?filter=new" },
+];
+const RIGHT_NAV_LINKS = [
   { label: "Journal", href: "/journal" },
   { label: "About", href: "/about" },
 ];
@@ -46,10 +48,10 @@ export function Header() {
         transition={{ duration: 0.6, ease: [0.25, 0.1, 0.25, 1] }}
       >
         <div className="max-w-[1400px] mx-auto px-6 md:px-10">
-          <div className="flex items-center justify-between h-[60px] md:h-24 min-h-[60px]">
+          <div className="grid grid-cols-[auto_1fr] md:grid-cols-[1fr_auto_1fr] items-center h-[60px] md:h-24 min-h-[60px]">
             {/* Left Nav – Desktop */}
-            <nav className="hidden md:flex items-center gap-8 flex-1">
-              {NAV_LINKS.slice(0, 2).map((link) => (
+            <nav className="hidden md:flex items-center gap-8 justify-start">
+              {LEFT_NAV_LINKS.map((link) => (
                 <Link
                   key={link.href}
                   to={link.href}
@@ -63,7 +65,7 @@ export function Header() {
 
             {/* Mobile: Hamburger */}
             <button
-              className="md:hidden text-[#2D241E] p-2"
+              className="md:hidden text-[#2D241E] p-2 justify-self-start"
               onClick={() => setMobileOpen(true)}
               aria-label="Open menu"
             >
@@ -71,7 +73,7 @@ export function Header() {
             </button>
 
             {/* Center Logo */}
-            <Link to="/" className="flex items-center justify-center flex-shrink-0">
+            <Link to="/" className="flex items-center justify-center justify-self-center md:justify-self-center">
               <img
                 src={logoImg}
                 alt="Yarné – The Knit Gallery"
@@ -80,8 +82,8 @@ export function Header() {
             </Link>
 
             {/* Right Nav – Desktop */}
-            <div className="hidden md:flex items-center gap-8 flex-1 justify-end">
-              {NAV_LINKS.slice(2).map((link) => (
+            <div className="hidden md:flex items-center justify-end gap-8">
+              {RIGHT_NAV_LINKS.map((link) => (
                 <Link
                   key={link.href}
                   to={link.href}
@@ -100,10 +102,6 @@ export function Header() {
                   Admin
                 </Link>
               )}
-            </div>
-
-            {/* Right Icons */}
-            <div className="flex items-center gap-4 ml-6">
               <button
                 onClick={() => setSearchOpen(true)}
                 className="hidden md:flex text-[#2D241E] hover:text-[#4A0E0E] transition-colors duration-300"
@@ -179,7 +177,7 @@ export function Header() {
                 </button>
               </div>
               <nav className="flex-1 p-8 flex flex-col gap-6">
-                {[...NAV_LINKS, ...(isAdmin ? [{ label: "Admin", href: "/admin" }] : [])].map((link, i) => (
+                {[...LEFT_NAV_LINKS, ...RIGHT_NAV_LINKS, ...(isAdmin ? [{ label: "Admin", href: "/admin" }] : [])].map((link, i) => (
                   <motion.div
                     key={link.href}
                     initial={{ opacity: 0, x: -20 }}
@@ -199,7 +197,7 @@ export function Header() {
                   <motion.div
                     initial={{ opacity: 0, x: -20 }}
                     animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: 0.1 + NAV_LINKS.length * 0.06, ease: [0.25, 0.1, 0.25, 1] }}
+                    transition={{ delay: 0.1 + (LEFT_NAV_LINKS.length + RIGHT_NAV_LINKS.length) * 0.06, ease: [0.25, 0.1, 0.25, 1] }}
                   >
                     <Link
                       to="/account"

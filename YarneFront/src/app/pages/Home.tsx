@@ -1,4 +1,4 @@
-import { useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode, CSSProperties } from "react";
 import { Link } from "react-router";
 import { motion, useScroll, useTransform } from "motion/react";
@@ -8,6 +8,11 @@ import { useProducts } from "../hooks/useProducts";
 import { ProductCard } from "../components/ProductCard";
 import { BestSellersCarousel } from "../components/BestSellersCarousel";
 import { ImageWithFallback as Img } from "../components/figma/ImageWithFallback";
+import {
+  DEFAULT_FEATURED_TITLE,
+  DEFAULT_MORE_FROM_COLLECTION_TITLE,
+  getHomeSectionsSelection,
+} from "../utils/homeSectionsSelection";
 
 const easing = [0.25, 0.1, 0.25, 1] as const;
 
@@ -47,7 +52,29 @@ export function Home() {
   const editorialY1 = useTransform(editorialScroll, [0, 1], ["0%", "-12%"]);
 
   const { products } = useProducts();
-  const featured = products.slice(0, 4);
+  const [homeSectionsSelection, setHomeSectionsSelection] = useState(getHomeSectionsSelection);
+
+  useEffect(() => {
+    const syncSelection = () => setHomeSectionsSelection(getHomeSectionsSelection());
+    syncSelection();
+    if (typeof window === "undefined") return;
+    window.addEventListener("storage", syncSelection);
+    return () => window.removeEventListener("storage", syncSelection);
+  }, []);
+
+  const featured = useMemo(() => {
+    const selected = homeSectionsSelection.featuredProductCodes
+      .map((code) => products.find((product) => product.id === code))
+      .filter((product): product is (typeof products)[number] => Boolean(product));
+    return selected.length > 0 ? selected : products.slice(0, 4);
+  }, [homeSectionsSelection.featuredProductCodes, products]);
+
+  const moreFromCollectionProducts = useMemo(() => {
+    const selected = homeSectionsSelection.moreFromCollectionProductCodes
+      .map((code) => products.find((product) => product.id === code))
+      .filter((product): product is (typeof products)[number] => Boolean(product));
+    return selected.length > 0 ? selected : products.slice(3);
+  }, [homeSectionsSelection.moreFromCollectionProductCodes, products]);
 
   return (
     <main className="relative" style={{ backgroundColor: "#F5F2ED", fontFamily: "'DM Sans', sans-serif" }}>
@@ -212,7 +239,7 @@ export function Home() {
                 className="text-[#2D241E]"
                 style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "clamp(1.8rem, 4vw, 2.8rem)", fontWeight: 400, lineHeight: 1.2 }}
               >
-                Featured this season
+                {homeSectionsSelection.featuredTitle || DEFAULT_FEATURED_TITLE}
               </h2>
             </RevealText>
             <RevealText delay={0.1}>
@@ -429,12 +456,12 @@ export function Home() {
               className="text-[#2D241E]"
               style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "clamp(1.8rem, 4vw, 2.8rem)", fontWeight: 400 }}
             >
-              More from the collection
+              {homeSectionsSelection.moreFromCollectionTitle || DEFAULT_MORE_FROM_COLLECTION_TITLE}
             </h2>
           </RevealText>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-y-8 md:gap-8 max-w-sm md:max-w-none mx-auto md:mx-0">
-            {products.slice(3).map((product, i) => (
+            {moreFromCollectionProducts.map((product, i) => (
               <ProductCard key={product.id} product={product} index={i} size="collection" />
             ))}
           </div>
