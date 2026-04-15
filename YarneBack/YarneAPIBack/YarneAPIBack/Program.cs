@@ -1,5 +1,6 @@
 using System.Text;
 using System.Threading.RateLimiting;
+using Microsoft.Data.SqlClient;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.RateLimiting;
@@ -12,9 +13,37 @@ using YarneAPIBack.Services.Contracts;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Railway assigns a runtime port via PORT; bind explicitly when present.
+var railwayPort = Environment.GetEnvironmentVariable("PORT");
+if (!string.IsNullOrWhiteSpace(railwayPort))
+{
+    builder.WebHost.UseUrls($"http://0.0.0.0:{railwayPort}");
+}
+
 // Database (EnableRetryOnFailure for Docker/transient startup delays)
+var configuredConnectionString =
+    Environment.GetEnvironmentVariable("DATABASE_URL")
+    ?? builder.Configuration.GetConnectionString("DefaultConnection")
+    ?? throw new InvalidOperationException("Database connection string is required. Set DATABASE_URL or ConnectionStrings__DefaultConnection.");
+
+var connectionStringBuilder = new SqlConnectionStringBuilder(configuredConnectionString);
+if (!connectionStringBuilder.ContainsKey("TrustServerCertificate"))
+{
+    connectionStringBuilder.TrustServerCertificate = true;
+}
+
+if (!connectionStringBuilder.ContainsKey("Encrypt"))
+{
+    connectionStringBuilder.Encrypt = false;
+}
+
+if (!builder.Environment.IsDevelopment() && connectionStringBuilder.IntegratedSecurity)
+{
+    throw new InvalidOperationException("Production database connection cannot use Integrated Security / Trusted_Connection.");
+}
+
 builder.Services.AddDbContext<YarneDbContext>(options =>
-    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection"),
+    options.UseSqlServer(connectionStringBuilder.ConnectionString,
         sqlOptions => sqlOptions.EnableRetryOnFailure(maxRetryCount: 10, maxRetryDelay: TimeSpan.FromSeconds(5), errorNumbersToAdd: null)));
 
 // JWT
@@ -115,15 +144,32 @@ var app = builder.Build();
 
 using (var scope = app.Services.CreateScope())
 {
+    var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
     var db = scope.ServiceProvider.GetRequiredService<YarneDbContext>();
-    await db.Database.ExecuteSqlRawAsync(
-        """
-        IF COL_LENGTH('[Order]', 'EstimatedDelivery') IS NULL
-        BEGIN
-            ALTER TABLE [Order] ADD [EstimatedDelivery] datetime NULL;
-        END
-        """
-    );
+    const int maxAttempts = 20;
+    for (var attempt = 1; attempt <= maxAttempts; attempt++)
+    {
+        try
+        {
+            await db.Database.ExecuteSqlRawAsync(
+                """
+                IF COL_LENGTH('[Order]', 'EstimatedDelivery') IS NULL
+                BEGIN
+                    ALTER TABLE [Order] ADD [EstimatedDelivery] datetime NULL;
+                END
+                """
+            );
+            break;
+        }
+        catch (Exception ex) when (attempt < maxAttempts)
+        {
+            var delay = TimeSpan.FromSeconds(Math.Min(30, attempt * 3));
+            logger.LogWarning(ex,
+                "Database is not ready yet during startup. Attempt {Attempt}/{MaxAttempts}. Retrying in {DelaySeconds}s.",
+                attempt, maxAttempts, delay.TotalSeconds);
+            await Task.Delay(delay);
+        }
+    }
 }
 
 if (app.Environment.IsDevelopment())
