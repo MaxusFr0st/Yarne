@@ -32,7 +32,7 @@ If `/.system` error continues, use this repo's DB Dockerfile:
 
 - Path: `YarneDB/Dockerfile`
 - Base image: `mcr.microsoft.com/mssql/server:2019-latest`
-- It pre-creates `/.system` and SQL directories with `mssql` user ownership before startup.
+- It uses the official SQL Server 2019 startup behavior (no custom user/permission overrides).
 - In Railway DB service settings:
   - Source repo: this repository
   - Root directory: `YarneDB`
