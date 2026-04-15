@@ -7,7 +7,12 @@
 USE master;
 GO
 
-IF EXISTS (SELECT name FROM sys.databases WHERE name = 'Yarne1.0')
+-- Safety switch:
+--   0 = production-safe (default, DO NOT drop existing DB)
+--   1 = destructive reset (local/dev only)
+DECLARE @ResetDatabase BIT = 0;
+
+IF @ResetDatabase = 1 AND EXISTS (SELECT name FROM sys.databases WHERE name = 'Yarne1.0')
 BEGIN
     ALTER DATABASE [Yarne1.0] SET SINGLE_USER WITH ROLLBACK IMMEDIATE;
     DROP DATABASE [Yarne1.0];

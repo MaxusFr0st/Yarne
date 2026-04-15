@@ -55,6 +55,11 @@ builder.Services.AddDbContext<YarneDbContext>(options =>
 builder.Services.Configure<JwtSettings>(builder.Configuration.GetSection(JwtSettings.SectionName));
 var jwtSettings = builder.Configuration.GetSection(JwtSettings.SectionName).Get<JwtSettings>()
     ?? throw new InvalidOperationException("JWT settings are required");
+var legacyJwtSecret = Environment.GetEnvironmentVariable("JWT_SECRET");
+if (!string.IsNullOrWhiteSpace(legacyJwtSecret))
+{
+    jwtSettings.Secret = legacyJwtSecret;
+}
 if (!builder.Environment.IsDevelopment())
 {
     if (string.IsNullOrWhiteSpace(jwtSettings.Secret)
