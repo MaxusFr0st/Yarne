@@ -42,6 +42,11 @@ if (!builder.Environment.IsDevelopment() && connectionStringBuilder.IntegratedSe
     throw new InvalidOperationException("Production database connection cannot use Integrated Security / Trusted_Connection.");
 }
 
+builder.Logging.AddSimpleConsole(options =>
+{
+    options.TimestampFormat = "yyyy-MM-dd HH:mm:ss ";
+});
+
 builder.Services.AddDbContext<YarneDbContext>(options =>
     options.UseSqlServer(connectionStringBuilder.ConnectionString,
         sqlOptions => sqlOptions.EnableRetryOnFailure(maxRetryCount: 10, maxRetryDelay: TimeSpan.FromSeconds(5), errorNumbersToAdd: null)));
@@ -146,28 +151,51 @@ using (var scope = app.Services.CreateScope())
 {
     var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
     var db = scope.ServiceProvider.GetRequiredService<YarneDbContext>();
-    const int maxAttempts = 20;
-    for (var attempt = 1; attempt <= maxAttempts; attempt++)
+    var runStartupDbPatches = builder.Configuration.GetValue("Database:RunStartupPatches", builder.Environment.IsDevelopment());
+    logger.LogInformation(
+        "Startup DB target: Server={Server}; Database={Database}; RunStartupPatches={RunStartupPatches}",
+        connectionStringBuilder.DataSource,
+        connectionStringBuilder.InitialCatalog,
+        runStartupDbPatches);
+
+    if (runStartupDbPatches)
     {
-        try
+        const int maxAttempts = 20;
+        var startupPatchApplied = false;
+        for (var attempt = 1; attempt <= maxAttempts; attempt++)
         {
-            await db.Database.ExecuteSqlRawAsync(
-                """
-                IF COL_LENGTH('[Order]', 'EstimatedDelivery') IS NULL
-                BEGIN
-                    ALTER TABLE [Order] ADD [EstimatedDelivery] datetime NULL;
-                END
-                """
-            );
-            break;
+            try
+            {
+                await db.Database.ExecuteSqlRawAsync(
+                    """
+                    IF COL_LENGTH('[Order]', 'EstimatedDelivery') IS NULL
+                    BEGIN
+                        ALTER TABLE [Order] ADD [EstimatedDelivery] datetime NULL;
+                    END
+                    """
+                );
+                startupPatchApplied = true;
+                break;
+            }
+            catch (Exception ex) when (attempt < maxAttempts)
+            {
+                var delay = TimeSpan.FromSeconds(Math.Min(30, attempt * 3));
+                logger.LogWarning(ex,
+                    "Database is not ready yet during startup. Attempt {Attempt}/{MaxAttempts}. Retrying in {DelaySeconds}s.",
+                    attempt, maxAttempts, delay.TotalSeconds);
+                await Task.Delay(delay);
+            }
         }
-        catch (Exception ex) when (attempt < maxAttempts)
+
+        if (!startupPatchApplied)
         {
-            var delay = TimeSpan.FromSeconds(Math.Min(30, attempt * 3));
-            logger.LogWarning(ex,
-                "Database is not ready yet during startup. Attempt {Attempt}/{MaxAttempts}. Retrying in {DelaySeconds}s.",
-                attempt, maxAttempts, delay.TotalSeconds);
-            await Task.Delay(delay);
+            const string message = "Startup database patch could not be applied after retries.";
+            if (app.Environment.IsDevelopment())
+            {
+                throw new InvalidOperationException(message);
+            }
+
+            logger.LogError("{Message} Continuing startup; endpoints needing DB may fail until connectivity is fixed.", message);
         }
     }
 }
@@ -213,6 +241,7 @@ app.UseCors();
 app.UseRateLimiter();
 app.UseAuthentication();
 app.UseAuthorization();
+app.MapGet("/healthz", () => Results.Ok(new { status = "ok" }));
 app.MapControllers();
 
 app.Run();
