@@ -28,20 +28,14 @@ Keep existing:
 - `MSSQL_PID=Developer`
 - `MSSQL_SA_PASSWORD=<strong password>`
 
-If `/.system` error still continues, switch DB image tag to:
+If `/.system` error continues, use this repo's DB Dockerfile:
 
-- `mcr.microsoft.com/mssql/server:2019-latest`
-
-Then redeploy DB service.
-
-If it still fails with `/.system` permission errors, use the custom DB Dockerfile from this repo:
-
-- Path: `YarneDB/Dockerfile.railway-mssql`
+- Path: `YarneDB/Dockerfile`
+- Base image: `mcr.microsoft.com/mssql/server:2019-latest`
 - It pre-creates `/.system` and SQL directories with `mssql` user ownership before startup.
 - In Railway DB service settings:
   - Source repo: this repository
   - Root directory: `YarneDB`
-  - Dockerfile path: `Dockerfile.railway-mssql`
 
 This is the most reliable workaround when SQL Server 2022 non-root startup conflicts with platform filesystem constraints.
 
