@@ -34,6 +34,17 @@ If `/.system` error still continues, switch DB image tag to:
 
 Then redeploy DB service.
 
+If it still fails with `/.system` permission errors, use the custom DB Dockerfile from this repo:
+
+- Path: `YarneDB/Dockerfile.railway-mssql`
+- It pre-creates `/.system` and SQL directories with `mssql` user ownership before startup.
+- In Railway DB service settings:
+  - Source repo: this repository
+  - Root directory: `YarneDB`
+  - Dockerfile path: `Dockerfile.railway-mssql`
+
+This is the most reliable workaround when SQL Server 2022 non-root startup conflicts with platform filesystem constraints.
+
 ## 3) Backend variables (exact format)
 
 Set these in backend service (`mindful-flexibility`):
