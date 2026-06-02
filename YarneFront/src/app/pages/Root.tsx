@@ -1,9 +1,11 @@
 import { Outlet, useLocation, useNavigationType } from "react-router";
 import { useEffect, useLayoutEffect, useRef } from "react";
+import { useTranslation } from "react-i18next";
 import { Header } from "../components/Header";
 import { CartDrawer } from "../components/CartDrawer";
 import { LoginModal } from "../components/LoginModal";
 import { Footer } from "../components/Footer";
+import { getLocaleFromPath } from "../i18n/useLocale";
 
 const SCROLL_STORAGE_KEY = "yarne.scroll.positions.v2";
 
@@ -36,10 +38,21 @@ export function Root() {
   const navigationType = useNavigationType();
   const positionsRef = useRef<ScrollPositions>(readScrollPositions());
   const rafRef = useRef<number | null>(null);
+  const { i18n } = useTranslation();
 
   const routeKey = `${location.pathname}${location.search}`;
   const routeStorageKey = `route:${routeKey}`;
   const entryStorageKey = location.key ? `entry:${location.key}` : "";
+
+  // URL is the source of truth: keep i18next + <html lang> in sync with it.
+  useEffect(() => {
+    const fromPath = getLocaleFromPath(location.pathname);
+    if (!fromPath) return;
+    if (i18n.language !== fromPath) void i18n.changeLanguage(fromPath);
+    if (typeof document !== "undefined") {
+      document.documentElement.lang = fromPath;
+    }
+  }, [location.pathname, i18n]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;

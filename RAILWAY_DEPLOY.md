@@ -1,88 +1,109 @@
-# Railway Deployment Runbook (Yarne)
+# Railway Deployment (Yarne) — PostgreSQL + Code-First
 
-This runbook is specific to this repository:
+This runbook matches the current stack:
 
-- Frontend: `YarneFront`
-- Backend: `YarneBack/YarneAPIBack/YarneAPIBack`
-- Database scripts: `YarneDB/SQLQuery1.sql` + `YarneDB/Migrations/*.sql`
+- **Frontend**: `YarneFront/` (Vite → `serve` on port 8080)
+- **Backend**: `YarneBack/YarneAPIBack/YarneAPIBack/` (.NET 9, Npgsql, EF migrations on startup)
+- **Database**: Railway **PostgreSQL** plugin (no SQL Server container, no `YarneDB/*.sql` for deploy)
 
-## 1) Current status
+## Railway services (3)
 
-- Backend container is healthy when `GET /healthz` returns `{"status":"ok"}`.
-- If `/api/*` returns 500 with long duration, DB connectivity is failing.
-- Your DB logs show SQL Server is crashing at startup with:
-  - `Error: The system directory [/.system] could not be created ... Permission denied`
+| Service | Root directory | Config file |
+|---------|----------------|-------------|
+| **Postgres** | (Railway plugin) | — |
+| **API** | `YarneBack/YarneAPIBack/YarneAPIBack` | `railway.toml` |
+| **Frontend** | `YarneFront` | `railway.toml` |
 
-## 2) Fix SQL Server service startup first
+## Deploy files in this repo
 
-In Railway DB service (`server`), set these extra variables:
+| File | Role |
+|------|------|
+| `YarneBack/.../railway.toml` | Docker build, health check `GET /healthz`, restart on failure |
+| `YarneFront/railway.toml` | Docker build, health check `GET /`, restart on failure |
+| `YarneBack/.../Dockerfile` | Multi-stage .NET publish, `PORT` + `ASPNETCORE_URLS` |
+| `YarneFront/Dockerfile` | Vite build with `VITE_API_URL`, static `serve` |
+| `railway.env.example` | Variable template (no real secrets) |
 
-- `HOME=/var/opt/mssql`
-- `MSSQL_DATA_DIR=/var/opt/mssql/data`
-- `MSSQL_LOG_DIR=/var/opt/mssql/log`
-- `MSSQL_BACKUP_DIR=/var/opt/mssql/backups`
+## .NET classes / mechanisms (Railway parity)
 
-Keep existing:
+| Class | Mechanism |
+|-------|-----------|
+| `RailwayDatabaseConfiguration` | Resolves `DATABASE_URL`, `DATABASE_PUBLIC_URL`, `PG*`, or appsettings; rejects unresolved `${{...}}` and SQL Server strings; sets SSL for public hosts |
+| `PostgresConnection` | Normalizes `postgres://` URLs → Npgsql connection string |
+| `DatabaseStartup` | Retries `MigrateAsync()` until Postgres is ready |
+| `ProductionStartupValidator` | Fails fast in Production if `Jwt__Secret` is missing/weak |
+| `SeedData` | Dev-only sample products (skipped in Production) |
+| `Program.cs` | Binds `PORT`, `GET /healthz`, forwarded headers, CORS, JWT (`JWT_SECRET` fallback) |
 
-- `ACCEPT_EULA=Y`
-- `MSSQL_PID=Developer`
-- `MSSQL_SA_PASSWORD=<strong password>`
+Schema is applied by **EF Core migrations** (`Data/Migrations/`) on API startup — not by SQL scripts.
 
-If `/.system` error continues, use this repo's DB Dockerfile:
+## 1) Create Postgres on Railway
 
-- Path: `YarneDB/Dockerfile`
-- Base image: `mcr.microsoft.com/mssql/server:2019-latest`
-- It uses the official SQL Server 2019 startup behavior (no custom user/permission overrides).
-- In Railway DB service settings:
-  - Source repo: this repository
-  - Root directory: `YarneDB`
+1. In your project: **+ New** → **Database** → **PostgreSQL**.
+2. On the **API** service → **Variables** → **Add variable reference** → select Postgres → **`DATABASE_URL`**.
+3. Do **not** use a raw `${{Postgres.DATABASE_URL}}` string unless it is linked; unresolved `${{...}}` is ignored by the API.
 
-This is the most reliable workaround when SQL Server 2022 non-root startup conflicts with platform filesystem constraints.
+## 2) Backend service (API)
 
-## 3) Backend variables (exact format)
+**Settings**
 
-Set these in backend service (`mindful-flexibility`):
+- **Root Directory**: `YarneBack/YarneAPIBack/YarneAPIBack`
+- **Builder**: Dockerfile (from `railway.toml`)
 
-- `ASPNETCORE_ENVIRONMENT=Production`
-- `ASPNETCORE_URLS=http://0.0.0.0:8080`
-- `DATABASE_URL=Server=${{server.RAILWAY_PRIVATE_DOMAIN}},${{server.RAILWAY_TCP_APPLICATION_PORT}};Database=Yarne1.0;User Id=sa;Password=${{server.MSSQL_SA_PASSWORD}};TrustServerCertificate=True;Encrypt=False;`
-- `ConnectionStrings__DefaultConnection=Server=${{server.RAILWAY_PRIVATE_DOMAIN}},${{server.RAILWAY_TCP_APPLICATION_PORT}};Database=Yarne1.0;User Id=sa;Password=${{server.MSSQL_SA_PASSWORD}};TrustServerCertificate=True;Encrypt=False;`
-- `Jwt__Issuer=YarneAPI`
-- `Jwt__Audience=YarneApp`
-- `Jwt__Secret=<new strong secret>`
-- `Cors__AllowedOrigins__0=https://yarne-production.up.railway.app`
+**Variables** (see `railway.env.example`):
 
-Notes:
+| Variable | Purpose |
+|----------|---------|
+| `DATABASE_URL` | Reference from linked Postgres (required) |
+| `ASPNETCORE_ENVIRONMENT` | `Production` (also set in Dockerfile) |
+| `ASPNETCORE_URLS` | `http://0.0.0.0:8080` (optional; `PORT` is also honored) |
+| `Jwt__Issuer` | `YarneAPI` |
+| `Jwt__Audience` | `YarneApp` |
+| `Jwt__Secret` | Strong secret, ≥ 32 chars (or `JWT_SECRET`) |
+| `Cors__AllowedOrigins__0` | `https://<your-frontend-domain>` |
 
-- Do not wrap values in quotes.
-- `JWT_SECRET` is now supported as fallback by backend code, but use `Jwt__Secret` as canonical.
+Do **not** wrap values in quotes.
 
-## 4) Frontend variables
+**Health check**: Railway uses `GET /healthz` → `{"status":"ok"}` (DB not required).
 
-In frontend service (`Yarne`):
+**After deploy**: API runs migrations automatically. Check logs for `Database migrations applied successfully.`
 
-- `VITE_API_URL=https://mindful-flexibility-production.up.railway.app`
+## 3) Frontend service
 
-## 5) Database initialization order (SQL scripts)
+**Settings**
 
-After DB service is stable, initialize schema in this order:
+- **Root Directory**: `YarneFront`
 
-1. `YarneDB/SQLQuery1.sql`
-2. `YarneDB/Migrations/001_AddProductImage_Table.sql`
-3. `YarneDB/Migrations/002_PromoteMaxToAdmin.sql`
-4. `YarneDB/Migrations/003_AddColor_Table.sql`
-5. `YarneDB/Migrations/004_AddProductColorImage.sql`
-6. `YarneDB/Migrations/005_AddSizeAndColorSizeImageModel.sql`
+**Variables**
 
-Important:
+| Variable | Purpose |
+|----------|---------|
+| `VITE_API_URL` | `https://<your-api-domain>` (no trailing slash) |
 
-- `YarneDB/SQLQuery1.sql` is now production-safe by default (`@ResetDatabase = 0`).
-- Set `@ResetDatabase = 1` only for local destructive reset.
+Rebuild/redeploy frontend after changing this (baked into Vite build).
 
-## 6) Verification checklist
+**Health check**: `GET /` (static index).
 
-1. DB logs: no `/.system` errors and SQL is listening.
-2. Backend: `GET /healthz` returns 200.
-3. Backend: `GET /api/products` returns 200.
-4. Frontend loads products from production API URL.
+## 4) Verification
 
+1. API: `GET https://<api>/healthz` → 200
+2. API: `GET https://<api>/api/products` → 200 (needs DB + migrations)
+3. Frontend loads and calls the API URL from `VITE_API_URL`
+
+## 5) Troubleshooting
+
+| Symptom | Likely cause |
+|---------|----------------|
+| API crash on startup: “No PostgreSQL connection configured” | `DATABASE_URL` missing or still `${{...}}` unresolved — use **variable reference** from Postgres |
+| `/healthz` OK, `/api/*` 500 | DB not linked, migrations failed, or wrong credentials |
+| CORS errors | `Cors__AllowedOrigins__0` must match exact frontend origin (scheme + host) |
+| Frontend calls wrong API | `VITE_API_URL` wrong or frontend not redeployed after change |
+
+## 6) Local vs Railway
+
+- **Local `appsettings`**: still has SQL Server-style `DefaultConnection` for legacy/local use; **do not rely on it on Railway**.
+- **Railway**: always use linked **`DATABASE_URL`** (Postgres).
+
+## 7) Deprecated (old SQL Server deploy)
+
+Do **not** deploy `YarneDB/Dockerfile` or run `YarneDB/SQLQuery1.sql` for production anymore unless you intentionally maintain a SQL Server fork.

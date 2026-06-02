@@ -13,6 +13,15 @@ import {
   type HomeSectionsSelection,
 } from "../utils/homeSectionsSelection";
 import {
+  DEFAULT_SHOWCASE_EYEBROW,
+  DEFAULT_SHOWCASE_TITLE,
+  getFeaturedShowcaseSelection,
+  saveFeaturedShowcaseSelection,
+  type FeaturedShowcaseSelection,
+  type ShowcaseProductSlot,
+  type ShowcaseTextSlot,
+} from "../utils/featuredShowcaseSelection";
+import {
   LayoutDashboard,
   Package,
   Users,
@@ -1363,6 +1372,10 @@ export function AdminPage() {
   const [orderDeliveryDrafts, setOrderDeliveryDrafts] = useState<Record<number, string>>({});
   const [carouselProductCodes, setCarouselProductCodes] = useState<string[]>([]);
   const [homeSectionsSelection, setHomeSectionsSelection] = useState<HomeSectionsSelection>(getHomeSectionsSelection);
+  const [featuredShowcaseSelection, setFeaturedShowcaseSelectionState] =
+    useState<FeaturedShowcaseSelection>(getFeaturedShowcaseSelection);
+  const [showcaseUploading, setShowcaseUploading] = useState<Record<string, boolean>>({});
+  const [showcaseUploadError, setShowcaseUploadError] = useState<string | null>(null);
 
   const [productModal, setProductModal] = useState<{ open: boolean; editing: AdminProduct | null }>({ open: false, editing: null });
   const [userModal, setUserModal] = useState<{ open: boolean }>({ open: false });
@@ -1406,6 +1419,7 @@ export function AdminPage() {
       const { productCodes } = getCarouselSelection();
       setCarouselProductCodes(productCodes);
       setHomeSectionsSelection(getHomeSectionsSelection());
+      setFeaturedShowcaseSelectionState(getFeaturedShowcaseSelection());
     };
     syncSelection();
     if (typeof window === "undefined") return;
@@ -1495,6 +1509,47 @@ export function AdminPage() {
       ...homeSectionsSelection,
       moreFromCollectionProductCodes: homeSectionsSelection.moreFromCollectionProductCodes.filter((code) => code !== productCode),
     });
+  };
+
+  const updateFeaturedShowcaseSelection = (next: FeaturedShowcaseSelection) => {
+    const saved = saveFeaturedShowcaseSelection(next);
+    setFeaturedShowcaseSelectionState(saved);
+  };
+
+  const updateShowcaseProductSlot = (
+    slotKey: "slot1" | "slot2" | "slot4",
+    patch: Partial<ShowcaseProductSlot>
+  ) => {
+    updateFeaturedShowcaseSelection({
+      ...featuredShowcaseSelection,
+      [slotKey]: { ...featuredShowcaseSelection[slotKey], ...patch },
+    });
+  };
+
+  const updateShowcaseTextSlot = (patch: Partial<ShowcaseTextSlot>) => {
+    updateFeaturedShowcaseSelection({
+      ...featuredShowcaseSelection,
+      slot3: { ...featuredShowcaseSelection.slot3, ...patch },
+    });
+  };
+
+  const handleShowcaseImageUpload = async (
+    slotKey: "slot1" | "slot2" | "slot4",
+    file: File | null
+  ) => {
+    if (!file) return;
+    setShowcaseUploadError(null);
+    setShowcaseUploading((prev) => ({ ...prev, [slotKey]: true }));
+    try {
+      const url = await uploadImage(file);
+      updateShowcaseProductSlot(slotKey, { imageUrl: url });
+    } catch (err) {
+      setShowcaseUploadError(
+        err instanceof Error ? err.message : "Image upload failed"
+      );
+    } finally {
+      setShowcaseUploading((prev) => ({ ...prev, [slotKey]: false }));
+    }
   };
 
   const addToCarousel = (productCode: string) => {
@@ -1786,7 +1841,7 @@ export function AdminPage() {
       )}
       {/* Admin Page Header */}
       <section
-        className="pt-24 pb-8 md:pt-28 md:pb-10"
+        className="pt-20 pb-6 md:pt-24 md:pb-8"
         style={{ borderBottom: "1px solid rgba(45,36,30,0.08)" }}
       >
         <div className="max-w-[1400px] mx-auto px-6 md:px-10">
@@ -1861,7 +1916,7 @@ export function AdminPage() {
 
       {/* Tab Nav */}
       <div
-        className="sticky top-[calc(60px+max(env(safe-area-inset-top),12px))] md:top-[calc(96px+max(env(safe-area-inset-top),12px))] z-30"
+        className="sticky top-[var(--main-header-h)] z-30"
         style={{
           backgroundColor: "rgba(245,242,237,0.95)",
           backdropFilter: "blur(16px)",
@@ -2048,45 +2103,7 @@ export function AdminPage() {
               exit={{ opacity: 0, y: -10 }}
               transition={{ duration: 0.4, ease: easing }}
             >
-              <div className="mb-8">
-                <p
-                  className="text-[#2D241E]/40 tracking-widest uppercase text-xs mb-2"
-                  style={{ fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.14em" }}
-                >
-                  Website Content Management
-                </p>
-                <h2
-                  className="text-[#2D241E]"
-                  style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "clamp(1.4rem, 3vw, 2rem)", fontWeight: 400 }}
-                >
-                  Contents
-                </h2>
-                <p className="text-[#2D241E]/50 text-sm mt-1" style={{ fontFamily: "'DM Sans', sans-serif" }}>
-                  Manage content blocks shown across the storefront sections.
-                </p>
-              </div>
-
-              <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-                {[
-                  { name: "Hero Section", status: "Coming soon" },
-                  { name: "Collection Highlights", status: "Active editor below" },
-                  { name: "Lookbook", status: "Coming soon" },
-                  { name: "Best Sellers Carousel", status: "Active editor below" },
-                ].map((section) => (
-                  <div
-                    key={section.name}
-                    className="rounded-[20px] p-4"
-                    style={{ backgroundColor: "#EDE9E2", border: "1px solid rgba(45,36,30,0.08)" }}
-                  >
-                    <p className="text-[#2D241E] text-sm" style={{ fontFamily: "'DM Sans', sans-serif" }}>
-                      {section.name}
-                    </p>
-                    <p className="text-[#2D241E]/45 text-xs mt-1" style={{ fontFamily: "'DM Sans', sans-serif" }}>
-                      {section.status}
-                    </p>
-                  </div>
-                ))}
-              </div>
+              {/* Removed static content tiles to declutter admin UI */}
 
               {/* Carousel Editor */}
               <div className="rounded-[28px] overflow-hidden mb-8" style={{ border: "1px solid rgba(45,36,30,0.08)" }}>
@@ -2333,6 +2350,306 @@ export function AdminPage() {
                           </div>
                         );
                       })}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Featured Showcase Editor */}
+              <div className="rounded-[28px] overflow-hidden mb-8" style={{ border: "1px solid rgba(45,36,30,0.08)" }}>
+                <div className="px-6 py-4" style={{ backgroundColor: "rgba(45,36,30,0.03)", borderBottom: "1px solid rgba(45,36,30,0.06)" }}>
+                  <p className="text-[#2D241E] uppercase tracking-widest text-xs" style={{ fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.12em" }}>
+                    Featured Showcase
+                  </p>
+                  <p className="text-[#2D241E]/45 text-xs mt-1" style={{ fontFamily: "'DM Sans', sans-serif" }}>
+                    Editorial grid on the home page. Pick a product per slot, upload its image, and clicks open the product page.
+                  </p>
+                </div>
+
+                <div className="px-6 py-5 space-y-6">
+                  {/* Section heading inputs */}
+                  <div className="grid sm:grid-cols-2 gap-4">
+                    <div>
+                      <p className="text-[#2D241E]/45 text-xs uppercase tracking-widest mb-2" style={{ fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.1em" }}>
+                        Eyebrow
+                      </p>
+                      <input
+                        type="text"
+                        value={featuredShowcaseSelection.eyebrow}
+                        onChange={(e) =>
+                          updateFeaturedShowcaseSelection({
+                            ...featuredShowcaseSelection,
+                            eyebrow: e.target.value,
+                          })
+                        }
+                        placeholder={DEFAULT_SHOWCASE_EYEBROW}
+                        className="w-full rounded-[14px] border bg-transparent px-4 py-2.5 text-[#2D241E] focus:outline-none"
+                        style={{ borderColor: "rgba(45,36,30,0.15)", fontFamily: "'DM Sans', sans-serif", fontSize: "0.85rem" }}
+                      />
+                    </div>
+                    <div>
+                      <p className="text-[#2D241E]/45 text-xs uppercase tracking-widest mb-2" style={{ fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.1em" }}>
+                        Title
+                      </p>
+                      <input
+                        type="text"
+                        value={featuredShowcaseSelection.title}
+                        onChange={(e) =>
+                          updateFeaturedShowcaseSelection({
+                            ...featuredShowcaseSelection,
+                            title: e.target.value,
+                          })
+                        }
+                        placeholder={DEFAULT_SHOWCASE_TITLE}
+                        className="w-full rounded-[14px] border bg-transparent px-4 py-2.5 text-[#2D241E] focus:outline-none"
+                        style={{ borderColor: "rgba(45,36,30,0.15)", fontFamily: "'DM Sans', sans-serif", fontSize: "0.85rem" }}
+                      />
+                    </div>
+                  </div>
+
+                  {showcaseUploadError && (
+                    <div className="rounded-[14px] px-4 py-3" style={{ backgroundColor: "rgba(196,48,48,0.08)", border: "1px solid rgba(196,48,48,0.25)" }}>
+                      <p className="text-xs text-[#C43030]" style={{ fontFamily: "'DM Sans', sans-serif" }}>
+                        {showcaseUploadError}
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Product slots */}
+                  {([
+                    { key: "slot1" as const, label: "Slot 1 — Large (Left)", isLarge: true },
+                    { key: "slot2" as const, label: "Slot 2 — Top Right", isLarge: false },
+                    { key: "slot4" as const, label: "Slot 4 — Bottom Right", isLarge: false },
+                  ]).map(({ key, label, isLarge }) => {
+                    const slot = featuredShowcaseSelection[key];
+                    const linkedProduct = slot.productCode
+                      ? products.find((p) => p.id === slot.productCode) ?? null
+                      : null;
+                    const previewImage = slot.imageUrl || linkedProduct?.colors?.[0]?.image || "";
+                    const isUploading = Boolean(showcaseUploading[key]);
+                    return (
+                      <div
+                        key={key}
+                        className="rounded-[20px] p-4 md:p-5"
+                        style={{ backgroundColor: "rgba(45,36,30,0.03)", border: "1px solid rgba(45,36,30,0.08)" }}
+                      >
+                        <div className="flex items-center justify-between mb-3">
+                          <p
+                            className="text-[#2D241E] uppercase tracking-widest text-xs"
+                            style={{ fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.12em" }}
+                          >
+                            {label}
+                          </p>
+                          {linkedProduct && (
+                            <span
+                              className="text-[10px] px-2 py-0.5 rounded-full uppercase tracking-widest"
+                              style={{
+                                backgroundColor: "rgba(45,106,79,0.08)",
+                                color: "#2D6A4F",
+                                fontFamily: "'DM Sans', sans-serif",
+                                letterSpacing: "0.12em",
+                              }}
+                            >
+                              Linked
+                            </span>
+                          )}
+                        </div>
+
+                        <div className="grid md:grid-cols-[160px_1fr] gap-4">
+                          {/* Image preview & upload */}
+                          <div>
+                            <div
+                              className="relative w-full overflow-hidden rounded-[16px] flex items-center justify-center"
+                              style={{
+                                aspectRatio: isLarge ? "3 / 5" : "1 / 1",
+                                backgroundColor: "#EDE9E2",
+                                border: "1px solid rgba(45,36,30,0.08)",
+                              }}
+                            >
+                              {previewImage ? (
+                                <img src={previewImage} alt="Slot preview" className="w-full h-full object-cover" />
+                              ) : (
+                                <p className="text-[10px] text-[#2D241E]/35 uppercase tracking-widest text-center px-2" style={{ fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.12em" }}>
+                                  No image
+                                </p>
+                              )}
+                            </div>
+
+                            <label
+                              className="mt-3 flex items-center justify-center gap-2 cursor-pointer rounded-full px-4 py-2 transition-all duration-300 hover:opacity-85"
+                              style={{
+                                backgroundColor: "#2D241E",
+                                color: "#F5F2ED",
+                                fontFamily: "'DM Sans', sans-serif",
+                                fontSize: "0.7rem",
+                                letterSpacing: "0.12em",
+                              }}
+                            >
+                              <ImagePlus size={13} />
+                              <span className="uppercase tracking-widest">{isUploading ? "Uploading…" : "Upload Image"}</span>
+                              <input
+                                type="file"
+                                accept="image/*"
+                                className="hidden"
+                                disabled={isUploading}
+                                onChange={(e) => {
+                                  const file = e.target.files?.[0] ?? null;
+                                  handleShowcaseImageUpload(key, file);
+                                  e.target.value = "";
+                                }}
+                              />
+                            </label>
+
+                            {slot.imageUrl && (
+                              <button
+                                type="button"
+                                onClick={() => updateShowcaseProductSlot(key, { imageUrl: "" })}
+                                className="mt-2 w-full text-center text-[11px] text-[#4A0E0E] uppercase tracking-widest"
+                                style={{ fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.12em" }}
+                              >
+                                Clear image
+                              </button>
+                            )}
+                          </div>
+
+                          {/* Form fields */}
+                          <div className="space-y-3">
+                            <div>
+                              <p className="text-[#2D241E]/45 text-xs uppercase tracking-widest mb-1.5" style={{ fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.1em" }}>
+                                Bag (Product)
+                              </p>
+                              <select
+                                value={slot.productCode}
+                                onChange={(e) => updateShowcaseProductSlot(key, { productCode: e.target.value })}
+                                className="w-full rounded-[14px] border bg-transparent px-3 py-2.5 text-[#2D241E] focus:outline-none"
+                                style={{ borderColor: "rgba(45,36,30,0.15)", fontFamily: "'DM Sans', sans-serif", fontSize: "0.85rem" }}
+                              >
+                                <option value="">— Select a product —</option>
+                                {products.map((product) => (
+                                  <option key={`${key}-opt-${product.id}`} value={product.id}>
+                                    {product.name} ({product.sku})
+                                  </option>
+                                ))}
+                              </select>
+                              {linkedProduct && (
+                                <p className="text-[11px] text-[#2D241E]/45 mt-1.5" style={{ fontFamily: "'DM Sans', sans-serif" }}>
+                                  Clicking this tile opens <span className="text-[#2D241E]">/product/{linkedProduct.id}</span>
+                                </p>
+                              )}
+                            </div>
+
+                            <div className="grid sm:grid-cols-2 gap-3">
+                              <div>
+                                <p className="text-[#2D241E]/45 text-xs uppercase tracking-widest mb-1.5" style={{ fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.1em" }}>
+                                  Eyebrow {isLarge ? "" : "(optional)"}
+                                </p>
+                                <input
+                                  type="text"
+                                  value={slot.eyebrow}
+                                  onChange={(e) => updateShowcaseProductSlot(key, { eyebrow: e.target.value })}
+                                  placeholder={isLarge ? "New Season" : ""}
+                                  className="w-full rounded-[14px] border bg-transparent px-3 py-2.5 text-[#2D241E] focus:outline-none"
+                                  style={{ borderColor: "rgba(45,36,30,0.15)", fontFamily: "'DM Sans', sans-serif", fontSize: "0.85rem" }}
+                                />
+                              </div>
+                              <div>
+                                <p className="text-[#2D241E]/45 text-xs uppercase tracking-widest mb-1.5" style={{ fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.1em" }}>
+                                  CTA label {isLarge ? "" : "(optional)"}
+                                </p>
+                                <input
+                                  type="text"
+                                  value={slot.ctaLabel}
+                                  onChange={(e) => updateShowcaseProductSlot(key, { ctaLabel: e.target.value })}
+                                  placeholder={isLarge ? "Discover" : ""}
+                                  className="w-full rounded-[14px] border bg-transparent px-3 py-2.5 text-[#2D241E] focus:outline-none"
+                                  style={{ borderColor: "rgba(45,36,30,0.15)", fontFamily: "'DM Sans', sans-serif", fontSize: "0.85rem" }}
+                                />
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+
+                  {/* Slot 3 — Text card */}
+                  <div
+                    className="rounded-[20px] p-4 md:p-5"
+                    style={{ backgroundColor: "rgba(45,36,30,0.03)", border: "1px solid rgba(45,36,30,0.08)" }}
+                  >
+                    <div className="flex items-center justify-between mb-3">
+                      <p
+                        className="text-[#2D241E] uppercase tracking-widest text-xs"
+                        style={{ fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.12em" }}
+                      >
+                        Slot 3 — Story Card (text)
+                      </p>
+                      <span
+                        className="text-[10px] px-2 py-0.5 rounded-full uppercase tracking-widest"
+                        style={{
+                          backgroundColor: "rgba(45,36,30,0.08)",
+                          color: "#2D241E",
+                          fontFamily: "'DM Sans', sans-serif",
+                          letterSpacing: "0.12em",
+                        }}
+                      >
+                        Editorial
+                      </span>
+                    </div>
+
+                    <div className="grid sm:grid-cols-2 gap-3">
+                      <div>
+                        <p className="text-[#2D241E]/45 text-xs uppercase tracking-widest mb-1.5" style={{ fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.1em" }}>
+                          Eyebrow
+                        </p>
+                        <input
+                          type="text"
+                          value={featuredShowcaseSelection.slot3.eyebrow}
+                          onChange={(e) => updateShowcaseTextSlot({ eyebrow: e.target.value })}
+                          placeholder="The Craft"
+                          className="w-full rounded-[14px] border bg-transparent px-3 py-2.5 text-[#2D241E] focus:outline-none"
+                          style={{ borderColor: "rgba(45,36,30,0.15)", fontFamily: "'DM Sans', sans-serif", fontSize: "0.85rem" }}
+                        />
+                      </div>
+                      <div>
+                        <p className="text-[#2D241E]/45 text-xs uppercase tracking-widest mb-1.5" style={{ fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.1em" }}>
+                          CTA label
+                        </p>
+                        <input
+                          type="text"
+                          value={featuredShowcaseSelection.slot3.ctaLabel}
+                          onChange={(e) => updateShowcaseTextSlot({ ctaLabel: e.target.value })}
+                          placeholder="Read our story"
+                          className="w-full rounded-[14px] border bg-transparent px-3 py-2.5 text-[#2D241E] focus:outline-none"
+                          style={{ borderColor: "rgba(45,36,30,0.15)", fontFamily: "'DM Sans', sans-serif", fontSize: "0.85rem" }}
+                        />
+                      </div>
+                      <div className="sm:col-span-2">
+                        <p className="text-[#2D241E]/45 text-xs uppercase tracking-widest mb-1.5" style={{ fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.1em" }}>
+                          Heading
+                        </p>
+                        <textarea
+                          value={featuredShowcaseSelection.slot3.heading}
+                          onChange={(e) => updateShowcaseTextSlot({ heading: e.target.value })}
+                          placeholder="Every stitch tells a story of patience and precision."
+                          rows={2}
+                          className="w-full rounded-[14px] border bg-transparent px-3 py-2.5 text-[#2D241E] focus:outline-none resize-y"
+                          style={{ borderColor: "rgba(45,36,30,0.15)", fontFamily: "'DM Sans', sans-serif", fontSize: "0.9rem" }}
+                        />
+                      </div>
+                      <div className="sm:col-span-2">
+                        <p className="text-[#2D241E]/45 text-xs uppercase tracking-widest mb-1.5" style={{ fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.1em" }}>
+                          CTA link (path or URL)
+                        </p>
+                        <input
+                          type="text"
+                          value={featuredShowcaseSelection.slot3.ctaHref}
+                          onChange={(e) => updateShowcaseTextSlot({ ctaHref: e.target.value })}
+                          placeholder="/about"
+                          className="w-full rounded-[14px] border bg-transparent px-3 py-2.5 text-[#2D241E] focus:outline-none"
+                          style={{ borderColor: "rgba(45,36,30,0.15)", fontFamily: "'DM Sans', sans-serif", fontSize: "0.85rem" }}
+                        />
+                      </div>
                     </div>
                   </div>
                 </div>

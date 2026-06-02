@@ -181,7 +181,7 @@ public partial class YarneDbContext : DbContext
 
             entity.HasIndex(e => e.UserName, "UQ__Customer__C9F28456D44CA5C3").IsUnique();
 
-            entity.Property(e => e.CreatedAt).HasDefaultValueSql("(getdate())");
+            entity.Property(e => e.CreatedAt).HasDefaultValueSql("CURRENT_TIMESTAMP");
             entity.Property(e => e.Email).HasMaxLength(255);
             entity.Property(e => e.FirstName).HasMaxLength(100);
             entity.Property(e => e.IsActive).HasDefaultValue(true);
@@ -219,7 +219,7 @@ public partial class YarneDbContext : DbContext
 
             entity.ToTable("CustomerRole");
 
-            entity.Property(e => e.AssignedAt).HasDefaultValueSql("(getdate())");
+            entity.Property(e => e.AssignedAt).HasDefaultValueSql("CURRENT_TIMESTAMP");
 
             entity.HasOne(d => d.Customer).WithMany(p => p.CustomerRoles)
                 .HasForeignKey(d => d.CustomerId)
@@ -236,8 +236,8 @@ public partial class YarneDbContext : DbContext
 
             entity.ToTable("Order");
 
-            entity.Property(e => e.OrderDate).HasDefaultValueSql("(getdate())");
-            entity.Property(e => e.EstimatedDelivery).HasColumnType("datetime");
+            entity.Property(e => e.OrderDate).HasDefaultValueSql("CURRENT_TIMESTAMP");
+            entity.Property(e => e.EstimatedDelivery).HasColumnType("timestamp without time zone");
             entity.Property(e => e.Status)
                 .HasMaxLength(50)
                 .HasDefaultValue("Pending");
@@ -298,7 +298,7 @@ public partial class YarneDbContext : DbContext
             entity.ToTable("ProductImage");
 
             entity.Property(e => e.ImageUrl).HasMaxLength(500);
-            entity.Property(e => e.CreatedAt).HasDefaultValueSql("(getdate())");
+            entity.Property(e => e.CreatedAt).HasDefaultValueSql("CURRENT_TIMESTAMP");
 
             entity.HasOne(d => d.Product).WithMany(p => p.ProductImages)
                 .HasForeignKey(d => d.ProductId)
@@ -313,7 +313,7 @@ public partial class YarneDbContext : DbContext
 
             entity.HasIndex(e => e.ProductCode, "UQ__Product__2F4E024F20B6D95F").IsUnique();
 
-            entity.Property(e => e.CreatedAt).HasDefaultValueSql("(getdate())");
+            entity.Property(e => e.CreatedAt).HasDefaultValueSql("CURRENT_TIMESTAMP");
             entity.Property(e => e.ImageUrl).HasMaxLength(500);
             entity.Property(e => e.IsActive).HasDefaultValue(true);
             entity.Property(e => e.Material).HasMaxLength(100);

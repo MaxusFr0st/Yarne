@@ -1,12 +1,14 @@
-import { useMemo, useState } from "react";
-import { Link } from "react-router";
+import React, { useMemo, useState } from "react";
 import { motion } from "motion/react";
 import { ArrowRight, CheckCircle2, Package, ShoppingBag } from "lucide-react";
 import { createOrder, type OrderDto } from "../api/orders";
 import { useApp, type CartItem } from "../context/AppContext";
 import { ImageWithFallback } from "../components/figma/ImageWithFallback";
+import { LangLink } from "../i18n/LangLink";
 
 const easing = [0.25, 0.1, 0.25, 1] as const;
+const ORDER_ITEM_PLACEHOLDER =
+  "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='400' viewBox='0 0 400 400'%3E%3Crect fill='%23EDE9E2' width='400' height='400'/%3E%3Cpath d='M120 220l50-60 50 60 30-40 40 60H110z' fill='%232D241E' fill-opacity='0.18'/%3E%3Ccircle cx='150' cy='150' r='18' fill='%232D241E' fill-opacity='0.18'/%3E%3C/svg%3E";
 
 function toDisplayDate(value: string): string {
   const date = new Date(value);
@@ -74,9 +76,9 @@ export function CheckoutPage() {
           >
             Open Login
           </button>
-          <Link to="/collection" className="inline-block mt-4 text-[#2D241E]/50 hover:text-[#4A0E0E] transition-colors" style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "0.85rem" }}>
+          <LangLink to="/collection" className="inline-block mt-4 text-[#2D241E]/50 hover:text-[#4A0E0E] transition-colors" style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "0.85rem" }}>
             Back to collection
-          </Link>
+          </LangLink>
         </motion.div>
       </main>
     );
@@ -100,14 +102,14 @@ export function CheckoutPage() {
           <p className="text-[#2D241E]/50 mb-8" style={{ fontFamily: "'DM Sans', sans-serif", lineHeight: 1.7 }}>
             Add pieces to your bag to review checkout details.
           </p>
-          <Link
+          <LangLink
             to="/collection"
             className="inline-flex items-center gap-2 px-8 py-4 rounded-full text-[#F5F2ED] uppercase tracking-widest transition-all duration-300 hover:opacity-90"
             style={{ backgroundColor: "#2D241E", fontFamily: "'DM Sans', sans-serif", fontSize: "0.78rem", letterSpacing: "0.13em" }}
           >
             <span>Go Shopping</span>
             <ArrowRight size={15} />
-          </Link>
+          </LangLink>
         </motion.div>
       </main>
     );
@@ -155,30 +157,38 @@ export function CheckoutPage() {
           </div>
 
           <div className="space-y-4">
-            {activeItems.map((item) => (
-              <div
-                key={item.cartId}
-                className="rounded-[22px] p-4 md:p-5 flex gap-4"
-                style={{ border: "1px solid rgba(45,36,30,0.08)", backgroundColor: "rgba(45,36,30,0.02)" }}
-              >
-                <div className="w-20 h-24 rounded-[16px] overflow-hidden bg-[#EDE9E2] flex-shrink-0">
-                  <ImageWithFallback src={item.image} alt={item.name} className="w-full h-full object-cover" />
-                </div>
-                <div className="flex-1 flex flex-col justify-between">
-                  <div>
-                    <p className="text-[#2D241E]" style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "1.08rem", fontWeight: 500 }}>
-                      {item.name}
-                    </p>
-                    <p className="text-[#2D241E]/55 text-xs mt-1" style={{ fontFamily: "'DM Sans', sans-serif" }}>
-                      {item.color} · Size {item.size} · Qty {item.quantity}
-                    </p>
+            {activeItems.map((item) => {
+              const productHref = item.productId ? `/product/${item.productId}` : "/collection";
+              const imageSrc = item.image || ORDER_ITEM_PLACEHOLDER;
+              return (
+                <LangLink
+                  key={item.cartId}
+                  to={productHref}
+                  className="block rounded-[22px] p-4 md:p-5"
+                  style={{ border: "1px solid rgba(45,36,30,0.08)", backgroundColor: "rgba(45,36,30,0.02)" }}
+                  aria-label={`Open ${item.name}`}
+                >
+                  <div className="flex gap-4">
+                    <div className="w-20 h-24 rounded-[16px] overflow-hidden bg-[#EDE9E2] flex-shrink-0">
+                      <ImageWithFallback src={imageSrc} alt={item.name} className="w-full h-full object-contain" />
+                    </div>
+                    <div className="flex-1 flex flex-col justify-between min-w-0">
+                      <div>
+                        <p className="text-[#2D241E]" style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "1.08rem", fontWeight: 500 }}>
+                          {item.name}
+                        </p>
+                        <p className="text-[#2D241E]/55 text-xs mt-1" style={{ fontFamily: "'DM Sans', sans-serif" }}>
+                          {item.color} · Size {item.size} · Qty {item.quantity}
+                        </p>
+                      </div>
+                      <p className="text-[#2D241E]" style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "1.05rem", fontWeight: 500 }}>
+                        €{(item.price * item.quantity).toLocaleString()}
+                      </p>
+                    </div>
                   </div>
-                  <p className="text-[#2D241E]" style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "1.05rem", fontWeight: 500 }}>
-                    €{(item.price * item.quantity).toLocaleString()}
-                  </p>
-                </div>
-              </div>
-            ))}
+                </LangLink>
+              );
+            })}
           </div>
 
           {error && (
@@ -234,14 +244,14 @@ export function CheckoutPage() {
                 <p className="text-[#2D241E]/70">Payment: <span className="text-[#2D241E]">{placedOrder.paymentMethodName}</span></p>
                 <p className="text-[#2D241E]/70">Items in order: <span className="text-[#2D241E]">{placedOrder.items.length}</span></p>
               </div>
-              <Link
+              <LangLink
                 to="/account"
                 className="mt-6 inline-flex items-center gap-2 text-[#4A0E0E] hover:opacity-80 transition-opacity text-sm"
                 style={{ fontFamily: "'DM Sans', sans-serif" }}
               >
                 View in account
                 <ArrowRight size={14} />
-              </Link>
+              </LangLink>
             </div>
           ) : (
             <button

@@ -11,7 +11,9 @@ FROM mcr.microsoft.com/dotnet/aspnet:9.0 AS final
 WORKDIR /app
 
 EXPOSE 8080
+ENV ASPNETCORE_ENVIRONMENT=Production
 ENV ASPNETCORE_HTTP_PORTS=8080
+ENV ASPNETCORE_URLS=http://0.0.0.0:8080
 
 COPY --from=build /app/publish .
 ENTRYPOINT ["dotnet", "YarneAPIBack.dll"]

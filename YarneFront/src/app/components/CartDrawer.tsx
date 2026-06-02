@@ -1,11 +1,11 @@
 import { motion, AnimatePresence } from "motion/react";
 import { X, Minus, Plus, ShoppingBag, ArrowRight } from "lucide-react";
-import { useNavigate } from "react-router";
 import { useApp } from "../context/AppContext";
 import { ImageWithFallback } from "./figma/ImageWithFallback";
+import { useLangNavigate } from "../i18n/useLangNavigate";
 
 export function CartDrawer() {
-  const navigate = useNavigate();
+  const navigate = useLangNavigate();
   const { cartItems, cartOpen, closeCart, removeFromCart, updateQuantity, cartTotal } = useApp();
 
   return (

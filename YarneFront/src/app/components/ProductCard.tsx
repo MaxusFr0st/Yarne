@@ -1,10 +1,13 @@
 import React, { useState, type MouseEvent } from "react";
-import { Link } from "react-router";
 import { motion, AnimatePresence } from "motion/react";
 import { Heart, ShoppingBag } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import type { Product } from "../types/product";
 import { useApp } from "../context/AppContext";
 import { ImageWithFallback } from "./figma/ImageWithFallback";
+import { LangLink } from "../i18n/LangLink";
+import { useLocale } from "../i18n/useLocale";
+import { formatPrice } from "../i18n/format";
 
 interface ProductCardProps {
   product: Product;
@@ -17,6 +20,8 @@ interface ProductCardProps {
 }
 
 export function ProductCard({ product, index = 0, size = "medium", inCarousel = false, viewportRoot }: ProductCardProps) {
+  const { t } = useTranslation();
+  const locale = useLocale();
   const [activeColor, setActiveColor] = useState(0);
   const [isHovered, setIsHovered] = useState(false);
   const { addToCart, wishlist, toggleWishlist } = useApp();
@@ -24,21 +29,19 @@ export function ProductCard({ product, index = 0, size = "medium", inCarousel = 
   const isWishlisted = wishlist.includes(product.id);
 
   /**
-   * Carousel card HEIGHT is determined here by aspect-[3/5]:
-   * height = width × (5/3). The width comes from the carousel slide
-   * (BestSellersCarousel: basis-[82%] mobile, basis-[23%] desktop).
-   * To change carousel card size: adjust aspect ratio or add min-h here.
+   * Keep storefront cards short enough for medium screens and use contained
+   * product imagery so the full item stays visible instead of being cropped.
    */
   const aspectClass =
     size === "carousel"
-      ? "aspect-[3/5] min-h-0"
+      ? "aspect-[4/4.7] min-h-0 sm:aspect-[4/4.6] md:aspect-[4/4.8] lg:aspect-[4/4.7]"
       : size === "collection"
-        ? "aspect-[5/7] min-h-[220px] md:min-h-[300px]"
+        ? "aspect-[4/4.9] min-h-[210px] md:min-h-[260px]"
       : size === "small"
-        ? "aspect-[3/5] min-h-[180px] md:min-h-[240px]"
+        ? "aspect-[4/4.8] min-h-[170px] md:min-h-[220px]"
         : size === "large"
-          ? "aspect-[3/5] min-h-[260px] md:min-h-[380px]"
-          : "aspect-[3/5] min-h-[220px] md:min-h-[320px]";
+          ? "aspect-[4/5] min-h-[240px] md:min-h-[320px]"
+          : "aspect-[4/4.9] min-h-[200px] md:min-h-[260px]";
 
   const handleQuickAdd = (e: MouseEvent<HTMLButtonElement>) => {
     e.preventDefault();
@@ -73,27 +76,37 @@ export function ProductCard({ product, index = 0, size = "medium", inCarousel = 
       transition={{ duration: 0.5, delay: inCarousel ? 0 : index * 0.08, ease: [0.25, 0.1, 0.25, 1] }}
       className="group"
     >
-      <Link to={`/product/${product.id}`} className="block">
+      <LangLink to={`/product/${product.id}`} className="block">
         {/* Image Container */}
         <div
           className={`relative ${aspectClass} overflow-hidden rounded-[32px] bg-[#EDE9E2] cursor-pointer`}
           onMouseEnter={() => setIsHovered(true)}
           onMouseLeave={() => setIsHovered(false)}
         >
-          {/* All color images stacked - crossfade */}
-          {product.colors.map((color, i) => (
-            <ImageWithFallback
-              key={color.name}
-              src={color.image}
-              alt={`${product.name} in ${color.name}`}
-              className="absolute inset-0 w-full h-full object-cover"
-              style={{
-                opacity: i === activeColor ? 1 : 0,
-                transition: "opacity 0.6s cubic-bezier(0.25, 0.1, 0.25, 1)",
-                transform: isHovered ? "scale(1.05)" : "scale(1)",
-              }}
-            />
-          ))}
+          {/* Image stack: carousel gets inner inset on md+ so product photos breathe. */}
+          <div
+            className={
+              inCarousel
+                ? "absolute inset-0 md:inset-1.5 lg:inset-2.5 overflow-hidden rounded-[32px]"
+                : "absolute inset-0 overflow-hidden rounded-[32px]"
+            }
+          >
+            {product.colors.map((color, i) => (
+              <ImageWithFallback
+                key={color.name}
+                src={color.image}
+                alt={`${product.name} in ${color.name}`}
+                className={`absolute inset-0 w-full h-full object-center ${
+                  inCarousel ? "object-cover md:object-contain lg:object-cover" : "object-cover"
+                }`}
+                style={{
+                  opacity: i === activeColor ? 1 : 0,
+                  transition: "opacity 0.6s cubic-bezier(0.25, 0.1, 0.25, 1)",
+                  transform: isHovered ? "scale(1.05)" : "scale(1)",
+                }}
+              />
+            ))}
+          </div>
 
           {/* Gradient overlay on hover */}
           <div
@@ -117,7 +130,7 @@ export function ProductCard({ product, index = 0, size = "medium", inCarousel = 
                   fontSize: "0.65rem",
                 }}
               >
-                NEW
+                {t("product.badgeNew")}
               </span>
             )}
             {product.isBestseller && (
@@ -131,7 +144,7 @@ export function ProductCard({ product, index = 0, size = "medium", inCarousel = 
                   fontSize: "0.65rem",
                 }}
               >
-                BESTSELLER
+                {t("product.badgeBestseller")}
               </span>
             )}
           </div>
@@ -172,7 +185,7 @@ export function ProductCard({ product, index = 0, size = "medium", inCarousel = 
                 transition={{ duration: 0.25, ease: [0.25, 0.1, 0.25, 1] }}
               >
                 <ShoppingBag size={13} strokeWidth={1.5} />
-                <span className="uppercase tracking-widest">Quick Add</span>
+                <span className="uppercase tracking-widest">{t("product.quickAdd")}</span>
               </motion.button>
             )}
           </AnimatePresence>
@@ -199,7 +212,7 @@ export function ProductCard({ product, index = 0, size = "medium", inCarousel = 
               className="text-[#2D241E] flex-shrink-0"
               style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "1.05rem", fontWeight: 400 }}
             >
-              €{product.price}
+              {formatPrice(product.price, locale)}
             </p>
           </div>
 
@@ -234,7 +247,7 @@ export function ProductCard({ product, index = 0, size = "medium", inCarousel = 
             </span>
           </div>
         </div>
-      </Link>
+      </LangLink>
     </motion.div>
   );
 }

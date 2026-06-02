@@ -1,0 +1,11 @@
+# Railway service: Backend API
+# In Railway UI set Root Directory to: YarneBack/YarneAPIBack/YarneAPIBack
+
+[build]
+builder = "DOCKERFILE"
+dockerfilePath = "Dockerfile"
+
+[deploy]
+healthcheckPath = "/healthz"
+healthcheckTimeout = 120
+restartPolicyType = "ON_FAILURE"

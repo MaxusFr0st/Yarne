@@ -1,11 +1,12 @@
 import { useEffect, useState } from "react";
-import { useParams, Link, useNavigate } from "react-router";
+import { useParams, useNavigate } from "react-router";
 import { motion, AnimatePresence } from "motion/react";
 import { ArrowLeft, Heart, Share2, ChevronDown, ShoppingBag, Check } from "lucide-react";
 import { useProduct, useProducts } from "../hooks/useProducts";
 import { useApp } from "../context/AppContext";
 import { ImageWithFallback } from "../components/figma/ImageWithFallback";
 import { ProductCard } from "../components/ProductCard";
+import { LangLink } from "../i18n/LangLink";
 import React from "react";
 
 const easing = [0.25, 0.1, 0.25, 1] as const;
@@ -61,13 +62,13 @@ export function ProductDetail() {
         >
           Product not found.
         </p>
-        <Link
+        <LangLink
           to="/collection"
           className="mt-6 text-[#2D241E] underline text-sm"
           style={{ fontFamily: "'DM Sans', sans-serif" }}
         >
           Back to collection
-        </Link>
+        </LangLink>
       </main>
     );
   }
@@ -113,12 +114,12 @@ export function ProductDetail() {
   };
 
   return (
-    <main style={{ backgroundColor: "#F5F2ED", minHeight: "100vh" }}>
-      <div className="max-w-[1400px] mx-auto px-5 md:px-10 pt-20 md:pt-36 pb-24">
+    <main style={{ backgroundColor: "#F5F2ED", minHeight: "100vh", overflowX: "hidden" }}>
+      <div className="max-w-[1400px] mx-auto px-5 md:px-10 pt-[72px] md:pt-24 pb-24">
         {/* Back */}
         <motion.button
           onClick={() => navigate(-1)}
-          className="flex items-center gap-2 text-[#2D241E]/50 hover:text-[#2D241E] transition-colors duration-300 mb-3 md:mb-10 group"
+          className="flex items-center gap-2 text-[#2D241E]/50 hover:text-[#2D241E] transition-colors duration-300 mb-3 md:mb-5 group"
           style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "0.78rem", letterSpacing: "0.12em" }}
           initial={{ opacity: 0, x: -10 }}
           animate={{ opacity: 1, x: 0 }}
@@ -129,16 +130,16 @@ export function ProductDetail() {
         </motion.button>
 
         {/* Main layout */}
-        <div className="grid md:grid-cols-2 lg:grid-cols-[1fr_440px] gap-6 md:gap-16 items-start mt-0">
+        <div className="grid md:grid-cols-2 lg:grid-cols-[minmax(0,1fr)_minmax(340px,420px)] gap-6 md:gap-8 lg:gap-12 items-start mt-0">
           {/* Left: Image Gallery */}
           <motion.div
-            className="w-full max-w-[335px] sm:max-w-[360px] mx-auto md:max-w-none md:mx-0 lg:w-[620px] xl:w-[660px] lg:justify-self-center"
+            className="w-full max-w-[335px] sm:max-w-[380px] mx-auto md:max-w-none md:mx-0 lg:max-w-[620px] lg:justify-self-center"
             initial={{ opacity: 0, x: -30 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.8, ease: easing }}
           >
             {/* Main Image */}
-            <div className="relative rounded-[34px] sm:rounded-[40px] overflow-hidden bg-[#EDE9E2] h-[46vh] min-h-[370px] max-h-[340px] sm:h-[50vh] sm:min-h-[320px] sm:max-h-[410px] md:h-[62vh] md:min-h-[460px] md:max-h-[700px] lg:h-[68vh] lg:min-h-[520px] lg:max-h-[760px] xl:h-[72vh] xl:max-h-[820px]">
+            <div className="relative rounded-[34px] sm:rounded-[40px] overflow-hidden bg-[#EDE9E2] h-[min(64vh,430px)] min-h-[320px] sm:min-h-[340px] md:h-[min(62vh,640px)] md:min-h-[440px] lg:h-[min(68vh,720px)] lg:min-h-[500px]">
               <AnimatePresence mode="wait">
                 {images.length > 0 && (
                 <motion.div
@@ -302,7 +303,7 @@ export function ProductDetail() {
 
           {/* Right: Product Info */}
           <motion.div
-            className="flex flex-col gap-7 md:sticky md:top-32"
+            className="flex flex-col gap-6 md:sticky md:top-[calc(var(--main-header-h)+24px)]"
             initial={{ opacity: 0, x: 30 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.8, delay: 0.1, ease: easing }}
@@ -561,8 +562,8 @@ export function ProductDetail() {
 
         {/* Related Products */}
         {related.length > 0 && (
-          <section className="mt-32">
-            <div className="flex items-center justify-between mb-12">
+          <section className="mt-20 md:mt-24">
+            <div className="flex items-center justify-between mb-8 md:mb-10">
               <div>
                 <p
                   className="text-[#2D241E]/40 tracking-widest uppercase text-xs mb-2"
@@ -577,18 +578,30 @@ export function ProductDetail() {
                   Complete the wardrobe
                 </h2>
               </div>
-              <Link
+              <LangLink
                 to="/collection"
                 className="hidden md:flex items-center gap-2 text-[#2D241E]/50 hover:text-[#4A0E0E] text-xs transition-colors uppercase tracking-widest"
                 style={{ fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.12em" }}
               >
                 View all
-              </Link>
+              </LangLink>
             </div>
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-5 md:gap-8">
+            <div className="hidden md:grid md:grid-cols-2 lg:grid-cols-3 gap-5 lg:gap-8">
               {related.map((p, i) => (
                 <ProductCard key={p.id} product={p} index={i} size="small" />
               ))}
+            </div>
+            <div className="md:hidden -mx-5 px-5 overflow-hidden">
+              <div className="flex gap-4 overflow-x-auto snap-x snap-mandatory scrollbar-hide pb-2">
+                {related.map((p, i) => (
+                  <div
+                    key={p.id}
+                    className="shrink-0 basis-[72%] snap-center"
+                  >
+                    <ProductCard product={p} index={i} size="small" />
+                  </div>
+                ))}
+              </div>
             </div>
           </section>
         )}

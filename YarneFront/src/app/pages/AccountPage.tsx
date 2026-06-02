@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { Link } from "react-router";
+import { LangLink } from "../i18n/LangLink";
 import {
   User,
   Package,
@@ -22,6 +22,7 @@ import {
 import { useApp } from "../context/AppContext";
 import { fetchMyOrders, type OrderDto } from "../api/orders";
 import { ImageWithFallback } from "../components/figma/ImageWithFallback";
+import { useProducts } from "../hooks/useProducts";
 
 const easing = [0.25, 0.1, 0.25, 1] as const;
 
@@ -33,6 +34,7 @@ interface Order {
   status: OrderStatus;
   items: {
     id: number;
+    productCode: string;
     name: string;
     quantity: number;
     lineTotal: number;
@@ -68,6 +70,7 @@ function mapOrderDto(order: OrderDto): Order {
     total: Number(order.total),
     items: order.items.map((item) => ({
       id: item.id,
+      productCode: item.productCode,
       name: item.productName,
       quantity: item.quantity,
       lineTotal: Number(item.lineTotal),
@@ -159,7 +162,7 @@ function DeliveryProgressPreview({ status }: { status: OrderStatus }) {
   );
 }
 
-function OrderRow({ order }: { order: Order }) {
+function OrderRow({ order, productImageByCode }: { order: Order; productImageByCode: Map<string, string> }) {
   const [expanded, setExpanded] = useState(false);
 
   return (
@@ -225,39 +228,46 @@ function OrderRow({ order }: { order: Order }) {
             >
               {/* Items */}
               <div className="space-y-3 mt-5">
-                {order.items.map((item) => (
-                  <div
-                    key={item.id}
-                    className="flex items-center justify-between py-3 px-4 rounded-[14px] gap-3"
-                    style={{ backgroundColor: "rgba(45,36,30,0.03)" }}
-                  >
-                    <div className="flex items-center gap-3 min-w-0">
-                      <div className="w-12 h-14 rounded-[10px] overflow-hidden bg-[#EDE9E2] flex-shrink-0">
-                        <ImageWithFallback src={item.image} alt={item.name} className="w-full h-full object-cover" />
-                      </div>
-                      <div className="min-w-0">
-                      <p
-                        className="text-[#2D241E] truncate"
-                        style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "0.95rem", fontWeight: 500 }}
-                      >
-                        {item.name}
-                      </p>
-                      <p
-                        className="text-[#2D241E]/50 text-xs mt-0.5"
-                        style={{ fontFamily: "'DM Sans', sans-serif" }}
-                      >
-                        Qty {item.quantity}
-                      </p>
-                      </div>
-                    </div>
-                    <span
-                      className="text-[#2D241E]"
-                      style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "0.95rem" }}
+                {order.items.map((item) => {
+                  const productHref = item.productCode ? `/product/${item.productCode}` : "/collection";
+                  const imageSrc = productImageByCode.get(item.productCode) || item.image;
+
+                  return (
+                    <LangLink
+                      key={item.id}
+                      to={productHref}
+                      className="flex items-center justify-between py-3 px-4 rounded-[14px] gap-3 transition-colors hover:bg-[#2D241E]/[0.05]"
+                      style={{ backgroundColor: "rgba(45,36,30,0.03)" }}
+                      aria-label={`Open ${item.name}`}
                     >
-                      €{item.lineTotal.toLocaleString()}
-                    </span>
-                  </div>
-                ))}
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="w-12 h-14 rounded-[10px] overflow-hidden bg-[#EDE9E2] flex-shrink-0">
+                          <ImageWithFallback src={imageSrc} alt={item.name} className="w-full h-full object-contain" />
+                        </div>
+                        <div className="min-w-0">
+                          <p
+                            className="text-[#2D241E] truncate"
+                            style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "0.95rem", fontWeight: 500 }}
+                          >
+                            {item.name}
+                          </p>
+                          <p
+                            className="text-[#2D241E]/50 text-xs mt-0.5"
+                            style={{ fontFamily: "'DM Sans', sans-serif" }}
+                          >
+                            Qty {item.quantity}
+                          </p>
+                        </div>
+                      </div>
+                      <span
+                        className="text-[#2D241E] truncate"
+                        style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "0.95rem" }}
+                      >
+                        €{item.lineTotal.toLocaleString()}
+                      </span>
+                    </LangLink>
+                  );
+                })}
               </div>
 
               {/* Order Details */}
@@ -298,6 +308,7 @@ function OrderRow({ order }: { order: Order }) {
 
 export function AccountPage() {
   const { user, isLoggedIn, openLogin, logout, wishlist } = useApp();
+  const { products } = useProducts();
   const [activeTab, setActiveTab] = useState<Tab>("overview");
   const [orders, setOrders] = useState<Order[]>([]);
   const [ordersLoading, setOrdersLoading] = useState(false);
@@ -308,6 +319,16 @@ export function AccountPage() {
     phone: "+33 6 12 34 56 78",
     address: "14 Rue des Abbesses, 75018 Paris, France",
   });
+  const productImageByCode = useMemo(
+    () =>
+      new Map(
+        products.map((product) => [
+          product.id,
+          product.colors[0]?.images?.[0] || product.colors[0]?.image || IMAGE_PLACEHOLDER,
+        ])
+      ),
+    [products]
+  );
   const [saveSuccess, setSaveSuccess] = useState(false);
 
   useEffect(() => {
@@ -375,13 +396,13 @@ export function AccountPage() {
           >
             <span className="uppercase tracking-widest">Sign In</span>
           </button>
-          <Link
+          <LangLink
             to="/collection"
             className="block mt-4 text-[#2D241E]/50 hover:text-[#4A0E0E] transition-colors text-sm"
             style={{ fontFamily: "'DM Sans', sans-serif" }}
           >
             Continue browsing
-          </Link>
+          </LangLink>
         </motion.div>
       </main>
     );
@@ -584,7 +605,7 @@ export function AccountPage() {
 
               <div className="space-y-3">
                 {orders.slice(0, 3).map((order) => (
-                  <OrderRow key={order.id} order={order} />
+                  <OrderRow key={order.id} order={order} productImageByCode={productImageByCode} />
                 ))}
                 {!ordersLoading && orders.length === 0 && (
                   <p className="text-[#2D241E]/45 text-sm" style={{ fontFamily: "'DM Sans', sans-serif" }}>
@@ -673,7 +694,7 @@ export function AccountPage() {
               )}
               <div className="space-y-3">
                 {orders.map((order) => (
-                  <OrderRow key={order.id} order={order} />
+                  <OrderRow key={order.id} order={order} productImageByCode={productImageByCode} />
                 ))}
                 {!ordersLoading && orders.length === 0 && !ordersError && (
                   <p className="text-[#2D241E]/45 text-sm" style={{ fontFamily: "'DM Sans', sans-serif" }}>

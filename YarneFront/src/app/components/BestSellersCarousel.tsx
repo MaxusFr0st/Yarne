@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import useEmblaCarousel from "embla-carousel-react";
 import { motion } from "motion/react";
+import { useTranslation } from "react-i18next";
 import { useProducts } from "../hooks/useProducts";
 import { ProductCard } from "./ProductCard";
 import { getCarouselSelection } from "../utils/carouselSelection";
@@ -8,6 +9,7 @@ import { getCarouselSelection } from "../utils/carouselSelection";
 const easing = [0.25, 0.1, 0.25, 1] as const;
 
 export function BestSellersCarousel() {
+  const { t } = useTranslation();
   const viewportRef = useRef<HTMLDivElement>(null);
   const [emblaRef, emblaApi] = useEmblaCarousel({
     loop: true,
@@ -65,82 +67,86 @@ export function BestSellersCarousel() {
   }, []);
 
   return (
-    <section className="py-20 md:py-28 overflow-hidden" style={{ backgroundColor: "#EDE9E2" }}>
+    <section className="relative py-10 md:py-14 overflow-hidden" style={{ backgroundColor: "#EDE9E2" }}>
       <div className="max-w-[1400px] mx-auto px-6 md:px-10">
-        {/* Header */}
-        <div className="flex items-end justify-between mb-12 md:mb-16">
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true, margin: "-80px" }}
-            transition={{ duration: 0.8, ease: easing }}
+        {/* Sticky section header — pins below the main header while the
+            carousel scrolls past, then releases when the section ends. */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, margin: "-80px" }}
+          transition={{ duration: 0.7, ease: easing }}
+          className="sticky z-30 mb-8 md:mb-12 -mx-6 md:-mx-10 px-6 md:px-10 py-3 md:py-4"
+          style={{
+            top: "var(--main-header-h)",
+            backgroundColor: "rgba(237,233,226,0.85)",
+            backdropFilter: "blur(10px)",
+          }}
+        >
+          <p
+            className="text-[#2D241E]/40 uppercase mb-1.5"
+            style={{
+              fontFamily: "'DM Sans', sans-serif",
+              letterSpacing: "0.22em",
+              fontSize: "0.65rem",
+            }}
           >
-            <p
-              className="text-[#2D241E]/40 tracking-widest uppercase mb-3"
-              style={{
-                fontFamily: "'DM Sans', sans-serif",
-                letterSpacing: "0.2em",
-                fontSize: "0.7rem",
-              }}
-            >
-              Most Loved
-            </p>
-            <h2
-              className="text-[#2D241E]"
-              style={{
-                fontFamily: "'Cormorant Garamond', serif",
-                fontSize: "clamp(1.8rem, 4vw, 2.8rem)",
-                fontWeight: 400,
-                lineHeight: 1.2,
-              }}
-            >
-              Best Sellers
-            </h2>
-          </motion.div>
-
-        </div>
+            {t("home.bestSellers.eyebrow")}
+          </p>
+          <h2
+            className="text-[#2D241E]"
+            style={{
+              fontFamily: "'Cormorant Garamond', serif",
+              fontSize: "clamp(1.5rem, 3.2vw, 2.4rem)",
+              fontWeight: 400,
+              lineHeight: 1.15,
+            }}
+          >
+            {t("home.bestSellers.title")}
+          </h2>
+        </motion.div>
 
         {/* Carousel – wider container with edge fade (lighter on mobile) */}
         <style>{`
           .carousel-fade { mask-image: linear-gradient(to right, rgba(0,0,0,0.35) 0%, black 16px, black calc(100% - 16px), rgba(0,0,0,0.35) 100%); -webkit-mask-image: linear-gradient(to right, rgba(0,0,0,0.35) 0%, black 16px, black calc(100% - 16px), rgba(0,0,0,0.35) 100%); }
           @media (min-width: 768px) { .carousel-fade { mask-image: linear-gradient(to right, rgba(0,0,0,0.25) 0%, black 48px, black calc(100% - 48px), rgba(0,0,0,0.25) 100%); -webkit-mask-image: linear-gradient(to right, rgba(0,0,0,0.25) 0%, black 48px, black calc(100% - 48px), rgba(0,0,0,0.25) 100%); } }
         `}</style>
-        <div className="carousel-fade relative -mx-6 md:-mx-8">
+        <div className="carousel-fade relative -mx-10 sm:-mx-12 md:-mx-8">
           <motion.div
             ref={(el) => {
               (emblaRef as (el: HTMLDivElement | null) => void)(el);
               (viewportRef as React.MutableRefObject<HTMLDivElement | null>).current = el;
             }}
-            className="relative overflow-hidden pt-2.5 pb-2.5 px-6 md:px-8"
+            className="relative overflow-hidden pt-3 pb-5 md:pt-2.5 md:pb-2.5 lg:pt-3 lg:pb-3 px-10 sm:px-12 md:px-8"
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true, margin: "-60px" }}
             transition={{ duration: 0.7, delay: 0.1, ease: easing }}
           >
-          <div className="flex pr-6 md:pr-0">
-            {carouselProducts.map((product, i) => (
-              <div
-                key={`${product.id}-${i}`}
-                className="shrink-0 min-w-0 mr-5 basis-[66.67%] md:basis-[23%] md:min-w-[200px]"
-              >
-                <ProductCard product={product} index={i} size="carousel" inCarousel viewportRoot={viewportRef} />
-              </div>
-            ))}
-          </div>
-        </motion.div>
+            <div className="flex pr-5 md:pr-0">
+              {carouselProducts.map((product, i) => (
+                <div
+                  key={`${product.id}-${i}`}
+                  className="shrink-0 min-w-0 mr-4 basis-[68%] sm:basis-[62%] md:basis-[calc((100%_-_4rem)/4)] md:min-w-0 lg:basis-[calc((100%_-_4rem)/4)] xl:basis-[calc((100%_-_4rem)/4)]"
+                >
+                  <ProductCard product={product} index={i} size="carousel" inCarousel viewportRoot={viewportRef} />
+                </div>
+              ))}
+            </div>
+          </motion.div>
         </div>
 
         {/* Dot Indicators */}
         {scrollSnaps.length > 1 && (
-          <div className="flex items-center justify-center gap-2 mt-10">
+          <div className="flex items-center justify-center gap-3 mt-12 md:mt-10">
             {scrollSnaps.map((_, index) => (
               <button
                 key={index}
                 onClick={() => emblaApi?.scrollTo(index)}
                 className="transition-all duration-300 rounded-full"
                 style={{
-                  width: index === selectedIndex ? 24 : 8,
-                  height: 8,
+                  width: index === selectedIndex ? 28 : 10,
+                  height: 10,
                   backgroundColor:
                     index === selectedIndex
                       ? "#4A0E0E"

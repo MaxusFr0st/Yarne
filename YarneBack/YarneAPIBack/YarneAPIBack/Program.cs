@@ -1,6 +1,5 @@
 using System.Text;
 using System.Threading.RateLimiting;
-using Microsoft.Data.SqlClient;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.RateLimiting;
@@ -20,27 +19,8 @@ if (!string.IsNullOrWhiteSpace(railwayPort))
     builder.WebHost.UseUrls($"http://0.0.0.0:{railwayPort}");
 }
 
-// Database (EnableRetryOnFailure for Docker/transient startup delays)
-var configuredConnectionString =
-    Environment.GetEnvironmentVariable("DATABASE_URL")
-    ?? builder.Configuration.GetConnectionString("DefaultConnection")
-    ?? throw new InvalidOperationException("Database connection string is required. Set DATABASE_URL or ConnectionStrings__DefaultConnection.");
-
-var connectionStringBuilder = new SqlConnectionStringBuilder(configuredConnectionString);
-if (!connectionStringBuilder.ContainsKey("TrustServerCertificate"))
-{
-    connectionStringBuilder.TrustServerCertificate = true;
-}
-
-if (!connectionStringBuilder.ContainsKey("Encrypt"))
-{
-    connectionStringBuilder.Encrypt = false;
-}
-
-if (!builder.Environment.IsDevelopment() && connectionStringBuilder.IntegratedSecurity)
-{
-    throw new InvalidOperationException("Production database connection cannot use Integrated Security / Trusted_Connection.");
-}
+// Database — Railway Postgres (DATABASE_URL / PG*), with retry on transient startup
+var postgresConnectionString = RailwayDatabaseConfiguration.Resolve(builder.Configuration);
 
 builder.Logging.AddSimpleConsole(options =>
 {
@@ -48,8 +28,9 @@ builder.Logging.AddSimpleConsole(options =>
 });
 
 builder.Services.AddDbContext<YarneDbContext>(options =>
-    options.UseSqlServer(connectionStringBuilder.ConnectionString,
-        sqlOptions => sqlOptions.EnableRetryOnFailure(maxRetryCount: 10, maxRetryDelay: TimeSpan.FromSeconds(5), errorNumbersToAdd: null)));
+    options.UseNpgsql(
+        postgresConnectionString,
+        npgsqlOptions => npgsqlOptions.EnableRetryOnFailure(maxRetryCount: 10, maxRetryDelay: TimeSpan.FromSeconds(5), errorCodesToAdd: null)));
 
 // JWT
 builder.Services.Configure<JwtSettings>(builder.Configuration.GetSection(JwtSettings.SectionName));
@@ -60,17 +41,7 @@ if (!string.IsNullOrWhiteSpace(legacyJwtSecret))
 {
     jwtSettings.Secret = legacyJwtSecret;
 }
-if (!builder.Environment.IsDevelopment())
-{
-    if (string.IsNullOrWhiteSpace(jwtSettings.Secret)
-        || jwtSettings.Secret.Length < 32
-        || jwtSettings.Secret.Contains("SuperSecretKey", StringComparison.OrdinalIgnoreCase)
-        || jwtSettings.Secret.Contains("Dev-SecretKey", StringComparison.OrdinalIgnoreCase)
-        || jwtSettings.Secret.Contains("CHANGE_ME", StringComparison.OrdinalIgnoreCase))
-    {
-        throw new InvalidOperationException("Production JWT secret is weak/default. Set Jwt:Secret via secure environment variables.");
-    }
-}
+ProductionStartupValidator.Validate(builder.Environment, jwtSettings);
 
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
@@ -157,11 +128,7 @@ using (var scope = app.Services.CreateScope())
     var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
     var db = scope.ServiceProvider.GetRequiredService<YarneDbContext>();
     var runStartupDbPatches = builder.Configuration.GetValue("Database:RunStartupPatches", builder.Environment.IsDevelopment());
-    logger.LogInformation(
-        "Startup DB target: Server={Server}; Database={Database}; RunStartupPatches={RunStartupPatches}",
-        connectionStringBuilder.DataSource,
-        connectionStringBuilder.InitialCatalog,
-        runStartupDbPatches);
+    await DatabaseStartup.ApplyMigrationsWithRetryAsync(db, logger);
 
     if (runStartupDbPatches)
     {
@@ -171,14 +138,30 @@ using (var scope = app.Services.CreateScope())
         {
             try
             {
-                await db.Database.ExecuteSqlRawAsync(
-                    """
-                    IF COL_LENGTH('[Order]', 'EstimatedDelivery') IS NULL
-                    BEGIN
-                        ALTER TABLE [Order] ADD [EstimatedDelivery] datetime NULL;
-                    END
-                    """
-                );
+                if (db.Database.IsNpgsql())
+                {
+                    await db.Database.ExecuteSqlRawAsync(
+                        """
+                        DO $$
+                        BEGIN
+                          IF NOT EXISTS (
+                            SELECT 1
+                            FROM information_schema.columns
+                            WHERE table_schema = current_schema()
+                              AND table_name = 'Order'
+                              AND column_name = 'EstimatedDelivery'
+                          ) THEN
+                            ALTER TABLE "Order" ADD COLUMN "EstimatedDelivery" timestamp without time zone NULL;
+                          END IF;
+                        END $$;
+                        """
+                    );
+                }
+                else
+                {
+                    // If another provider is introduced later, keep the old behavior explicit.
+                    throw new NotSupportedException($"Startup DB patches not implemented for provider '{db.Database.ProviderName}'.");
+                }
                 startupPatchApplied = true;
                 break;
             }
@@ -203,6 +186,8 @@ using (var scope = app.Services.CreateScope())
             logger.LogError("{Message} Continuing startup; endpoints needing DB may fail until connectivity is fixed.", message);
         }
     }
+
+    await SeedData.EnsureSeedDataAsync(db, logger, builder.Environment);
 }
 
 if (app.Environment.IsDevelopment())

@@ -1,13 +1,16 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode, CSSProperties } from "react";
-import { Link } from "react-router";
 import { motion, useScroll, useTransform } from "motion/react";
 import { ArrowRight, ChevronDown } from "lucide-react";
-import { HERO_IMAGES, EDITORIAL_IMG, LOOKBOOK_IMG } from "../data/products";
+import { useTranslation } from "react-i18next";
+import { EDITORIAL_IMG, LOOKBOOK_IMG } from "../data/products";
+import heroImg from "../../../assets/CherieCherryLace2Gen.jpg";
 import { useProducts } from "../hooks/useProducts";
 import { ProductCard } from "../components/ProductCard";
 import { BestSellersCarousel } from "../components/BestSellersCarousel";
+import { FeaturedShowcase } from "../components/FeaturedShowcase";
 import { ImageWithFallback as Img } from "../components/figma/ImageWithFallback";
+import { LangLink } from "../i18n/LangLink";
 import {
   DEFAULT_FEATURED_TITLE,
   DEFAULT_MORE_FROM_COLLECTION_TITLE,
@@ -33,6 +36,7 @@ function RevealText({ children, delay = 0, className = "", style = {} }: { child
 }
 
 export function Home() {
+  const { t } = useTranslation();
   const heroRef = useRef<HTMLDivElement>(null);
   const editorialRef = useRef<HTMLDivElement>(null);
 
@@ -76,8 +80,27 @@ export function Home() {
     return selected.length > 0 ? selected : products.slice(3);
   }, [homeSectionsSelection.moreFromCollectionProductCodes, products]);
 
+  const brandStripItems = [
+    {
+      label: t("home.brandStrip.yarnOriginsLabel"),
+      value: t("home.brandStrip.yarnOriginsValue"),
+    },
+    {
+      label: t("home.brandStrip.craftedSinceLabel"),
+      value: t("home.brandStrip.craftedSinceValue"),
+    },
+    {
+      label: t("home.brandStrip.materialsLabel"),
+      value: t("home.brandStrip.materialsValue"),
+    },
+    {
+      label: t("home.brandStrip.carbonLabel"),
+      value: t("home.brandStrip.carbonValue"),
+    },
+  ];
+
   return (
-    <main className="relative" style={{ backgroundColor: "#F5F2ED", fontFamily: "'DM Sans', sans-serif" }}>
+    <main className="relative overflow-x-hidden" style={{ backgroundColor: "#F5F2ED", fontFamily: "'DM Sans', sans-serif" }}>
       {/* ═══════════════════════════════
           HERO SECTION
       ═══════════════════════════════ */}
@@ -91,7 +114,7 @@ export function Home() {
           style={{ y: heroY, scale: heroScale }}
         >
           <Img
-            src={HERO_IMAGES[0]}
+            src={heroImg}
             alt="Yarné Hero"
             className="w-full h-full object-cover"
           />
@@ -112,7 +135,7 @@ export function Home() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.8, delay: 0.3, ease: easing }}
             >
-              New Collection — Spring 2026
+              {t("home.hero.eyebrow")}
             </motion.p>
             <motion.h1
               className="text-white"
@@ -127,8 +150,8 @@ export function Home() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.9, delay: 0.4, ease: easing }}
             >
-              Woven in<br />
-              <em style={{ fontStyle: "italic", fontWeight: 300 }}>quiet luxury</em>
+              {t("home.hero.titleLine1")}<br />
+              <em style={{ fontStyle: "italic", fontWeight: 300 }}>{t("home.hero.titleAccent")}</em>
             </motion.h1>
             <motion.p
               className="text-white/65 mt-6 max-w-md text-base"
@@ -137,7 +160,7 @@ export function Home() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.8, delay: 0.6, ease: easing }}
             >
-              Timeless knitwear crafted from the world's finest fibres. Each piece is made to outlast every season.
+              {t("home.hero.subtitle")}
             </motion.p>
             <motion.div
               className="flex flex-wrap gap-4 mt-10"
@@ -145,21 +168,21 @@ export function Home() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.8, delay: 0.75, ease: easing }}
             >
-              <Link
+              <LangLink
                 to="/collection"
                 className="flex items-center gap-3 px-8 py-4 rounded-full text-[#2D241E] bg-[#F5F2ED] hover:bg-white transition-all duration-300 group"
                 style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "0.8rem", letterSpacing: "0.15em" }}
               >
-                <span className="uppercase tracking-widest">Explore Collection</span>
+                <span className="uppercase tracking-widest">{t("home.hero.ctaPrimary")}</span>
                 <ArrowRight size={15} className="group-hover:translate-x-1 transition-transform duration-300" />
-              </Link>
-              <Link
+              </LangLink>
+              <LangLink
                 to="/collection?filter=new"
                 className="flex items-center gap-3 px-8 py-4 rounded-full text-white border border-white/30 hover:border-white/60 transition-all duration-300"
                 style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "0.8rem", letterSpacing: "0.15em" }}
               >
-                <span className="uppercase tracking-widest">New Arrivals</span>
-              </Link>
+                <span className="uppercase tracking-widest">{t("home.hero.ctaSecondary")}</span>
+              </LangLink>
             </motion.div>
           </div>
         </div>
@@ -175,7 +198,7 @@ export function Home() {
             className="text-white/50 text-xs tracking-widest uppercase"
             style={{ writingMode: "vertical-rl", letterSpacing: "0.2em", fontFamily: "'DM Sans', sans-serif" }}
           >
-            Scroll
+            {t("home.hero.scroll")}
           </span>
           <motion.div
             animate={{ y: [0, 6, 0] }}
@@ -192,12 +215,7 @@ export function Home() {
       <section className="py-16 border-y border-[#2D241E]/8">
         <div className="max-w-[1400px] mx-auto px-6 md:px-10">
           <div className="flex flex-col md:flex-row items-center justify-center gap-10 md:gap-20">
-            {[
-              { label: "Yarn Origins", value: "Scotland, Italy & Peru" },
-              { label: "Crafted Since", value: "2011" },
-              { label: "Materials", value: "100% Natural Fibres" },
-              { label: "Carbon Neutral", value: "Since 2023" },
-            ].map((item, i) => (
+            {brandStripItems.map((item, i) => (
               <RevealText key={item.label} delay={i * 0.08} className="text-center">
                 <p
                   className="text-[#2D241E]/40 text-xs tracking-widest uppercase mb-1"
@@ -220,49 +238,64 @@ export function Home() {
       {/* ═══════════════════════════════
           BEST SELLERS CAROUSEL
       ═══════════════════════════════ */}
+      <FeaturedShowcase />
+
+      {/* ═══════════════════════════════
+          BEST SELLERS CAROUSEL
+      ═══════════════════════════════ */}
       <BestSellersCarousel />
 
       {/* ═══════════════════════════════
           FEATURED PRODUCTS
       ═══════════════════════════════ */}
-      <section className="py-20 md:py-28">
+      <section className="relative py-10 md:py-14">
         <div className="max-w-[1400px] mx-auto px-8 md:px-10">
-          <div className="flex items-end justify-between mb-12 md:mb-16">
-            <RevealText>
+          {/* Sticky section header */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, margin: "-80px" }}
+            transition={{ duration: 0.7, ease: easing }}
+            className="sticky z-30 mb-8 md:mb-12 -mx-8 md:-mx-10 px-8 md:px-10 py-3 md:py-4 flex items-end justify-between gap-4"
+            style={{
+              top: "var(--main-header-h)",
+              backgroundColor: "rgba(245,242,237,0.85)",
+              backdropFilter: "blur(10px)",
+            }}
+          >
+            <div>
               <p
-                className="text-[#2D241E]/40 tracking-widest uppercase text-xs mb-3"
-                style={{ fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.2em" }}
+                className="text-[#2D241E]/40 uppercase mb-1.5"
+                style={{ fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.22em", fontSize: "0.65rem" }}
               >
-                Curated Pieces
+                {t("home.featured.eyebrow")}
               </p>
               <h2
                 className="text-[#2D241E]"
-                style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "clamp(1.8rem, 4vw, 2.8rem)", fontWeight: 400, lineHeight: 1.2 }}
+                style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "clamp(1.5rem, 3.2vw, 2.4rem)", fontWeight: 400, lineHeight: 1.15 }}
               >
                 {homeSectionsSelection.featuredTitle || DEFAULT_FEATURED_TITLE}
               </h2>
-            </RevealText>
-            <RevealText delay={0.1}>
-              <Link
-                to="/collection"
-                className="hidden md:flex items-center gap-2 text-[#2D241E]/60 hover:text-[#4A0E0E] transition-colors duration-300 group"
-                style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "0.78rem", letterSpacing: "0.12em" }}
-              >
-                <span className="uppercase tracking-widest">View all</span>
-                <ArrowRight size={14} className="group-hover:translate-x-1 transition-transform duration-300" />
-              </Link>
-            </RevealText>
-          </div>
+            </div>
+            <LangLink
+              to="/collection"
+              className="hidden md:flex items-center gap-2 text-[#2D241E]/60 hover:text-[#4A0E0E] transition-colors duration-300 group flex-shrink-0"
+              style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "0.78rem", letterSpacing: "0.12em" }}
+            >
+              <span className="uppercase tracking-widest">{t("home.featured.viewAll")}</span>
+              <ArrowRight size={14} className="group-hover:translate-x-1 transition-transform duration-300" />
+            </LangLink>
+          </motion.div>
 
           {/* Uniform 4-column grid – Desktop */}
-          <div className="hidden md:grid grid-cols-4 gap-6">
+          <div className="hidden md:grid md:grid-cols-2 lg:grid-cols-4 gap-5 lg:gap-6">
             {featured.map((product, i) => (
               <ProductCard key={product.id} product={product} index={i} />
             ))}
           </div>
 
           {/* Mobile: 1 column for better card display */}
-          <div className="md:hidden grid grid-cols-1 gap-y-8 max-w-sm mx-auto">
+          <div className="md:hidden grid grid-cols-1 gap-y-8 max-w-[340px] mx-auto">
             {featured.map((product, i) => (
               <ProductCard key={product.id} product={product} index={i} />
             ))}
@@ -270,7 +303,7 @@ export function Home() {
 
           {/* Shop All CTA */}
           <RevealText delay={0.2} className="flex justify-center mt-14">
-            <Link
+            <LangLink
               to="/collection"
               className="group flex items-center gap-3 px-10 py-5 rounded-full transition-all duration-400 hover:gap-4"
               style={{
@@ -281,19 +314,21 @@ export function Home() {
                 color: "#F5F2ED",
               }}
             >
-              <span className="uppercase tracking-widest">Shop All {products.length} Pieces</span>
+              <span className="uppercase tracking-widest">
+                {t("home.featured.shopAllPieces", { count: products.length })}
+              </span>
               <ArrowRight size={15} className="group-hover:translate-x-1 transition-transform duration-300" />
-            </Link>
+            </LangLink>
           </RevealText>
 
           <div className="md:hidden flex justify-center mt-4">
-            <Link
+            <LangLink
               to="/collection"
               className="px-8 py-4 rounded-full border border-[#2D241E]/25 text-[#2D241E] text-sm hover:bg-[#2D241E] hover:text-[#F5F2ED] transition-all duration-300"
               style={{ fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.1em" }}
             >
-              <span className="uppercase tracking-widest">View All</span>
-            </Link>
+              <span className="uppercase tracking-widest">{t("common.viewAll")}</span>
+            </LangLink>
           </div>
         </div>
       </section>
@@ -310,7 +345,7 @@ export function Home() {
                 <motion.div className="absolute inset-0 will-change-transform" style={{ y: editorialY1 }}>
                   <Img
                     src={EDITORIAL_IMG}
-                    alt="Our Craft"
+                    alt={t("home.editorial.eyebrow")}
                     className="w-full h-[115%] object-cover"
                   />
                 </motion.div>
@@ -334,7 +369,7 @@ export function Home() {
                   className="text-[#2D241E]/50 text-xs mt-1"
                   style={{ fontFamily: "'DM Sans', sans-serif" }}
                 >
-                  Years of craft
+                  {t("home.editorial.yearsLabel")}
                 </p>
               </motion.div>
             </RevealText>
@@ -346,7 +381,7 @@ export function Home() {
                   className="text-[#2D241E]/40 tracking-widest uppercase text-xs"
                   style={{ fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.2em" }}
                 >
-                  Our Philosophy
+                  {t("home.editorial.eyebrow")}
                 </p>
               </RevealText>
               <RevealText delay={0.15}>
@@ -354,7 +389,7 @@ export function Home() {
                   className="text-[#2D241E]"
                   style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "clamp(2rem, 4vw, 3rem)", fontWeight: 400, lineHeight: 1.2 }}
                 >
-                  Every stitch tells<br />a longer story
+                  {t("home.editorial.titleLine1")}<br />{t("home.editorial.titleLine2")}
                 </h2>
               </RevealText>
               <RevealText delay={0.2}>
@@ -362,7 +397,7 @@ export function Home() {
                   className="text-[#2D241E]/60"
                   style={{ fontFamily: "'DM Sans', sans-serif", lineHeight: 1.8, fontSize: "0.95rem" }}
                 >
-                  We source our yarns from family mills in the Scottish Highlands, the Peruvian altiplano, and the foothills of the Italian Alps. Each fibre is selected for its provenance, its handle, and its longevity.
+                  {t("home.editorial.paragraph1")}
                 </p>
               </RevealText>
               <RevealText delay={0.25}>
@@ -370,20 +405,20 @@ export function Home() {
                   className="text-[#2D241E]/60"
                   style={{ fontFamily: "'DM Sans', sans-serif", lineHeight: 1.8, fontSize: "0.95rem" }}
                 >
-                  A Yarné piece is not designed for one season. It is designed to be worn, reworn, and passed on — a small act of resistance against disposable fashion.
+                  {t("home.editorial.paragraph2")}
                 </p>
               </RevealText>
               <RevealText delay={0.3}>
-                <Link
-                  to="/about"
+                <LangLink
+                  to="/collection"
                   className="self-start flex items-center gap-3 group"
                   style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "0.78rem", letterSpacing: "0.15em", color: "#2D241E" }}
                 >
                   <span className="uppercase tracking-widest border-b border-[#2D241E]/40 pb-0.5 group-hover:border-[#4A0E0E] group-hover:text-[#4A0E0E] transition-all duration-300">
-                    Our Story
+                    {t("home.editorial.ourStory")}
                   </span>
                   <ArrowRight size={14} className="group-hover:translate-x-1 transition-transform duration-300 group-hover:text-[#4A0E0E]" />
-                </Link>
+                </LangLink>
               </RevealText>
             </div>
           </div>
@@ -417,7 +452,7 @@ export function Home() {
               className="text-white/60 tracking-widest uppercase text-xs mb-5"
               style={{ fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.25em" }}
             >
-              Lookbook — Winter 2026
+              {t("home.lookbook.eyebrow")}
             </p>
           </RevealText>
           <RevealText delay={0.1}>
@@ -425,17 +460,17 @@ export function Home() {
               className="text-white mb-8"
               style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "clamp(2rem, 5vw, 4rem)", fontWeight: 300, lineHeight: 1.15 }}
             >
-              The art of dressing<br />for yourself
+              {t("home.lookbook.titleLine1")}<br />{t("home.lookbook.titleLine2")}
             </h2>
           </RevealText>
           <RevealText delay={0.2}>
-            <Link
+            <LangLink
               to="/collection"
               className="px-10 py-4 rounded-full border border-white/40 text-white hover:bg-white hover:text-[#2D241E] transition-all duration-400"
               style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "0.78rem", letterSpacing: "0.15em" }}
             >
-              <span className="uppercase tracking-widest">View Lookbook</span>
-            </Link>
+              <span className="uppercase tracking-widest">{t("home.lookbook.cta")}</span>
+            </LangLink>
           </RevealText>
         </div>
       </section>
@@ -443,24 +478,36 @@ export function Home() {
       {/* ═══════════════════════════════
           REST OF COLLECTION PREVIEW
       ═══════════════════════════════ */}
-      <section className="py-20 md:py-28">
+      <section className="relative py-10 md:py-14">
         <div className="max-w-[1400px] mx-auto px-6 md:px-10">
-          <RevealText className="text-center mb-16">
+          {/* Sticky section header */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, margin: "-80px" }}
+            transition={{ duration: 0.7, ease: easing }}
+            className="sticky z-30 mb-10 md:mb-14 -mx-6 md:-mx-10 px-6 md:px-10 py-3 md:py-4 text-center"
+            style={{
+              top: "var(--main-header-h)",
+              backgroundColor: "rgba(245,242,237,0.85)",
+              backdropFilter: "blur(10px)",
+            }}
+          >
             <p
-              className="text-[#2D241E]/40 tracking-widest uppercase text-xs mb-4"
-              style={{ fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.2em" }}
+              className="text-[#2D241E]/40 uppercase mb-1.5"
+              style={{ fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.22em", fontSize: "0.65rem" }}
             >
-              Complete the look
+              {t("home.moreFromCollection.eyebrow")}
             </p>
             <h2
               className="text-[#2D241E]"
-              style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "clamp(1.8rem, 4vw, 2.8rem)", fontWeight: 400 }}
+              style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "clamp(1.5rem, 3.2vw, 2.4rem)", fontWeight: 400, lineHeight: 1.15 }}
             >
               {homeSectionsSelection.moreFromCollectionTitle || DEFAULT_MORE_FROM_COLLECTION_TITLE}
             </h2>
-          </RevealText>
+          </motion.div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-y-8 md:gap-8 max-w-sm md:max-w-none mx-auto md:mx-0">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-y-8 md:gap-6 lg:gap-8 max-w-[340px] md:max-w-none mx-auto md:mx-0">
             {moreFromCollectionProducts.map((product, i) => (
               <ProductCard key={product.id} product={product} index={i} size="collection" />
             ))}

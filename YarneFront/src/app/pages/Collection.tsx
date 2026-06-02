@@ -36,9 +36,9 @@ export function Collection() {
   }
 
   return (
-    <main style={{ backgroundColor: "#F5F2ED", minHeight: "100vh" }}>
+    <main style={{ backgroundColor: "#F5F2ED", minHeight: "100vh", overflowX: "hidden" }}>
       {/* Header Banner */}
-      <section className="pt-40 pb-16 md:pt-48 md:pb-20">
+      <section className="pt-28 pb-8 md:pt-32 md:pb-10">
         <div className="max-w-[1400px] mx-auto px-6 md:px-10">
           <motion.div
             initial={{ opacity: 0, y: 30 }}
@@ -77,9 +77,9 @@ export function Collection() {
       </section>
 
       {/* Filter Bar */}
-      <div className="sticky top-[calc(60px+max(env(safe-area-inset-top),12px))] md:top-[calc(96px+max(env(safe-area-inset-top),12px))] z-30 border-y border-[#2D241E]/10" style={{ backgroundColor: "rgba(245,242,237,0.95)", backdropFilter: "blur(16px)" }}>
+      <div className="sticky top-[var(--main-header-h)] z-30 border-y border-[#2D241E]/10" style={{ backgroundColor: "rgba(245,242,237,0.95)", backdropFilter: "blur(16px)" }}>
         <div className="max-w-[1400px] mx-auto px-6 md:px-10">
-          <div className="flex items-center justify-between py-4 gap-4 overflow-x-auto scrollbar-hide">
+          <div className="flex items-center justify-between py-2.5 gap-3 overflow-x-auto scrollbar-hide">
             {/* Categories */}
             <div className="flex items-center gap-2 flex-shrink-0">
               {CATEGORIES.map((cat) => (
@@ -198,7 +198,7 @@ export function Collection() {
       </div>
 
       {/* Products Grid */}
-      <div className="max-w-[1400px] mx-auto px-8 md:px-10 py-16 md:py-20">
+      <div className="max-w-[1400px] mx-auto px-6 md:px-10 py-10 md:py-12">
         {filtered.length === 0 ? (
           <motion.div
             className="text-center py-32"
@@ -215,14 +215,14 @@ export function Collection() {
         ) : (
           <>
             {/* Desktop: uniform 3-column grid */}
-            <div className="hidden md:grid grid-cols-3 gap-6 md:gap-8">
+            <div className="hidden md:grid md:grid-cols-2 lg:grid-cols-3 gap-5 lg:gap-8">
               {filtered.map((product, i) => (
                 <ProductCard key={product.id} product={product} index={i} size="collection" />
               ))}
             </div>
 
             {/* Mobile: 1-column layout for better card display */}
-            <div className="md:hidden grid grid-cols-1 gap-y-8 max-w-sm mx-auto">
+            <div className="md:hidden grid grid-cols-1 gap-y-8 max-w-[340px] mx-auto">
               {filtered.map((product, i) => (
                 <ProductCard key={product.id} product={product} index={i} size="collection" />
               ))}
