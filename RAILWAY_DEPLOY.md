@@ -50,6 +50,18 @@ Schema is applied by **EF Core migrations** (`Data/Migrations/`) on API startup 
 - **Root Directory**: `YarneBack/YarneAPIBack/YarneAPIBack`
 - **Builder**: Dockerfile (from `railway.toml`)
 
+### Link Postgres (required — fixes startup crash)
+
+1. Open your **API** service → **Variables**.
+2. **Remove** any old SQL Server values, for example:
+   - `DATABASE_URL=Server=...;TrustServerCertificate=True;...`
+   - `ConnectionStrings__DefaultConnection=Server=...;...`
+3. Click **New variable** → **Add variable reference** → choose your **PostgreSQL** service → select **`DATABASE_URL`**.
+4. Railway will also inject `PGHOST`, `PGUSER`, `PGPASSWORD`, `PGDATABASE`, `PGPORT` automatically.
+5. **Redeploy** the API.
+
+Do **not** paste `${{Postgres.DATABASE_URL}}` as plain text unless it is a linked reference (unresolved `${{...}}` is ignored).
+
 **Variables** (see `railway.env.example`):
 
 | Variable | Purpose |
