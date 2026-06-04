@@ -295,7 +295,7 @@ export function Home() {
           </div>
 
           {/* Mobile: 1 column for better card display */}
-          <div className="md:hidden grid grid-cols-1 gap-y-8 max-w-[340px] mx-auto">
+          <div className="md:hidden grid grid-cols-1 gap-y-10 w-full max-w-md mx-auto px-2">
             {featured.map((product, i) => (
               <ProductCard key={product.id} product={product} index={i} />
             ))}
@@ -507,7 +507,7 @@ export function Home() {
             </h2>
           </motion.div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-y-8 md:gap-6 lg:gap-8 max-w-[340px] md:max-w-none mx-auto md:mx-0">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-y-10 gap-x-6 lg:gap-8 w-full">
             {moreFromCollectionProducts.map((product, i) => (
               <ProductCard key={product.id} product={product} index={i} size="collection" />
             ))}

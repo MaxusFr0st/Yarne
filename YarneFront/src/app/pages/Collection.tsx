@@ -222,7 +222,7 @@ export function Collection() {
             </div>
 
             {/* Mobile: 1-column layout for better card display */}
-            <div className="md:hidden grid grid-cols-1 gap-y-8 max-w-[340px] mx-auto">
+            <div className="md:hidden grid grid-cols-1 gap-y-10 w-full max-w-md mx-auto px-2">
               {filtered.map((product, i) => (
                 <ProductCard key={product.id} product={product} index={i} size="collection" />
               ))}

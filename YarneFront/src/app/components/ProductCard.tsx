@@ -28,20 +28,17 @@ export function ProductCard({ product, index = 0, size = "medium", inCarousel = 
 
   const isWishlisted = wishlist.includes(product.id);
 
-  /**
-   * Keep storefront cards short enough for medium screens and use contained
-   * product imagery so the full item stays visible instead of being cropped.
-   */
+  /** Portrait product imagery — consistent 3:4 ratio across breakpoints */
   const aspectClass =
     size === "carousel"
-      ? "aspect-[4/4.7] min-h-0 sm:aspect-[4/4.6] md:aspect-[4/4.8] lg:aspect-[4/4.7]"
+      ? "aspect-[3/4] min-h-0 w-full"
       : size === "collection"
-        ? "aspect-[4/4.9] min-h-[210px] md:min-h-[260px]"
+        ? "aspect-[3/4] min-h-[280px] sm:min-h-[320px] md:min-h-0 w-full"
       : size === "small"
-        ? "aspect-[4/4.8] min-h-[170px] md:min-h-[220px]"
+        ? "aspect-[3/4] min-h-[220px] md:min-h-0 w-full"
         : size === "large"
-          ? "aspect-[4/5] min-h-[240px] md:min-h-[320px]"
-          : "aspect-[4/4.9] min-h-[200px] md:min-h-[260px]";
+          ? "aspect-[4/5] min-h-[300px] md:min-h-0 w-full"
+          : "aspect-[3/4] min-h-[260px] md:min-h-0 w-full";
 
   const handleQuickAdd = (e: MouseEvent<HTMLButtonElement>) => {
     e.preventDefault();
@@ -83,26 +80,17 @@ export function ProductCard({ product, index = 0, size = "medium", inCarousel = 
           onMouseEnter={() => setIsHovered(true)}
           onMouseLeave={() => setIsHovered(false)}
         >
-          {/* Image stack: carousel gets inner inset on md+ so product photos breathe. */}
-          <div
-            className={
-              inCarousel
-                ? "absolute inset-0 md:inset-1.5 lg:inset-2.5 overflow-hidden rounded-[32px]"
-                : "absolute inset-0 overflow-hidden rounded-[32px]"
-            }
-          >
+          <div className="absolute inset-0 overflow-hidden rounded-[32px]">
             {product.colors.map((color, i) => (
               <ImageWithFallback
                 key={color.name}
                 src={color.image}
                 alt={`${product.name} in ${color.name}`}
-                className={`absolute inset-0 w-full h-full object-center ${
-                  inCarousel ? "object-cover md:object-contain lg:object-cover" : "object-cover"
-                }`}
+                className="absolute inset-0 h-full w-full object-cover object-center"
                 style={{
                   opacity: i === activeColor ? 1 : 0,
                   transition: "opacity 0.6s cubic-bezier(0.25, 0.1, 0.25, 1)",
-                  transform: isHovered ? "scale(1.05)" : "scale(1)",
+                  transform: isHovered ? "scale(1.03)" : "scale(1)",
                 }}
               />
             ))}

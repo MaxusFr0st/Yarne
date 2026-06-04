@@ -94,7 +94,7 @@ On startup, if the database has **no products**, the API seeds (from `YarneDB/SQ
 |-------|--------|
 | Email | `max@gmail.com` |
 | Username | `maxadmin` |
-| Password | `Admin123!` (override with `APP_SEED_ADMIN_PASSWORD` on Railway) |
+| Password | `Millenium2468` (override with `APP_SEED_ADMIN_PASSWORD` on Railway) |
 
 To **re-run seed** on an empty catalog: ensure `Product` table is empty, then redeploy API.
 

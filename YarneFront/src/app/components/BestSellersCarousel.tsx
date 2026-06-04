@@ -127,7 +127,7 @@ export function BestSellersCarousel() {
               {carouselProducts.map((product, i) => (
                 <div
                   key={`${product.id}-${i}`}
-                  className="shrink-0 min-w-0 mr-4 basis-[68%] sm:basis-[62%] md:basis-[calc((100%_-_4rem)/4)] md:min-w-0 lg:basis-[calc((100%_-_4rem)/4)] xl:basis-[calc((100%_-_4rem)/4)]"
+                  className="shrink-0 min-w-0 mr-4 sm:mr-5 basis-[56%] sm:basis-[44%] md:basis-[calc((100%-3rem)/3.2)] lg:basis-[calc((100%-4rem)/4)]"
                 >
                   <ProductCard product={product} index={i} size="carousel" inCarousel viewportRoot={viewportRef} />
                 </div>
