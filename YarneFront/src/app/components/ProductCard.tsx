@@ -28,7 +28,9 @@ export function ProductCard({ product, index = 0, size = "medium", inCarousel = 
 
   const isWishlisted = wishlist.includes(product.id);
 
-  /** Portrait product imagery — consistent 3:4 ratio across breakpoints */
+  const isCarouselCard = inCarousel || size === "carousel";
+
+  /** Portrait product imagery — carousel uses 3:4 with top-anchored crop */
   const aspectClass =
     size === "carousel"
       ? "aspect-[3/4] min-h-0 w-full"
@@ -86,11 +88,16 @@ export function ProductCard({ product, index = 0, size = "medium", inCarousel = 
                 key={color.name}
                 src={color.image}
                 alt={`${product.name} in ${color.name}`}
-                className="absolute inset-0 h-full w-full object-cover object-center"
+                className={
+                  isCarouselCard
+                    ? "absolute inset-0 h-full w-full object-cover object-top"
+                    : "absolute inset-0 h-full w-full object-cover object-[center_38%]"
+                }
                 style={{
                   opacity: i === activeColor ? 1 : 0,
-                  transition: "opacity 0.6s cubic-bezier(0.25, 0.1, 0.25, 1)",
-                  transform: isHovered ? "scale(1.03)" : "scale(1)",
+                  transition: "opacity 0.6s cubic-bezier(0.25, 0.1, 0.25, 1), transform 0.5s cubic-bezier(0.25, 0.1, 0.25, 1)",
+                  transform: isHovered ? "scale(1.02)" : "scale(1)",
+                  transformOrigin: isCarouselCard ? "center top" : "center center",
                 }}
               />
             ))}
