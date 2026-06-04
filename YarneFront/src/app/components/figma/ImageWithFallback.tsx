@@ -1,58 +1,41 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { resolveMediaUrl } from "../../utils/storefrontMedia";
 
 const ERROR_IMG_SRC =
   "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iODgiIGhlaWdodD0iODgiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyIgc3Ryb2tlPSIjMDAwIiBzdHJva2UtbGluZWpvaW49InJvdW5kIiBvcGFjaXR5PSIuMyIgZmlsbD0ibm9uZSIgc3Ryb2tlLXdpZHRoPSIzLjciPjxyZWN0IHg9IjE2IiB5PSIxNiIgd2lkdGg9IjU2IiBoZWlnaHQ9IjU2IiByeD0iNiIvPjxwYXRoIGQ9Im0xNiA1OCAxNi0xOCAzMiAzMiIvPjxjaXJjbGUgY3g9IjUzIiBjeT0iMzUiIHI9IjciLz48L3N2Zz4KCg==";
 
-function resolveImageSrc(src: string | undefined): string | undefined {
-  if (!src) return src;
-  const value = String(src);
-  return resolveMediaUrl(value) || value;
-}
-
-export function ImageWithFallback(
-  props: React.ImgHTMLAttributes<HTMLImageElement> & { fallbackSrc?: string }
-) {
+export function ImageWithFallback(props: React.ImgHTMLAttributes<HTMLImageElement>) {
   const [didError, setDidError] = useState(false);
-  const { src, alt, style, className, fallbackSrc, ...rest } = props;
 
-  const resolvedSrc = useMemo(() => resolveImageSrc(src), [src]);
-  const resolvedFallback = useMemo(
-    () => (fallbackSrc ? resolveImageSrc(fallbackSrc) : undefined),
-    [fallbackSrc]
-  );
+  const { src, alt, style, className, ...rest } = props;
+  const resolvedSrc = src ? resolveMediaUrl(String(src)) : "";
 
   useEffect(() => {
     setDidError(false);
   }, [resolvedSrc]);
 
-  const displaySrc = didError && resolvedFallback ? resolvedFallback : resolvedSrc;
-
-  if (!displaySrc) {
-    return null;
-  }
-
-  if (didError && !resolvedFallback) {
+  if (!resolvedSrc) {
     return (
       <div
-        className={`inline-block bg-gray-100 text-center align-middle ${className ?? ""}`}
+        className={`inline-block bg-[#EDE9E2] ${className ?? ""}`}
         style={style}
-      >
-        <div className="flex items-center justify-center w-full h-full">
-          <img
-            src={ERROR_IMG_SRC}
-            alt="Error loading image"
-            {...rest}
-            data-original-url={resolvedSrc}
-          />
-        </div>
-      </div>
+        aria-hidden
+      />
     );
   }
 
-  return (
+  return didError ? (
+    <div
+      className={`inline-block bg-gray-100 text-center align-middle ${className ?? ""}`}
+      style={style}
+    >
+      <div className="flex items-center justify-center w-full h-full">
+        <img src={ERROR_IMG_SRC} alt="Error loading image" {...rest} data-original-url={resolvedSrc} />
+      </div>
+    </div>
+  ) : (
     <img
-      src={displaySrc}
+      src={resolvedSrc}
       alt={alt}
       className={className}
       style={style}

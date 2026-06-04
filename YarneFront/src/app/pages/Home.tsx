@@ -3,8 +3,6 @@ import type { ReactNode, CSSProperties } from "react";
 import { motion, useScroll, useTransform } from "motion/react";
 import { ArrowRight, ChevronDown } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { EDITORIAL_IMG, LOOKBOOK_IMG } from "../data/products";
-import heroImg from "../../../assets/CherieCherryLace2Gen.jpg";
 import { useProducts } from "../hooks/useProducts";
 import { ProductCard } from "../components/ProductCard";
 import { BestSellersCarousel } from "../components/BestSellersCarousel";
@@ -21,7 +19,6 @@ import {
   getDefaultHomePageMediaSelection,
   loadHomePageMediaSelection,
 } from "../utils/homePageMediaSelection";
-import { resolveHeroImageSrc, resolveMediaUrl } from "../utils/storefrontMedia";
 
 const easing = [0.25, 0.1, 0.25, 1] as const;
 
@@ -79,9 +76,9 @@ export function Home() {
     };
   }, []);
 
-  const heroImageSrc = resolveHeroImageSrc(homePageMedia.heroImageUrl, heroImg);
-  const editorialImageSrc = resolveMediaUrl(homePageMedia.editorialImageUrl) || EDITORIAL_IMG;
-  const lookbookImageSrc = resolveMediaUrl(homePageMedia.lookbookImageUrl) || LOOKBOOK_IMG;
+  const heroImageSrc = homePageMedia.heroImageUrl.trim();
+  const editorialImageSrc = homePageMedia.editorialImageUrl.trim();
+  const lookbookImageSrc = homePageMedia.lookbookImageUrl.trim();
 
   const featured = useMemo(() => {
     const selected = homeSectionsSelection.featuredProductCodes
@@ -130,12 +127,15 @@ export function Home() {
           className="absolute inset-0 will-change-transform"
           style={{ y: heroY, scale: heroScale }}
         >
-          <Img
-            src={heroImageSrc}
-            fallbackSrc={heroImg}
-            alt="Yarné Hero"
-            className="w-full h-full object-cover"
-          />
+          {heroImageSrc ? (
+            <Img
+              src={heroImageSrc}
+              alt="Yarné Hero"
+              className="w-full h-full object-cover"
+            />
+          ) : (
+            <div className="absolute inset-0" style={{ background: "linear-gradient(135deg, #6b6560 0%, #a39e97 45%, #d4cfc8 100%)" }} />
+          )}
           {/* Dark overlay */}
           <div
             className="absolute inset-0"
@@ -361,12 +361,15 @@ export function Home() {
             <RevealText className="relative">
               <div className="relative rounded-[40px] overflow-hidden" style={{ aspectRatio: "4/5" }}>
                 <motion.div className="absolute inset-0 will-change-transform" style={{ y: editorialY1 }}>
-                  <Img
-                    src={editorialImageSrc}
-                    fallbackSrc={EDITORIAL_IMG}
-                    alt={t("home.editorial.eyebrow")}
-                    className="w-full h-[115%] object-cover"
-                  />
+                  {editorialImageSrc ? (
+                    <Img
+                      src={editorialImageSrc}
+                      alt={t("home.editorial.eyebrow")}
+                      className="w-full h-[115%] object-cover"
+                    />
+                  ) : (
+                    <div className="w-full h-[115%] bg-[#EDE9E2]" />
+                  )}
                 </motion.div>
               </div>
               {/* Floating stat */}
@@ -455,12 +458,15 @@ export function Home() {
           viewport={{ once: true }}
           transition={{ duration: 1 }}
         >
-          <Img
-            src={lookbookImageSrc}
-            fallbackSrc={LOOKBOOK_IMG}
-            alt="Lookbook"
-            className="w-full h-full object-cover"
-          />
+          {lookbookImageSrc ? (
+            <Img
+              src={lookbookImageSrc}
+              alt="Lookbook"
+              className="w-full h-full object-cover"
+            />
+          ) : (
+            <div className="w-full h-full bg-[#2D241E]/20" />
+          )}
           <div
             className="absolute inset-0"
             style={{ background: "linear-gradient(120deg, rgba(10,17,40,0.75) 0%, rgba(10,17,40,0.2) 100%)" }}

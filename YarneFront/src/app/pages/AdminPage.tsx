@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from "motion/react";
 import { useAdminData } from "../hooks/useAdminData";
 import { useApp } from "../context/AppContext";
 import { uploadImage } from "../api/images";
-import { resolveMediaUrl } from "../utils/storefrontMedia";
+import { normalizeStoredMediaUrl, resolveMediaUrl } from "../utils/storefrontMedia";
 import type { Product } from "../types/product";
 import {
   loadCarouselSelectionForAdmin,
@@ -33,8 +33,6 @@ import {
   persistHomePageMediaSelection,
   type HomePageMediaSelection,
 } from "../utils/homePageMediaSelection";
-import heroDefaultImg from "../../../assets/CherieCherryLace2Gen.jpg";
-import { EDITORIAL_IMG, LOOKBOOK_IMG } from "../data/products";
 import {
   LayoutDashboard,
   Package,
@@ -1590,28 +1588,24 @@ export function AdminPage() {
 
   const updateHomePageMedia = (patch: Partial<HomePageMediaSelection>) => {
     setSaveError(null);
-    const next = { ...homePageMedia, ...patch };
-    void persistHomePageMediaSelection(next)
-      .then(setHomePageMedia)
-      .catch((e) =>
+    setHomePageMedia((prev) => {
+      const next = { ...prev, ...patch };
+      void persistHomePageMediaSelection(next).catch((e) =>
         setSaveError(e instanceof Error ? e.message : "Failed to save home page images to server.")
       );
+      return next;
+    });
   };
 
-  const homeMediaPreview = (field: HomeMediaField): string => {
-    const custom = resolveMediaUrl(homePageMedia[field]);
-    if (custom) return custom;
-    if (field === "heroImageUrl") return heroDefaultImg;
-    if (field === "editorialImageUrl") return EDITORIAL_IMG;
-    return LOOKBOOK_IMG;
-  };
+  const homeMediaPreview = (field: HomeMediaField): string =>
+    resolveMediaUrl(homePageMedia[field]);
 
   const handleHomeMediaUpload = async (field: HomeMediaField, file: File | null) => {
     if (!file) return;
     setHomeMediaUploadError(null);
     setHomeMediaUploading((prev) => ({ ...prev, [field]: true }));
     try {
-      const url = await uploadImage(file);
+      const url = normalizeStoredMediaUrl(await uploadImage(file));
       updateHomePageMedia({ [field]: url });
     } catch (err) {
       setHomeMediaUploadError(
@@ -2201,7 +2195,7 @@ export function AdminPage() {
                     Home Page Images
                   </p>
                   <p className="text-[#2D241E]/45 text-xs mt-1" style={{ fontFamily: "'DM Sans', sans-serif" }}>
-                    Hero, editorial block, and lookbook banner. Empty slot uses the built-in default until you upload.
+                    Hero, editorial block, and lookbook banner. Upload-only — empty slots stay blank until you add an image.
                   </p>
                 </div>
                 <div className="px-6 py-5">
@@ -2253,7 +2247,7 @@ export function AdminPage() {
                                   fontFamily: "'DM Sans', sans-serif",
                                 }}
                               >
-                                Default preview
+                                No image yet
                               </span>
                             )}
                           </div>
