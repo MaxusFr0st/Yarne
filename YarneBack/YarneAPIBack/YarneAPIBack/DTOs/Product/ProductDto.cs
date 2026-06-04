@@ -34,5 +34,9 @@ public class ProductDto
 
     public bool IsActive { get; set; }
 
+    public bool IsNew { get; set; }
+
+    public bool IsBestseller { get; set; }
+
     public DateTime CreatedAt { get; set; }
 }

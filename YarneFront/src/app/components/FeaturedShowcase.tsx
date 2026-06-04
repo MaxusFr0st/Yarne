@@ -8,10 +8,12 @@ import { ImageWithFallback as Img } from "./figma/ImageWithFallback";
 import { LangLink } from "../i18n/LangLink";
 import { useLocale } from "../i18n/useLocale";
 import { formatPrice } from "../i18n/format";
+import { resolveMediaUrl } from "../utils/storefrontMedia";
 import {
   DEFAULT_SHOWCASE_EYEBROW,
   DEFAULT_SHOWCASE_TITLE,
-  getFeaturedShowcaseSelection,
+  getDefaultFeaturedShowcaseSelection,
+  loadFeaturedShowcaseSelection,
   type FeaturedShowcaseSelection,
   type ShowcaseProductSlot,
   type ShowcaseTextSlot,
@@ -35,8 +37,8 @@ function ProductTile({ slot, product, fallbackTitle, variant }: ProductTileProps
   const title = product?.name ?? fallbackTitle;
   const price = product?.price;
   const imageSrc =
-    slot.imageUrl?.trim() ||
-    product?.colors?.[0]?.image ||
+    resolveMediaUrl(slot.imageUrl) ||
+    resolveMediaUrl(product?.colors?.[0]?.image) ||
     PLACEHOLDER_IMG;
   const href = product ? `/product/${product.id}` : "/collection";
 
@@ -213,15 +215,17 @@ export function FeaturedShowcase() {
   const { t } = useTranslation();
   const { products } = useProducts();
   const [selection, setSelection] = useState<FeaturedShowcaseSelection>(
-    getFeaturedShowcaseSelection
+    getDefaultFeaturedShowcaseSelection
   );
 
   useEffect(() => {
-    const sync = () => setSelection(getFeaturedShowcaseSelection());
-    sync();
-    if (typeof window === "undefined") return;
-    window.addEventListener("storage", sync);
-    return () => window.removeEventListener("storage", sync);
+    let cancelled = false;
+    void loadFeaturedShowcaseSelection().then((next) => {
+      if (!cancelled) setSelection(next);
+    });
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const productByCode = useMemo(() => {

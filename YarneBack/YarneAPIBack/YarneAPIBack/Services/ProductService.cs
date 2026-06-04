@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using YarneAPIBack.Configuration;
 using YarneAPIBack.Data;
 using YarneAPIBack.DTOs.Product;
 using YarneAPIBack.Services.Contracts;
@@ -44,12 +45,9 @@ public class ProductService : IProductService
             query = query.Where(p => p.Category.Name == category);
 
         if (isNew == true)
-        {
-            var threshold = DateTime.UtcNow.AddDays(-30);
-            query = query.Where(p => p.CreatedAt >= threshold);
-        }
+            query = query.Where(p => p.IsNew);
 
-        var products = await query.OrderBy(p => p.Name).ToListAsync(ct);
+        var products = await query.AsNoTracking().OrderBy(p => p.Name).ToListAsync(ct);
 
         return products.Select(MapToProductDto).ToList();
     }
@@ -127,6 +125,8 @@ public class ProductService : IProductService
             ProducerName = request.ProducerName,
             DefaultSizeId = defaultSizeId,
             IsActive = true,
+            IsNew = request.IsNew,
+            IsBestseller = request.IsBestseller,
         };
         _context.Products.Add(product);
         await _context.SaveChangesAsync(ct);
@@ -198,6 +198,10 @@ public class ProductService : IProductService
         product.CollectionId = request.CollectionId;
         product.ProducerName = request.ProducerName;
         product.IsActive = request.IsActive;
+        if (request.IsNew.HasValue)
+            product.IsNew = request.IsNew.Value;
+        if (request.IsBestseller.HasValue)
+            product.IsBestseller = request.IsBestseller.Value;
 
         if (request.ImageUrls is not null)
             await ReplaceProductImagesAsync(product.Id, request.ImageUrls, ct);
@@ -297,7 +301,8 @@ public class ProductService : IProductService
                     .GroupBy(si => si.ProductSize.Size.Name)
                     .ToDictionary(
                         g => g.Key,
-                        g => DistinctPreserveOrder(g.OrderBy(si => si.SortOrder).Select(si => si.ImageUrl))
+                        g => MediaUrlNormalizer.NormalizeList(
+                            g.OrderBy(si => si.SortOrder).Select(si => si.ImageUrl))
                     );
                 var sizeStocks = pc.VariantStocks
                     .GroupBy(vs => vs.ProductSize.Size.Name)
@@ -309,9 +314,11 @@ public class ProductService : IProductService
 
                 var colorImages = defaultSizeImages.Count > 0
                     ? defaultSizeImages
-                    : DistinctPreserveOrder(pc.Images.OrderBy(pi => pi.SortOrder).Select(pi => pi.ImageUrl));
+                    : MediaUrlNormalizer.NormalizeList(
+                        pc.Images.OrderBy(pi => pi.SortOrder).Select(pi => pi.ImageUrl));
 
-                var fallback = images.Count > i ? images[i] : images.FirstOrDefault() ?? p.ImageUrl ?? "";
+                var fallback = NormalizeUrl(
+                    images.Count > i ? images[i] : images.FirstOrDefault() ?? p.ImageUrl) ?? "";
                 return new ColorVariantDto
                 {
                     Name = pc.Color.Name,
@@ -329,8 +336,12 @@ public class ProductService : IProductService
                 ImageUrl = url,
                 ImageUrls = new List<string> { url },
             }).ToList();
-        if (colors.Count == 0 && !string.IsNullOrEmpty(p.ImageUrl))
-            colors.Add(new ColorVariantDto { Name = "Default", Hex = "#2D241E", ImageUrl = p.ImageUrl, ImageUrls = new List<string> { p.ImageUrl! } });
+        if (colors.Count == 0)
+        {
+            var legacy = NormalizeUrl(p.ImageUrl);
+            if (!string.IsNullOrEmpty(legacy))
+                colors.Add(new ColorVariantDto { Name = "Default", Hex = "#2D241E", ImageUrl = legacy, ImageUrls = new List<string> { legacy } });
+        }
 
         return new ProductDto
         {
@@ -350,6 +361,8 @@ public class ProductService : IProductService
             CollectionName = p.Collection?.Name,
             ProducerName = p.ProducerName,
             IsActive = p.IsActive,
+            IsNew = p.IsNew,
+            IsBestseller = p.IsBestseller,
             CreatedAt = p.CreatedAt,
         };
     }
@@ -357,7 +370,6 @@ public class ProductService : IProductService
     private static ProductDetailDto MapToProductDetailDto(Models.Product p)
     {
         var baseDto = MapToProductDto(p);
-        var isNew = p.CreatedAt >= DateTime.UtcNow.AddDays(-30);
 
         return new ProductDetailDto
         {
@@ -378,8 +390,8 @@ public class ProductService : IProductService
             Sizes = baseDto.Sizes,
             DefaultSize = baseDto.DefaultSize,
             Subtitle = p.Material ?? p.ProducerName,
-            IsNew = isNew,
-            IsBestseller = false,
+            IsNew = p.IsNew,
+            IsBestseller = p.IsBestseller,
             Details = BuildDetailsList(p),
             Colors = baseDto.Colors,
         };
@@ -389,12 +401,14 @@ public class ProductService : IProductService
     {
         if (p.ProductImages.Count > 0)
         {
-            return DistinctPreserveOrder(p.ProductImages
+            return MediaUrlNormalizer.NormalizeList(p.ProductImages
                 .OrderBy(pi => pi.SortOrder)
                 .ThenBy(pi => pi.Id)
                 .Select(pi => pi.ImageUrl));
         }
-        return string.IsNullOrEmpty(p.ImageUrl) ? new List<string>() : new List<string> { p.ImageUrl };
+
+        var legacy = NormalizeUrl(p.ImageUrl);
+        return string.IsNullOrEmpty(legacy) ? new List<string>() : new List<string> { legacy };
     }
 
     private static List<string> BuildDetailsList(Models.Product p)
@@ -409,25 +423,11 @@ public class ProductService : IProductService
         return list.Count > 0 ? list : new List<string> { "Product details available on request." };
     }
 
-    private static List<string> NormalizeUrls(IEnumerable<string>? urls)
-    {
-        var normalized = new List<string>();
-        if (urls == null)
-            return normalized;
+    private static List<string> NormalizeUrls(IEnumerable<string>? urls) =>
+        MediaUrlNormalizer.NormalizeList(urls);
 
-        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        foreach (var raw in urls)
-        {
-            if (string.IsNullOrWhiteSpace(raw))
-                continue;
-
-            var url = raw.Trim();
-            if (seen.Add(url))
-                normalized.Add(url);
-        }
-
-        return normalized;
-    }
+    private static string? NormalizeUrl(string? url) =>
+        MediaUrlNormalizer.NormalizeForStorage(url);
 
     private static List<string> DistinctPreserveOrder(IEnumerable<string> urls)
     {

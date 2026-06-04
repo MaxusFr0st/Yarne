@@ -26,6 +26,8 @@ export interface ProductDto {
   collectionName: string | null;
   producerName: string | null;
   isActive: boolean;
+  isNew: boolean;
+  isBestseller: boolean;
   createdAt: string;
 }
 
@@ -89,6 +91,8 @@ export interface CreateProductRequest {
   colorVariants?: ColorVariantInput[];
   colorSizeVariants?: ColorSizeVariantInput[];
   variantStocks?: VariantStockInput[];
+  isNew?: boolean;
+  isBestseller?: boolean;
 }
 
 export interface UpdateProductRequest extends CreateProductRequest {

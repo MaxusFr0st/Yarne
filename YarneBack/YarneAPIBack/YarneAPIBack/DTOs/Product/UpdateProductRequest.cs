@@ -72,4 +72,8 @@ public class UpdateProductRequest
     public List<VariantStockInput>? VariantStocks { get; set; }
 
     public bool IsActive { get; set; } = true;
+
+    public bool? IsNew { get; set; }
+
+    public bool? IsBestseller { get; set; }
 }

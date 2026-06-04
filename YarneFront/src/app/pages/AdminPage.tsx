@@ -3,20 +3,26 @@ import { motion, AnimatePresence } from "motion/react";
 import { useAdminData } from "../hooks/useAdminData";
 import { useApp } from "../context/AppContext";
 import { uploadImage } from "../api/images";
+import { resolveMediaUrl } from "../utils/storefrontMedia";
 import type { Product } from "../types/product";
-import { getCarouselSelection, saveCarouselSelection } from "../utils/carouselSelection";
+import {
+  loadCarouselSelectionForAdmin,
+  persistCarouselSelection,
+} from "../utils/carouselSelection";
 import {
   DEFAULT_FEATURED_TITLE,
   DEFAULT_MORE_FROM_COLLECTION_TITLE,
-  getHomeSectionsSelection,
-  saveHomeSectionsSelection,
+  getDefaultHomeSectionsSelection,
+  loadHomeSectionsSelectionForAdmin,
+  persistHomeSectionsSelection,
   type HomeSectionsSelection,
 } from "../utils/homeSectionsSelection";
 import {
   DEFAULT_SHOWCASE_EYEBROW,
   DEFAULT_SHOWCASE_TITLE,
-  getFeaturedShowcaseSelection,
-  saveFeaturedShowcaseSelection,
+  getDefaultFeaturedShowcaseSelection,
+  loadFeaturedShowcaseSelectionForAdmin,
+  persistFeaturedShowcaseSelection,
   type FeaturedShowcaseSelection,
   type ShowcaseProductSlot,
   type ShowcaseTextSlot,
@@ -1371,9 +1377,11 @@ export function AdminPage() {
   const [orderStatusDrafts, setOrderStatusDrafts] = useState<Record<number, OrderStatus>>({});
   const [orderDeliveryDrafts, setOrderDeliveryDrafts] = useState<Record<number, string>>({});
   const [carouselProductCodes, setCarouselProductCodes] = useState<string[]>([]);
-  const [homeSectionsSelection, setHomeSectionsSelection] = useState<HomeSectionsSelection>(getHomeSectionsSelection);
+  const [homeSectionsSelection, setHomeSectionsSelection] = useState<HomeSectionsSelection>(
+    getDefaultHomeSectionsSelection
+  );
   const [featuredShowcaseSelection, setFeaturedShowcaseSelectionState] =
-    useState<FeaturedShowcaseSelection>(getFeaturedShowcaseSelection);
+    useState<FeaturedShowcaseSelection>(getDefaultFeaturedShowcaseSelection);
   const [showcaseUploading, setShowcaseUploading] = useState<Record<string, boolean>>({});
   const [showcaseUploadError, setShowcaseUploadError] = useState<string | null>(null);
 
@@ -1415,16 +1423,32 @@ export function AdminPage() {
   );
 
   useEffect(() => {
-    const syncSelection = () => {
-      const { productCodes } = getCarouselSelection();
-      setCarouselProductCodes(productCodes);
-      setHomeSectionsSelection(getHomeSectionsSelection());
-      setFeaturedShowcaseSelectionState(getFeaturedShowcaseSelection());
+    let cancelled = false;
+    const syncFromApi = async () => {
+      try {
+        const [carousel, home, showcase] = await Promise.all([
+          loadCarouselSelectionForAdmin(),
+          loadHomeSectionsSelectionForAdmin(),
+          loadFeaturedShowcaseSelectionForAdmin(),
+        ]);
+        if (cancelled) return;
+        setCarouselProductCodes(carousel.productCodes);
+        setHomeSectionsSelection(home);
+        setFeaturedShowcaseSelectionState(showcase);
+      } catch (e) {
+        if (!cancelled) {
+          setSaveError(
+            e instanceof Error
+              ? e.message
+              : "Could not load storefront settings from server."
+          );
+        }
+      }
     };
-    syncSelection();
-    if (typeof window === "undefined") return;
-    window.addEventListener("storage", syncSelection);
-    return () => window.removeEventListener("storage", syncSelection);
+    void syncFromApi();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   useEffect(() => {
@@ -1456,8 +1480,12 @@ export function AdminPage() {
   );
 
   const updateCarouselSelection = (nextCodes: string[]) => {
-    const savedCodes = saveCarouselSelection(nextCodes);
-    setCarouselProductCodes(savedCodes);
+    setSaveError(null);
+    void persistCarouselSelection(nextCodes)
+      .then((codes) => setCarouselProductCodes(codes))
+      .catch((e) =>
+        setSaveError(e instanceof Error ? e.message : "Failed to save carousel to server.")
+      );
   };
 
   const featuredHomeProducts = useMemo(
@@ -1477,8 +1505,12 @@ export function AdminPage() {
   );
 
   const updateHomeSelection = (next: HomeSectionsSelection) => {
-    const saved = saveHomeSectionsSelection(next);
-    setHomeSectionsSelection(saved);
+    setSaveError(null);
+    void persistHomeSectionsSelection(next)
+      .then((selection) => setHomeSectionsSelection(selection))
+      .catch((e) =>
+        setSaveError(e instanceof Error ? e.message : "Failed to save home sections to server.")
+      );
   };
 
   const addFeaturedHomeProduct = (productCode: string) => {
@@ -1512,8 +1544,14 @@ export function AdminPage() {
   };
 
   const updateFeaturedShowcaseSelection = (next: FeaturedShowcaseSelection) => {
-    const saved = saveFeaturedShowcaseSelection(next);
-    setFeaturedShowcaseSelectionState(saved);
+    setSaveError(null);
+    void persistFeaturedShowcaseSelection(next)
+      .then((selection) => setFeaturedShowcaseSelectionState(selection))
+      .catch((e) =>
+        setSaveError(
+          e instanceof Error ? e.message : "Failed to save Editorial Picks to server. Are you logged in as admin?"
+        )
+      );
   };
 
   const updateShowcaseProductSlot = (
@@ -1637,6 +1675,8 @@ export function AdminPage() {
         colorIds,
         colorSizeVariants,
         variantStocks,
+        isNew: data.isNew,
+        isBestseller: data.isBestseller,
       };
       if (productModal.editing && "idNum" in productModal.editing) {
         await editProduct(productModal.editing.idNum, { ...payload, isActive: true });
@@ -2425,7 +2465,10 @@ export function AdminPage() {
                     const linkedProduct = slot.productCode
                       ? products.find((p) => p.id === slot.productCode) ?? null
                       : null;
-                    const previewImage = slot.imageUrl || linkedProduct?.colors?.[0]?.image || "";
+                    const previewImage =
+                      resolveMediaUrl(slot.imageUrl) ||
+                      resolveMediaUrl(linkedProduct?.colors?.[0]?.image) ||
+                      "";
                     const isUploading = Boolean(showcaseUploading[key]);
                     return (
                       <div

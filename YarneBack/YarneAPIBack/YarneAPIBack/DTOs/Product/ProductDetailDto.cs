@@ -7,9 +7,5 @@ public class ProductDetailDto : ProductDto
 {
     public string? Subtitle { get; set; }
 
-    public bool IsNew { get; set; }
-
-    public bool IsBestseller { get; set; }
-
     public List<string> Details { get; set; } = new();
 }

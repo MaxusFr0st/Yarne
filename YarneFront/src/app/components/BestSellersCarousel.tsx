@@ -4,7 +4,7 @@ import { motion } from "motion/react";
 import { useTranslation } from "react-i18next";
 import { useProducts } from "../hooks/useProducts";
 import { ProductCard } from "./ProductCard";
-import { getCarouselSelection } from "../utils/carouselSelection";
+import { loadCarouselSelection } from "../utils/carouselSelection";
 
 const easing = [0.25, 0.1, 0.25, 1] as const;
 
@@ -56,14 +56,13 @@ export function BestSellersCarousel() {
   const carouselProducts = selectedProducts.length > 0 ? selectedProducts : fallbackProducts;
 
   useEffect(() => {
-    const syncSelection = () => {
-      const { productCodes } = getCarouselSelection();
-      setSelectedProductCodes(productCodes);
+    let cancelled = false;
+    void loadCarouselSelection().then(({ productCodes }) => {
+      if (!cancelled) setSelectedProductCodes(productCodes);
+    });
+    return () => {
+      cancelled = true;
     };
-    syncSelection();
-    if (typeof window === "undefined") return;
-    window.addEventListener("storage", syncSelection);
-    return () => window.removeEventListener("storage", syncSelection);
   }, []);
 
   return (

@@ -65,8 +65,8 @@ public class ImagesController : ControllerBase
             return StatusCode(500, new { message = "Failed to save file" });
         }
 
-        var baseUrl = $"{Request.Scheme}://{Request.Host}";
-        var url = $"{baseUrl}/uploads/{fileName}";
+        // Path-only URL: every device resolves this via VITE_API_URL (not the uploader's host).
+        var url = $"/uploads/{fileName}";
         return Ok(new { url });
     }
 

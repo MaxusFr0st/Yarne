@@ -11,6 +11,7 @@ export interface CartItem {
   size: string;
   quantity: number;
   image: string;
+  maxQuantity: number;
 }
 
 interface AppContextType {
@@ -146,16 +147,30 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const closeLogin = useCallback(() => setLoginOpen(false), []);
 
   const addToCart = useCallback((item: Omit<CartItem, "cartId">) => {
+    const maxQty = Math.max(0, item.maxQuantity);
+    if (maxQty <= 0) return;
+
     setCartItems((prev) => {
       const existing = prev.find(
         (i) => i.productId === item.productId && i.color === item.color && i.size === item.size
       );
       if (existing) {
+        const nextQty = Math.min(existing.quantity + item.quantity, maxQty);
+        if (nextQty <= existing.quantity) return prev;
         return prev.map((i) =>
-          i.cartId === existing.cartId ? { ...i, quantity: i.quantity + item.quantity } : i
+          i.cartId === existing.cartId ? { ...i, quantity: nextQty, maxQuantity: maxQty } : i
         );
       }
-      return [...prev, { ...item, cartId: `${item.productId}-${item.color}-${item.size}-${Date.now()}` }];
+      const quantity = Math.min(item.quantity, maxQty);
+      return [
+        ...prev,
+        {
+          ...item,
+          quantity,
+          maxQuantity: maxQty,
+          cartId: `${item.productId}-${item.color}-${item.size}-${Date.now()}`,
+        },
+      ];
     });
     setCartOpen(true);
   }, []);
@@ -168,7 +183,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     if (qty <= 0) {
       setCartItems((prev) => prev.filter((i) => i.cartId !== cartId));
     } else {
-      setCartItems((prev) => prev.map((i) => (i.cartId === cartId ? { ...i, quantity: qty } : i)));
+      setCartItems((prev) =>
+        prev.map((i) =>
+          i.cartId === cartId
+            ? { ...i, quantity: Math.min(qty, Math.max(1, i.maxQuantity)) }
+            : i
+        )
+      );
     }
   }, []);
 

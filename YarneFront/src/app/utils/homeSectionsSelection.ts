@@ -1,4 +1,6 @@
-const HOME_SECTIONS_SELECTION_KEY = "yarne.home.sections.v1";
+import { fetchStorefrontSetting, saveStorefrontSetting } from "../api/storefrontSettings";
+
+export const HOME_SECTIONS_SELECTION_KEY = "yarne.home.sections.v1";
 
 export const DEFAULT_FEATURED_TITLE = "Featured this season";
 export const DEFAULT_MORE_FROM_COLLECTION_TITLE = "More from the collection";
@@ -22,7 +24,7 @@ function normalizeTitle(value: unknown, fallback: string): string {
   return trimmed.length > 0 ? trimmed : fallback;
 }
 
-function normalizeSelection(value: unknown): HomeSectionsSelection {
+export function normalizeHomeSectionsSelection(value: unknown): HomeSectionsSelection {
   const source = typeof value === "object" && value !== null ? (value as Record<string, unknown>) : {};
   return {
     featuredTitle: normalizeTitle(source.featuredTitle, DEFAULT_FEATURED_TITLE),
@@ -32,27 +34,81 @@ function normalizeSelection(value: unknown): HomeSectionsSelection {
   };
 }
 
-export function getHomeSectionsSelection(): HomeSectionsSelection {
-  if (typeof window === "undefined") {
-    return normalizeSelection({});
-  }
+export function getDefaultHomeSectionsSelection(): HomeSectionsSelection {
+  return normalizeHomeSectionsSelection({});
+}
 
+function readLocalHomeSections(): HomeSectionsSelection {
+  if (typeof window === "undefined") return getDefaultHomeSectionsSelection();
   const raw = window.localStorage.getItem(HOME_SECTIONS_SELECTION_KEY);
-  if (raw == null) {
-    return normalizeSelection({});
-  }
-
+  if (raw == null) return getDefaultHomeSectionsSelection();
   try {
-    return normalizeSelection(JSON.parse(raw));
+    return normalizeHomeSectionsSelection(JSON.parse(raw));
   } catch {
-    return normalizeSelection({});
+    return getDefaultHomeSectionsSelection();
   }
 }
 
-export function saveHomeSectionsSelection(selection: HomeSectionsSelection): HomeSectionsSelection {
-  const normalized = normalizeSelection(selection);
-  if (typeof window !== "undefined") {
-    window.localStorage.setItem(HOME_SECTIONS_SELECTION_KEY, JSON.stringify(normalized));
+function writeLocalHomeSections(selection: HomeSectionsSelection) {
+  if (typeof window === "undefined") return;
+  window.localStorage.setItem(HOME_SECTIONS_SELECTION_KEY, JSON.stringify(selection));
+}
+
+function hasConfiguredHomeSections(selection: HomeSectionsSelection): boolean {
+  return (
+    selection.featuredProductCodes.length > 0
+    || selection.moreFromCollectionProductCodes.length > 0
+    || selection.featuredTitle !== DEFAULT_FEATURED_TITLE
+    || selection.moreFromCollectionTitle !== DEFAULT_MORE_FROM_COLLECTION_TITLE
+  );
+}
+
+export function getHomeSectionsSelection(): HomeSectionsSelection {
+  return readLocalHomeSections();
+}
+
+export async function loadHomeSectionsSelection(): Promise<HomeSectionsSelection> {
+  try {
+    const remote = await fetchStorefrontSetting<HomeSectionsSelection>(HOME_SECTIONS_SELECTION_KEY);
+    if (remote != null) {
+      const normalized = normalizeHomeSectionsSelection(remote);
+      writeLocalHomeSections(normalized);
+      return normalized;
+    }
+  } catch {
+    // API unavailable
   }
+  return getDefaultHomeSectionsSelection();
+}
+
+export async function loadHomeSectionsSelectionForAdmin(): Promise<HomeSectionsSelection> {
+  try {
+    const remote = await fetchStorefrontSetting<HomeSectionsSelection>(HOME_SECTIONS_SELECTION_KEY);
+    if (remote != null) {
+      const normalized = normalizeHomeSectionsSelection(remote);
+      writeLocalHomeSections(normalized);
+      return normalized;
+    }
+  } catch {
+    // continue
+  }
+
+  const local = readLocalHomeSections();
+  if (!hasConfiguredHomeSections(local)) {
+    return getDefaultHomeSectionsSelection();
+  }
+
+  const normalized = normalizeHomeSectionsSelection(local);
+  await saveStorefrontSetting(HOME_SECTIONS_SELECTION_KEY, normalized);
+  writeLocalHomeSections(normalized);
+  return normalized;
+}
+
+export async function persistHomeSectionsSelection(
+  selection: HomeSectionsSelection
+): Promise<HomeSectionsSelection> {
+  const normalized = normalizeHomeSectionsSelection(selection);
+  await saveStorefrontSetting(HOME_SECTIONS_SELECTION_KEY, normalized);
+  writeLocalHomeSections(normalized);
   return normalized;
 }

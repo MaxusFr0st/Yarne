@@ -42,6 +42,23 @@ export function ProductDetail() {
     }
   }, [product, activeColor, activeSize, displaySizes]);
 
+  useEffect(() => {
+    if (!product) return;
+    const color = product.colors[activeColor];
+    const sizeImages = activeSize ? color?.sizeImages?.[activeSize] ?? [] : [];
+    const urls = (sizeImages.length
+      ? sizeImages
+      : color?.images?.length
+        ? color.images
+        : color?.image
+          ? [color.image]
+          : []) as string[];
+    urls.forEach((src) => {
+      const img = new Image();
+      img.src = src;
+    });
+  }, [product, activeColor, activeSize]);
+
   if (loading) {
     return (
       <main className="min-h-screen flex items-center justify-center" style={{ backgroundColor: "#F5F2ED" }}>
@@ -99,6 +116,7 @@ export function ProductDetail() {
       setTimeout(() => setSizeError(false), 2000);
       return;
     }
+    if (displayStock <= 0) return;
     addToCart({
       productId: product.id,
       name: product.name,
@@ -107,11 +125,14 @@ export function ProductDetail() {
       colorHex: selectedColor.hex,
       size: activeSize,
       quantity: 1,
+      maxQuantity: displayStock,
       image: images[0] ?? selectedColor.image,
     });
     setAddedToBag(true);
     setTimeout(() => setAddedToBag(false), 2500);
   };
+
+  const outOfStock = displayStock <= 0;
 
   return (
     <main style={{ backgroundColor: "#F5F2ED", minHeight: "100vh", overflowX: "hidden" }}>
@@ -140,15 +161,13 @@ export function ProductDetail() {
           >
             {/* Main Image */}
             <div className="relative rounded-[34px] sm:rounded-[40px] overflow-hidden bg-[#EDE9E2] h-[min(64vh,430px)] min-h-[320px] sm:min-h-[340px] md:h-[min(62vh,640px)] md:min-h-[440px] lg:h-[min(68vh,720px)] lg:min-h-[500px]">
-              <AnimatePresence mode="wait">
-                {images.length > 0 && (
+              {images.length > 0 && (
                 <motion.div
-                  key={activeColor * 100 + safeImageIndex}
+                  key={`${activeColor}-${activeSize ?? ""}-${safeImageIndex}`}
                   className="absolute inset-0"
-                  initial={{ opacity: 0 }}
+                  initial={{ opacity: 0.85 }}
                   animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  transition={{ duration: 0.5, ease: easing }}
+                  transition={{ duration: 0.15, ease: easing }}
                 >
                   <ImageWithFallback
                     src={images[safeImageIndex]}
@@ -156,8 +175,7 @@ export function ProductDetail() {
                     className="w-full h-full object-cover"
                   />
                 </motion.div>
-                )}
-              </AnimatePresence>
+              )}
 
               {/* Badges */}
               <div className="absolute top-5 left-5 flex gap-2">
@@ -440,9 +458,10 @@ export function ProductDetail() {
             <div className="flex gap-3">
               <motion.button
                 onClick={handleAddToBag}
-                className="flex-1 py-4 rounded-full flex items-center justify-center gap-3 text-white transition-all duration-300"
+                disabled={outOfStock}
+                className="flex-1 py-4 rounded-full flex items-center justify-center gap-3 text-white transition-all duration-300 disabled:opacity-40 disabled:cursor-not-allowed"
                 style={{
-                  backgroundColor: addedToBag ? "#2D5928" : "#2D241E",
+                  backgroundColor: outOfStock ? "#9A9088" : addedToBag ? "#2D5928" : "#2D241E",
                   fontFamily: "'DM Sans', sans-serif",
                   fontSize: "0.78rem",
                   letterSpacing: "0.14em",
@@ -457,7 +476,9 @@ export function ProductDetail() {
                 ) : (
                   <>
                     <ShoppingBag size={15} strokeWidth={1.5} />
-                    <span className="uppercase tracking-widest">Add to Bag</span>
+                    <span className="uppercase tracking-widest">
+                      {outOfStock ? "Out of stock" : "Add to Bag"}
+                    </span>
                   </>
                 )}
               </motion.button>

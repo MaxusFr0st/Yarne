@@ -1,4 +1,7 @@
-const FEATURED_SHOWCASE_SELECTION_KEY = "yarne.featuredShowcase.v1";
+import { fetchStorefrontSetting, saveStorefrontSetting } from "../api/storefrontSettings";
+import { normalizeStoredMediaUrl } from "./storefrontMedia";
+
+export const FEATURED_SHOWCASE_SELECTION_KEY = "yarne.featuredShowcase.v1";
 
 export const DEFAULT_SHOWCASE_EYEBROW = "Featured Showcase";
 export const DEFAULT_SHOWCASE_TITLE = "Editorial Picks";
@@ -61,7 +64,7 @@ function normalizeString(value: unknown, fallback: string): string {
 function normalizeProductSlot(value: unknown, fallback: ShowcaseProductSlot): ShowcaseProductSlot {
   const source = typeof value === "object" && value !== null ? (value as Record<string, unknown>) : {};
   return {
-    imageUrl: normalizeString(source.imageUrl, fallback.imageUrl),
+    imageUrl: normalizeStoredMediaUrl(normalizeString(source.imageUrl, fallback.imageUrl)),
     productCode: normalizeString(source.productCode, fallback.productCode),
     eyebrow: normalizeString(source.eyebrow, fallback.eyebrow),
     ctaLabel: normalizeString(source.ctaLabel, fallback.ctaLabel),
@@ -78,7 +81,7 @@ function normalizeTextSlot(value: unknown, fallback: ShowcaseTextSlot): Showcase
   };
 }
 
-function normalizeSelection(value: unknown): FeaturedShowcaseSelection {
+export function normalizeFeaturedShowcaseSelection(value: unknown): FeaturedShowcaseSelection {
   const source = typeof value === "object" && value !== null ? (value as Record<string, unknown>) : {};
   return {
     eyebrow: normalizeString(source.eyebrow, DEFAULT_SHOWCASE_EYEBROW),
@@ -90,32 +93,83 @@ function normalizeSelection(value: unknown): FeaturedShowcaseSelection {
   };
 }
 
-export function getFeaturedShowcaseSelection(): FeaturedShowcaseSelection {
-  if (typeof window === "undefined") {
-    return normalizeSelection({});
-  }
+export function getDefaultFeaturedShowcaseSelection(): FeaturedShowcaseSelection {
+  return normalizeFeaturedShowcaseSelection({});
+}
 
+function readLocalFeaturedShowcase(): FeaturedShowcaseSelection {
+  if (typeof window === "undefined") return getDefaultFeaturedShowcaseSelection();
   const raw = window.localStorage.getItem(FEATURED_SHOWCASE_SELECTION_KEY);
-  if (raw == null) {
-    return normalizeSelection({});
-  }
-
+  if (raw == null) return getDefaultFeaturedShowcaseSelection();
   try {
-    return normalizeSelection(JSON.parse(raw));
+    return normalizeFeaturedShowcaseSelection(JSON.parse(raw));
   } catch {
-    return normalizeSelection({});
+    return getDefaultFeaturedShowcaseSelection();
   }
 }
 
-export function saveFeaturedShowcaseSelection(
-  selection: FeaturedShowcaseSelection
-): FeaturedShowcaseSelection {
-  const normalized = normalizeSelection(selection);
-  if (typeof window !== "undefined") {
-    window.localStorage.setItem(
-      FEATURED_SHOWCASE_SELECTION_KEY,
-      JSON.stringify(normalized)
-    );
+function writeLocalFeaturedShowcase(selection: FeaturedShowcaseSelection) {
+  if (typeof window === "undefined") return;
+  window.localStorage.setItem(FEATURED_SHOWCASE_SELECTION_KEY, JSON.stringify(selection));
+}
+
+function hasConfiguredShowcase(selection: FeaturedShowcaseSelection): boolean {
+  const productSlots = [selection.slot1, selection.slot2, selection.slot4];
+  if (productSlots.some((s) => s.productCode.trim() || s.imageUrl.trim())) return true;
+  if (selection.eyebrow.trim() && selection.eyebrow !== DEFAULT_SHOWCASE_EYEBROW) return true;
+  if (selection.title.trim() && selection.title !== DEFAULT_SHOWCASE_TITLE) return true;
+  return selection.slot3.heading.trim() !== DEFAULT_SLOT_3.heading;
+}
+
+/** @deprecated Use loadFeaturedShowcaseSelection; kept for same-tab storage events. */
+export function getFeaturedShowcaseSelection(): FeaturedShowcaseSelection {
+  return readLocalFeaturedShowcase();
+}
+
+/** Public storefront: server only — never show another device's localStorage. */
+export async function loadFeaturedShowcaseSelection(): Promise<FeaturedShowcaseSelection> {
+  try {
+    const remote = await fetchStorefrontSetting<FeaturedShowcaseSelection>(FEATURED_SHOWCASE_SELECTION_KEY);
+    if (remote != null) {
+      const normalized = normalizeFeaturedShowcaseSelection(remote);
+      writeLocalFeaturedShowcase(normalized);
+      return normalized;
+    }
+  } catch {
+    // API unavailable
   }
+  return getDefaultFeaturedShowcaseSelection();
+}
+
+/** Admin: load server config, or one-time migrate this browser's local config to the server. */
+export async function loadFeaturedShowcaseSelectionForAdmin(): Promise<FeaturedShowcaseSelection> {
+  try {
+    const remote = await fetchStorefrontSetting<FeaturedShowcaseSelection>(FEATURED_SHOWCASE_SELECTION_KEY);
+    if (remote != null) {
+      const normalized = normalizeFeaturedShowcaseSelection(remote);
+      writeLocalFeaturedShowcase(normalized);
+      return normalized;
+    }
+  } catch {
+    // continue to migration
+  }
+
+  const local = readLocalFeaturedShowcase();
+  if (!hasConfiguredShowcase(local)) {
+    return getDefaultFeaturedShowcaseSelection();
+  }
+
+  const normalized = normalizeFeaturedShowcaseSelection(local);
+  await saveStorefrontSetting(FEATURED_SHOWCASE_SELECTION_KEY, normalized);
+  writeLocalFeaturedShowcase(normalized);
+  return normalized;
+}
+
+export async function persistFeaturedShowcaseSelection(
+  selection: FeaturedShowcaseSelection
+): Promise<FeaturedShowcaseSelection> {
+  const normalized = normalizeFeaturedShowcaseSelection(selection);
+  await saveStorefrontSetting(FEATURED_SHOWCASE_SELECTION_KEY, normalized);
+  writeLocalFeaturedShowcase(normalized);
   return normalized;
 }

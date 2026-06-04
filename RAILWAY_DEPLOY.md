@@ -110,9 +110,11 @@ To **change admin password** after first seed: set `APP_SEED_ADMIN_PASSWORD` and
 
 | Variable | Purpose |
 |----------|---------|
-| `VITE_API_URL` | `https://<your-api-domain>` (no trailing slash) |
+| `VITE_API_URL` | `https://<your-api-domain>` (no trailing slash) — **required**. Without it, `/uploads/...` images load from the frontend host and show placeholders on phones/tablets. |
 
 Rebuild/redeploy frontend after changing this (baked into Vite build).
+
+**Example:** if API is `https://mindful-flexibility-production.up.railway.app`, set exactly that on the **Yarne** frontend service (not on Postgres).
 
 **Health check**: `GET /` (static index).
 
@@ -132,11 +134,24 @@ Rebuild/redeploy frontend after changing this (baked into Vite build).
 | CORS errors | `Cors__AllowedOrigins__0` must match exact frontend origin (scheme + host) |
 | Frontend calls wrong API | `VITE_API_URL` wrong or frontend not redeployed after change |
 
-## 6) Local vs Railway
+## 6) Admin uploads & persistent images
+
+Uploaded images are stored under `wwwroot/uploads` on the API container. **Railway’s filesystem is ephemeral** unless you attach a volume.
+
+1. In the API service → **Volumes** → mount path: `/app/wwwroot/uploads` (or your container’s `wwwroot/uploads` path).
+2. Redeploy the API after adding the volume.
+
+Without a volume, uploads disappear after redeploy and are **not shared** across multiple API instances.
+
+**Storefront layout** (carousel, home sections, featured showcase / “Editorial Picks”) is stored in Postgres via `AppSetting` and syncs across devices after admin saves.
+
+**One-time sync after deploy:** open **Admin** on the computer that shows the correct Editorial Picks layout (while logged in as admin). The app will upload that browser’s layout to the server automatically if the server has no config yet. Then hard-refresh other devices (or clear site data once).
+
+## 7) Local vs Railway
 
 - **Local `appsettings`**: still has SQL Server-style `DefaultConnection` for legacy/local use; **do not rely on it on Railway**.
 - **Railway**: always use linked **`DATABASE_URL`** (Postgres).
 
-## 7) Deprecated (old SQL Server deploy)
+## 8) Deprecated (old SQL Server deploy)
 
 Do **not** deploy `YarneDB/Dockerfile` or run `YarneDB/SQLQuery1.sql` for production anymore unless you intentionally maintain a SQL Server fork.

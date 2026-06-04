@@ -196,6 +196,7 @@ public class OrdersController : ControllerBase
             return BadRequest(new { message = "One or more countries in order items were not found." });
 
         var orderItems = new List<OrderItem>();
+        var quantityByProductId = new Dictionary<int, int>();
         foreach (var item in request.Items)
         {
             var productKey = item.ProductIdOrCode.Trim();
@@ -211,6 +212,9 @@ public class OrdersController : ControllerBase
             if (product == null)
                 return BadRequest(new { message = $"Product '{productKey}' was not found." });
 
+            if (!product.IsActive)
+                return BadRequest(new { message = $"Product '{productKey}' is not available." });
+
             orderItems.Add(new OrderItem
             {
                 ProductId = product.Id,
@@ -218,6 +222,20 @@ public class OrdersController : ControllerBase
                 Quantity = item.Quantity,
                 UnitPrice = product.Price,
             });
+
+            quantityByProductId[product.Id] = quantityByProductId.GetValueOrDefault(product.Id) + item.Quantity;
+        }
+
+        foreach (var (productId, requestedQty) in quantityByProductId)
+        {
+            var product = productById[productId];
+            if (requestedQty > product.QuantityInStock)
+            {
+                return BadRequest(new
+                {
+                    message = $"Not enough stock for '{product.ProductCode}'. Available: {product.QuantityInStock}, requested: {requestedQty}.",
+                });
+            }
         }
 
         var orderTotal = orderItems.Sum(i => i.UnitPrice * i.Quantity);

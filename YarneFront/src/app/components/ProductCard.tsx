@@ -45,6 +45,8 @@ export function ProductCard({ product, index = 0, size = "medium", inCarousel = 
   const handleQuickAdd = (e: MouseEvent<HTMLButtonElement>) => {
     e.preventDefault();
     e.stopPropagation();
+    const maxQuantity = Math.max(0, product.stock);
+    if (maxQuantity <= 0) return;
     addToCart({
       productId: product.id,
       name: product.name,
@@ -53,6 +55,7 @@ export function ProductCard({ product, index = 0, size = "medium", inCarousel = 
       colorHex: product.colors[activeColor].hex,
       size: "S",
       quantity: 1,
+      maxQuantity,
       image: product.colors[activeColor].image,
     });
   };

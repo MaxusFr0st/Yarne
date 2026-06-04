@@ -14,7 +14,8 @@ import { LangLink } from "../i18n/LangLink";
 import {
   DEFAULT_FEATURED_TITLE,
   DEFAULT_MORE_FROM_COLLECTION_TITLE,
-  getHomeSectionsSelection,
+  getDefaultHomeSectionsSelection,
+  loadHomeSectionsSelection,
 } from "../utils/homeSectionsSelection";
 
 const easing = [0.25, 0.1, 0.25, 1] as const;
@@ -56,14 +57,16 @@ export function Home() {
   const editorialY1 = useTransform(editorialScroll, [0, 1], ["0%", "-12%"]);
 
   const { products } = useProducts();
-  const [homeSectionsSelection, setHomeSectionsSelection] = useState(getHomeSectionsSelection);
+  const [homeSectionsSelection, setHomeSectionsSelection] = useState(getDefaultHomeSectionsSelection);
 
   useEffect(() => {
-    const syncSelection = () => setHomeSectionsSelection(getHomeSectionsSelection());
-    syncSelection();
-    if (typeof window === "undefined") return;
-    window.addEventListener("storage", syncSelection);
-    return () => window.removeEventListener("storage", syncSelection);
+    let cancelled = false;
+    void loadHomeSectionsSelection().then((selection) => {
+      if (!cancelled) setHomeSectionsSelection(selection);
+    });
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const featured = useMemo(() => {

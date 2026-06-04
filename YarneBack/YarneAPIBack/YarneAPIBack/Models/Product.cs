@@ -31,6 +31,10 @@ public partial class Product
 
     public bool IsActive { get; set; }
 
+    public bool IsNew { get; set; }
+
+    public bool IsBestseller { get; set; }
+
     public DateTime CreatedAt { get; set; }
 
     public virtual Category Category { get; set; } = null!;

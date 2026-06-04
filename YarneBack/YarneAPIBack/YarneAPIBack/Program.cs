@@ -81,6 +81,7 @@ builder.Services.AddRateLimiter(options =>
 // Services (SOLID - dependency injection)
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IProductService, ProductService>();
+builder.Services.AddScoped<IStorefrontSettingsService, StorefrontSettingsService>();
 
 builder.Services.AddControllers();
 
@@ -156,7 +157,21 @@ app.UseForwardedHeaders(new ForwardedHeadersOptions
 app.UseWhen(
     context => !context.Request.Path.StartsWithSegments("/healthz"),
     branch => branch.UseHttpsRedirection());
+
+// Serve uploaded images from a stable, explicit path so the Railway volume
+// mounted at /app/wwwroot/uploads is always served — even if wwwroot did not
+// exist when the host started (which leaves WebRootPath null).
+var webRootPath = app.Environment.WebRootPath
+    ?? Path.Combine(app.Environment.ContentRootPath, "wwwroot");
+var uploadsPath = Path.Combine(webRootPath, "uploads");
+Directory.CreateDirectory(uploadsPath);
+
 app.UseStaticFiles();
+app.UseStaticFiles(new StaticFileOptions
+{
+    FileProvider = new Microsoft.Extensions.FileProviders.PhysicalFileProvider(uploadsPath),
+    RequestPath = "/uploads",
+});
 app.Use(async (context, next) =>
 {
     context.Response.Headers["X-Content-Type-Options"] = "nosniff";

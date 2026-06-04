@@ -53,8 +53,9 @@ export function Header() {
         transition={{ duration: 0.6, ease: [0.25, 0.1, 0.25, 1] }}
       >
         <div className="max-w-[1400px] mx-auto px-6 md:px-10">
-          <div className="grid grid-cols-[auto_1fr] md:grid-cols-[1fr_auto_1fr] items-center h-[52px] md:h-[60px]">
-            {/* Left Nav – Desktop */}
+          <div className="grid grid-cols-[1fr_auto_1fr] items-center h-[52px] md:h-[60px]">
+            {/* Left: mobile menu + desktop nav */}
+            <div className="flex items-center justify-self-start min-w-0">
             <nav className="hidden md:flex items-center gap-8 justify-start">
               {LEFT_NAV_LINKS.map((link) => (
                 <LangLink
@@ -70,23 +71,25 @@ export function Header() {
 
             {/* Mobile: Hamburger */}
             <button
-              className="md:hidden text-[#2D241E] p-2 justify-self-start"
+              className="md:hidden text-[#2D241E] p-2 -ml-2"
               onClick={() => setMobileOpen(true)}
               aria-label={t("header.openMenu")}
             >
               <Menu size={22} />
             </button>
+            </div>
 
             {/* Center Logo */}
-            <LangLink to="/" className="flex items-center justify-center justify-self-center md:justify-self-center text-[#2D241E]">
+            <LangLink to="/" className="flex items-center justify-center justify-self-center text-[#2D241E]">
               <Logo
                 title="Yarné – The Knit Gallery"
                 className="h-6 md:h-7 w-auto"
               />
             </LangLink>
 
-            {/* Right Nav – Desktop */}
-            <div className="hidden md:flex items-center justify-end gap-6">
+            {/* Right: cart (all breakpoints) + desktop actions */}
+            <div className="flex items-center justify-self-end justify-end gap-4 md:gap-6">
+            <div className="hidden md:flex items-center gap-6">
               {RIGHT_NAV_LINKS.map((link) => (
                 <LangLink
                   key={link.key}
@@ -133,6 +136,8 @@ export function Header() {
                   <User size={20} strokeWidth={1.5} />
                 </button>
               )}
+            </div>
+              <LanguageSwitcher className="md:hidden" />
               <button
                 onClick={openCart}
                 className="relative text-[#2D241E] hover:text-[#4A0E0E] transition-colors duration-300"
