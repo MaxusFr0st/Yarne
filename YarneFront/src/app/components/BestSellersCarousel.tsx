@@ -67,7 +67,7 @@ export function BestSellersCarousel() {
   }, []);
 
   return (
-    <section className="relative py-10 md:py-14 overflow-hidden" style={{ backgroundColor: "#EDE9E2" }}>
+    <section className="relative py-10 md:py-14 overflow-x-hidden" style={{ backgroundColor: "#EDE9E2" }}>
       <div className="max-w-[1400px] mx-auto px-6 md:px-10">
         {/* Sticky section header — pins below the main header while the
             carousel scrolls past, then releases when the section ends. */}
@@ -111,23 +111,24 @@ export function BestSellersCarousel() {
           .carousel-fade { mask-image: linear-gradient(to right, rgba(0,0,0,0.35) 0%, black 16px, black calc(100% - 16px), rgba(0,0,0,0.35) 100%); -webkit-mask-image: linear-gradient(to right, rgba(0,0,0,0.35) 0%, black 16px, black calc(100% - 16px), rgba(0,0,0,0.35) 100%); }
           @media (min-width: 768px) { .carousel-fade { mask-image: linear-gradient(to right, rgba(0,0,0,0.25) 0%, black 48px, black calc(100% - 48px), rgba(0,0,0,0.25) 100%); -webkit-mask-image: linear-gradient(to right, rgba(0,0,0,0.25) 0%, black 48px, black calc(100% - 48px), rgba(0,0,0,0.25) 100%); } }
         `}</style>
-        <div className="carousel-fade relative -mx-10 sm:-mx-12 md:-mx-8">
+        {/* Extra top space on parent only — cards keep their own aspect ratio */}
+        <div className="carousel-fade relative -mx-10 sm:-mx-12 md:-mx-8 pt-8 md:pt-10 pb-2 min-h-[420px] sm:min-h-[460px] md:min-h-[480px]">
           <motion.div
             ref={(el) => {
               (emblaRef as (el: HTMLDivElement | null) => void)(el);
               (viewportRef as React.MutableRefObject<HTMLDivElement | null>).current = el;
             }}
-            className="relative overflow-hidden pt-3 pb-5 md:pt-2.5 md:pb-2.5 lg:pt-3 lg:pb-3 px-10 sm:px-12 md:px-8"
+            className="relative overflow-x-hidden overflow-y-visible pt-6 pb-8 md:pt-8 md:pb-10 px-10 sm:px-12 md:px-8 h-full"
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true, margin: "-60px" }}
             transition={{ duration: 0.7, delay: 0.1, ease: easing }}
           >
-            <div className="flex pr-5 md:pr-0">
+            <div className="flex items-start pr-5 md:pr-0 pt-2">
               {carouselProducts.map((product, i) => (
                 <div
                   key={`${product.id}-${i}`}
-                  className="shrink-0 min-w-0 mr-4 sm:mr-5 basis-[56%] sm:basis-[44%] md:basis-[calc((100%-3rem)/3.2)] lg:basis-[calc((100%-4rem)/4)]"
+                  className="shrink-0 min-w-0 mr-4 sm:mr-5 basis-[56%] sm:basis-[44%] md:basis-[calc((100%-3rem)/3.2)] lg:basis-[calc((100%-4rem)/4)] self-start"
                 >
                   <ProductCard product={product} index={i} size="carousel" inCarousel viewportRoot={viewportRef} />
                 </div>

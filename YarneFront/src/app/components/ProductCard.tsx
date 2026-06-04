@@ -69,8 +69,8 @@ export function ProductCard({ product, index = 0, size = "medium", inCarousel = 
     : { once: true, margin: "-60px" };
   return (
     <motion.div
-      initial={useCarouselViewport ? { opacity: 0, y: 28 } : inCarousel ? { opacity: 1 } : { opacity: 0, y: 40 }}
-      whileInView={useCarouselViewport ? { opacity: 1, y: 0 } : inCarousel ? undefined : { opacity: 1, y: 0 }}
+      initial={useCarouselViewport || inCarousel ? { opacity: 0 } : { opacity: 0, y: 40 }}
+      whileInView={useCarouselViewport || inCarousel ? { opacity: 1 } : { opacity: 1, y: 0 }}
       viewport={useCarouselViewport || !inCarousel ? viewport : undefined}
       transition={{ duration: 0.5, delay: inCarousel ? 0 : index * 0.08, ease: [0.25, 0.1, 0.25, 1] }}
       className="group"
