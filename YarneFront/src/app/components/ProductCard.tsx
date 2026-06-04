@@ -30,10 +30,10 @@ export function ProductCard({ product, index = 0, size = "medium", inCarousel = 
 
   const isCarouselCard = inCarousel || size === "carousel";
 
-  /** Portrait product imagery — carousel uses 3:4 with top-anchored crop */
+  /** Carousel: taller 2:3 on phones (iPhone SE), 3:4 from sm+ — collection/grid unchanged */
   const aspectClass =
     size === "carousel"
-      ? "aspect-[3/4] min-h-0 w-full"
+      ? "aspect-[2/3] min-h-0 w-full sm:aspect-[3/4]"
       : size === "collection"
         ? "aspect-[3/4] min-h-[280px] sm:min-h-[320px] md:min-h-0 w-full"
       : size === "small"

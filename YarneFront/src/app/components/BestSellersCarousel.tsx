@@ -110,15 +110,21 @@ export function BestSellersCarousel() {
         <style>{`
           .carousel-fade { mask-image: linear-gradient(to right, rgba(0,0,0,0.35) 0%, black 16px, black calc(100% - 16px), rgba(0,0,0,0.35) 100%); -webkit-mask-image: linear-gradient(to right, rgba(0,0,0,0.35) 0%, black 16px, black calc(100% - 16px), rgba(0,0,0,0.35) 100%); }
           @media (min-width: 768px) { .carousel-fade { mask-image: linear-gradient(to right, rgba(0,0,0,0.25) 0%, black 48px, black calc(100% - 48px), rgba(0,0,0,0.25) 100%); -webkit-mask-image: linear-gradient(to right, rgba(0,0,0,0.25) 0%, black 48px, black calc(100% - 48px), rgba(0,0,0,0.25) 100%); } }
+          @media (max-width: 639px) {
+            .bestsellers-slide { flex: 0 0 82%; max-width: 17.5rem; }
+          }
+          @media (max-width: 374px) {
+            .bestsellers-slide { flex: 0 0 88%; max-width: 16.25rem; }
+          }
         `}</style>
-        {/* Extra top space on parent only — cards keep their own aspect ratio */}
-        <div className="carousel-fade relative -mx-10 sm:-mx-12 md:-mx-8 pt-8 md:pt-10 pb-2 min-h-[420px] sm:min-h-[460px] md:min-h-[480px]">
+        {/* Extra top space on parent — card aspect ratio lives on ProductCard, not here */}
+        <div className="carousel-fade relative -mx-4 sm:-mx-12 md:-mx-8 pt-8 md:pt-10 pb-2 min-h-0 sm:min-h-[460px] md:min-h-[480px]">
           <motion.div
             ref={(el) => {
               (emblaRef as (el: HTMLDivElement | null) => void)(el);
               (viewportRef as React.MutableRefObject<HTMLDivElement | null>).current = el;
             }}
-            className="relative overflow-x-hidden overflow-y-visible pt-6 pb-8 md:pt-8 md:pb-10 px-10 sm:px-12 md:px-8 h-full"
+            className="relative overflow-x-hidden overflow-y-visible pt-4 pb-6 sm:pt-6 sm:pb-8 md:pt-8 md:pb-10 px-3 sm:px-12 md:px-8"
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true, margin: "-60px" }}
@@ -128,7 +134,7 @@ export function BestSellersCarousel() {
               {carouselProducts.map((product, i) => (
                 <div
                   key={`${product.id}-${i}`}
-                  className="shrink-0 min-w-0 mr-4 sm:mr-5 basis-[56%] sm:basis-[44%] md:basis-[calc((100%-3rem)/3.2)] lg:basis-[calc((100%-4rem)/4)] self-start"
+                  className="bestsellers-slide shrink-0 min-w-0 mr-3 sm:mr-5 sm:basis-[44%] md:basis-[calc((100%-3rem)/3.2)] lg:basis-[calc((100%-4rem)/4)] self-start"
                 >
                   <ProductCard product={product} index={i} size="carousel" inCarousel viewportRoot={viewportRef} />
                 </div>
@@ -139,7 +145,7 @@ export function BestSellersCarousel() {
 
         {/* Dot Indicators */}
         {scrollSnaps.length > 1 && (
-          <div className="flex items-center justify-center gap-3 mt-12 md:mt-10">
+          <div className="flex items-center justify-center gap-3 mt-8 sm:mt-12 md:mt-10">
             {scrollSnaps.map((_, index) => (
               <button
                 key={index}
