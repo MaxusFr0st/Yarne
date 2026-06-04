@@ -67,12 +67,13 @@ public static class RailwayDatabaseConfiguration
         hint.AppendLine("[Railway] No PostgreSQL connection string could be resolved.");
         hint.AppendLine(diagnostics.ToString().TrimEnd());
         hint.AppendLine();
-        hint.AppendLine("Fix on the API service in Railway:");
-        hint.AppendLine("  1. Add a PostgreSQL database (or use an existing one).");
-        hint.AppendLine("  2. Open API → Variables → New variable → Reference → select Postgres → DATABASE_URL.");
-        hint.AppendLine("  3. Delete ConnectionStrings__DefaultConnection on the API service (often old SQL Server Server=...).");
-        hint.AppendLine("  4. Keep only DATABASE_URL as a Postgres variable reference.");
-        hint.AppendLine("  5. Redeploy the API service.");
+        hint.AppendLine("Fix on the API service (mindful-flexibility) in Railway:");
+        hint.AppendLine("  1. Variables → DELETE the variable named DATABASE_URL (yours is still SQL Server, not Postgres).");
+        hint.AppendLine("  2. DELETE ConnectionStrings__DefaultConnection.");
+        hint.AppendLine("  3. New variable → Variable Reference → Service: Postgres → Variable: DATABASE_URL.");
+        hint.AppendLine("     The value must start with postgresql:// (preview in Railway UI).");
+        hint.AppendLine("  OR add 5 references from Postgres: PGHOST, PGUSER, PGPASSWORD, PGDATABASE, PGPORT.");
+        hint.AppendLine("  4. Redeploy the API.");
 
         logger?.LogError(hint.ToString());
         throw new InvalidOperationException(hint.ToString());
@@ -94,7 +95,10 @@ public static class RailwayDatabaseConfiguration
 
         if (!LooksLikePostgres(usable))
         {
-            Record(diagnostics, source, Mask(raw), "not a PostgreSQL connection (looks like SQL Server or another provider)");
+            var reason = IsSqlServerStyle(usable)
+                ? "STILL SQL SERVER (Server=... or TrustServerCertificate) — delete this variable, then add Postgres → DATABASE_URL reference"
+                : "not a PostgreSQL connection (expected postgresql:// or Host=)";
+            Record(diagnostics, source, DescribePrefix(raw), reason);
             return false;
         }
 
@@ -162,6 +166,30 @@ public static class RailwayDatabaseConfiguration
             return false;
 
         return true;
+    }
+
+    private static bool IsSqlServerStyle(string value)
+    {
+        var v = value.Trim();
+        if (v.Length >= 2 && ((v[0] == '"' && v[^1] == '"') || (v[0] == '\'' && v[^1] == '\'')))
+            v = v[1..^1].Trim();
+
+        return v.Contains("TrustServerCertificate", StringComparison.OrdinalIgnoreCase)
+            || v.Contains("Integrated Security", StringComparison.OrdinalIgnoreCase)
+            || v.Contains("Trusted_Connection", StringComparison.OrdinalIgnoreCase)
+            || v.StartsWith("Server=", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static string DescribePrefix(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+            return "missing";
+
+        var v = value.Trim();
+        if (v.Length >= 2 && ((v[0] == '"' && v[^1] == '"') || (v[0] == '\'' && v[^1] == '\'')))
+            v = v[1..^1].Trim();
+
+        return v.Length <= 24 ? $"starts with \"{v}\"" : $"starts with \"{v[..24]}...\"";
     }
 
     private static bool LooksLikePostgres(string value)

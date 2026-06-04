@@ -52,13 +52,14 @@ Schema is applied by **EF Core migrations** (`Data/Migrations/`) on API startup 
 
 ### Link Postgres (required — fixes startup crash)
 
-1. Open your **API** service → **Variables**.
-2. **Remove** any old SQL Server values, for example:
-   - `DATABASE_URL=Server=...;TrustServerCertificate=True;...`
-   - `ConnectionStrings__DefaultConnection=Server=...;...`
-3. Click **New variable** → **Add variable reference** → choose your **PostgreSQL** service → select **`DATABASE_URL`**.
-4. Railway will also inject `PGHOST`, `PGUSER`, `PGPASSWORD`, `PGDATABASE`, `PGPORT` automatically.
-5. **Redeploy** the API.
+1. Open **API** (`mindful-flexibility`) → **Variables**.
+2. **Delete** `DATABASE_URL` completely (logs show it still resolves to SQL Server `Server=...`, not Postgres).
+3. **Delete** `ConnectionStrings__DefaultConnection`.
+4. **New variable** → **Variable Reference** → Service: **Postgres** → Variable: **`DATABASE_URL`**.
+   - In Railway, open the variable and confirm the value starts with **`postgresql://`** (not `Server=`).
+5. **Alternative:** add 5 references from Postgres: `PGHOST`, `PGUSER`, `PGPASSWORD`, `PGDATABASE`, `PGPORT`.
+6. **Frontend** (`Yarne`): delete `DATABASE_URL`; keep only `VITE_API_URL`.
+7. Redeploy API.
 
 Do **not** paste `${{Postgres.DATABASE_URL}}` as plain text unless it is a linked reference (unresolved `${{...}}` is ignored).
 
@@ -76,9 +77,9 @@ Do **not** paste `${{Postgres.DATABASE_URL}}` as plain text unless it is a linke
 
 Do **not** wrap values in quotes.
 
-**Health check**: Railway uses `GET /healthz` → `{"status":"ok"}` (DB not required).
+**Health check**: Railway uses `GET /healthz` → `{"status":"ok"}`. The API now starts listening **before** DB migrations, so deploy health checks pass even while migrations run.
 
-**After deploy**: API runs migrations automatically. Check logs for `Database migrations applied successfully.`
+**After deploy**: Check logs for `Database migrations applied successfully.` Then test `/api/products`.
 
 ## 3) Frontend service
 
