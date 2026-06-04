@@ -123,72 +123,8 @@ builder.Services.AddSwaggerGen(c =>
 
 var app = builder.Build();
 
-using (var scope = app.Services.CreateScope())
-{
-    var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
-    var db = scope.ServiceProvider.GetRequiredService<YarneDbContext>();
-    var runStartupDbPatches = builder.Configuration.GetValue("Database:RunStartupPatches", builder.Environment.IsDevelopment());
-    await DatabaseStartup.ApplyMigrationsWithRetryAsync(db, logger);
-
-    if (runStartupDbPatches)
-    {
-        const int maxAttempts = 20;
-        var startupPatchApplied = false;
-        for (var attempt = 1; attempt <= maxAttempts; attempt++)
-        {
-            try
-            {
-                if (db.Database.IsNpgsql())
-                {
-                    await db.Database.ExecuteSqlRawAsync(
-                        """
-                        DO $$
-                        BEGIN
-                          IF NOT EXISTS (
-                            SELECT 1
-                            FROM information_schema.columns
-                            WHERE table_schema = current_schema()
-                              AND table_name = 'Order'
-                              AND column_name = 'EstimatedDelivery'
-                          ) THEN
-                            ALTER TABLE "Order" ADD COLUMN "EstimatedDelivery" timestamp without time zone NULL;
-                          END IF;
-                        END $$;
-                        """
-                    );
-                }
-                else
-                {
-                    // If another provider is introduced later, keep the old behavior explicit.
-                    throw new NotSupportedException($"Startup DB patches not implemented for provider '{db.Database.ProviderName}'.");
-                }
-                startupPatchApplied = true;
-                break;
-            }
-            catch (Exception ex) when (attempt < maxAttempts)
-            {
-                var delay = TimeSpan.FromSeconds(Math.Min(30, attempt * 3));
-                logger.LogWarning(ex,
-                    "Database is not ready yet during startup. Attempt {Attempt}/{MaxAttempts}. Retrying in {DelaySeconds}s.",
-                    attempt, maxAttempts, delay.TotalSeconds);
-                await Task.Delay(delay);
-            }
-        }
-
-        if (!startupPatchApplied)
-        {
-            const string message = "Startup database patch could not be applied after retries.";
-            if (app.Environment.IsDevelopment())
-            {
-                throw new InvalidOperationException(message);
-            }
-
-            logger.LogError("{Message} Continuing startup; endpoints needing DB may fail until connectivity is fixed.", message);
-        }
-    }
-
-    await SeedData.EnsureSeedDataAsync(db, logger, builder.Environment);
-}
+// Railway health check hits /healthz before DB migrations finish — map early and start listening first.
+app.MapGet("/healthz", () => Results.Ok(new { status = "ok" }));
 
 if (app.Environment.IsDevelopment())
 {
@@ -217,7 +153,9 @@ app.UseForwardedHeaders(new ForwardedHeadersOptions
     ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto,
 });
 
-app.UseHttpsRedirection();
+app.UseWhen(
+    context => !context.Request.Path.StartsWithSegments("/healthz"),
+    branch => branch.UseHttpsRedirection());
 app.UseStaticFiles();
 app.Use(async (context, next) =>
 {
@@ -231,7 +169,26 @@ app.UseCors();
 app.UseRateLimiter();
 app.UseAuthentication();
 app.UseAuthorization();
-app.MapGet("/healthz", () => Results.Ok(new { status = "ok" }));
 app.MapControllers();
 
-app.Run();
+var runStartupDbPatches = builder.Configuration.GetValue(
+    "Database:RunStartupPatches",
+    builder.Environment.IsDevelopment());
+
+// Start HTTP server so Railway /healthz succeeds while migrations run.
+await app.StartAsync();
+
+try
+{
+    await DatabaseBootstrap.RunAsync(app, runStartupDbPatches);
+}
+catch (Exception ex)
+{
+    var logger = app.Services.GetRequiredService<ILogger<Program>>();
+    if (app.Environment.IsDevelopment())
+        throw;
+
+    logger.LogError(ex, "Database bootstrap failed. /healthz is up; API routes needing DB may return errors.");
+}
+
+await app.WaitForShutdownAsync();

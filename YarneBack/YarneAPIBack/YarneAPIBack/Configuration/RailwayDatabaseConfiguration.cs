@@ -47,13 +47,21 @@ public static class RailwayDatabaseConfiguration
                 return connection;
         }
 
-        var defaultFromConfig = configuration.GetConnectionString("DefaultConnection");
-        if (TryUseUrl(defaultFromConfig, "ConnectionStrings:DefaultConnection", diagnostics, logger, out var fromConfig))
-            return fromConfig;
+        // In Production/Railway, never fall back to appsettings SQL Server DefaultConnection.
+        if (!IsProductionEnvironment())
+        {
+            var defaultFromConfig = configuration.GetConnectionString("DefaultConnection");
+            if (TryUseUrl(defaultFromConfig, "ConnectionStrings:DefaultConnection", diagnostics, logger, out var fromConfig))
+                return fromConfig;
 
-        var defaultFromEnv = Environment.GetEnvironmentVariable("ConnectionStrings__DefaultConnection");
-        if (TryUseUrl(defaultFromEnv, "ConnectionStrings__DefaultConnection", diagnostics, logger, out var fromEnv))
-            return fromEnv;
+            var defaultFromEnv = Environment.GetEnvironmentVariable("ConnectionStrings__DefaultConnection");
+            if (TryUseUrl(defaultFromEnv, "ConnectionStrings__DefaultConnection", diagnostics, logger, out var fromEnv))
+                return fromEnv;
+        }
+        else
+        {
+            Record(diagnostics, "ConnectionStrings__DefaultConnection", "***", "skipped in Production — remove this variable on Railway API if it contains Server=...");
+        }
 
         var hint = new StringBuilder();
         hint.AppendLine("[Railway] No PostgreSQL connection string could be resolved.");
@@ -62,8 +70,9 @@ public static class RailwayDatabaseConfiguration
         hint.AppendLine("Fix on the API service in Railway:");
         hint.AppendLine("  1. Add a PostgreSQL database (or use an existing one).");
         hint.AppendLine("  2. Open API → Variables → New variable → Reference → select Postgres → DATABASE_URL.");
-        hint.AppendLine("  3. Remove old SQL Server variables (DATABASE_URL / ConnectionStrings__DefaultConnection with Server=...;TrustServerCertificate=...).");
-        hint.AppendLine("  4. Redeploy the API service.");
+        hint.AppendLine("  3. Delete ConnectionStrings__DefaultConnection on the API service (often old SQL Server Server=...).");
+        hint.AppendLine("  4. Keep only DATABASE_URL as a Postgres variable reference.");
+        hint.AppendLine("  5. Redeploy the API service.");
 
         logger?.LogError(hint.ToString());
         throw new InvalidOperationException(hint.ToString());
@@ -197,6 +206,12 @@ public static class RailwayDatabaseConfiguration
         var present = string.IsNullOrWhiteSpace(raw) ? "missing" : "present";
         diagnostics.AppendLine($"  - {key}: {present} ({reason})");
     }
+
+    private static bool IsProductionEnvironment() =>
+        string.Equals(
+            Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT"),
+            "Production",
+            StringComparison.OrdinalIgnoreCase);
 
     private static string Mask(string? value)
     {
