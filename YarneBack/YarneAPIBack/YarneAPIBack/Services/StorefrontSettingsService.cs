@@ -12,6 +12,7 @@ public class StorefrontSettingsService : IStorefrontSettingsService
         "yarne.carousel.productCodes.v1",
         "yarne.featuredShowcase.v1",
         "yarne.home.sections.v1",
+        "yarne.home.media.v1",
     };
 
     private readonly YarneDbContext _context;

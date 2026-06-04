@@ -28,6 +28,14 @@ import {
   type ShowcaseTextSlot,
 } from "../utils/featuredShowcaseSelection";
 import {
+  getDefaultHomePageMediaSelection,
+  loadHomePageMediaSelectionForAdmin,
+  persistHomePageMediaSelection,
+  type HomePageMediaSelection,
+} from "../utils/homePageMediaSelection";
+import heroDefaultImg from "../../../assets/CherieCherryLace2Gen.jpg";
+import { EDITORIAL_IMG, LOOKBOOK_IMG } from "../data/products";
+import {
   LayoutDashboard,
   Package,
   Users,
@@ -1384,6 +1392,11 @@ export function AdminPage() {
     useState<FeaturedShowcaseSelection>(getDefaultFeaturedShowcaseSelection);
   const [showcaseUploading, setShowcaseUploading] = useState<Record<string, boolean>>({});
   const [showcaseUploadError, setShowcaseUploadError] = useState<string | null>(null);
+  const [homePageMedia, setHomePageMedia] = useState<HomePageMediaSelection>(
+    getDefaultHomePageMediaSelection
+  );
+  const [homeMediaUploading, setHomeMediaUploading] = useState<Record<string, boolean>>({});
+  const [homeMediaUploadError, setHomeMediaUploadError] = useState<string | null>(null);
 
   const [productModal, setProductModal] = useState<{ open: boolean; editing: AdminProduct | null }>({ open: false, editing: null });
   const [userModal, setUserModal] = useState<{ open: boolean }>({ open: false });
@@ -1426,15 +1439,17 @@ export function AdminPage() {
     let cancelled = false;
     const syncFromApi = async () => {
       try {
-        const [carousel, home, showcase] = await Promise.all([
+        const [carousel, home, showcase, media] = await Promise.all([
           loadCarouselSelectionForAdmin(),
           loadHomeSectionsSelectionForAdmin(),
           loadFeaturedShowcaseSelectionForAdmin(),
+          loadHomePageMediaSelectionForAdmin(),
         ]);
         if (cancelled) return;
         setCarouselProductCodes(carousel.productCodes);
         setHomeSectionsSelection(home);
         setFeaturedShowcaseSelectionState(showcase);
+        setHomePageMedia(media);
       } catch (e) {
         if (!cancelled) {
           setSaveError(
@@ -1569,6 +1584,42 @@ export function AdminPage() {
       ...featuredShowcaseSelection,
       slot3: { ...featuredShowcaseSelection.slot3, ...patch },
     });
+  };
+
+  type HomeMediaField = keyof HomePageMediaSelection;
+
+  const updateHomePageMedia = (patch: Partial<HomePageMediaSelection>) => {
+    setSaveError(null);
+    const next = { ...homePageMedia, ...patch };
+    void persistHomePageMediaSelection(next)
+      .then(setHomePageMedia)
+      .catch((e) =>
+        setSaveError(e instanceof Error ? e.message : "Failed to save home page images to server.")
+      );
+  };
+
+  const homeMediaPreview = (field: HomeMediaField): string => {
+    const custom = resolveMediaUrl(homePageMedia[field]);
+    if (custom) return custom;
+    if (field === "heroImageUrl") return heroDefaultImg;
+    if (field === "editorialImageUrl") return EDITORIAL_IMG;
+    return LOOKBOOK_IMG;
+  };
+
+  const handleHomeMediaUpload = async (field: HomeMediaField, file: File | null) => {
+    if (!file) return;
+    setHomeMediaUploadError(null);
+    setHomeMediaUploading((prev) => ({ ...prev, [field]: true }));
+    try {
+      const url = await uploadImage(file);
+      updateHomePageMedia({ [field]: url });
+    } catch (err) {
+      setHomeMediaUploadError(
+        err instanceof Error ? err.message : "Failed to upload home page image."
+      );
+    } finally {
+      setHomeMediaUploading((prev) => ({ ...prev, [field]: false }));
+    }
   };
 
   const handleShowcaseImageUpload = async (
@@ -2143,7 +2194,109 @@ export function AdminPage() {
               exit={{ opacity: 0, y: -10 }}
               transition={{ duration: 0.4, ease: easing }}
             >
-              {/* Removed static content tiles to declutter admin UI */}
+              {/* Home page images */}
+              <div className="rounded-[28px] overflow-hidden mb-8" style={{ border: "1px solid rgba(45,36,30,0.08)" }}>
+                <div className="px-6 py-4" style={{ backgroundColor: "rgba(45,36,30,0.03)", borderBottom: "1px solid rgba(45,36,30,0.06)" }}>
+                  <p className="text-[#2D241E] uppercase tracking-widest text-xs" style={{ fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.12em" }}>
+                    Home Page Images
+                  </p>
+                  <p className="text-[#2D241E]/45 text-xs mt-1" style={{ fontFamily: "'DM Sans', sans-serif" }}>
+                    Hero, editorial block, and lookbook banner. Empty slot uses the built-in default until you upload.
+                  </p>
+                </div>
+                <div className="px-6 py-5">
+                  {homeMediaUploadError && (
+                    <div className="rounded-[14px] px-4 py-3 mb-4" style={{ backgroundColor: "rgba(196,48,48,0.08)", border: "1px solid rgba(196,48,48,0.25)" }}>
+                      <p className="text-xs text-[#C43030]" style={{ fontFamily: "'DM Sans', sans-serif" }}>
+                        {homeMediaUploadError}
+                      </p>
+                    </div>
+                  )}
+                  <div className="grid md:grid-cols-3 gap-5">
+                    {(
+                      [
+                        { field: "heroImageUrl" as const, label: "Hero (top)", aspect: "16 / 10" },
+                        { field: "editorialImageUrl" as const, label: "Editorial", aspect: "4 / 5" },
+                        { field: "lookbookImageUrl" as const, label: "Lookbook banner", aspect: "16 / 9" },
+                      ] as const
+                    ).map(({ field, label, aspect }) => {
+                      const preview = homeMediaPreview(field);
+                      const hasCustom = Boolean(homePageMedia[field].trim());
+                      const isUploading = Boolean(homeMediaUploading[field]);
+                      return (
+                        <div
+                          key={field}
+                          className="rounded-[20px] p-4"
+                          style={{ backgroundColor: "rgba(45,36,30,0.03)", border: "1px solid rgba(45,36,30,0.08)" }}
+                        >
+                          <p
+                            className="text-[#2D241E] uppercase tracking-widest text-xs mb-3"
+                            style={{ fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.12em" }}
+                          >
+                            {label}
+                          </p>
+                          <div
+                            className="relative w-full overflow-hidden rounded-[16px] mb-3"
+                            style={{
+                              aspectRatio: aspect,
+                              backgroundColor: "#EDE9E2",
+                              border: "1px solid rgba(45,36,30,0.08)",
+                            }}
+                          >
+                            <img src={preview} alt={label} className="w-full h-full object-cover" />
+                            {!hasCustom && (
+                              <span
+                                className="absolute bottom-2 left-2 right-2 text-center text-[9px] uppercase tracking-widest px-2 py-1 rounded-full"
+                                style={{
+                                  backgroundColor: "rgba(245,242,237,0.9)",
+                                  color: "rgba(45,36,30,0.55)",
+                                  fontFamily: "'DM Sans', sans-serif",
+                                }}
+                              >
+                                Default preview
+                              </span>
+                            )}
+                          </div>
+                          <label
+                            className="flex items-center justify-center gap-2 cursor-pointer rounded-full px-4 py-2 transition-all duration-300 hover:opacity-85"
+                            style={{
+                              backgroundColor: "#2D241E",
+                              color: "#F5F2ED",
+                              fontFamily: "'DM Sans', sans-serif",
+                              fontSize: "0.7rem",
+                              letterSpacing: "0.12em",
+                            }}
+                          >
+                            <ImagePlus size={13} />
+                            <span className="uppercase tracking-widest">
+                              {isUploading ? "Uploading…" : "Upload"}
+                            </span>
+                            <input
+                              type="file"
+                              accept="image/jpeg,image/png,image/webp,image/gif"
+                              className="hidden"
+                              onChange={(e) => {
+                                void handleHomeMediaUpload(field, e.target.files?.[0] ?? null);
+                                e.target.value = "";
+                              }}
+                            />
+                          </label>
+                          {hasCustom && (
+                            <button
+                              type="button"
+                              onClick={() => updateHomePageMedia({ [field]: "" })}
+                              className="mt-2 w-full text-xs uppercase tracking-widest text-[#4A0E0E] hover:opacity-80"
+                              style={{ fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.1em" }}
+                            >
+                              Remove custom image
+                            </button>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
 
               {/* Carousel Editor */}
               <div className="rounded-[28px] overflow-hidden mb-8" style={{ border: "1px solid rgba(45,36,30,0.08)" }}>

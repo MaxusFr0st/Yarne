@@ -17,6 +17,11 @@ import {
   getDefaultHomeSectionsSelection,
   loadHomeSectionsSelection,
 } from "../utils/homeSectionsSelection";
+import {
+  getDefaultHomePageMediaSelection,
+  loadHomePageMediaSelection,
+} from "../utils/homePageMediaSelection";
+import { resolveMediaUrl } from "../utils/storefrontMedia";
 
 const easing = [0.25, 0.1, 0.25, 1] as const;
 
@@ -58,16 +63,25 @@ export function Home() {
 
   const { products } = useProducts();
   const [homeSectionsSelection, setHomeSectionsSelection] = useState(getDefaultHomeSectionsSelection);
+  const [homePageMedia, setHomePageMedia] = useState(getDefaultHomePageMediaSelection);
 
   useEffect(() => {
     let cancelled = false;
-    void loadHomeSectionsSelection().then((selection) => {
-      if (!cancelled) setHomeSectionsSelection(selection);
-    });
+    void Promise.all([loadHomeSectionsSelection(), loadHomePageMediaSelection()]).then(
+      ([sections, media]) => {
+        if (cancelled) return;
+        setHomeSectionsSelection(sections);
+        setHomePageMedia(media);
+      }
+    );
     return () => {
       cancelled = true;
     };
   }, []);
+
+  const heroImageSrc = resolveMediaUrl(homePageMedia.heroImageUrl) || heroImg;
+  const editorialImageSrc = resolveMediaUrl(homePageMedia.editorialImageUrl) || EDITORIAL_IMG;
+  const lookbookImageSrc = resolveMediaUrl(homePageMedia.lookbookImageUrl) || LOOKBOOK_IMG;
 
   const featured = useMemo(() => {
     const selected = homeSectionsSelection.featuredProductCodes
@@ -117,7 +131,7 @@ export function Home() {
           style={{ y: heroY, scale: heroScale }}
         >
           <Img
-            src={heroImg}
+            src={heroImageSrc}
             alt="Yarné Hero"
             className="w-full h-full object-cover"
           />
@@ -347,7 +361,7 @@ export function Home() {
               <div className="relative rounded-[40px] overflow-hidden" style={{ aspectRatio: "4/5" }}>
                 <motion.div className="absolute inset-0 will-change-transform" style={{ y: editorialY1 }}>
                   <Img
-                    src={EDITORIAL_IMG}
+                    src={editorialImageSrc}
                     alt={t("home.editorial.eyebrow")}
                     className="w-full h-[115%] object-cover"
                   />
@@ -440,7 +454,7 @@ export function Home() {
           transition={{ duration: 1 }}
         >
           <Img
-            src={LOOKBOOK_IMG}
+            src={lookbookImageSrc}
             alt="Lookbook"
             className="w-full h-full object-cover"
           />
