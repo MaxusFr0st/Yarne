@@ -108,6 +108,7 @@ Rebuild/redeploy frontend after changing this (baked into Vite build).
 |---------|----------------|
 | API crash on startup: “No PostgreSQL connection configured” | `DATABASE_URL` missing or still `${{...}}` unresolved — use **variable reference** from Postgres |
 | `/healthz` OK, `/api/*` 500 | DB not linked, migrations failed, or wrong credentials |
+| `Format of the initialization string... index 0` | `DATABASE_URL` is not a Postgres URL (often still SQL Server `Server=...`, or value wrapped in quotes). Link Postgres reference; value must start with `postgresql://` |
 | CORS errors | `Cors__AllowedOrigins__0` must match exact frontend origin (scheme + host) |
 | Frontend calls wrong API | `VITE_API_URL` wrong or frontend not redeployed after change |
 

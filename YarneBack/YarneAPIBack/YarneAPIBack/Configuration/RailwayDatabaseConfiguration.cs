@@ -25,9 +25,20 @@ public static class RailwayDatabaseConfiguration
         // Prefer PG* when Railway links Postgres (reliable even if legacy SQL Server DATABASE_URL is still set).
         var fromPg = BuildFromPgEnvironmentVariables();
         if (IsUsable(fromPg, out var pgUsable))
-            return Finalize(pgUsable, "PGHOST/PGUSER/...", logger);
-
-        Record(diagnostics, "PGHOST/PGUSER/PGDATABASE", fromPg, "not set or incomplete");
+        {
+            try
+            {
+                return Finalize(pgUsable, "PGHOST/PGUSER/...", logger);
+            }
+            catch (Exception ex)
+            {
+                Record(diagnostics, "PGHOST/PGUSER/PGDATABASE", Mask(fromPg), $"parse failed: {ex.Message}");
+            }
+        }
+        else
+        {
+            Record(diagnostics, "PGHOST/PGUSER/PGDATABASE", fromPg, "not set or incomplete");
+        }
 
         foreach (var key in UrlEnvKeys)
         {
@@ -78,15 +89,22 @@ public static class RailwayDatabaseConfiguration
             return false;
         }
 
-        connection = Finalize(usable, source, logger);
-        return true;
+        try
+        {
+            connection = Finalize(usable, source, logger);
+            return true;
+        }
+        catch (Exception ex)
+        {
+            Record(diagnostics, source, Mask(raw), $"parse failed: {ex.Message}");
+            return false;
+        }
     }
 
     private static string Finalize(string usable, string source, ILogger? logger)
     {
         var normalized = PostgresConnection.Normalize(usable);
         var builder = new NpgsqlConnectionStringBuilder(normalized);
-        PostgresConnection.ApplyRailwaySslDefaults(builder);
 
         logger?.LogInformation(
             "[Railway] PostgreSQL configured from {Source}; host={Host}; database={Database}",
@@ -139,23 +157,30 @@ public static class RailwayDatabaseConfiguration
 
     private static bool LooksLikePostgres(string value)
     {
-        if (value.StartsWith("postgres://", StringComparison.OrdinalIgnoreCase)
-            || value.StartsWith("postgresql://", StringComparison.OrdinalIgnoreCase))
+        var v = value.Trim();
+        if (v.Length >= 2 && ((v[0] == '"' && v[^1] == '"') || (v[0] == '\'' && v[^1] == '\'')))
+            v = v[1..^1].Trim();
+
+        if (v.StartsWith("jdbc:postgresql://", StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        if (v.StartsWith("postgres://", StringComparison.OrdinalIgnoreCase)
+            || v.StartsWith("postgresql://", StringComparison.OrdinalIgnoreCase))
         {
             return true;
         }
 
-        if (value.Contains("TrustServerCertificate", StringComparison.OrdinalIgnoreCase)
-            || value.Contains("Integrated Security", StringComparison.OrdinalIgnoreCase)
-            || value.Contains("Trusted_Connection", StringComparison.OrdinalIgnoreCase)
-            || value.StartsWith("Server=", StringComparison.OrdinalIgnoreCase))
+        if (v.Contains("TrustServerCertificate", StringComparison.OrdinalIgnoreCase)
+            || v.Contains("Integrated Security", StringComparison.OrdinalIgnoreCase)
+            || v.Contains("Trusted_Connection", StringComparison.OrdinalIgnoreCase))
         {
             return false;
         }
 
-        // Npgsql key=value form
-        return value.Contains("Host=", StringComparison.OrdinalIgnoreCase)
-            || value.Contains("Server=", StringComparison.OrdinalIgnoreCase) && value.Contains("Username=", StringComparison.OrdinalIgnoreCase);
+        if (v.StartsWith("Server=", StringComparison.OrdinalIgnoreCase))
+            return false;
+
+        return v.Contains("Host=", StringComparison.OrdinalIgnoreCase);
     }
 
     private static string DescribeRejection(string? raw)
