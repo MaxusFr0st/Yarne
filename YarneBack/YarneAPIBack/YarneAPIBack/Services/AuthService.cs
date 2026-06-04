@@ -90,7 +90,7 @@ public class AuthService : IAuthService
 
         var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_jwtSettings.Secret));
         var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
-        var expires = DateTime.UtcNow.Add(_jwtSettings.Expiration);
+        var expires = DateTime.UtcNow.Add(_jwtSettings.GetExpirationForRole(roleName));
 
         var claims = new List<Claim>
         {

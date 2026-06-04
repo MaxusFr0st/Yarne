@@ -119,7 +119,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     return () => window.removeEventListener("auth-expired", onAuthExpired);
   }, [logout]);
 
-  // Check token expiry every 60s - JWT expires after 15 mins, user must re-login
+  // Check token expiry every 60s (admin ~120 min, customer ~45 min) — re-login when expired
   useEffect(() => {
     const checkExpiry = () => {
       const userData = sessionStorage.getItem(AUTH_USER_KEY);
