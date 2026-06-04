@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 
 namespace YarneAPIBack.Data;
@@ -18,7 +19,8 @@ public static class DatabaseBootstrap
             await ApplyStartupPatchesAsync(db, logger, app.Environment, cancellationToken);
         }
 
-        await SeedData.EnsureSeedDataAsync(db, logger, app.Environment);
+        var configuration = scope.ServiceProvider.GetRequiredService<IConfiguration>();
+        await SeedData.EnsureSeedDataAsync(db, configuration, logger, cancellationToken);
     }
 
     private static async Task ApplyStartupPatchesAsync(

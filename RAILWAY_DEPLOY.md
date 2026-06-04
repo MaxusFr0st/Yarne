@@ -79,7 +79,26 @@ Do **not** wrap values in quotes.
 
 **Health check**: Railway uses `GET /healthz` → `{"status":"ok"}`. The API now starts listening **before** DB migrations, so deploy health checks pass even while migrations run.
 
-**After deploy**: Check logs for `Database migrations applied successfully.` Then test `/api/products`.
+**After deploy**: Check logs for `Database migrations applied successfully.` and `Catalog seed completed.`
+
+### Seed data (automatic)
+
+On startup, if the database has **no products**, the API seeds (from `YarneDB/SQLQuery1.sql`):
+
+- 6 products with images, colors, sizes, variant stock
+- Roles, countries, payment methods, categories, collections
+
+**Admin user** (if no admin exists yet):
+
+| Field | Value |
+|-------|--------|
+| Email | `max@gmail.com` |
+| Username | `maxadmin` |
+| Password | `Admin123!` (override with `APP_SEED_ADMIN_PASSWORD` on Railway) |
+
+To **re-run seed** on an empty catalog: ensure `Product` table is empty, then redeploy API.
+
+To **change admin password** after first seed: set `APP_SEED_ADMIN_PASSWORD` and redeploy (only applies when no admin role exists yet), or reset via DB / register flow.
 
 ## 3) Frontend service
 

@@ -1,5 +1,5 @@
-using Microsoft.AspNetCore.Hosting;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using YarneAPIBack.Models;
 
@@ -7,74 +7,101 @@ namespace YarneAPIBack.Data;
 
 public static class SeedData
 {
+    /// <summary>
+    /// From YarneDB/SQLQuery1.sql — max@gmail.com / maxadmin.
+    /// Override with APP_SEED_ADMIN_PASSWORD or Database:SeedAdminPassword on Railway.
+    /// </summary>
+    public const string DefaultAdminEmail = "max@gmail.com";
+    public const string DefaultAdminUserName = "maxadmin";
+    public const string DefaultAdminPassword = "Admin123!";
+
     public static async Task EnsureSeedDataAsync(
         YarneDbContext db,
+        IConfiguration configuration,
         ILogger logger,
-        IWebHostEnvironment env)
+        CancellationToken cancellationToken = default)
     {
-        // Keep seeding predictable and safe:
-        // - Only seed when the database is empty (idempotent)
-        // - Default to development only, unless explicitly enabled
-        var enabled = env.IsDevelopment();
-        if (!enabled)
+        if (!await db.Products.AsNoTracking().AnyAsync(cancellationToken))
         {
-            // You can enable in Production by setting: Database__SeedSampleData=true
-            // (read in Program.cs via configuration if you want later; for now keep prod-safe)
-            return;
+            logger.LogInformation("Seeding Yarne catalog (products, colors, images, sizes)...");
+            await YarneCatalogSeed.SeedAsync(db, cancellationToken);
+            logger.LogInformation("Catalog seed completed.");
         }
 
-        if (await db.Products.AsNoTracking().AnyAsync())
+        await EnsureAdminUserAsync(db, configuration, logger, cancellationToken);
+    }
+
+    private static async Task EnsureAdminUserAsync(
+        YarneDbContext db,
+        IConfiguration configuration,
+        ILogger logger,
+        CancellationToken cancellationToken)
+    {
+        var adminRole = await db.Roles.FirstOrDefaultAsync(r => r.Name == "Admin", cancellationToken);
+        if (adminRole == null)
+        {
+            adminRole = new Role { Name = "Admin" };
+            db.Roles.Add(adminRole);
+            await db.SaveChangesAsync(cancellationToken);
+        }
+
+        var hasAdmin = await db.CustomerRoles
+            .AnyAsync(cr => cr.RoleId == adminRole.Id, cancellationToken);
+
+        if (hasAdmin)
             return;
 
-        logger.LogInformation("Seeding sample data (development only).");
+        var password = configuration["Database:SeedAdminPassword"]
+            ?? Environment.GetEnvironmentVariable("APP_SEED_ADMIN_PASSWORD")
+            ?? DefaultAdminPassword;
 
-        var category = new Category { Name = "Bags" };
-        var collection = new Collection { Name = "Sample Collection" };
-        var size = new Size { Name = "One Size" };
+        var salt = BCrypt.Net.BCrypt.GenerateSalt(12);
+        var hash = BCrypt.Net.BCrypt.HashPassword(password, salt);
 
-        db.Categories.Add(category);
-        db.Collections.Add(collection);
-        db.Sizes.Add(size);
+        var admin = await db.Customers
+            .Include(c => c.CustomerRoles)
+            .FirstOrDefaultAsync(c => c.Email == DefaultAdminEmail, cancellationToken);
 
-        // Save first so FK ids exist (no identity assumptions).
-        await db.SaveChangesAsync();
-
-        var product1 = new Product
+        if (admin == null)
         {
-            ProductCode = "SAMPLE-001",
-            Name = "Sample Bag",
-            Description = "Sample product seeded for local development.",
-            Price = 1200m,
-            QuantityInStock = 10,
-            Material = "Cotton",
-            ImageUrl = "https://example.com/sample.jpg",
-            CategoryId = category.Id,
-            CollectionId = collection.Id,
-            ProducerName = "Yarne",
-            DefaultSizeId = size.Id,
-            IsActive = true,
-            CreatedAt = DateTime.UtcNow,
-        };
-
-        var product2 = new Product
+            admin = new Customer
+            {
+                FirstName = "Max",
+                LastName = "Admin",
+                UserName = DefaultAdminUserName,
+                Email = DefaultAdminEmail,
+                PasswordHash = hash,
+                PasswordSalt = salt,
+                IsActive = true,
+                CreatedAt = DateTime.UtcNow,
+            };
+            db.Customers.Add(admin);
+            await db.SaveChangesAsync(cancellationToken);
+        }
+        else if (!BCrypt.Net.BCrypt.Verify(password, admin.PasswordHash))
         {
-            ProductCode = "SAMPLE-002",
-            Name = "Sample Tote",
-            Description = "Another sample product seeded for local development.",
-            Price = 1500m,
-            QuantityInStock = 5,
-            Material = "Canvas",
-            ImageUrl = "https://example.com/sample-2.jpg",
-            CategoryId = category.Id,
-            CollectionId = collection.Id,
-            ProducerName = "Yarne",
-            DefaultSizeId = size.Id,
-            IsActive = true,
-            CreatedAt = DateTime.UtcNow,
-        };
+            admin.PasswordHash = hash;
+            admin.PasswordSalt = salt;
+            await db.SaveChangesAsync(cancellationToken);
+            logger.LogWarning(
+                "Reset password for existing admin {Email} from seed configuration.",
+                DefaultAdminEmail);
+        }
 
-        db.Products.AddRange(product1, product2);
-        await db.SaveChangesAsync();
+        if (!admin.CustomerRoles.Any(cr => cr.RoleId == adminRole.Id))
+        {
+            db.CustomerRoles.Add(new CustomerRole
+            {
+                CustomerId = admin.Id,
+                RoleId = adminRole.Id,
+                AssignedAt = DateTime.UtcNow,
+            });
+            await db.SaveChangesAsync(cancellationToken);
+        }
+
+        logger.LogInformation(
+            "Admin user ready: {Email} / {UserName} (password from APP_SEED_ADMIN_PASSWORD or default seed password).",
+            DefaultAdminEmail,
+            DefaultAdminUserName);
     }
 }
-
