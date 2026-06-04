@@ -22,38 +22,38 @@ export function normalizeStoredMediaUrl(url: string): string {
   return trimmed.startsWith("/") ? trimmed : trimmed;
 }
 
+function isBundledOrExternalAsset(url: string): boolean {
+  if (url.startsWith("data:")) return true;
+  if (url.startsWith("/assets/")) return true;
+  if (/^https?:\/\//i.test(url)) {
+    try {
+      const path = new URL(url).pathname;
+      return !path.startsWith("/uploads/");
+    } catch {
+      return true;
+    }
+  }
+  return !url.startsWith("/uploads/");
+}
+
 /**
- * Always load /uploads/... from the API host (VITE_API_URL), never from the frontend origin
- * or a stale localhost URL saved in the database.
+ * Resolve /uploads/... against VITE_API_URL. Leave bundled /assets/ and external URLs unchanged.
  */
 export function resolveMediaUrl(url: string | undefined | null): string {
   const trimmed = (url ?? "").trim();
   if (!trimmed) return "";
 
-  if (trimmed.startsWith("data:")) return trimmed;
-
-  let uploadPath: string | null = null;
-  try {
-    if (/^https?:\/\//i.test(trimmed)) {
-      const parsed = new URL(trimmed);
-      if (parsed.pathname.startsWith("/uploads/")) {
-        uploadPath = parsed.pathname;
-      }
-    } else if (trimmed.startsWith("/uploads/")) {
-      uploadPath = trimmed;
-    }
-  } catch {
-    uploadPath = null;
-  }
-
-  if (uploadPath) {
-    return buildApiUrl(resolveApiBase(), uploadPath);
-  }
-
-  if (/^https?:\/\//i.test(trimmed)) {
+  if (isBundledOrExternalAsset(trimmed)) {
     return trimmed;
   }
 
   const path = trimmed.startsWith("/") ? trimmed : `/${trimmed}`;
   return buildApiUrl(resolveApiBase(), path);
+}
+
+/** Prefer uploaded hero; otherwise bundled default (must not be sent through API base URL). */
+export function resolveHeroImageSrc(customUrl: string, bundledDefault: string): string {
+  const trimmed = customUrl.trim();
+  if (!trimmed) return bundledDefault;
+  return resolveMediaUrl(trimmed) || bundledDefault;
 }

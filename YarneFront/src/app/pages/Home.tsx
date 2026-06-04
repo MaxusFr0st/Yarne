@@ -21,7 +21,7 @@ import {
   getDefaultHomePageMediaSelection,
   loadHomePageMediaSelection,
 } from "../utils/homePageMediaSelection";
-import { resolveMediaUrl } from "../utils/storefrontMedia";
+import { resolveHeroImageSrc, resolveMediaUrl } from "../utils/storefrontMedia";
 
 const easing = [0.25, 0.1, 0.25, 1] as const;
 
@@ -79,7 +79,7 @@ export function Home() {
     };
   }, []);
 
-  const heroImageSrc = resolveMediaUrl(homePageMedia.heroImageUrl) || heroImg;
+  const heroImageSrc = resolveHeroImageSrc(homePageMedia.heroImageUrl, heroImg);
   const editorialImageSrc = resolveMediaUrl(homePageMedia.editorialImageUrl) || EDITORIAL_IMG;
   const lookbookImageSrc = resolveMediaUrl(homePageMedia.lookbookImageUrl) || LOOKBOOK_IMG;
 
@@ -132,6 +132,7 @@ export function Home() {
         >
           <Img
             src={heroImageSrc}
+            fallbackSrc={heroImg}
             alt="Yarné Hero"
             className="w-full h-full object-cover"
           />
@@ -362,6 +363,7 @@ export function Home() {
                 <motion.div className="absolute inset-0 will-change-transform" style={{ y: editorialY1 }}>
                   <Img
                     src={editorialImageSrc}
+                    fallbackSrc={EDITORIAL_IMG}
                     alt={t("home.editorial.eyebrow")}
                     className="w-full h-[115%] object-cover"
                   />
@@ -455,6 +457,7 @@ export function Home() {
         >
           <Img
             src={lookbookImageSrc}
+            fallbackSrc={LOOKBOOK_IMG}
             alt="Lookbook"
             className="w-full h-full object-cover"
           />
