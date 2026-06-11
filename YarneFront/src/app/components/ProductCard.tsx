@@ -76,9 +76,9 @@ export function ProductCard({ product, index = 0, size = "medium", inCarousel = 
       whileInView={useCarouselViewport || inCarousel ? { opacity: 1 } : { opacity: 1, y: 0 }}
       viewport={useCarouselViewport || !inCarousel ? viewport : undefined}
       transition={{ duration: 0.5, delay: inCarousel ? 0 : index * 0.08, ease: [0.25, 0.1, 0.25, 1] }}
-      className="group"
+      className={`group ${isCarouselCard ? "overflow-visible" : ""}`}
     >
-      <LangLink to={`/product/${product.id}`} className="block">
+      <LangLink to={`/product/${product.id}`} className={`block ${isCarouselCard ? "overflow-visible" : ""}`}>
         {/* Image Container */}
         <div
           className={`relative ${aspectClass} overflow-hidden rounded-[32px] bg-[#EDE9E2] cursor-pointer`}
@@ -190,7 +190,7 @@ export function ProductCard({ product, index = 0, size = "medium", inCarousel = 
         </div>
 
         {/* Product Info */}
-        <div className="mt-4 px-1">
+        <div className={`mt-4 px-1 ${isCarouselCard ? "overflow-visible pb-0.5" : ""}`}>
           <div className="flex items-start justify-between gap-2">
             <div>
               <p
@@ -214,8 +214,10 @@ export function ProductCard({ product, index = 0, size = "medium", inCarousel = 
             </p>
           </div>
 
-          {/* Color Swatches */}
-          <div className="flex items-center gap-2 mt-3">
+          {/* Color Swatches — extra inset on carousel so selection rings aren't clipped */}
+          <div
+            className={`flex items-center gap-2 mt-3 ${isCarouselCard ? "py-1.5 pl-1 -ml-1" : ""}`}
+          >
             {product.colors.map((color, i) => (
               <button
                 key={color.name}
@@ -225,7 +227,7 @@ export function ProductCard({ product, index = 0, size = "medium", inCarousel = 
                   e.stopPropagation();
                   setActiveColor(i);
                 }}
-                className="relative transition-transform duration-200 hover:scale-110"
+                className={`relative shrink-0 transition-transform duration-200 ${isCarouselCard ? "" : "hover:scale-110"}`}
                 style={{
                   width: i === activeColor ? 18 : 14,
                   height: i === activeColor ? 18 : 14,

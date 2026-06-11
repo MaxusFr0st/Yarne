@@ -1,0 +1,388 @@
+import { useCallback, useEffect, useState } from "react";
+import useEmblaCarousel from "embla-carousel-react";
+import { motion, AnimatePresence } from "motion/react";
+import { ArrowLeft, Heart, ShoppingBag, Check, ChevronDown } from "lucide-react";
+import { useTranslation } from "react-i18next";
+import type { Product } from "../types/product";
+import type { Locale } from "../i18n/config";
+import { formatPrice } from "../i18n/format";
+import { ImageWithFallback } from "./figma/ImageWithFallback";
+
+type MobileProductDetailViewProps = {
+  product: Product;
+  images: string[];
+  locale: Locale;
+  activeColor: number;
+  activeSize: string | null;
+  displaySizes: string[];
+  isWishlisted: boolean;
+  addedToBag: boolean;
+  sizeError: boolean;
+  outOfStock: boolean;
+  onBack: () => void;
+  onToggleWishlist: () => void;
+  onColorChange: (index: number) => void;
+  onSizeChange: (size: string) => void;
+  onAddToBag: () => void;
+};
+
+export function MobileProductDetailView({
+  product,
+  images,
+  locale,
+  activeColor,
+  activeSize,
+  displaySizes,
+  isWishlisted,
+  addedToBag,
+  sizeError,
+  outOfStock,
+  onBack,
+  onToggleWishlist,
+  onColorChange,
+  onSizeChange,
+  onAddToBag,
+}: MobileProductDetailViewProps) {
+  const { t } = useTranslation();
+  const [galleryIndex, setGalleryIndex] = useState(0);
+  const [descriptionOpen, setDescriptionOpen] = useState(false);
+  const imageKey = images.join("|");
+  const canLoop = images.length > 1;
+
+  const [emblaRef, emblaApi] = useEmblaCarousel({
+    loop: canLoop,
+    align: "center",
+    containScroll: false,
+    duration: 28,
+    skipSnaps: false,
+  });
+
+  const onGallerySelect = useCallback(() => {
+    if (!emblaApi) return;
+    setGalleryIndex(emblaApi.selectedScrollSnap());
+  }, [emblaApi]);
+
+  useEffect(() => {
+    if (!emblaApi) return;
+    onGallerySelect();
+    emblaApi.on("select", onGallerySelect);
+    emblaApi.on("reInit", onGallerySelect);
+    return () => {
+      emblaApi.off("select", onGallerySelect);
+      emblaApi.off("reInit", onGallerySelect);
+    };
+  }, [emblaApi, onGallerySelect]);
+
+  useEffect(() => {
+    if (!emblaApi) return;
+    emblaApi.reInit({ loop: canLoop });
+    emblaApi.scrollTo(0, true);
+    setGalleryIndex(0);
+  }, [emblaApi, imageKey, activeColor, activeSize, canLoop]);
+
+  const safeGalleryIndex = images.length ? ((galleryIndex % images.length) + images.length) % images.length : 0;
+  const gallerySlides = images.length > 0 ? images : [""];
+
+  return (
+    <div className="md:hidden relative">
+      {/* Gallery — tall hero; page scrolls naturally below */}
+      <div
+        className="relative w-full bg-[#EDE9E2] overflow-hidden"
+        style={{ height: "clamp(52dvh, 58dvh, 62dvh)" }}
+      >
+        <div ref={emblaRef} className="h-full overflow-hidden touch-pan-x">
+          <div className="flex h-full">
+            {gallerySlides.map((src, i) => (
+              <div
+                key={`${src || "placeholder"}-${i}`}
+                className="relative min-w-0 shrink-0 grow-0 basis-full h-full"
+              >
+                {src ? (
+                  <ImageWithFallback
+                    src={src}
+                    alt={`${product.name} – ${product.colors[activeColor]?.name ?? ""} – ${i + 1}`}
+                    className="absolute inset-0 w-full h-full object-cover object-center"
+                    draggable={false}
+                  />
+                ) : (
+                  <div className="absolute inset-0 bg-[#EDE9E2]" />
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <button
+          type="button"
+          onClick={onBack}
+          className="absolute z-20 top-[clamp(10px,2.5vw,16px)] left-[clamp(10px,2.5vw,16px)] flex items-center justify-center rounded-full bg-white/92 shadow-sm cursor-pointer"
+          style={{ width: "clamp(36px, 9vw, 42px)", height: "clamp(36px, 9vw, 42px)" }}
+          aria-label={t("common.back", { defaultValue: "Back" })}
+        >
+          <ArrowLeft size={18} strokeWidth={1.5} className="text-[#2D241E]" />
+        </button>
+
+        <button
+          type="button"
+          onClick={onToggleWishlist}
+          className="absolute z-20 top-[clamp(10px,2.5vw,16px)] right-[clamp(10px,2.5vw,16px)] flex items-center justify-center rounded-full bg-white/92 shadow-sm cursor-pointer"
+          style={{ width: "clamp(36px, 9vw, 42px)", height: "clamp(36px, 9vw, 42px)" }}
+          aria-label={isWishlisted ? "Remove from wishlist" : "Add to wishlist"}
+        >
+          <Heart
+            size={17}
+            strokeWidth={1.5}
+            fill={isWishlisted ? "#4A0E0E" : "none"}
+            stroke={isWishlisted ? "#4A0E0E" : "#2D241E"}
+          />
+        </button>
+
+        {images.length > 1 && (
+          <div className="absolute z-20 bottom-[clamp(12px,3vw,18px)] left-1/2 -translate-x-1/2 flex items-center gap-1.5">
+            {images.map((_, i) => (
+              <button
+                key={i}
+                type="button"
+                onClick={() => emblaApi?.scrollTo(i)}
+                className="rounded-full transition-all duration-300 cursor-pointer"
+                style={{
+                  width: safeGalleryIndex === i ? "clamp(18px, 4.5vw, 22px)" : "clamp(6px, 1.5vw, 7px)",
+                  height: "clamp(6px, 1.5vw, 7px)",
+                  backgroundColor: safeGalleryIndex === i ? "#F5F2ED" : "rgba(245,242,237,0.55)",
+                }}
+                aria-label={`Image ${i + 1}`}
+                aria-current={safeGalleryIndex === i}
+              />
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Info sheet */}
+      <div
+        className="relative z-10 -mt-[clamp(12px,3vw,16px)] rounded-t-[clamp(20px,5vw,28px)] px-[clamp(14px,3.6vw,22px)] pt-[clamp(8px,2vw,12px)] pb-[clamp(14px,3.5vw,20px)]"
+        style={{
+          backgroundColor: "#FAF8F5",
+          boxShadow: "0 -8px 32px rgba(45,36,30,0.1)",
+        }}
+      >
+        <div
+          className="mx-auto mb-[clamp(4px,1vw,8px)] rounded-full bg-[#2D241E]/15 shrink-0"
+          style={{ width: "clamp(32px, 8vw, 40px)", height: "clamp(3px, 0.7vw, 4px)" }}
+        />
+
+        <div className="flex flex-col gap-[clamp(6px,1.4vh,9px)]">
+          <p
+            className="text-[#2D241E]/45 uppercase shrink-0"
+            style={{
+              fontFamily: "'DM Sans', sans-serif",
+              letterSpacing: "0.18em",
+              fontSize: "clamp(0.58rem, 2.3vw, 0.68rem)",
+            }}
+          >
+            {product.category}
+          </p>
+
+          <div className="flex items-start justify-between gap-2 shrink-0">
+            <h1
+              className="text-[#2D241E] min-w-0"
+              style={{
+                fontFamily: "'Cormorant Garamond', serif",
+                fontSize: "clamp(1.4rem, 5.8vw, 1.85rem)",
+                fontWeight: 500,
+                lineHeight: 1.05,
+              }}
+            >
+              {product.name}
+            </h1>
+            <p
+              className="text-[#2D241E] shrink-0"
+              style={{
+                fontFamily: "'Cormorant Garamond', serif",
+                fontSize: "clamp(1.1rem, 4.4vw, 1.35rem)",
+                fontWeight: 500,
+              }}
+            >
+              {formatPrice(product.price, locale)}
+            </p>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => setDescriptionOpen((open) => !open)}
+            className="flex w-full items-center justify-between gap-2 shrink-0 cursor-pointer text-left"
+            aria-expanded={descriptionOpen}
+          >
+            <span
+              className="text-[#2D241E] uppercase"
+              style={{
+                fontFamily: "'DM Sans', sans-serif",
+                letterSpacing: "0.14em",
+                fontSize: "clamp(0.58rem, 2.3vw, 0.68rem)",
+              }}
+            >
+              {t("product.description", { defaultValue: "Description" })}
+            </span>
+            <motion.span animate={{ rotate: descriptionOpen ? 180 : 0 }} transition={{ duration: 0.25 }}>
+              <ChevronDown size={15} className="text-[#2D241E]/50" strokeWidth={1.5} />
+            </motion.span>
+          </button>
+
+          <AnimatePresence initial={false}>
+            {descriptionOpen && (
+              <motion.div
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: "auto", opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                transition={{ duration: 0.3, ease: [0.25, 0.1, 0.25, 1] }}
+                className="overflow-hidden shrink-0"
+              >
+                <p
+                  className="text-[#2D241E]/65 pb-0.5"
+                  style={{
+                    fontFamily: "'DM Sans', sans-serif",
+                    fontSize: "clamp(0.72rem, 2.9vw, 0.84rem)",
+                    lineHeight: 1.5,
+                  }}
+                >
+                  {product.description}
+                </p>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          <div className="shrink-0">
+            <div className="flex items-center justify-between mb-[clamp(4px,1vw,6px)]">
+              <p
+                className="text-[#2D241E] uppercase"
+                style={{
+                  fontFamily: "'DM Sans', sans-serif",
+                  letterSpacing: "0.14em",
+                  fontSize: "clamp(0.58rem, 2.3vw, 0.68rem)",
+                }}
+              >
+                {t("product.colour", { defaultValue: "Colour" })}
+              </p>
+              <p
+                className="text-[#2D241E]/55"
+                style={{
+                  fontFamily: "'DM Sans', sans-serif",
+                  fontSize: "clamp(0.7rem, 2.7vw, 0.8rem)",
+                }}
+              >
+                {product.colors[activeColor]?.name}
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-[clamp(8px,2vw,10px)] pl-[6px] pr-[4px] py-[4px]">
+              {product.colors.map((color, i) => (
+                <button
+                  key={color.name}
+                  type="button"
+                  onClick={() => onColorChange(i)}
+                  title={color.name}
+                  className="shrink-0 rounded-full transition-transform duration-200 cursor-pointer"
+                  style={{
+                    width: "clamp(28px, 7vw, 34px)",
+                    height: "clamp(28px, 7vw, 34px)",
+                    backgroundColor: color.hex,
+                    border: i === activeColor ? "2px solid #2D241E" : "1.5px solid rgba(45,36,30,0.18)",
+                    boxShadow: i === activeColor ? "0 0 0 2px #FAF8F5, 0 0 0 4px #2D241E" : "none",
+                  }}
+                />
+              ))}
+            </div>
+          </div>
+
+          {displaySizes.length > 0 && (
+            <div className="shrink-0">
+              <div className="flex items-center justify-between mb-[clamp(4px,1vw,6px)]">
+                <p
+                  className="text-[#2D241E] uppercase"
+                  style={{
+                    fontFamily: "'DM Sans', sans-serif",
+                    letterSpacing: "0.14em",
+                    fontSize: "clamp(0.58rem, 2.3vw, 0.68rem)",
+                  }}
+                >
+                  {t("product.size", { defaultValue: "Size" })}
+                </p>
+              </div>
+              <div
+                className="grid gap-[clamp(5px,1.2vw,7px)] px-[2px] py-[2px]"
+                style={{
+                  gridTemplateColumns: `repeat(${Math.min(displaySizes.length, 5)}, minmax(0, 1fr))`,
+                }}
+              >
+                {displaySizes.map((size) => (
+                  <button
+                    key={size}
+                    type="button"
+                    onClick={() => onSizeChange(size)}
+                    className="w-full rounded-full transition-all duration-200 cursor-pointer"
+                    style={{
+                      fontFamily: "'DM Sans', sans-serif",
+                      fontSize: "clamp(0.66rem, 2.5vw, 0.76rem)",
+                      letterSpacing: "0.04em",
+                      padding: "clamp(6px, 1.6vw, 8px) clamp(4px, 1vw, 6px)",
+                      backgroundColor: activeSize === size ? "#2D241E" : "transparent",
+                      color: activeSize === size ? "#F5F2ED" : "#2D241E",
+                      border: activeSize === size
+                        ? "1.5px solid #2D241E"
+                        : sizeError
+                          ? "1.5px solid rgba(74,14,14,0.5)"
+                          : "1.5px solid rgba(45,36,30,0.2)",
+                    }}
+                  >
+                    {size}
+                  </button>
+                ))}
+              </div>
+              <AnimatePresence>
+                {sizeError && (
+                  <motion.p
+                    className="text-[#4A0E0E] mt-1"
+                    style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "clamp(0.62rem, 2.3vw, 0.72rem)" }}
+                    initial={{ opacity: 0, y: -4 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0 }}
+                  >
+                    {t("product.selectSize", { defaultValue: "Please select a size to continue." })}
+                  </motion.p>
+                )}
+              </AnimatePresence>
+            </div>
+          )}
+
+          <motion.button
+            type="button"
+            onClick={onAddToBag}
+            disabled={outOfStock}
+            className="shrink-0 mt-[clamp(6px,1.4vh,10px)] w-full flex items-center justify-center gap-2 rounded-full text-white disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+          style={{
+            backgroundColor: outOfStock ? "#9A9088" : addedToBag ? "#2D5928" : "#2D241E",
+            fontFamily: "'DM Sans', sans-serif",
+            fontSize: "clamp(0.66rem, 2.6vw, 0.78rem)",
+            letterSpacing: "0.12em",
+            padding: "clamp(11px, 2.6vh, 14px) clamp(16px, 4vw, 20px)",
+          }}
+          whileTap={{ scale: 0.98 }}
+        >
+          {addedToBag ? (
+            <>
+              <Check size={14} />
+              <span className="uppercase tracking-widest">{t("product.addedToBag", { defaultValue: "Added to Bag" })}</span>
+            </>
+          ) : (
+            <>
+              <ShoppingBag size={14} strokeWidth={1.5} />
+              <span className="uppercase tracking-widest">
+                {outOfStock ? t("product.outOfStock", { defaultValue: "Out of stock" }) : t("product.addToBag", { defaultValue: "Add to Bag" })}
+              </span>
+            </>
+          )}
+          </motion.button>
+        </div>
+      </div>
+    </div>
+  );
+}

@@ -1,9 +1,10 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState, type MouseEvent } from "react";
 import { motion } from "motion/react";
-import { ArrowRight, ArrowUpRight } from "lucide-react";
+import { ArrowRight, ArrowUpRight, Heart, Leaf } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import type { Product } from "../types/product";
 import { useProducts } from "../hooks/useProducts";
+import { useApp } from "../context/AppContext";
 import { ImageWithFallback as Img } from "./figma/ImageWithFallback";
 import { LangLink } from "../i18n/LangLink";
 import { useLocale } from "../i18n/useLocale";
@@ -29,11 +30,13 @@ type ProductTileProps = {
   product: Product | null;
   fallbackTitle: string;
   variant: "large" | "medium" | "wide";
+  showWishlist?: boolean;
 };
 
-function ProductTile({ slot, product, fallbackTitle, variant }: ProductTileProps) {
+function ProductTile({ slot, product, fallbackTitle, variant, showWishlist = false }: ProductTileProps) {
   const { t } = useTranslation();
   const locale = useLocale();
+  const { wishlist, toggleWishlist } = useApp();
   const title = product?.name ?? fallbackTitle;
   const price = product?.price;
   const imageSrc =
@@ -43,103 +46,156 @@ function ProductTile({ slot, product, fallbackTitle, variant }: ProductTileProps
   const href = product ? `/product/${product.id}` : "/collection";
 
   const isLarge = variant === "large";
-  const imageFitClass = "object-cover";
+  const isWishlisted = product ? wishlist.includes(product.id) : false;
   const eyebrow = slot.eyebrow.trim();
   const ctaLabel = slot.ctaLabel.trim();
+
+  const handleWishlist = (e: MouseEvent<HTMLButtonElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (product) toggleWishlist(product.id);
+  };
 
   return (
     <LangLink
       to={href}
-      className="group relative block w-full h-full overflow-hidden rounded-[28px] md:rounded-[32px] bg-[#EDE9E2]"
+      className="group relative block w-full h-full overflow-hidden rounded-[clamp(18px,4.5vw,28px)] md:rounded-[32px] bg-[#EDE9E2]"
       aria-label={t("showcase.openProduct", { title })}
     >
       <Img
         src={imageSrc}
         alt={title}
-        className={`absolute inset-0 w-full h-full ${imageFitClass} transition-transform duration-700 group-hover:scale-[1.04]`}
+        className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-[1.04]"
       />
 
-      {isLarge ? (
-        <div
-          className="absolute inset-0"
-          style={{
-            background:
-              "linear-gradient(to top, rgba(45,36,30,0.65) 0%, rgba(45,36,30,0.15) 45%, transparent 75%)",
-          }}
-        />
-      ) : (
-        <div
-          className="absolute inset-0"
-          style={{
-            background:
-              "linear-gradient(to top, rgba(45,36,30,0.45) 0%, rgba(45,36,30,0.05) 50%, transparent 100%)",
-          }}
-        />
-      )}
+      <div
+        className="absolute inset-0"
+        style={{
+          background: isLarge
+            ? "linear-gradient(to top, rgba(45,36,30,0.72) 0%, rgba(45,36,30,0.2) 42%, transparent 72%)"
+            : "linear-gradient(to top, rgba(45,36,30,0.55) 0%, rgba(45,36,30,0.08) 45%, transparent 100%)",
+        }}
+      />
 
       <div
-        className={`relative z-10 h-full flex flex-col justify-end ${
-          isLarge ? "p-6 md:p-7" : "p-5 md:p-6"
+        className={`relative z-10 h-full flex flex-col ${
+          isLarge
+            ? "justify-end p-[clamp(14px,3.5vw,24px)] md:p-7"
+            : "justify-end p-[clamp(10px,2.5vw,18px)] md:p-6"
         }`}
       >
-        {eyebrow.length > 0 && (
-          <p
-            className="text-white/80 uppercase mb-2"
+        {isLarge && eyebrow.length > 0 && (
+          <span
+            className="inline-flex items-center gap-1.5 self-start mb-[clamp(8px,2vw,14px)] px-[clamp(10px,2.5vw,14px)] py-[clamp(4px,1vw,6px)] rounded-full border border-white/35 text-white/90 uppercase"
             style={{
               fontFamily: "'DM Sans', sans-serif",
-              letterSpacing: "0.22em",
-              fontSize: "0.62rem",
+              letterSpacing: "0.18em",
+              fontSize: "clamp(0.5rem, 2.2vw, 0.62rem)",
+              backgroundColor: "rgba(255,255,255,0.12)",
+              backdropFilter: "blur(6px)",
+            }}
+          >
+            <Leaf size={10} strokeWidth={1.5} className="opacity-90 shrink-0" />
+            {eyebrow}
+          </span>
+        )}
+
+        {!isLarge && eyebrow.length > 0 && (
+          <p
+            className="text-white/80 uppercase mb-1"
+            style={{
+              fontFamily: "'DM Sans', sans-serif",
+              letterSpacing: "0.2em",
+              fontSize: "clamp(0.48rem, 2vw, 0.58rem)",
             }}
           >
             {eyebrow}
           </p>
         )}
 
-        <h3
-          className="text-white"
-          style={{
-            fontFamily: "'Cormorant Garamond', serif",
-            fontStyle: "italic",
-            fontWeight: 500,
-            fontSize: isLarge ? "clamp(1.6rem, 2.4vw, 2.2rem)" : "1.3rem",
-            lineHeight: 1.1,
-          }}
-        >
-          {title}
-        </h3>
-
-        {!isLarge && typeof price === "number" && (
-          <p
-            className="text-white/85 mt-1.5"
+        <div className={isLarge ? "mt-auto" : ""}>
+          <h3
+            className="text-white"
             style={{
-              fontFamily: "'DM Sans', sans-serif",
-              fontSize: "0.78rem",
-              letterSpacing: "0.04em",
+              fontFamily: "'Cormorant Garamond', serif",
+              fontStyle: isLarge ? "normal" : "italic",
+              fontWeight: isLarge ? 400 : 500,
+              fontSize: isLarge
+                ? "clamp(1.35rem, 5.8vw, 2.2rem)"
+                : "clamp(0.95rem, 3.8vw, 1.3rem)",
+              lineHeight: 1.08,
             }}
           >
-            {product?.isNew
-              ? t("product.fromPrice", { price: formatPrice(price, locale) })
-              : formatPrice(price, locale)}
-          </p>
-        )}
+            {isLarge ? (
+              <>
+                <span className="block">{title.split(" ")[0] ?? title}</span>
+                {title.includes(" ") && (
+                  <span className="block italic font-normal opacity-95">
+                    {title.split(" ").slice(1).join(" ")}
+                  </span>
+                )}
+              </>
+            ) : (
+              title
+            )}
+          </h3>
+
+          {!isLarge && typeof price === "number" && (
+            <p
+              className="text-white/90 mt-0.5"
+              style={{
+                fontFamily: "'Cormorant Garamond', serif",
+                fontSize: "clamp(0.78rem, 3vw, 0.95rem)",
+                fontWeight: 400,
+              }}
+            >
+              {formatPrice(price, locale)}
+            </p>
+          )}
+        </div>
 
         {isLarge && ctaLabel.length > 0 && (
           <span
-            className="mt-4 inline-flex items-center gap-2 text-white"
+            className="md:hidden mt-[clamp(10px,2.5vw,16px)] self-start inline-flex items-center justify-center rounded-full uppercase tracking-widest text-[#2D241E]"
             style={{
               fontFamily: "'DM Sans', sans-serif",
-              fontSize: "0.78rem",
-              letterSpacing: "0.12em",
+              fontSize: "clamp(0.58rem, 2.4vw, 0.72rem)",
+              letterSpacing: "0.14em",
+              backgroundColor: "rgba(245,242,237,0.94)",
+              padding: "clamp(8px, 2vw, 11px) clamp(16px, 4vw, 22px)",
             }}
           >
+            {ctaLabel}
+          </span>
+        )}
+
+        {isLarge && ctaLabel.length > 0 && (
+          <span className="hidden md:inline-flex mt-4 items-center gap-2 text-white" style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "0.78rem", letterSpacing: "0.12em" }}>
             <span className="uppercase tracking-widest">{ctaLabel}</span>
-            <ArrowRight
-              size={14}
-              className="transition-transform duration-300 group-hover:translate-x-1"
-            />
+            <ArrowRight size={14} className="transition-transform duration-300 group-hover:translate-x-1" />
           </span>
         )}
       </div>
+
+      {showWishlist && product && (
+        <button
+          onClick={handleWishlist}
+          className="absolute z-20 bottom-[clamp(10px,2.5vw,16px)] right-[clamp(10px,2.5vw,16px)] flex items-center justify-center rounded-full md:hidden"
+          style={{
+            width: "clamp(28px, 7vw, 34px)",
+            height: "clamp(28px, 7vw, 34px)",
+            backgroundColor: isWishlisted ? "#4A0E0E" : "rgba(245,242,237,0.9)",
+          }}
+          aria-label={isWishlisted ? "Remove from wishlist" : "Add to wishlist"}
+        >
+          <Heart
+            size={13}
+            strokeWidth={1.5}
+            fill={isWishlisted ? "white" : "none"}
+            stroke={isWishlisted ? "white" : "#2D241E"}
+          />
+        </button>
+      )}
     </LangLink>
   );
 }
@@ -157,18 +213,18 @@ function TextTile({ slot }: TextTileProps) {
   return (
     <LangLink
       to={ctaHref}
-      className="group relative block w-full h-full overflow-hidden rounded-[28px] md:rounded-[32px]"
+      className="group relative block w-full h-full overflow-hidden rounded-[clamp(18px,4.5vw,28px)] md:rounded-[32px]"
       style={{ backgroundColor: "#2D241E" }}
     >
-      <div className="relative z-10 h-full flex flex-col justify-between p-6 md:p-7">
-        <div>
+      <div className="relative z-10 h-full flex flex-col justify-between p-[clamp(10px,2.5vw,18px)] md:p-7">
+        <div className="min-h-0">
           {eyebrow.length > 0 && (
             <p
               className="text-white/55 uppercase"
               style={{
                 fontFamily: "'DM Sans', sans-serif",
-                letterSpacing: "0.22em",
-                fontSize: "0.62rem",
+                letterSpacing: "0.18em",
+                fontSize: "clamp(0.48rem, 2vw, 0.62rem)",
               }}
             >
               {eyebrow}
@@ -176,12 +232,12 @@ function TextTile({ slot }: TextTileProps) {
           )}
           {heading.length > 0 && (
             <h3
-              className="text-white mt-3"
+              className="text-white mt-1 md:mt-3 line-clamp-3 md:line-clamp-none"
               style={{
                 fontFamily: "'Cormorant Garamond', serif",
                 fontStyle: "italic",
                 fontWeight: 500,
-                fontSize: "clamp(1.25rem, 2vw, 1.7rem)",
+                fontSize: "clamp(0.82rem, 3.2vw, 1.7rem)",
                 lineHeight: 1.2,
               }}
             >
@@ -192,17 +248,17 @@ function TextTile({ slot }: TextTileProps) {
 
         {ctaLabel.length > 0 && (
           <span
-            className="inline-flex items-center gap-1.5 text-white/85 group-hover:text-white transition-colors duration-300 mt-6"
+            className="inline-flex items-center gap-1 text-white/85 group-hover:text-white transition-colors duration-300 mt-2 md:mt-6"
             style={{
               fontFamily: "'DM Sans', sans-serif",
-              fontSize: "0.8rem",
+              fontSize: "clamp(0.62rem, 2.4vw, 0.8rem)",
               letterSpacing: "0.04em",
             }}
           >
-            <span>{ctaLabel}</span>
+            <span className="line-clamp-1">{ctaLabel}</span>
             <ArrowUpRight
-              size={15}
-              className="transition-transform duration-300 group-hover:translate-x-0.5 group-hover:-translate-y-0.5"
+              size={13}
+              className="shrink-0 transition-transform duration-300 group-hover:translate-x-0.5 group-hover:-translate-y-0.5"
             />
           </span>
         )}
@@ -244,9 +300,6 @@ export function FeaturedShowcase() {
     ? productByCode.get(selection.slot4.productCode) ?? null
     : null;
 
-  // Until per-locale CMS strings ship (Phase 5), the admin's value applies to
-  // both languages. If the admin hasn't set anything, fall back to the
-  // locale-aware default.
   const eyebrow =
     selection.eyebrow.trim() ||
     t("showcase.defaultEyebrow", { defaultValue: DEFAULT_SHOWCASE_EYEBROW });
@@ -254,58 +307,134 @@ export function FeaturedShowcase() {
     selection.title.trim() ||
     t("showcase.defaultTitle", { defaultValue: DEFAULT_SHOWCASE_TITLE });
 
+  const sectionHeader = (
+    <>
+      <p
+        className="text-[#2D241E]/40 uppercase mb-[clamp(4px,1vw,6px)]"
+        style={{
+          fontFamily: "'DM Sans', sans-serif",
+          letterSpacing: "0.2em",
+          fontSize: "clamp(0.52rem, 2.2vw, 0.65rem)",
+        }}
+      >
+        {eyebrow}
+      </p>
+      <h2
+        className="text-[#2D241E]"
+        style={{
+          fontFamily: "'Cormorant Garamond', serif",
+          fontSize: "clamp(1.15rem, 4.8vw, 2.4rem)",
+          fontWeight: 400,
+          lineHeight: 1.1,
+        }}
+      >
+        {title}
+      </h2>
+    </>
+  );
+
   return (
     <section
-      className="relative py-10 md:py-12"
+      className="relative py-[clamp(10px,2.5vw,40px)] md:py-12 max-md:overflow-hidden"
       style={{ backgroundColor: "#F5F2ED" }}
     >
-      <div className="max-w-[1400px] mx-auto px-6 md:px-10">
-        {/* Sticky section header — pins below the main fixed header while
-            the inner grid scrolls past, then releases when the section ends. */}
+      <div className="max-w-[1400px] mx-auto px-[clamp(12px,3.5vw,40px)] max-md:h-[calc(100dvh-var(--main-header-h)-clamp(12px,3vw,20px))] max-md:flex max-md:flex-col max-md:min-h-0">
+        {/* Mobile: compact inline header */}
+        <motion.div
+          initial={{ opacity: 0, y: 12 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, margin: "-40px" }}
+          transition={{ duration: 0.5, ease: easing }}
+          className="md:hidden shrink-0 mb-[clamp(6px,1.6vw,10px)]"
+        >
+          {sectionHeader}
+        </motion.div>
+
+        {/* Desktop: sticky section header */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, margin: "-80px" }}
           transition={{ duration: 0.6, ease: easing }}
-          className="sticky z-30 mb-5 md:mb-6 -mx-6 md:-mx-10 px-6 md:px-10 py-3 md:py-4"
+          className="hidden md:block sticky z-30 mb-5 md:mb-6 -mx-6 md:-mx-10 px-6 md:px-10 py-3 md:py-4"
           style={{
             top: "var(--main-header-h)",
             backgroundColor: "rgba(245,242,237,0.85)",
             backdropFilter: "blur(10px)",
           }}
         >
-          <p
-            className="text-[#2D241E]/40 uppercase mb-1.5"
-            style={{
-              fontFamily: "'DM Sans', sans-serif",
-              letterSpacing: "0.22em",
-              fontSize: "0.65rem",
-            }}
-          >
-            {eyebrow}
-          </p>
-          <h2
-            className="text-[#2D241E]"
-            style={{
-              fontFamily: "'Cormorant Garamond', serif",
-              fontSize: "clamp(1.5rem, 3.2vw, 2.4rem)",
-              fontWeight: 400,
-              lineHeight: 1.15,
-            }}
-          >
-            {title}
-          </h2>
+          {sectionHeader}
         </motion.div>
 
-        {/* Responsive grid:
-            mobile  : 1 col, 4 stacked tiles
-            tablet  : 2 cols x 2 rows
-            desktop : 3 cols x 2 rows, slot 1 spans both rows, slot 4 spans
-                      cols 2 + 3 with a bounded height for viewport safety
-        */}
+        {/* Mobile: hero + bento grid — fits one viewport */}
         <div
-          className="grid gap-4 md:gap-4 lg:gap-5
-                     grid-cols-1
+          className="md:hidden flex-1 min-h-0 grid gap-[clamp(6px,1.6vw,10px)]"
+          style={{ gridTemplateRows: "minmax(0, 1.08fr) minmax(0, 1fr)" }}
+        >
+          <motion.div
+            initial={{ opacity: 0, y: 16 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, margin: "-30px" }}
+            transition={{ duration: 0.6, ease: easing }}
+            className="min-h-0"
+          >
+            <ProductTile
+              slot={selection.slot1}
+              product={slot1Product}
+              fallbackTitle="Handcrafted for you"
+              variant="large"
+            />
+          </motion.div>
+
+          <div
+            className="min-h-0 grid grid-cols-2 grid-rows-2 gap-[clamp(6px,1.6vw,10px)]"
+          >
+            <motion.div
+              initial={{ opacity: 0, y: 16 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true, margin: "-30px" }}
+              transition={{ duration: 0.6, delay: 0.06, ease: easing }}
+              className="row-span-2 min-h-0"
+            >
+              <ProductTile
+                slot={selection.slot2}
+                product={slot2Product}
+                fallbackTitle="Femmora"
+                variant="medium"
+                showWishlist
+              />
+            </motion.div>
+
+            <motion.div
+              initial={{ opacity: 0, y: 16 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true, margin: "-30px" }}
+              transition={{ duration: 0.6, delay: 0.1, ease: easing }}
+              className="min-h-0"
+            >
+              <TextTile slot={selection.slot3} />
+            </motion.div>
+
+            <motion.div
+              initial={{ opacity: 0, y: 16 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true, margin: "-30px" }}
+              transition={{ duration: 0.6, delay: 0.14, ease: easing }}
+              className="min-h-0"
+            >
+              <ProductTile
+                slot={selection.slot4}
+                product={slot4Product}
+                fallbackTitle="Boxy Clutch"
+                variant="medium"
+              />
+            </motion.div>
+          </div>
+        </div>
+
+        {/* Tablet + desktop grid */}
+        <div
+          className="hidden md:grid gap-4 md:gap-4 lg:gap-5
                      md:grid-cols-2
                      lg:grid-cols-[5fr_4fr_4fr] lg:grid-rows-2
                      lg:h-[clamp(560px,calc(100vh-var(--main-header-h)-72px),760px)]"
@@ -315,7 +444,7 @@ export function FeaturedShowcase() {
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true, margin: "-60px" }}
             transition={{ duration: 0.7, ease: easing }}
-            className="aspect-[4/4.8] md:aspect-[4/4.6] lg:row-span-2 lg:aspect-auto lg:h-full"
+            className="aspect-[4/4.6] lg:row-span-2 lg:aspect-auto lg:h-full"
           >
             <ProductTile
               slot={selection.slot1}
@@ -330,7 +459,7 @@ export function FeaturedShowcase() {
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true, margin: "-60px" }}
             transition={{ duration: 0.7, delay: 0.08, ease: easing }}
-            className="aspect-[4/4.5] md:aspect-[4/4.4] lg:aspect-auto lg:h-full"
+            className="aspect-[4/4.4] lg:aspect-auto lg:h-full"
           >
             <ProductTile
               slot={selection.slot2}
@@ -345,7 +474,7 @@ export function FeaturedShowcase() {
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true, margin: "-60px" }}
             transition={{ duration: 0.7, delay: 0.12, ease: easing }}
-            className="aspect-[4/4.5] md:aspect-[4/4.4] lg:aspect-auto lg:h-full"
+            className="aspect-[4/4.4] lg:aspect-auto lg:h-full"
           >
             <TextTile slot={selection.slot3} />
           </motion.div>
@@ -355,7 +484,7 @@ export function FeaturedShowcase() {
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true, margin: "-60px" }}
             transition={{ duration: 0.7, delay: 0.16, ease: easing }}
-            className="aspect-[4/4.5] md:aspect-[4/4.4] lg:col-span-2 lg:aspect-auto lg:h-full"
+            className="aspect-[4/4.4] lg:col-span-2 lg:aspect-auto lg:h-full"
           >
             <ProductTile
               slot={selection.slot4}

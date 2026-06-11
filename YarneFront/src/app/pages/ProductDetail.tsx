@@ -1,17 +1,38 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router";
 import { motion, AnimatePresence } from "motion/react";
-import { ArrowLeft, Heart, Share2, ChevronDown, ShoppingBag, Check } from "lucide-react";
+import { ArrowLeft, Heart, ChevronDown, ShoppingBag, Check } from "lucide-react";
+import { useTranslation } from "react-i18next";
+import { useLocale } from "../i18n/useLocale";
+import { formatPrice } from "../i18n/format";
 import { useProduct, useProducts } from "../hooks/useProducts";
 import { useApp } from "../context/AppContext";
 import { ImageWithFallback } from "../components/figma/ImageWithFallback";
 import { ProductCard } from "../components/ProductCard";
 import { LangLink } from "../i18n/LangLink";
+import { MobileProductDetailView } from "../components/MobileProductDetailView";
+import { MobileRelatedProducts } from "../components/MobileRelatedProducts";
 import React from "react";
 
 const easing = [0.25, 0.1, 0.25, 1] as const;
 
+function uniqueImageUrls(...groups: (string | undefined | null)[][]): string[] {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const group of groups) {
+    for (const raw of group) {
+      const url = raw?.trim();
+      if (!url || seen.has(url)) continue;
+      seen.add(url);
+      out.push(url);
+    }
+  }
+  return out;
+}
+
 export function ProductDetail() {
+  const { t } = useTranslation();
+  const locale = useLocale();
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { addToCart, wishlist, toggleWishlist } = useApp();
@@ -96,13 +117,11 @@ export function ProductDetail() {
   const sizeScopedImages = activeSize ? selectedColor?.sizeImages?.[activeSize] ?? [] : [];
   const selectedSizeStock = activeSize ? selectedColor?.sizeStocks?.[activeSize] : undefined;
   const displayStock = typeof selectedSizeStock === "number" ? selectedSizeStock : product.stock;
-  const images = (sizeScopedImages.length
-    ? sizeScopedImages
-    : selectedColor?.images?.length
-      ? selectedColor.images
-      : selectedColor?.image
-        ? [selectedColor.image]
-        : []) as string[];
+  const images = uniqueImageUrls(
+    sizeScopedImages,
+    selectedColor?.images ?? [],
+    selectedColor?.image ? [selectedColor.image] : [],
+  );
   const safeImageIndex = images.length ? Math.min(activeImage, images.length - 1) : 0;
 
   const handleColorChange = (i: number) => {
@@ -135,12 +154,32 @@ export function ProductDetail() {
   const outOfStock = displayStock <= 0;
 
   return (
-    <main style={{ backgroundColor: "#F5F2ED", minHeight: "100vh", overflowX: "hidden" }}>
-      <div className="max-w-[1400px] mx-auto px-5 md:px-10 pt-[72px] md:pt-24 pb-24">
-        {/* Back */}
+    <main className="overflow-x-hidden" style={{ backgroundColor: "#F5F2ED" }}>
+      <MobileProductDetailView
+        product={product}
+        images={images}
+        locale={locale}
+        activeColor={activeColor}
+        activeSize={activeSize}
+        displaySizes={displaySizes}
+        isWishlisted={isWishlisted}
+        addedToBag={addedToBag}
+        sizeError={sizeError}
+        outOfStock={outOfStock}
+        onBack={() => navigate(-1)}
+        onToggleWishlist={() => toggleWishlist(product.id)}
+        onColorChange={handleColorChange}
+        onSizeChange={(size) => { setActiveSize(size); setSizeError(false); }}
+        onAddToBag={handleAddToBag}
+      />
+
+      {related.length > 0 && <MobileRelatedProducts products={related} />}
+
+      {/* ── Desktop layout ── */}
+      <div className="hidden md:block max-w-[1400px] mx-auto px-5 md:px-10 pt-24 pb-24">
         <motion.button
           onClick={() => navigate(-1)}
-          className="flex items-center gap-2 text-[#2D241E]/50 hover:text-[#2D241E] transition-colors duration-300 mb-3 md:mb-5 group"
+          className="flex items-center gap-2 text-[#2D241E]/50 hover:text-[#2D241E] transition-colors duration-300 mb-5 group"
           style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "0.78rem", letterSpacing: "0.12em" }}
           initial={{ opacity: 0, x: -10 }}
           animate={{ opacity: 1, x: 0 }}
@@ -150,7 +189,6 @@ export function ProductDetail() {
           <span className="uppercase tracking-widest">Back</span>
         </motion.button>
 
-        {/* Main layout */}
         <div className="grid md:grid-cols-2 lg:grid-cols-[minmax(0,1fr)_minmax(340px,420px)] gap-6 md:gap-8 lg:gap-12 items-start mt-0">
           {/* Left: Image Gallery */}
           <motion.div
@@ -220,103 +258,6 @@ export function ProductDetail() {
               ))}
             </div>
 
-            {/* Mobile quick variant controls - keep near gallery for instant visual feedback */}
-            <div className="md:hidden mt-2 rounded-[14px] p-2 border border-[#2D241E]/10 bg-white/45">
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <p
-                      className="text-[#2D241E] text-[9px] tracking-widest uppercase"
-                      style={{ fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.12em" }}
-                    >
-                      Colour
-                    </p>
-                    <p
-                      className="text-[#2D241E]/60 text-[10px]"
-                      style={{ fontFamily: "'DM Sans', sans-serif" }}
-                    >
-                      {product.colors[activeColor].name}
-                    </p>
-                  </div>
-                  <div className="flex gap-2">
-                    {product.colors.map((color, i) => (
-                      <button
-                        key={`mobile-color-${color.name}`}
-                        onClick={() => handleColorChange(i)}
-                        title={color.name}
-                        className="transition-transform duration-200 hover:scale-110"
-                        style={{
-                          width: 22,
-                          height: 22,
-                          borderRadius: "50%",
-                          backgroundColor: color.hex,
-                          border: i === activeColor ? "1.5px solid #2D241E" : "1px solid rgba(45,36,30,0.2)",
-                          boxShadow: i === activeColor ? "0 0 0 1px #F5F2ED, 0 0 0 2.5px #2D241E" : "none",
-                          transition: "all 0.2s ease",
-                        }}
-                      />
-                    ))}
-                  </div>
-                </div>
-
-                <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <p
-                      className="text-[#2D241E] text-[9px] tracking-widest uppercase"
-                      style={{ fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.12em" }}
-                    >
-                      Size
-                    </p>
-                    <button
-                      className="text-[#2D241E]/50 text-[10px] hover:text-[#4A0E0E] transition-colors underline"
-                      style={{ fontFamily: "'DM Sans', sans-serif" }}
-                    >
-                      Size guide
-                    </button>
-                  </div>
-                  <div className="flex flex-wrap gap-1.5">
-                    {displaySizes.map((size) => (
-                      <button
-                        key={`mobile-size-${size}`}
-                        onClick={() => { setActiveSize(size); setSizeError(false); }}
-                        className="min-w-[34px] px-2 py-1 rounded-full text-[10px] transition-all duration-200"
-                        style={{
-                          fontFamily: "'DM Sans', sans-serif",
-                          letterSpacing: "0.05em",
-                          backgroundColor: activeSize === size ? "#2D241E" : "transparent",
-                          color: activeSize === size ? "#F5F2ED" : "#2D241E",
-                          border: activeSize === size
-                            ? "1px solid #2D241E"
-                            : sizeError
-                              ? "1px solid rgba(74,14,14,0.5)"
-                              : "1px solid rgba(45,36,30,0.2)",
-                        }}
-                      >
-                        {size}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </div>
-              <AnimatePresence>
-                {sizeError && (
-                  <motion.p
-                  className="text-[#4A0E0E] text-[10px] mt-2"
-                    style={{ fontFamily: "'DM Sans', sans-serif" }}
-                    initial={{ opacity: 0, y: -4 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0 }}
-                  >
-                    Please select a size to continue.
-                  </motion.p>
-                )}
-              </AnimatePresence>
-              {typeof displayStock === "number" && (
-                <p className="text-[#2D241E]/55 text-[10px] mt-1.5" style={{ fontFamily: "'DM Sans', sans-serif" }}>
-                  In stock: {displayStock}
-                </p>
-              )}
-            </div>
           </motion.div>
 
           {/* Right: Product Info */}
@@ -335,7 +276,7 @@ export function ProductDetail() {
             </p>
 
             {/* Name & Price */}
-            <div className="hidden md:block">
+            <div>
               <h1
                 className="text-[#2D241E]"
                 style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "clamp(1.8rem, 4vw, 2.5rem)", fontWeight: 400, lineHeight: 1.15 }}
@@ -357,7 +298,7 @@ export function ProductDetail() {
             </div>
 
             {/* Color Selection */}
-            <div className="hidden md:block">
+            <div>
               <div className="flex items-center justify-between mb-3">
                 <p
                   className="text-[#2D241E] text-xs tracking-widest uppercase"
@@ -394,7 +335,7 @@ export function ProductDetail() {
             </div>
 
             {/* Size Selection */}
-            <div className="hidden md:block">
+            <div>
               <div className="flex items-center justify-between mb-3">
                 <p
                   className="text-[#2D241E] text-xs tracking-widest uppercase"
@@ -498,12 +439,6 @@ export function ProductDetail() {
                   stroke={isWishlisted ? "white" : "#2D241E"}
                 />
               </button>
-
-              <button
-                className="w-14 h-14 rounded-full border border-[#2D241E]/20 flex items-center justify-center hover:border-[#2D241E]/50 transition-colors"
-              >
-                <Share2 size={15} strokeWidth={1.5} className="text-[#2D241E]/60" />
-              </button>
             </div>
 
             {/* Description */}
@@ -580,53 +515,41 @@ export function ProductDetail() {
             </div>
           </motion.div>
         </div>
-
-        {/* Related Products */}
-        {related.length > 0 && (
-          <section className="mt-20 md:mt-24">
-            <div className="flex items-center justify-between mb-8 md:mb-10">
-              <div>
-                <p
-                  className="text-[#2D241E]/40 tracking-widest uppercase text-xs mb-2"
-                  style={{ fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.2em" }}
-                >
-                  You may also like
-                </p>
-                <h2
-                  className="text-[#2D241E]"
-                  style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "clamp(1.5rem, 3vw, 2rem)", fontWeight: 400 }}
-                >
-                  Complete the wardrobe
-                </h2>
-              </div>
-              <LangLink
-                to="/collection"
-                className="hidden md:flex items-center gap-2 text-[#2D241E]/50 hover:text-[#4A0E0E] text-xs transition-colors uppercase tracking-widest"
-                style={{ fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.12em" }}
-              >
-                View all
-              </LangLink>
-            </div>
-            <div className="hidden md:grid md:grid-cols-2 lg:grid-cols-3 gap-5 lg:gap-8">
-              {related.map((p, i) => (
-                <ProductCard key={p.id} product={p} index={i} size="small" />
-              ))}
-            </div>
-            <div className="md:hidden -mx-5 px-5 overflow-hidden">
-              <div className="flex gap-4 overflow-x-auto snap-x snap-mandatory scrollbar-hide pb-2">
-                {related.map((p, i) => (
-                  <div
-                    key={p.id}
-                    className="shrink-0 basis-[72%] snap-center"
-                  >
-                    <ProductCard product={p} index={i} size="small" />
-                  </div>
-                ))}
-              </div>
-            </div>
-          </section>
-        )}
       </div>
+
+      {/* Related Products */}
+      {related.length > 0 && (
+        <section className="hidden md:block px-5 md:px-10 max-w-[1400px] mx-auto mt-24 pb-24 overflow-x-hidden">
+          <div className="flex items-center justify-between mb-8 md:mb-10">
+            <div>
+              <p
+                className="text-[#2D241E]/40 tracking-widest uppercase text-xs mb-2"
+                style={{ fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.2em" }}
+              >
+                You may also like
+              </p>
+              <h2
+                className="text-[#2D241E]"
+                style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "clamp(1.5rem, 3vw, 2rem)", fontWeight: 400 }}
+              >
+                Complete the wardrobe
+              </h2>
+            </div>
+            <LangLink
+              to="/collection"
+              className="hidden md:flex items-center gap-2 text-[#2D241E]/50 hover:text-[#4A0E0E] text-xs transition-colors uppercase tracking-widest"
+              style={{ fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.12em" }}
+            >
+              View all
+            </LangLink>
+          </div>
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-5 lg:gap-8">
+            {related.map((p, i) => (
+              <ProductCard key={p.id} product={p} index={i} size="small" />
+            ))}
+          </div>
+        </section>
+      )}
     </main>
   );
 }
