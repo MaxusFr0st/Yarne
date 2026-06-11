@@ -19,6 +19,7 @@ type MobileProductDetailViewProps = {
   addedToBag: boolean;
   sizeError: boolean;
   outOfStock: boolean;
+  displayStock: number;
   onBack: () => void;
   onToggleWishlist: () => void;
   onColorChange: (index: number) => void;
@@ -37,6 +38,7 @@ export function MobileProductDetailView({
   addedToBag,
   sizeError,
   outOfStock,
+  displayStock,
   onBack,
   onToggleWishlist,
   onColorChange,
@@ -84,7 +86,7 @@ export function MobileProductDetailView({
   const gallerySlides = images.length > 0 ? images : [""];
 
   return (
-    <div className="md:hidden relative">
+    <div className="md:hidden relative pt-[var(--main-header-h)]">
       {/* Gallery — tall hero; page scrolls naturally below */}
       <div
         className="relative w-full bg-[#EDE9E2] overflow-hidden"
@@ -306,6 +308,19 @@ export function MobileProductDetailView({
                 >
                   {t("product.size", { defaultValue: "Size" })}
                 </p>
+                {activeSize && (
+                  <p
+                    className={displayStock <= 0 ? "text-[#4A0E0E]/75" : "text-[#2D241E]/50"}
+                    style={{
+                      fontFamily: "'DM Sans', sans-serif",
+                      fontSize: "clamp(0.62rem, 2.3vw, 0.72rem)",
+                    }}
+                  >
+                    {displayStock <= 0
+                      ? t("product.outOfStock", { defaultValue: "Out of stock" })
+                      : t("product.inStock", { count: displayStock, defaultValue: "{{count}} available" })}
+                  </p>
+                )}
               </div>
               <div
                 className="grid gap-[clamp(5px,1.2vw,7px)] px-[2px] py-[2px]"

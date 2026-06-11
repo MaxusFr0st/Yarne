@@ -73,7 +73,7 @@ export function MobileRelatedProducts({ products }: MobileRelatedProductsProps) 
             <div
               key={product.id}
               className="shrink-0 min-w-0 overflow-visible"
-              style={{ flex: "0 0 clamp(68%, 72vw, 78%)" }}
+              style={{ flex: "0 0 clamp(56%, 60vw, 66%)" }}
             >
               <ProductCard product={product} index={i} size="carousel" inCarousel viewportRoot={viewportRef} />
             </div>

@@ -30,22 +30,26 @@ export function ProductCard({ product, index = 0, size = "medium", inCarousel = 
 
   const isCarouselCard = inCarousel || size === "carousel";
 
-  /** Carousel: taller 2:3 on phones (iPhone SE), 3:4 from sm+ — collection/grid unchanged */
+  /** Mobile-first: shorter 4:5 portrait keeps cards editorial, not chunky */
   const aspectClass =
     size === "carousel"
-      ? "aspect-[2/3] min-h-0 w-full sm:aspect-[3/4]"
+      ? "aspect-[4/5] min-h-0 w-full sm:aspect-[3/4]"
       : size === "collection"
-        ? "aspect-[3/4] min-h-[280px] sm:min-h-[320px] md:min-h-0 w-full"
+        ? "aspect-[4/5] min-h-[220px] sm:min-h-[250px] md:min-h-0 md:aspect-[3/4] w-full"
       : size === "small"
-        ? "aspect-[3/4] min-h-[220px] md:min-h-0 w-full"
+        ? "aspect-[4/5] min-h-[180px] md:min-h-0 md:aspect-[3/4] w-full"
         : size === "large"
-          ? "aspect-[4/5] min-h-[300px] md:min-h-0 w-full"
-          : "aspect-[3/4] min-h-[260px] md:min-h-0 w-full";
+          ? "aspect-[4/5] min-h-[260px] md:min-h-0 md:aspect-[4/5] w-full"
+          : "aspect-[4/5] min-h-[220px] md:min-h-0 md:aspect-[3/4] w-full";
+
+  const imageRadiusClass = isCarouselCard
+    ? "rounded-[22px] sm:rounded-[28px]"
+    : "rounded-[24px] md:rounded-[32px]";
 
   const handleQuickAdd = (e: MouseEvent<HTMLButtonElement>) => {
     e.preventDefault();
     e.stopPropagation();
-    const maxQuantity = Math.max(0, product.stock);
+    const maxQuantity = Math.max(0, product.stock ?? 0);
     if (maxQuantity <= 0) return;
     addToCart({
       productId: product.id,
@@ -81,11 +85,11 @@ export function ProductCard({ product, index = 0, size = "medium", inCarousel = 
       <LangLink to={`/product/${product.id}`} className={`block ${isCarouselCard ? "overflow-visible" : ""}`}>
         {/* Image Container */}
         <div
-          className={`relative ${aspectClass} overflow-hidden rounded-[32px] bg-[#EDE9E2] cursor-pointer`}
+          className={`relative ${aspectClass} overflow-hidden ${imageRadiusClass} bg-[#EDE9E2] cursor-pointer`}
           onMouseEnter={() => setIsHovered(true)}
           onMouseLeave={() => setIsHovered(false)}
         >
-          <div className="absolute inset-0 overflow-hidden rounded-[32px]">
+          <div className={`absolute inset-0 overflow-hidden ${imageRadiusClass}`}>
             {product.colors.map((color, i) => (
               <ImageWithFallback
                 key={color.name}
@@ -108,7 +112,7 @@ export function ProductCard({ product, index = 0, size = "medium", inCarousel = 
 
           {/* Gradient overlay on hover */}
           <div
-            className="absolute inset-0 rounded-[32px] transition-opacity duration-500"
+            className={`absolute inset-0 ${imageRadiusClass} transition-opacity duration-500`}
             style={{
               background:
                 "linear-gradient(to top, rgba(45,36,30,0.5) 0%, transparent 60%)",
@@ -190,25 +194,34 @@ export function ProductCard({ product, index = 0, size = "medium", inCarousel = 
         </div>
 
         {/* Product Info */}
-        <div className={`mt-4 px-1 ${isCarouselCard ? "overflow-visible pb-0.5" : ""}`}>
+        <div className={`${isCarouselCard ? "mt-2.5 overflow-visible pb-0.5" : "mt-4"} px-1`}>
           <div className="flex items-start justify-between gap-2">
-            <div>
+            <div className="min-w-0">
               <p
                 className="text-[#2D241E] group-hover:text-[#4A0E0E] transition-colors duration-300"
-                style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "1.05rem", fontWeight: 500, lineHeight: 1.3 }}
+                style={{
+                  fontFamily: "'Cormorant Garamond', serif",
+                  fontSize: isCarouselCard ? "clamp(0.92rem, 3.6vw, 1.05rem)" : "1.05rem",
+                  fontWeight: 500,
+                  lineHeight: 1.3,
+                }}
               >
                 {product.name}
               </p>
               <p
-                className="text-[#2D241E]/50 text-xs mt-0.5"
-                style={{ fontFamily: "'DM Sans', sans-serif" }}
+                className="text-[#2D241E]/50 text-xs mt-0.5 line-clamp-1"
+                style={{ fontFamily: "'DM Sans', sans-serif", fontSize: isCarouselCard ? "0.68rem" : undefined }}
               >
                 {product.subtitle}
               </p>
             </div>
             <p
               className="text-[#2D241E] flex-shrink-0"
-              style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "1.05rem", fontWeight: 400 }}
+              style={{
+                fontFamily: "'Cormorant Garamond', serif",
+                fontSize: isCarouselCard ? "clamp(0.88rem, 3.4vw, 1rem)" : "1.05rem",
+                fontWeight: 400,
+              }}
             >
               {formatPrice(product.price, locale)}
             </p>
@@ -216,7 +229,7 @@ export function ProductCard({ product, index = 0, size = "medium", inCarousel = 
 
           {/* Color Swatches — extra inset on carousel so selection rings aren't clipped */}
           <div
-            className={`flex items-center gap-2 mt-3 ${isCarouselCard ? "py-1.5 pl-1 -ml-1" : ""}`}
+            className={`flex items-center gap-2 ${isCarouselCard ? "mt-2 py-1.5 pl-1 -ml-1" : "mt-3"}`}
           >
             {product.colors.map((color, i) => (
               <button

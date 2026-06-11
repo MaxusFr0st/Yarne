@@ -110,14 +110,14 @@ export function BestSellersCarousel() {
           .carousel-fade { mask-image: linear-gradient(to right, rgba(0,0,0,0.35) 0%, black 16px, black calc(100% - 16px), rgba(0,0,0,0.35) 100%); -webkit-mask-image: linear-gradient(to right, rgba(0,0,0,0.35) 0%, black 16px, black calc(100% - 16px), rgba(0,0,0,0.35) 100%); }
           @media (min-width: 768px) { .carousel-fade { mask-image: linear-gradient(to right, rgba(0,0,0,0.25) 0%, black 48px, black calc(100% - 48px), rgba(0,0,0,0.25) 100%); -webkit-mask-image: linear-gradient(to right, rgba(0,0,0,0.25) 0%, black 48px, black calc(100% - 48px), rgba(0,0,0,0.25) 100%); } }
           @media (max-width: 639px) {
-            .bestsellers-slide { flex: 0 0 82%; max-width: 17.5rem; }
+            .bestsellers-slide { flex: 0 0 62%; max-width: 14.5rem; }
           }
           @media (max-width: 374px) {
-            .bestsellers-slide { flex: 0 0 88%; max-width: 16.25rem; }
+            .bestsellers-slide { flex: 0 0 66%; max-width: 13.5rem; }
           }
         `}</style>
         {/* Extra top space on parent — card aspect ratio lives on ProductCard, not here */}
-        <div className="carousel-fade relative -mx-4 sm:-mx-12 md:-mx-8 pt-8 md:pt-10 pb-2 min-h-0 sm:min-h-[460px] md:min-h-[480px]">
+        <div className="carousel-fade relative -mx-4 sm:-mx-12 md:-mx-8 pt-8 md:pt-10 pb-2 min-h-0 sm:min-h-[380px] md:min-h-[480px]">
           <motion.div
             ref={(el) => {
               (emblaRef as (el: HTMLDivElement | null) => void)(el);

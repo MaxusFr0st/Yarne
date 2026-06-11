@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState, type MouseEvent } from "react";
 import { motion } from "motion/react";
-import { ArrowRight, ArrowUpRight, Heart, Leaf } from "lucide-react";
+import { ArrowRight, ArrowUpRight, Heart } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import type { Product } from "../types/product";
 import { useProducts } from "../hooks/useProducts";
@@ -46,6 +46,11 @@ function ProductTile({ slot, product, fallbackTitle, variant, showWishlist = fal
   const href = product ? `/product/${product.id}` : "/collection";
 
   const isLarge = variant === "large";
+  const mobileImageFrameClass = isLarge
+    ? "max-md:scale-[1.16] max-md:object-[center_32%]"
+    : variant === "wide"
+      ? "max-md:scale-[1.12] max-md:object-[center_34%]"
+      : "max-md:scale-[1.18] max-md:object-[center_30%]";
   const isWishlisted = product ? wishlist.includes(product.id) : false;
   const eyebrow = slot.eyebrow.trim();
   const ctaLabel = slot.ctaLabel.trim();
@@ -65,7 +70,7 @@ function ProductTile({ slot, product, fallbackTitle, variant, showWishlist = fal
       <Img
         src={imageSrc}
         alt={title}
-        className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-[1.04]"
+        className={`absolute inset-0 w-full h-full object-cover transition-transform duration-700 ${mobileImageFrameClass} md:group-hover:scale-[1.04]`}
       />
 
       <div
@@ -84,22 +89,6 @@ function ProductTile({ slot, product, fallbackTitle, variant, showWishlist = fal
             : "justify-end p-[clamp(10px,2.5vw,18px)] md:p-6"
         }`}
       >
-        {isLarge && eyebrow.length > 0 && (
-          <span
-            className="inline-flex items-center gap-1.5 self-start mb-[clamp(8px,2vw,14px)] px-[clamp(10px,2.5vw,14px)] py-[clamp(4px,1vw,6px)] rounded-full border border-white/35 text-white/90 uppercase"
-            style={{
-              fontFamily: "'DM Sans', sans-serif",
-              letterSpacing: "0.18em",
-              fontSize: "clamp(0.5rem, 2.2vw, 0.62rem)",
-              backgroundColor: "rgba(255,255,255,0.12)",
-              backdropFilter: "blur(6px)",
-            }}
-          >
-            <Leaf size={10} strokeWidth={1.5} className="opacity-90 shrink-0" />
-            {eyebrow}
-          </span>
-        )}
-
         {!isLarge && eyebrow.length > 0 && (
           <p
             className="text-white/80 uppercase mb-1"
@@ -338,7 +327,7 @@ export function FeaturedShowcase() {
       className="relative py-[clamp(10px,2.5vw,40px)] md:py-12 max-md:overflow-hidden"
       style={{ backgroundColor: "#F5F2ED" }}
     >
-      <div className="max-w-[1400px] mx-auto px-[clamp(12px,3.5vw,40px)] max-md:h-[calc(100dvh-var(--main-header-h)-clamp(12px,3vw,20px))] max-md:flex max-md:flex-col max-md:min-h-0">
+      <div className="max-w-[1400px] mx-auto px-[clamp(12px,3.5vw,40px)]">
         {/* Mobile: compact inline header */}
         <motion.div
           initial={{ opacity: 0, y: 12 }}
@@ -366,17 +355,16 @@ export function FeaturedShowcase() {
           {sectionHeader}
         </motion.div>
 
-        {/* Mobile: hero + bento grid — fits one viewport */}
+        {/* Mobile: hero + bento grid */}
         <div
-          className="md:hidden flex-1 min-h-0 grid gap-[clamp(6px,1.6vw,10px)]"
-          style={{ gridTemplateRows: "minmax(0, 1.08fr) minmax(0, 1fr)" }}
+          className="md:hidden grid gap-[clamp(6px,1.6vw,10px)]"
         >
           <motion.div
             initial={{ opacity: 0, y: 16 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true, margin: "-30px" }}
             transition={{ duration: 0.6, ease: easing }}
-            className="min-h-0"
+            className="aspect-[4/4.9]"
           >
             <ProductTile
               slot={selection.slot1}
@@ -387,14 +375,14 @@ export function FeaturedShowcase() {
           </motion.div>
 
           <div
-            className="min-h-0 grid grid-cols-2 grid-rows-2 gap-[clamp(6px,1.6vw,10px)]"
+            className="grid grid-cols-2 grid-rows-2 gap-[clamp(6px,1.6vw,10px)]"
           >
             <motion.div
               initial={{ opacity: 0, y: 16 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true, margin: "-30px" }}
               transition={{ duration: 0.6, delay: 0.06, ease: easing }}
-              className="row-span-2 min-h-0"
+              className="row-span-2"
             >
               <ProductTile
                 slot={selection.slot2}
@@ -410,7 +398,7 @@ export function FeaturedShowcase() {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true, margin: "-30px" }}
               transition={{ duration: 0.6, delay: 0.1, ease: easing }}
-              className="min-h-0"
+              className="aspect-square"
             >
               <TextTile slot={selection.slot3} />
             </motion.div>
@@ -420,7 +408,7 @@ export function FeaturedShowcase() {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true, margin: "-30px" }}
               transition={{ duration: 0.6, delay: 0.14, ease: easing }}
-              className="min-h-0"
+              className="aspect-square"
             >
               <ProductTile
                 slot={selection.slot4}

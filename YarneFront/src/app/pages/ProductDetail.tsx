@@ -166,6 +166,7 @@ export function ProductDetail() {
         addedToBag={addedToBag}
         sizeError={sizeError}
         outOfStock={outOfStock}
+        displayStock={displayStock}
         onBack={() => navigate(-1)}
         onToggleWishlist={() => toggleWishlist(product.id)}
         onColorChange={handleColorChange}

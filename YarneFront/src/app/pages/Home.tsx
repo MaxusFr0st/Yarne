@@ -313,7 +313,7 @@ export function Home() {
           </div>
 
           {/* Mobile: 1 column for better card display */}
-          <div className="md:hidden grid grid-cols-1 gap-y-10 w-full max-w-md mx-auto px-2">
+          <div className="md:hidden grid grid-cols-1 gap-y-7 w-full max-w-sm mx-auto px-1">
             {featured.map((product, i) => (
               <ProductCard key={product.id} product={product} index={i} />
             ))}
