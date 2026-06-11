@@ -46,11 +46,12 @@ function ProductTile({ slot, product, fallbackTitle, variant, showWishlist = fal
   const href = product ? `/product/${product.id}` : "/collection";
 
   const isLarge = variant === "large";
+  /** Tighter crop on phones; strongest on iPhone SE / narrow viewports */
   const mobileImageFrameClass = isLarge
-    ? "max-md:scale-[1.16] max-md:object-[center_32%]"
+    ? "max-md:scale-[1.16] max-md:object-[center_32%] max-[390px]:scale-[1.28] max-[390px]:object-[center_26%] max-[374px]:scale-[1.36] max-[374px]:object-[center_22%]"
     : variant === "wide"
-      ? "max-md:scale-[1.12] max-md:object-[center_34%]"
-      : "max-md:scale-[1.18] max-md:object-[center_30%]";
+      ? "max-md:scale-[1.12] max-md:object-[center_34%] max-[390px]:scale-[1.24] max-[390px]:object-[center_28%] max-[374px]:scale-[1.32] max-[374px]:object-[center_24%]"
+      : "max-md:scale-[1.18] max-md:object-[center_30%] max-[390px]:scale-[1.30] max-[390px]:object-[center_24%] max-[374px]:scale-[1.38] max-[374px]:object-[center_20%]";
   const isWishlisted = product ? wishlist.includes(product.id) : false;
   const eyebrow = slot.eyebrow.trim();
   const ctaLabel = slot.ctaLabel.trim();
@@ -85,8 +86,8 @@ function ProductTile({ slot, product, fallbackTitle, variant, showWishlist = fal
       <div
         className={`relative z-10 h-full flex flex-col ${
           isLarge
-            ? "justify-end p-[clamp(14px,3.5vw,24px)] md:p-7"
-            : "justify-end p-[clamp(10px,2.5vw,18px)] md:p-6"
+            ? "justify-end p-[clamp(10px,2.6vw,18px)] md:p-7"
+            : "justify-end p-[clamp(8px,2.2vw,14px)] md:p-6"
         }`}
       >
         {!isLarge && eyebrow.length > 0 && (
@@ -110,8 +111,8 @@ function ProductTile({ slot, product, fallbackTitle, variant, showWishlist = fal
               fontStyle: isLarge ? "normal" : "italic",
               fontWeight: isLarge ? 400 : 500,
               fontSize: isLarge
-                ? "clamp(1.35rem, 5.8vw, 2.2rem)"
-                : "clamp(0.95rem, 3.8vw, 1.3rem)",
+                ? "clamp(1.15rem, 5vw, 2.2rem)"
+                : "clamp(0.82rem, 3.4vw, 1.3rem)",
               lineHeight: 1.08,
             }}
           >
@@ -145,13 +146,13 @@ function ProductTile({ slot, product, fallbackTitle, variant, showWishlist = fal
 
         {isLarge && ctaLabel.length > 0 && (
           <span
-            className="md:hidden mt-[clamp(10px,2.5vw,16px)] self-start inline-flex items-center justify-center rounded-full uppercase tracking-widest text-[#2D241E]"
+            className="md:hidden mt-[clamp(6px,1.6vw,10px)] self-start inline-flex items-center justify-center rounded-full uppercase tracking-widest text-[#2D241E]"
             style={{
               fontFamily: "'DM Sans', sans-serif",
-              fontSize: "clamp(0.58rem, 2.4vw, 0.72rem)",
+              fontSize: "clamp(0.54rem, 2.2vw, 0.68rem)",
               letterSpacing: "0.14em",
               backgroundColor: "rgba(245,242,237,0.94)",
-              padding: "clamp(8px, 2vw, 11px) clamp(16px, 4vw, 22px)",
+              padding: "clamp(6px, 1.6vw, 9px) clamp(12px, 3.2vw, 18px)",
             }}
           >
             {ctaLabel}
@@ -312,7 +313,7 @@ export function FeaturedShowcase() {
         className="text-[#2D241E]"
         style={{
           fontFamily: "'Cormorant Garamond', serif",
-          fontSize: "clamp(1.15rem, 4.8vw, 2.4rem)",
+          fontSize: "clamp(1.05rem, 4.2vw, 2.4rem)",
           fontWeight: 400,
           lineHeight: 1.1,
         }}
@@ -324,17 +325,17 @@ export function FeaturedShowcase() {
 
   return (
     <section
-      className="relative py-[clamp(10px,2.5vw,40px)] md:py-12 max-md:overflow-hidden"
+      className="relative py-[clamp(10px,2.5vw,40px)] md:py-12 max-md:overflow-hidden max-md:box-border max-md:h-[calc(100dvh-var(--main-header-h))] max-md:py-[clamp(6px,1.6vw,10px)]"
       style={{ backgroundColor: "#F5F2ED" }}
     >
-      <div className="max-w-[1400px] mx-auto px-[clamp(12px,3.5vw,40px)]">
+      <div className="max-w-[1400px] mx-auto px-[clamp(12px,3.5vw,40px)] max-md:h-full max-md:flex max-md:flex-col max-md:min-h-0">
         {/* Mobile: compact inline header */}
         <motion.div
           initial={{ opacity: 0, y: 12 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, margin: "-40px" }}
           transition={{ duration: 0.5, ease: easing }}
-          className="md:hidden shrink-0 mb-[clamp(6px,1.6vw,10px)]"
+          className="md:hidden shrink-0 mb-[clamp(4px,1vw,8px)]"
         >
           {sectionHeader}
         </motion.div>
@@ -355,16 +356,17 @@ export function FeaturedShowcase() {
           {sectionHeader}
         </motion.div>
 
-        {/* Mobile: hero + bento grid */}
+        {/* Mobile: hero + bento — one viewport, proportional rows (≈4/4.9 hero + bento) */}
         <div
-          className="md:hidden grid gap-[clamp(6px,1.6vw,10px)]"
+          className="md:hidden flex-1 min-h-0 grid gap-[clamp(5px,1.4vw,8px)]"
+          style={{ gridTemplateRows: "minmax(0, 1.05fr) minmax(0, 1fr)" }}
         >
           <motion.div
             initial={{ opacity: 0, y: 16 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true, margin: "-30px" }}
             transition={{ duration: 0.6, ease: easing }}
-            className="aspect-[4/4.9]"
+            className="min-h-0 h-full"
           >
             <ProductTile
               slot={selection.slot1}
@@ -375,14 +377,14 @@ export function FeaturedShowcase() {
           </motion.div>
 
           <div
-            className="grid grid-cols-2 grid-rows-2 gap-[clamp(6px,1.6vw,10px)]"
+            className="min-h-0 h-full grid grid-cols-2 grid-rows-2 gap-[clamp(5px,1.4vw,8px)]"
           >
             <motion.div
               initial={{ opacity: 0, y: 16 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true, margin: "-30px" }}
               transition={{ duration: 0.6, delay: 0.06, ease: easing }}
-              className="row-span-2"
+              className="row-span-2 min-h-0 h-full"
             >
               <ProductTile
                 slot={selection.slot2}
@@ -398,7 +400,7 @@ export function FeaturedShowcase() {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true, margin: "-30px" }}
               transition={{ duration: 0.6, delay: 0.1, ease: easing }}
-              className="aspect-square"
+              className="min-h-0 h-full"
             >
               <TextTile slot={selection.slot3} />
             </motion.div>
@@ -408,7 +410,7 @@ export function FeaturedShowcase() {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true, margin: "-30px" }}
               transition={{ duration: 0.6, delay: 0.14, ease: easing }}
-              className="aspect-square"
+              className="min-h-0 h-full"
             >
               <ProductTile
                 slot={selection.slot4}
