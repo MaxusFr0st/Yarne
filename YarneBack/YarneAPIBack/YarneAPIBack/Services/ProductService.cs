@@ -108,9 +108,7 @@ public class ProductService : IProductService
     {
         var validSizeIds = await ResolveSizeIdsAsync(request.SizeIds, request.DefaultSizeId, request.ColorSizeVariants.Select(v => v.SizeId), ct);
         var defaultSizeId = await ResolveDefaultSizeIdAsync(validSizeIds, request.DefaultSizeId, ct);
-        var computedTotalStock = request.QuantityInStock > 0
-            ? request.QuantityInStock
-            : ComputeTotalStock(request.QuantityInStock, request.VariantStocks);
+        var computedTotalStock = ComputeTotalStock(request.QuantityInStock, request.VariantStocks);
 
         var product = new Models.Product
         {
@@ -127,6 +125,7 @@ public class ProductService : IProductService
             IsActive = true,
             IsNew = request.IsNew,
             IsBestseller = request.IsBestseller,
+            Lace = request.Lace,
         };
         _context.Products.Add(product);
         await _context.SaveChangesAsync(ct);
@@ -202,6 +201,7 @@ public class ProductService : IProductService
             product.IsNew = request.IsNew.Value;
         if (request.IsBestseller.HasValue)
             product.IsBestseller = request.IsBestseller.Value;
+        product.Lace = request.Lace;
 
         if (request.ImageUrls is not null)
             await ReplaceProductImagesAsync(product.Id, request.ImageUrls, ct);
@@ -298,6 +298,7 @@ public class ProductService : IProductService
             ? p.ProductColors.OrderBy(pc => pc.SortOrder).Select((pc, i) =>
             {
                 var sizeImages = pc.SizeImages
+                    .Where(si => !si.Lace)
                     .GroupBy(si => si.ProductSize.Size.Name)
                     .ToDictionary(
                         g => g.Key,
@@ -305,8 +306,35 @@ public class ProductService : IProductService
                             g.OrderBy(si => si.SortOrder).Select(si => si.ImageUrl))
                     );
                 var sizeStocks = pc.VariantStocks
+                    .Where(vs => !vs.Lace)
                     .GroupBy(vs => vs.ProductSize.Size.Name)
                     .ToDictionary(g => g.Key, g => g.Sum(v => v.QuantityInStock));
+
+                var sizeNames = pc.SizeImages.Select(si => si.ProductSize.Size.Name)
+                    .Concat(pc.VariantStocks.Select(vs => vs.ProductSize.Size.Name))
+                    .Distinct()
+                    .ToList();
+                var laceVariants = sizeNames.ToDictionary(
+                    sizeName => sizeName,
+                    sizeName => new LaceSizeVariantDto
+                    {
+                        WithLaceImages = MediaUrlNormalizer.NormalizeList(
+                            pc.SizeImages
+                                .Where(si => si.ProductSize.Size.Name == sizeName && si.Lace)
+                                .OrderBy(si => si.SortOrder)
+                                .Select(si => si.ImageUrl)),
+                        WithoutLaceImages = MediaUrlNormalizer.NormalizeList(
+                            pc.SizeImages
+                                .Where(si => si.ProductSize.Size.Name == sizeName && !si.Lace)
+                                .OrderBy(si => si.SortOrder)
+                                .Select(si => si.ImageUrl)),
+                        WithLaceStock = pc.VariantStocks
+                            .Where(vs => vs.ProductSize.Size.Name == sizeName && vs.Lace)
+                            .Sum(v => v.QuantityInStock),
+                        WithoutLaceStock = pc.VariantStocks
+                            .Where(vs => vs.ProductSize.Size.Name == sizeName && !vs.Lace)
+                            .Sum(v => v.QuantityInStock),
+                    });
 
                 var defaultSizeImages = (!string.IsNullOrWhiteSpace(defaultSize) && sizeImages.TryGetValue(defaultSize, out var imgsForDefault))
                     ? imgsForDefault
@@ -327,6 +355,7 @@ public class ProductService : IProductService
                     ImageUrls = colorImages.Count > 0 ? colorImages : new List<string> { fallback },
                     SizeImages = sizeImages,
                     SizeStocks = sizeStocks,
+                    LaceVariants = laceVariants,
                 };
             }).ToList()
             : images.Select((url, i) => new ColorVariantDto
@@ -363,6 +392,7 @@ public class ProductService : IProductService
             IsActive = p.IsActive,
             IsNew = p.IsNew,
             IsBestseller = p.IsBestseller,
+            Lace = p.Lace,
             CreatedAt = p.CreatedAt,
         };
     }
@@ -392,6 +422,7 @@ public class ProductService : IProductService
             Subtitle = p.Material ?? p.ProducerName,
             IsNew = p.IsNew,
             IsBestseller = p.IsBestseller,
+            Lace = p.Lace,
             Details = BuildDetailsList(p),
             Colors = baseDto.Colors,
         };
@@ -495,14 +526,16 @@ public class ProductService : IProductService
             {
                 ColorId = v.ColorId,
                 SizeId = v.SizeId,
+                Lace = v.Lace,
                 ImageUrls = NormalizeUrls(v.ImageUrls),
             })
             .Where(v => v.ImageUrls.Count > 0)
-            .GroupBy(v => (v.ColorId, v.SizeId))
+            .GroupBy(v => (v.ColorId, v.SizeId, v.Lace))
             .Select(g => new ColorSizeVariantInput
             {
                 ColorId = g.Key.ColorId,
                 SizeId = g.Key.SizeId,
+                Lace = g.Key.Lace,
                 ImageUrls = g.SelectMany(x => x.ImageUrls).Distinct(StringComparer.OrdinalIgnoreCase).ToList(),
             })
             .ToList();
@@ -677,6 +710,7 @@ public class ProductService : IProductService
                     ProductId = productId,
                     ColorId = variant.ColorId,
                     SizeId = variant.SizeId,
+                    Lace = variant.Lace,
                     ImageUrl = variant.ImageUrls[i],
                     SortOrder = i,
                 });
@@ -691,7 +725,7 @@ public class ProductService : IProductService
 
         var normalized = (variantStocks ?? new List<VariantStockInput>())
             .Where(v => v.ColorId > 0 && v.SizeId > 0 && v.QuantityInStock >= 0)
-            .GroupBy(v => (v.ColorId, v.SizeId))
+            .GroupBy(v => (v.ColorId, v.SizeId, v.Lace))
             .Select(g => g.Last())
             .ToList();
 
@@ -702,6 +736,7 @@ public class ProductService : IProductService
                 ProductId = productId,
                 ColorId = stock.ColorId,
                 SizeId = stock.SizeId,
+                Lace = stock.Lace,
                 QuantityInStock = stock.QuantityInStock,
             });
         }
@@ -709,13 +744,14 @@ public class ProductService : IProductService
 
     private static int ComputeTotalStock(int explicitStock, IEnumerable<VariantStockInput>? variantStocks)
     {
-        if (explicitStock > 0)
-            return explicitStock;
+        var variants = (variantStocks ?? new List<VariantStockInput>()).ToList();
+        if (variants.Count > 0)
+        {
+            return variants
+                .Where(v => v.QuantityInStock >= 0)
+                .Sum(v => v.QuantityInStock);
+        }
 
-        var variantSum = (variantStocks ?? new List<VariantStockInput>())
-            .Where(v => v.QuantityInStock >= 0)
-            .Sum(v => v.QuantityInStock);
-
-        return variantSum > 0 ? variantSum : Math.Max(0, explicitStock);
+        return Math.Max(0, explicitStock);
     }
 }

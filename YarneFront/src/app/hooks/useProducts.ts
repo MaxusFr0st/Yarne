@@ -1,10 +1,11 @@
 import { useState, useEffect, useCallback } from "react";
-import { fetchProducts, fetchProduct, type ProductDto, type ProductDetailDto } from "../api/products";
+import { fetchProducts, fetchProduct, type ProductDto, type ProductDetailDto, type ColorVariantDto } from "../api/products";
 import type { Product, ColorVariant } from "../types/product";
+import { normalizeLaceVariants } from "../utils/variantStock";
 
 const PLACEHOLDER = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='400' viewBox='0 0 400 400'%3E%3Crect fill='%23EDE9E2' width='400' height='400'/%3E%3Cpath fill='%232D241E' fill-opacity='0.3' d='M80 200h240M200 80v240' stroke='%232D241E' stroke-opacity='0.2'/%3E%3C/svg%3E";
 
-function toColorVariant(c: { name: string; hex: string; imageUrl: string; imageUrls?: string[] }): ColorVariant {
+function toColorVariant(c: ColorVariantDto): ColorVariant {
   const seen = new Set<string>();
   const imgs: string[] = [];
   const push = (url?: string | null) => {
@@ -21,8 +22,9 @@ function toColorVariant(c: { name: string; hex: string; imageUrl: string; imageU
     hex: c.hex,
     image: imgs[0] ?? c.imageUrl,
     images: imgs,
-    sizeImages: (c as { sizeImages?: Record<string, string[]> }).sizeImages ?? {},
-    sizeStocks: (c as { sizeStocks?: Record<string, number> }).sizeStocks ?? {},
+    sizeImages: c.sizeImages ?? {},
+    sizeStocks: c.sizeStocks ?? {},
+    laceVariants: normalizeLaceVariants(c.laceVariants),
   };
 }
 
@@ -44,6 +46,7 @@ function mapToFrontendProduct(d: ProductDto): Product {
     category: d.categoryName,
     isNew: d.isNew ?? false,
     isBestseller: d.isBestseller ?? false,
+    lace: d.lace ?? false,
     sizes: d.sizes?.length ? d.sizes : ["XS", "S", "M", "L", "XL"],
     defaultSize: d.defaultSize ?? undefined,
     description: d.description ?? "",
@@ -67,6 +70,7 @@ function mapDetailToFrontend(d: ProductDetailDto): Product {
     category: d.categoryName,
     isNew: d.isNew,
     isBestseller: d.isBestseller,
+    lace: d.lace ?? false,
     sizes: d.sizes?.length ? d.sizes : ["XS", "S", "M", "L", "XL"],
     defaultSize: d.defaultSize ?? undefined,
     description: d.description ?? "",

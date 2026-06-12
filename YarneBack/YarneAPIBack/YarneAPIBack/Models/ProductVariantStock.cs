@@ -8,6 +8,8 @@ public class ProductVariantStock
 
     public int SizeId { get; set; }
 
+    public bool Lace { get; set; }
+
     public int QuantityInStock { get; set; }
 
     public virtual ProductColor ProductColor { get; set; } = null!;

@@ -76,4 +76,6 @@ public class UpdateProductRequest
     public bool? IsNew { get; set; }
 
     public bool? IsBestseller { get; set; }
+
+    public bool Lace { get; set; }
 }

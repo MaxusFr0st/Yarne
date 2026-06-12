@@ -35,6 +35,8 @@ public partial class Product
 
     public bool IsBestseller { get; set; }
 
+    public bool Lace { get; set; }
+
     public DateTime CreatedAt { get; set; }
 
     public virtual Category Category { get; set; } = null!;

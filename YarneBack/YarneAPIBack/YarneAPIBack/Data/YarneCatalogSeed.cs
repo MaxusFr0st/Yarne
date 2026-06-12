@@ -266,6 +266,7 @@ internal static class YarneCatalogSeed
                         ProductId = product.Id,
                         ColorId = pci.ColorId,
                         SizeId = ps.SizeId,
+                        Lace = false,
                         ImageUrl = pci.ImageUrl,
                         SortOrder = pci.SortOrder,
                     });
@@ -275,6 +276,7 @@ internal static class YarneCatalogSeed
                         ProductId = product.Id,
                         ColorId = pci.ColorId,
                         SizeId = ps.SizeId,
+                        Lace = false,
                         QuantityInStock = Math.Max(1, def.QuantityInStock / 10),
                     });
                 }

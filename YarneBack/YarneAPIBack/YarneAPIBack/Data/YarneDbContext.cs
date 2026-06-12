@@ -133,6 +133,7 @@ public partial class YarneDbContext : DbContext
         {
             entity.HasKey(e => e.Id);
             entity.ToTable("ProductColorSizeImage");
+            entity.Property(e => e.Lace).HasDefaultValue(false);
             entity.Property(e => e.ImageUrl).HasMaxLength(500);
 
             entity.HasOne(d => d.ProductColor)
@@ -148,8 +149,9 @@ public partial class YarneDbContext : DbContext
 
         modelBuilder.Entity<ProductVariantStock>(entity =>
         {
-            entity.HasKey(e => new { e.ProductId, e.ColorId, e.SizeId });
+            entity.HasKey(e => new { e.ProductId, e.ColorId, e.SizeId, e.Lace });
             entity.ToTable("ProductVariantStock");
+            entity.Property(e => e.Lace).HasDefaultValue(false);
 
             entity.HasOne(d => d.ProductColor)
                 .WithMany(pc => pc.VariantStocks)
@@ -329,6 +331,7 @@ public partial class YarneDbContext : DbContext
             entity.Property(e => e.IsActive).HasDefaultValue(true);
             entity.Property(e => e.IsNew).HasDefaultValue(false);
             entity.Property(e => e.IsBestseller).HasDefaultValue(false);
+            entity.Property(e => e.Lace).HasDefaultValue(false);
             entity.Property(e => e.Material).HasMaxLength(100);
             entity.Property(e => e.Name).HasMaxLength(255);
             entity.Property(e => e.Price).HasColumnType("decimal(18, 2)");

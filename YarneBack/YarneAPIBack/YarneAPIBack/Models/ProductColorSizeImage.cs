@@ -10,6 +10,8 @@ public class ProductColorSizeImage
 
     public int SizeId { get; set; }
 
+    public bool Lace { get; set; }
+
     public string ImageUrl { get; set; } = null!;
 
     public int SortOrder { get; set; }

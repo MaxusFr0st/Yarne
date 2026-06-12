@@ -96,6 +96,11 @@ const uk: Translations = {
     badgeBestseller: "ХІТ ПРОДАЖІВ",
     quickAdd: "Додати",
     fromPrice: "Від {{price}}",
+    lace: {
+      label: "Мереживо",
+      withLace: "З мереживом",
+      withoutLace: "Без мережива",
+    },
   },
   footer: {
     tagline: "Створено повільно. Носити вічно.",

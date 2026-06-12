@@ -94,6 +94,11 @@ const en = {
     badgeBestseller: "BESTSELLER",
     quickAdd: "Quick Add",
     fromPrice: "From {{price}}",
+    lace: {
+      label: "Lace",
+      withLace: "With lace",
+      withoutLace: "Without lace",
+    },
   },
   footer: {
     tagline: "Crafted slowly. Worn forever.",

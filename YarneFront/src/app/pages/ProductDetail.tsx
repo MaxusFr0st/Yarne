@@ -12,6 +12,7 @@ import { ProductCard } from "../components/ProductCard";
 import { LangLink } from "../i18n/LangLink";
 import { MobileProductDetailView } from "../components/MobileProductDetailView";
 import { MobileRelatedProducts } from "../components/MobileRelatedProducts";
+import { resolveDisplayStock } from "../utils/variantStock";
 import React from "react";
 
 const easing = [0.25, 0.1, 0.25, 1] as const;
@@ -43,12 +44,18 @@ export function ProductDetail() {
   const [activeColor, setActiveColor] = useState(0);
   const [activeSize, setActiveSize] = useState<string | null>(null);
   const [activeImage, setActiveImage] = useState(0);
+  const [activeLace, setActiveLace] = useState(false);
   const [addedToBag, setAddedToBag] = useState(false);
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [sizeError, setSizeError] = useState(false);
 
   const colorScopedSizes = product
-    ? Object.keys(product.colors[activeColor]?.sizeImages ?? {})
+    ? Array.from(
+        new Set([
+          ...Object.keys(product.colors[activeColor]?.sizeImages ?? {}),
+          ...Object.keys(product.colors[activeColor]?.laceVariants ?? {}),
+        ])
+      )
     : [];
   const displaySizes = colorScopedSizes.length > 0 ? colorScopedSizes : (product?.sizes ?? []);
 
@@ -66,19 +73,25 @@ export function ProductDetail() {
   useEffect(() => {
     if (!product) return;
     const color = product.colors[activeColor];
+    const laceVariant = activeSize ? color?.laceVariants?.[activeSize] : undefined;
+    const laceImages = laceVariant
+      ? (activeLace ? laceVariant.withLaceImages : laceVariant.withoutLaceImages) ?? []
+      : [];
     const sizeImages = activeSize ? color?.sizeImages?.[activeSize] ?? [] : [];
-    const urls = (sizeImages.length
-      ? sizeImages
-      : color?.images?.length
-        ? color.images
-        : color?.image
-          ? [color.image]
-          : []) as string[];
+    const urls = (laceImages.length
+      ? laceImages
+      : sizeImages.length
+        ? sizeImages
+        : color?.images?.length
+          ? color.images
+          : color?.image
+            ? [color.image]
+            : []) as string[];
     urls.forEach((src) => {
       const img = new Image();
       img.src = src;
     });
-  }, [product, activeColor, activeSize]);
+  }, [product, activeColor, activeSize, activeLace]);
 
   if (loading) {
     return (
@@ -114,10 +127,14 @@ export function ProductDetail() {
   const isWishlisted = wishlist.includes(product.id);
 
   const selectedColor = product.colors[activeColor];
+  const laceVariant = activeSize ? selectedColor?.laceVariants?.[activeSize] : undefined;
+  const laceScopedImages = laceVariant
+    ? (activeLace ? laceVariant.withLaceImages : laceVariant.withoutLaceImages) ?? []
+    : [];
   const sizeScopedImages = activeSize ? selectedColor?.sizeImages?.[activeSize] ?? [] : [];
-  const selectedSizeStock = activeSize ? selectedColor?.sizeStocks?.[activeSize] : undefined;
-  const displayStock = typeof selectedSizeStock === "number" ? selectedSizeStock : product.stock;
+  const displayStock = resolveDisplayStock(selectedColor, activeSize, activeLace, product.stock);
   const images = uniqueImageUrls(
+    laceScopedImages,
     sizeScopedImages,
     selectedColor?.images ?? [],
     selectedColor?.image ? [selectedColor.image] : [],
@@ -126,6 +143,11 @@ export function ProductDetail() {
 
   const handleColorChange = (i: number) => {
     setActiveColor(i);
+    setActiveImage(0);
+  };
+
+  const handleLaceChange = (next: boolean) => {
+    setActiveLace(next);
     setActiveImage(0);
   };
 
@@ -167,6 +189,9 @@ export function ProductDetail() {
         sizeError={sizeError}
         outOfStock={outOfStock}
         displayStock={displayStock}
+        laceEnabled={product.lace === true}
+        activeLace={activeLace}
+        onLaceChange={handleLaceChange}
         onBack={() => navigate(-1)}
         onToggleWishlist={() => toggleWishlist(product.id)}
         onColorChange={handleColorChange}
@@ -202,7 +227,7 @@ export function ProductDetail() {
             <div className="relative rounded-[34px] sm:rounded-[40px] overflow-hidden bg-[#EDE9E2] h-[min(64vh,430px)] min-h-[320px] sm:min-h-[340px] md:h-[min(62vh,640px)] md:min-h-[440px] lg:h-[min(68vh,720px)] lg:min-h-[500px]">
               {images.length > 0 && (
                 <motion.div
-                  key={`${activeColor}-${activeSize ?? ""}-${safeImageIndex}`}
+                  key={`${activeColor}-${activeSize ?? ""}-${activeLace}-${safeImageIndex}`}
                   className="absolute inset-0"
                   initial={{ opacity: 0.85 }}
                   animate={{ opacity: 1 }}
@@ -243,7 +268,7 @@ export function ProductDetail() {
                 <button
                   key={i}
                   onClick={() => setActiveImage(i)}
-                  className="flex-1 rounded-[16px] sm:rounded-[18px] overflow-hidden bg-[#EDE9E2] transition-all duration-300 h-[64px] sm:h-[84px] md:h-[110px] lg:h-[124px] xl:h-[132px]"
+                  className="flex-1 rounded-[16px] sm:rounded-[18px] overflow-hidden bg-[#EDE9E2] transition-all duration-300 cursor-pointer h-[64px] sm:h-[84px] md:h-[110px] lg:h-[124px] xl:h-[132px]"
                   style={{
                     opacity: safeImageIndex === i ? 1 : 0.5,
                     border: safeImageIndex === i ? "2px solid #2D241E" : "2px solid transparent",
@@ -320,7 +345,7 @@ export function ProductDetail() {
                     key={color.name}
                     onClick={() => handleColorChange(i)}
                     title={color.name}
-                    className="transition-transform duration-200 hover:scale-110"
+                    className="cursor-pointer transition-all duration-200 hover:ring-2 hover:ring-[#2D241E]/25"
                     style={{
                       width: 32,
                       height: 32,
@@ -334,6 +359,42 @@ export function ProductDetail() {
                 ))}
               </div>
             </div>
+
+            {/* Lace Selection */}
+            {product.lace === true && (
+              <div>
+                <p
+                  className="text-[#2D241E] text-xs tracking-widest uppercase mb-3"
+                  style={{ fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.14em" }}
+                >
+                  {t("product.lace.label", { defaultValue: "Lace" })}
+                </p>
+                <div
+                  className="inline-flex p-1 rounded-full"
+                  style={{ backgroundColor: "rgba(45,36,30,0.06)", border: "1px solid rgba(45,36,30,0.12)" }}
+                >
+                  {[
+                    { value: false, label: t("product.lace.withoutLace", { defaultValue: "Without lace" }) },
+                    { value: true, label: t("product.lace.withLace", { defaultValue: "With lace" }) },
+                  ].map((opt) => (
+                    <button
+                      key={String(opt.value)}
+                      type="button"
+                      onClick={() => handleLaceChange(opt.value)}
+                      className="px-4 py-2 rounded-full text-xs transition-all duration-200 cursor-pointer"
+                      style={{
+                        fontFamily: "'DM Sans', sans-serif",
+                        letterSpacing: "0.08em",
+                        backgroundColor: activeLace === opt.value ? "#2D241E" : "transparent",
+                        color: activeLace === opt.value ? "#F5F2ED" : "#2D241E",
+                      }}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* Size Selection */}
             <div>
@@ -356,7 +417,7 @@ export function ProductDetail() {
                   <button
                     key={size}
                     onClick={() => { setActiveSize(size); setSizeError(false); }}
-                    className="min-w-[52px] py-2.5 rounded-full text-xs transition-all duration-200"
+                    className="min-w-[52px] py-2.5 rounded-full text-xs transition-all duration-200 cursor-pointer"
                     style={{
                       fontFamily: "'DM Sans', sans-serif",
                       letterSpacing: "0.08em",

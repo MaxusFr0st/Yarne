@@ -35,12 +35,21 @@ import {
 import { register } from "../api/auth";
 import { fetchAdminOrders, fetchAdminOrdersSummary, updateOrderStatus, type OrderDto, type AdminOrdersSummaryDto } from "../api/orders";
 import type { Product } from "../types/product";
+import { normalizeLaceVariants } from "../utils/variantStock";
 
 function mapProductDtoToProduct(d: ProductDto): Product & { idNum: number; sku: string; stock: number } {
   const colors = d.colors && d.colors.length > 0
     ? d.colors.map((c) => {
         const imgs = c.imageUrls?.length ? c.imageUrls : [c.imageUrl];
-        return { name: c.name, hex: c.hex, image: c.imageUrl, images: imgs, sizeImages: c.sizeImages ?? {}, sizeStocks: c.sizeStocks ?? {} };
+        return {
+          name: c.name,
+          hex: c.hex,
+          image: c.imageUrl,
+          images: imgs,
+          sizeImages: c.sizeImages ?? {},
+          sizeStocks: c.sizeStocks ?? {},
+          laceVariants: normalizeLaceVariants(c.laceVariants),
+        };
       })
     : d.imageUrls.length > 0
     ? d.imageUrls.map((url, i) => ({ name: `Image ${i + 1}`, hex: "#2D241E", image: url, images: [url] }))
@@ -57,6 +66,7 @@ function mapProductDtoToProduct(d: ProductDto): Product & { idNum: number; sku: 
     category: d.categoryName,
     isNew: d.isNew ?? false,
     isBestseller: d.isBestseller ?? false,
+    lace: d.lace ?? false,
     sizes: d.sizes?.length ? d.sizes : ["XS", "S", "M", "L", "XL"],
     defaultSize: d.defaultSize ?? undefined,
     description: d.description ?? "",

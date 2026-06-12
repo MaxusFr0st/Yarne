@@ -171,6 +171,7 @@ interface ProductFormData {
   categoryId: number;
   isNew: boolean;
   isBestseller: boolean;
+  lace: boolean;
   description: string;
   stock: string;
   sku: string;
@@ -179,9 +180,9 @@ interface ProductFormData {
   colorIds: number[];
   /** Per-color available sizes: colorId -> sizeIds */
   colorSizeIds: Record<number, number[]>;
-  /** Per color+size image sets: `${colorId}:${sizeId}` -> image URLs */
+  /** Per color+size+lace image sets: `${colorId}:${sizeId}:${lace}` -> image URLs */
   colorSizeVariants: Record<string, string[]>;
-  /** Optional per color+size stock: `${colorId}:${sizeId}` -> quantity */
+  /** Optional per color+size+lace stock: `${colorId}:${sizeId}:${lace}` -> quantity */
   variantStocks: Record<string, string>;
 }
 
@@ -200,7 +201,7 @@ function ProductModal({
   onClose: () => void;
   onSave: (data: ProductFormData) => void;
 }) {
-  const variantKey = (colorId: number, sizeId: number) => `${colorId}:${sizeId}`;
+  const variantKey = (colorId: number, sizeId: number, lace: boolean) => `${colorId}:${sizeId}:${lace}`;
   const [form, setForm] = useState<ProductFormData>(() => {
     const base = product
       ? {
@@ -210,6 +211,7 @@ function ProductModal({
           categoryId: categories.find((c) => c.name === product.category)?.id ?? categories[0]?.id ?? 0,
           isNew: product.isNew ?? false,
           isBestseller: product.isBestseller ?? false,
+          lace: product.lace ?? false,
           description: product.description,
           stock: String(product.stock ?? 0),
           sku: product.sku ?? product.id,
@@ -225,6 +227,7 @@ function ProductModal({
           categoryId: categories[0]?.id ?? 0,
           isNew: false,
           isBestseller: false,
+          lace: false,
           description: "",
           stock: "",
           sku: "",
@@ -232,6 +235,7 @@ function ProductModal({
           defaultSizeId: null,
         };
     const preferredSizeId = sizes.find((s) => s.name === "M")?.id ?? sizes[0]?.id ?? null;
+    const productLace = product?.lace ?? false;
     const colorIds = product?.colors
       ? product.colors
           .map((c) => colors.find((col) => col.name === c.name)?.id)
@@ -239,31 +243,57 @@ function ProductModal({
       : [];
     const colorSizeIds: Record<number, number[]> = {};
     const colorSizeVariants: Record<string, string[]> = {};
+    const variantStocks: Record<string, string> = {};
     product?.colors?.forEach((c) => {
       const colorId = colors.find((col) => col.name === c.name)?.id;
-      if (colorId != null) {
-        const sizeImages = c.sizeImages ?? {};
-        const hasSizeScoped = Object.keys(sizeImages).length > 0;
-        if (hasSizeScoped) {
-          const collectedSizeIds: number[] = [];
-          Object.entries(sizeImages).forEach(([sizeName, urls]) => {
-            const sizeId = sizes.find((s) => s.name === sizeName)?.id;
-            if (sizeId != null) {
-              collectedSizeIds.push(sizeId);
-              colorSizeVariants[variantKey(colorId, sizeId)] = urls;
-            }
-          });
-          colorSizeIds[colorId] = Array.from(new Set(collectedSizeIds));
-        } else {
-          const fallbackSizeId = base.defaultSizeId ?? preferredSizeId;
-          if (fallbackSizeId != null) {
-            colorSizeIds[colorId] = [fallbackSizeId];
-            colorSizeVariants[variantKey(colorId, fallbackSizeId)] = c.images?.length ? c.images : [c.image];
+      if (colorId == null) return;
+      const laceVariants = c.laceVariants ?? {};
+      const sizeImages = c.sizeImages ?? {};
+      const sizeStocks = c.sizeStocks ?? {};
+      const collectedSizeIds: number[] = [];
+      const sizeNames = Array.from(
+        new Set([
+          ...Object.keys(laceVariants),
+          ...Object.keys(sizeImages),
+          ...Object.keys(sizeStocks),
+        ])
+      );
+
+      if (sizeNames.length > 0) {
+        sizeNames.forEach((sizeName) => {
+          const sizeId = sizes.find((s) => s.name === sizeName)?.id;
+          if (sizeId == null) return;
+          collectedSizeIds.push(sizeId);
+          const lv = laceVariants[sizeName];
+          const withoutLaceImages = lv?.withoutLaceImages?.length
+            ? lv.withoutLaceImages
+            : (sizeImages[sizeName] ?? []);
+          if (withoutLaceImages.length > 0) {
+            colorSizeVariants[variantKey(colorId, sizeId, false)] = withoutLaceImages;
           }
+          const withoutLaceStock = lv
+            ? lv.withoutLaceStock
+            : sizeStocks[sizeName];
+          if (withoutLaceStock != null) {
+            variantStocks[variantKey(colorId, sizeId, false)] = String(withoutLaceStock);
+          }
+          if (productLace && lv) {
+            colorSizeVariants[variantKey(colorId, sizeId, true)] = lv.withLaceImages ?? [];
+            variantStocks[variantKey(colorId, sizeId, true)] = String(lv.withLaceStock ?? 0);
+          }
+        });
+      } else {
+        const fallbackSizeId = base.defaultSizeId ?? preferredSizeId;
+        if (fallbackSizeId != null) {
+          collectedSizeIds.push(fallbackSizeId);
+          colorSizeVariants[variantKey(colorId, fallbackSizeId, false)] = c.images?.length ? c.images : [c.image];
         }
       }
+      if (collectedSizeIds.length > 0) {
+        colorSizeIds[colorId] = Array.from(new Set(collectedSizeIds));
+      }
     });
-    return { ...base, colorIds, colorSizeIds, colorSizeVariants, variantStocks: {} };
+    return { ...base, colorIds, colorSizeIds, colorSizeVariants, variantStocks };
   });
 
   const handleChange = (key: keyof ProductFormData, value: string | number | boolean) => {
@@ -272,7 +302,7 @@ function ProductModal({
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const perColorFileInputRef = useRef<HTMLInputElement>(null);
-  const uploadTargetVariantRef = useRef<{ colorId: number; sizeId: number } | null>(null);
+  const uploadTargetVariantRef = useRef<{ colorId: number; sizeId: number; lace: boolean } | null>(null);
   const [uploading, setUploading] = useState(false);
   const [uploadingColorId, setUploadingColorId] = useState<number | null>(null);
   const [uploadError, setUploadError] = useState<string | null>(null);
@@ -326,14 +356,14 @@ function ProductModal({
       uploadTargetVariantRef.current = null;
       return;
     }
-    const { colorId, sizeId } = target;
+    const { colorId, sizeId, lace } = target;
     setUploadingColorId(colorId);
     try {
       for (let i = 0; i < files.length; i++) {
         const url = await uploadImage(files[i]);
         setForm((p) => {
           const next = { ...p.colorSizeVariants };
-          const key = variantKey(colorId, sizeId);
+          const key = variantKey(colorId, sizeId, lace);
           const arr = [...(next[key] ?? []).filter((u) => u.trim() && !u.startsWith("Upload failed:")), url];
           next[key] = arr;
           return { ...p, colorSizeVariants: next };
@@ -349,9 +379,9 @@ function ProductModal({
     }
   };
 
-  const triggerPerColorUpload = (colorId: number, sizeId: number) => {
+  const triggerPerColorUpload = (colorId: number, sizeId: number, lace: boolean) => {
     setUploadError(null);
-    uploadTargetVariantRef.current = { colorId, sizeId };
+    uploadTargetVariantRef.current = { colorId, sizeId, lace };
     perColorFileInputRef.current?.click();
   };
 
@@ -362,6 +392,7 @@ function ProductModal({
       form.colorIds.flatMap((colorId) => form.colorSizeIds[colorId] ?? [])
     )
   );
+  const laceOptions: boolean[] = form.lace ? [false, true] : [false];
 
   useEffect(() => {
     const preferredSizeId = sizes.find((s) => s.name === "M")?.id ?? sizes[0]?.id ?? null;
@@ -384,7 +415,9 @@ function ProductModal({
     const totalVariantStock = parsedVariantStocks.reduce((sum, value) => sum + value, 0);
     const colorsWithoutSizes = form.colorIds.filter((colorId) => (form.colorSizeIds[colorId] ?? []).length === 0);
     const selectedVariantKeys = form.colorIds.flatMap((colorId) =>
-      (form.colorSizeIds[colorId] ?? []).map((sizeId) => variantKey(colorId, sizeId))
+      (form.colorSizeIds[colorId] ?? []).flatMap((sizeId) =>
+        laceOptions.map((lace) => variantKey(colorId, sizeId, lace))
+      )
     );
     const variantsWithTooFewPhotos = selectedVariantKeys.filter((key) => {
       const validPhotos = (form.colorSizeVariants[key] ?? []).filter(
@@ -757,9 +790,13 @@ function ProductModal({
                                     const nextVariants = { ...p.colorSizeVariants };
                                     const nextStocks = { ...p.variantStocks };
                                     if (selected) {
-                                      const key = variantKey(colorId, s.id);
-                                      delete nextVariants[key];
-                                      delete nextStocks[key];
+                                      const prefix = `${colorId}:${s.id}:`;
+                                      Object.keys(nextVariants).forEach((key) => {
+                                        if (key.startsWith(prefix)) delete nextVariants[key];
+                                      });
+                                      Object.keys(nextStocks).forEach((key) => {
+                                        if (key.startsWith(prefix)) delete nextStocks[key];
+                                      });
                                     }
                                     return { ...p, colorSizeIds: nextColorSizeIds, colorSizeVariants: nextVariants, variantStocks: nextStocks };
                                   });
@@ -789,7 +826,9 @@ function ProductModal({
                       Constructor (Color + Size + Photos + Stock)
                     </label>
                     <p className="text-xs text-[#2D241E]/55" style={{ fontFamily: "'DM Sans', sans-serif" }}>
-                      Every selected color-size pair is shown below. Minimum 3 photos per pair.
+                      {form.lace
+                        ? "Every color-size pair has a Without lace and With lace record. Minimum 3 photos per record."
+                        : "Every selected color-size pair is shown below. Minimum 3 photos per pair."}
                     </p>
                   </div>
                   {uploadError && (
@@ -800,10 +839,11 @@ function ProductModal({
                   <input ref={perColorFileInputRef} type="file" accept="image/jpeg,image/png,image/gif,image/webp" multiple className="hidden" onChange={handlePerColorFileSelect} />
                   <div className="grid gap-3 sm:gap-4 lg:grid-cols-2">
                     {form.colorIds.flatMap((colorId) =>
-                      (form.colorSizeIds[colorId] ?? []).map((sizeId) => {
+                      (form.colorSizeIds[colorId] ?? []).flatMap((sizeId) =>
+                        laceOptions.map((lace) => {
                         const color = colors.find((c) => c.id === colorId);
                         const size = sizes.find((s) => s.id === sizeId);
-                        const key = variantKey(colorId, sizeId);
+                        const key = variantKey(colorId, sizeId, lace);
                         const urls = form.colorSizeVariants[key] ?? [];
                         return (
                         <div key={key} className="rounded-[16px] p-3 sm:p-4" style={{ backgroundColor: "rgba(45,36,30,0.03)", border: "1px solid rgba(45,36,30,0.08)" }}>
@@ -813,6 +853,19 @@ function ProductModal({
                               <span className="text-sm font-medium text-[#2D241E]" style={{ fontFamily: "'Cormorant Garamond', serif" }}>
                                 {color?.name ?? "Color"} · {size?.name ?? "Size"}
                               </span>
+                              {form.lace && (
+                                <span
+                                  className="px-2 py-0.5 rounded-full text-[0.65rem] uppercase tracking-wider"
+                                  style={{
+                                    fontFamily: "'DM Sans', sans-serif",
+                                    letterSpacing: "0.08em",
+                                    backgroundColor: lace ? "#4A0E0E" : "rgba(45,36,30,0.1)",
+                                    color: lace ? "#F5F2ED" : "#2D241E",
+                                  }}
+                                >
+                                  {lace ? "With lace" : "Without lace"}
+                                </span>
+                              )}
                             </div>
                             <div className="flex items-center gap-2">
                               <input
@@ -829,7 +882,7 @@ function ProductModal({
                               />
                               <button
                                 type="button"
-                                onClick={() => triggerPerColorUpload(colorId, sizeId)}
+                                onClick={() => triggerPerColorUpload(colorId, sizeId, lace)}
                                 disabled={uploadingColorId === colorId}
                                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-[10px] text-xs border transition-all hover:bg-[#2D241E]/5 disabled:opacity-50"
                                 style={{ fontFamily: "'DM Sans', sans-serif", borderColor: "rgba(45,36,30,0.2)", color: "#2D241E" }}
@@ -901,7 +954,8 @@ function ProductModal({
                           </div>
                         </div>
                         );
-                      })
+                        })
+                      )
                     )}
                   </div>
                   {formErrors.photos && (
@@ -945,6 +999,7 @@ function ProductModal({
             {[
               { label: "Mark as New", key: "isNew" as const },
               { label: "Mark as Bestseller", key: "isBestseller" as const },
+              { label: "Has lace option", key: "lace" as const },
             ].map((flag) => (
               <label key={flag.key} className="flex items-center gap-3 cursor-pointer">
                 <div
@@ -1674,34 +1729,52 @@ export function AdminPage() {
       const colorIds = normalizeIds(data.colorIds ?? []);
       const colorSizeVariants = Object.entries(data.colorSizeVariants ?? {})
         .map(([key, urls]) => {
-          const [colorIdRaw, sizeIdRaw] = key.split(":");
+          const [colorIdRaw, sizeIdRaw, laceRaw] = key.split(":");
           const colorId = Number(colorIdRaw);
           const sizeId = Number(sizeIdRaw);
+          const lace = laceRaw === "true";
           return {
             colorId,
             sizeId,
+            lace,
             imageUrls: unique(sanitizeImageUrls(urls)),
           };
         })
-        .filter((v) => colorIds.includes(v.colorId) && sizeIds.includes(v.sizeId) && v.imageUrls.length > 0);
+        .filter(
+          (v) =>
+            colorIds.includes(v.colorId) &&
+            sizeIds.includes(v.sizeId) &&
+            (data.lace || v.lace === false) &&
+            v.imageUrls.length > 0
+        );
       const variantStocks = Object.entries(data.variantStocks ?? {})
         .map(([key, value]) => {
-          const [colorIdRaw, sizeIdRaw] = key.split(":");
+          const [colorIdRaw, sizeIdRaw, laceRaw] = key.split(":");
           const colorId = Number(colorIdRaw);
           const sizeId = Number(sizeIdRaw);
+          const lace = laceRaw === "true";
           const quantityInStock = Number(value);
-          return { colorId, sizeId, quantityInStock };
+          return { colorId, sizeId, lace, quantityInStock };
         })
-        .filter((v) => colorIds.includes(v.colorId) && sizeIds.includes(v.sizeId) && Number.isFinite(v.quantityInStock) && v.quantityInStock >= 0);
+        .filter(
+          (v) =>
+            colorIds.includes(v.colorId) &&
+            sizeIds.includes(v.sizeId) &&
+            (data.lace || v.lace === false) &&
+            Number.isFinite(v.quantityInStock) &&
+            v.quantityInStock >= 0
+        );
       const computedTotalStock = variantStocks.reduce((sum, v) => sum + v.quantityInStock, 0);
       const parsedTotalStock = data.stock.trim() ? parseInt(data.stock, 10) : NaN;
-      const quantityInStock = Number.isFinite(parsedTotalStock) && parsedTotalStock >= 0
-        ? parsedTotalStock
-        : computedTotalStock;
+      const quantityInStock = variantStocks.length > 0
+        ? computedTotalStock
+        : Number.isFinite(parsedTotalStock) && parsedTotalStock >= 0
+          ? parsedTotalStock
+          : 0;
 
       const nextPrimaryImageUrls = unique(
         colorSizeVariants
-          .filter((v) => v.sizeId === normalizedDefaultSizeId)
+          .filter((v) => v.sizeId === normalizedDefaultSizeId && v.lace === false)
           .map((v) => v.imageUrls[0])
           .filter((url): url is string => Boolean(url))
       );
@@ -1722,6 +1795,7 @@ export function AdminPage() {
         variantStocks,
         isNew: data.isNew,
         isBestseller: data.isBestseller,
+        lace: data.lace,
       };
       if (productModal.editing && "idNum" in productModal.editing) {
         await editProduct(productModal.editing.idNum, { ...payload, isActive: true });

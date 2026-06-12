@@ -1,3 +1,10 @@
+export interface LaceSizeVariant {
+  withLaceImages: string[];
+  withoutLaceImages: string[];
+  withLaceStock: number;
+  withoutLaceStock: number;
+}
+
 export interface ColorVariant {
   name: string;
   hex: string;
@@ -5,6 +12,7 @@ export interface ColorVariant {
   images: string[];
   sizeImages?: Record<string, string[]>;
   sizeStocks?: Record<string, number>;
+  laceVariants?: Record<string, LaceSizeVariant>;
 }
 
 export interface Product {
@@ -16,6 +24,7 @@ export interface Product {
   category: string;
   isNew?: boolean;
   isBestseller?: boolean;
+  lace?: boolean;
   sizes: string[];
   defaultSize?: string;
   description: string;

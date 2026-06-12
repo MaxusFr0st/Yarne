@@ -38,5 +38,7 @@ public class ProductDto
 
     public bool IsBestseller { get; set; }
 
+    public bool Lace { get; set; }
+
     public DateTime CreatedAt { get; set; }
 }

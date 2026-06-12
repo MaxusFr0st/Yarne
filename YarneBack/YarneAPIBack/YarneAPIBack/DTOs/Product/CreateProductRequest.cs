@@ -38,6 +38,8 @@ public class CreateProductRequest
 
     public bool IsBestseller { get; set; }
 
+    public bool Lace { get; set; }
+
     public List<int> SizeIds { get; set; } = new();
 
     public List<string> ImageUrls { get; set; } = new();
@@ -64,6 +66,7 @@ public class ColorSizeVariantInput
 {
     public int ColorId { get; set; }
     public int SizeId { get; set; }
+    public bool Lace { get; set; }
     public List<string> ImageUrls { get; set; } = new();
 }
 
@@ -71,5 +74,6 @@ public class VariantStockInput
 {
     public int ColorId { get; set; }
     public int SizeId { get; set; }
+    public bool Lace { get; set; }
     public int QuantityInStock { get; set; }
 }

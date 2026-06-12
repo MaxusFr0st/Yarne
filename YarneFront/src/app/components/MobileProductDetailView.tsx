@@ -20,6 +20,9 @@ type MobileProductDetailViewProps = {
   sizeError: boolean;
   outOfStock: boolean;
   displayStock: number;
+  laceEnabled: boolean;
+  activeLace: boolean;
+  onLaceChange: (next: boolean) => void;
   onBack: () => void;
   onToggleWishlist: () => void;
   onColorChange: (index: number) => void;
@@ -39,6 +42,9 @@ export function MobileProductDetailView({
   sizeError,
   outOfStock,
   displayStock,
+  laceEnabled,
+  activeLace,
+  onLaceChange,
   onBack,
   onToggleWishlist,
   onColorChange,
@@ -80,7 +86,7 @@ export function MobileProductDetailView({
     emblaApi.reInit({ loop: canLoop });
     emblaApi.scrollTo(0, true);
     setGalleryIndex(0);
-  }, [emblaApi, imageKey, activeColor, activeSize, canLoop]);
+  }, [emblaApi, imageKey, activeColor, activeSize, activeLace, canLoop]);
 
   const safeGalleryIndex = images.length ? ((galleryIndex % images.length) + images.length) % images.length : 0;
   const gallerySlides = images.length > 0 ? images : [""];
@@ -294,6 +300,47 @@ export function MobileProductDetailView({
               ))}
             </div>
           </div>
+
+          {laceEnabled && (
+            <div className="shrink-0">
+              <p
+                className="text-[#2D241E] uppercase mb-[clamp(4px,1vw,6px)]"
+                style={{
+                  fontFamily: "'DM Sans', sans-serif",
+                  letterSpacing: "0.14em",
+                  fontSize: "clamp(0.58rem, 2.3vw, 0.68rem)",
+                }}
+              >
+                {t("product.lace.label", { defaultValue: "Lace" })}
+              </p>
+              <div
+                className="inline-flex p-[clamp(2px,0.6vw,3px)] rounded-full"
+                style={{ backgroundColor: "rgba(45,36,30,0.06)", border: "1px solid rgba(45,36,30,0.12)" }}
+              >
+                {[
+                  { value: false, label: t("product.lace.withoutLace", { defaultValue: "Without lace" }) },
+                  { value: true, label: t("product.lace.withLace", { defaultValue: "With lace" }) },
+                ].map((opt) => (
+                  <button
+                    key={String(opt.value)}
+                    type="button"
+                    onClick={() => onLaceChange(opt.value)}
+                    className="rounded-full transition-all duration-200 cursor-pointer"
+                    style={{
+                      fontFamily: "'DM Sans', sans-serif",
+                      letterSpacing: "0.04em",
+                      fontSize: "clamp(0.66rem, 2.5vw, 0.76rem)",
+                      padding: "clamp(6px, 1.6vw, 8px) clamp(12px, 3vw, 16px)",
+                      backgroundColor: activeLace === opt.value ? "#2D241E" : "transparent",
+                      color: activeLace === opt.value ? "#F5F2ED" : "#2D241E",
+                    }}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
 
           {displaySizes.length > 0 && (
             <div className="shrink-0">

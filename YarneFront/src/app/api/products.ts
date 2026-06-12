@@ -1,5 +1,12 @@
 import { apiRequest } from "./client";
 
+export interface LaceSizeVariantDto {
+  withLaceImages: string[];
+  withoutLaceImages: string[];
+  withLaceStock: number;
+  withoutLaceStock: number;
+}
+
 export interface ColorVariantDto {
   name: string;
   hex: string;
@@ -7,6 +14,7 @@ export interface ColorVariantDto {
   imageUrls: string[];
   sizeImages?: Record<string, string[]>;
   sizeStocks?: Record<string, number>;
+  laceVariants?: Record<string, LaceSizeVariantDto>;
 }
 
 export interface ProductDto {
@@ -28,6 +36,7 @@ export interface ProductDto {
   isActive: boolean;
   isNew: boolean;
   isBestseller: boolean;
+  lace: boolean;
   createdAt: string;
 }
 
@@ -65,12 +74,14 @@ export interface ColorVariantInput {
 export interface ColorSizeVariantInput {
   colorId: number;
   sizeId: number;
+  lace: boolean;
   imageUrls: string[];
 }
 
 export interface VariantStockInput {
   colorId: number;
   sizeId: number;
+  lace: boolean;
   quantityInStock: number;
 }
 
@@ -93,6 +104,7 @@ export interface CreateProductRequest {
   variantStocks?: VariantStockInput[];
   isNew?: boolean;
   isBestseller?: boolean;
+  lace?: boolean;
 }
 
 export interface UpdateProductRequest extends CreateProductRequest {

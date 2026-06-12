@@ -21,4 +21,18 @@ public class ColorVariantDto
 
     /// <summary>Size-scoped stock. Key = size name, value = quantity.</summary>
     public Dictionary<string, int> SizeStocks { get; set; } = new();
+
+    /// <summary>Lace-scoped variant data per size. Key = size name.</summary>
+    public Dictionary<string, LaceSizeVariantDto> LaceVariants { get; set; } = new();
+}
+
+public class LaceSizeVariantDto
+{
+    public List<string> WithLaceImages { get; set; } = new();
+
+    public List<string> WithoutLaceImages { get; set; } = new();
+
+    public int WithLaceStock { get; set; }
+
+    public int WithoutLaceStock { get; set; }
 }
