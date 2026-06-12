@@ -12,24 +12,11 @@ import { ProductCard } from "../components/ProductCard";
 import { LangLink } from "../i18n/LangLink";
 import { MobileProductDetailView } from "../components/MobileProductDetailView";
 import { MobileRelatedProducts } from "../components/MobileRelatedProducts";
+import { resolveDisplayImages } from "../utils/variantImages";
 import { resolveDisplayStock } from "../utils/variantStock";
 import React from "react";
 
 const easing = [0.25, 0.1, 0.25, 1] as const;
-
-function uniqueImageUrls(...groups: (string | undefined | null)[][]): string[] {
-  const seen = new Set<string>();
-  const out: string[] = [];
-  for (const group of groups) {
-    for (const raw of group) {
-      const url = raw?.trim();
-      if (!url || seen.has(url)) continue;
-      seen.add(url);
-      out.push(url);
-    }
-  }
-  return out;
-}
 
 export function ProductDetail() {
   const { t } = useTranslation();
@@ -73,20 +60,7 @@ export function ProductDetail() {
   useEffect(() => {
     if (!product) return;
     const color = product.colors[activeColor];
-    const laceVariant = activeSize ? color?.laceVariants?.[activeSize] : undefined;
-    const laceImages = laceVariant
-      ? (activeLace ? laceVariant.withLaceImages : laceVariant.withoutLaceImages) ?? []
-      : [];
-    const sizeImages = activeSize ? color?.sizeImages?.[activeSize] ?? [] : [];
-    const urls = (laceImages.length
-      ? laceImages
-      : sizeImages.length
-        ? sizeImages
-        : color?.images?.length
-          ? color.images
-          : color?.image
-            ? [color.image]
-            : []) as string[];
+    const urls = resolveDisplayImages(product, color, activeSize, activeLace);
     urls.forEach((src) => {
       const img = new Image();
       img.src = src;
@@ -127,18 +101,8 @@ export function ProductDetail() {
   const isWishlisted = wishlist.includes(product.id);
 
   const selectedColor = product.colors[activeColor];
-  const laceVariant = activeSize ? selectedColor?.laceVariants?.[activeSize] : undefined;
-  const laceScopedImages = laceVariant
-    ? (activeLace ? laceVariant.withLaceImages : laceVariant.withoutLaceImages) ?? []
-    : [];
-  const sizeScopedImages = activeSize ? selectedColor?.sizeImages?.[activeSize] ?? [] : [];
   const displayStock = resolveDisplayStock(selectedColor, activeSize, activeLace, product.stock);
-  const images = uniqueImageUrls(
-    laceScopedImages,
-    sizeScopedImages,
-    selectedColor?.images ?? [],
-    selectedColor?.image ? [selectedColor.image] : [],
-  );
+  const images = resolveDisplayImages(product, selectedColor, activeSize, activeLace);
   const safeImageIndex = images.length ? Math.min(activeImage, images.length - 1) : 0;
 
   const handleColorChange = (i: number) => {
