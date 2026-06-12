@@ -146,7 +146,7 @@ export function MobileProductDetailView({
         </button>
 
         {images.length > 1 && (
-          <div className="absolute z-20 bottom-[clamp(12px,3vw,18px)] left-1/2 -translate-x-1/2 flex items-center gap-1.5">
+          <div className="absolute z-20 bottom-[clamp(28px,6.5vw,40px)] left-1/2 -translate-x-1/2 flex items-center gap-1.5">
             {images.map((_, i) => (
               <button
                 key={i}
@@ -168,17 +168,12 @@ export function MobileProductDetailView({
 
       {/* Info sheet */}
       <div
-        className="relative z-10 -mt-[clamp(12px,3vw,16px)] rounded-t-[clamp(20px,5vw,28px)] px-[clamp(14px,3.6vw,22px)] pt-[clamp(8px,2vw,12px)] pb-[clamp(14px,3.5vw,20px)]"
+        className="relative z-10 -mt-[clamp(12px,3vw,16px)] rounded-t-[clamp(20px,5vw,28px)] px-[clamp(14px,3.6vw,22px)] pt-[clamp(14px,3.5vw,18px)] pb-[clamp(14px,3.5vw,20px)]"
         style={{
           backgroundColor: "#FAF8F5",
           boxShadow: "0 -8px 32px rgba(45,36,30,0.1)",
         }}
       >
-        <div
-          className="mx-auto mb-[clamp(4px,1vw,8px)] rounded-full bg-[#2D241E]/15 shrink-0"
-          style={{ width: "clamp(32px, 8vw, 40px)", height: "clamp(3px, 0.7vw, 4px)" }}
-        />
-
         <div className="flex flex-col gap-[clamp(6px,1.4vh,9px)]">
           <p
             className="text-[#2D241E]/45 uppercase shrink-0"
