@@ -1,7 +1,15 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useSyncExternalStore } from "react";
 import { fetchProducts, fetchProduct, type ProductDto, type ProductDetailDto, type ColorVariantDto } from "../api/products";
 import type { Product, ColorVariant } from "../types/product";
 import { normalizeLaceVariants } from "../utils/variantStock";
+import {
+  loadProductDetail,
+  loadProductsList,
+  productsQueryKey,
+  readProductDetailCache,
+  readProductsListCache,
+  subscribeProductsCache,
+} from "../utils/productsCache";
 
 const PLACEHOLDER = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='400' viewBox='0 0 400 400'%3E%3Crect fill='%23EDE9E2' width='400' height='400'/%3E%3Cpath fill='%232D241E' fill-opacity='0.3' d='M80 200h240M200 80v240' stroke='%232D241E' stroke-opacity='0.2'/%3E%3C/svg%3E";
 
@@ -82,68 +90,79 @@ function mapDetailToFrontend(d: ProductDetailDto): Product {
 export function useProducts(
   params?: { category?: string; isNew?: boolean; includeInactive?: boolean }
 ) {
-  const [products, setProducts] = useState<Product[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [fromApi, setFromApi] = useState(false);
+  const cacheKey = productsQueryKey(params);
+  const entry = useSyncExternalStore(
+    subscribeProductsCache,
+    () => readProductsListCache(cacheKey),
+    () => null,
+  );
+  const [pending, setPending] = useState(() => !entry?.fetchedAt);
 
   const refetch = useCallback(() => {
-    setLoading(true);
-    setError(null);
-    fetchProducts(params)
-      .then((data) => {
-        setProducts(data.map(mapToFrontendProduct));
-        setError(null);
-        setFromApi(true);
-      })
-      .catch((e: unknown) => {
-        setProducts([]);
-        setError(e instanceof Error ? e.message : "Failed to load products from API.");
-        setFromApi(false);
-      })
-      .finally(() => setLoading(false));
-  }, [params?.category, params?.isNew, params?.includeInactive]);
+    setPending(true);
+    void loadProductsList(cacheKey, () => fetchProducts(params), { force: true }).finally(() => {
+      setPending(false);
+    });
+  }, [cacheKey, params?.category, params?.isNew, params?.includeInactive]);
 
   useEffect(() => {
-    refetch();
-  }, [refetch]);
+    let cancelled = false;
+    const current = readProductsListCache(cacheKey);
+    setPending(!current?.fetchedAt);
 
-  return { products, loading, error, fromApi, refetch };
+    void loadProductsList(cacheKey, () => fetchProducts(params)).finally(() => {
+      if (!cancelled) setPending(false);
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [cacheKey, params?.category, params?.isNew, params?.includeInactive]);
+
+  return {
+    products: (entry?.data ?? []).map(mapToFrontendProduct),
+    loading: pending && !entry?.fetchedAt,
+    error: entry?.error ?? null,
+    fromApi: Boolean(entry?.fetchedAt && !entry.error),
+    refetch,
+  };
 }
 
 export function useProduct(id: string | undefined) {
-  const [product, setProduct] = useState<Product | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const entry = useSyncExternalStore(
+    subscribeProductsCache,
+    () => (id ? readProductDetailCache(id) : null),
+    () => null,
+  );
+  const [pending, setPending] = useState(() => Boolean(id) && !entry?.data);
 
-  const load = useCallback(() => {
+  const load = useCallback((force = false) => {
     if (!id) {
-      setProduct(null);
-      setLoading(false);
+      setPending(false);
       return;
     }
-    setLoading(true);
-    setError(null);
-    fetchProduct(id)
-      .then((data) => {
-        setProduct(mapDetailToFrontend(data));
-        setError(null);
-      })
-      .catch((e: unknown) => {
-        setProduct(null);
-        setError(e instanceof Error ? e.message : "Failed to load product from API.");
-      })
-      .finally(() => setLoading(false));
+    if (!force && readProductDetailCache(id)?.data) {
+      setPending(false);
+      return;
+    }
+    setPending(true);
+    void loadProductDetail(id, () => fetchProduct(id), { force }).finally(() => {
+      setPending(false);
+    });
   }, [id]);
 
   useEffect(() => {
     if (!id) {
-      setProduct(null);
-      setLoading(false);
+      setPending(false);
       return;
     }
-    load();
-  }, [load, id]);
+    load(false);
+  }, [id, load]);
 
-  return { product, loading, error, refetch: load };
+  return {
+    product: entry?.data ? mapDetailToFrontend(entry.data) : null,
+    loading: pending && !entry?.data,
+    error: entry?.error ?? null,
+    refetch: () => load(true),
+  };
 }
