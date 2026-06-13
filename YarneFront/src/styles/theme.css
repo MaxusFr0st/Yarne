@@ -148,8 +148,6 @@
 
   body {
     overflow-x: hidden;
-    /* Prevents overscroll bounce on iOS/Android without blocking normal scroll. */
-    overscroll-behavior-y: none;
   }
 
   h1 {
