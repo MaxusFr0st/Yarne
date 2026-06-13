@@ -120,7 +120,7 @@ export function Home() {
       ═══════════════════════════════ */}
       <section
         ref={heroRef}
-        className="relative h-screen min-h-[640px] flex items-end overflow-hidden"
+        className="relative h-[100svh] min-h-[640px] flex items-end overflow-hidden"
       >
         {/* Parallax background */}
         <motion.div

@@ -75,7 +75,7 @@ export function ProductDetail() {
 
   if (loading) {
     return (
-      <main className="min-h-screen flex items-center justify-center" style={{ backgroundColor: "#F5F2ED" }}>
+      <main className="min-h-[100dvh] flex items-center justify-center" style={{ backgroundColor: "#F5F2ED" }}>
         <div className="w-8 h-8 border-2 border-[#2D241E]/30 border-t-[#2D241E] rounded-full animate-spin" />
       </main>
     );
@@ -84,7 +84,7 @@ export function ProductDetail() {
   if (!product) {
     return (
       <main
-        className="min-h-screen flex flex-col items-center justify-center"
+        className="min-h-[100dvh] flex flex-col items-center justify-center"
         style={{ backgroundColor: "#F5F2ED" }}
       >
         <p

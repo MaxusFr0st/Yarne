@@ -28,7 +28,13 @@ export function Header() {
     [];
 
   useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > 40);
+    // Hysteresis: set scrolled at >40px, clear it only when <20px.
+    // This prevents the header from flickering when the mobile browser
+    // chrome appears/disappears and briefly changes window.scrollY.
+    const onScroll = () => {
+      const y = window.scrollY;
+      setScrolled(prev => (prev ? y > 20 : y > 40));
+    };
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
@@ -40,13 +46,15 @@ export function Header() {
   return (
     <>
       <motion.header
-        className="fixed top-0 left-0 right-0 z-50 transition-all duration-500"
+        className="fixed top-0 left-0 right-0 z-50"
         style={{
           paddingTop: "max(env(safe-area-inset-top, 0px), 4px)",
           minHeight: "calc(var(--main-header-h) + env(safe-area-inset-top, 0px))",
           backgroundColor: scrolled ? "rgba(245,242,237,0.92)" : "rgba(245,242,237,0.7)",
           backdropFilter: scrolled ? "blur(20px)" : "blur(8px)",
           borderBottom: scrolled ? "1px solid rgba(45,36,30,0.08)" : "1px solid transparent",
+          transition: "background-color 500ms ease, backdrop-filter 500ms ease, border-color 500ms ease",
+          willChange: "transform",
         }}
         initial={{ y: -80 }}
         animate={{ y: 0 }}

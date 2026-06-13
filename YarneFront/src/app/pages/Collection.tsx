@@ -54,7 +54,7 @@ export function Collection() {
   }
 
   return (
-    <main style={{ backgroundColor: "#F5F2ED", minHeight: "100vh", overflowX: "hidden" }}>
+    <main style={{ backgroundColor: "#F5F2ED", minHeight: "100dvh", overflowX: "hidden" }}>
       {/* Header Banner */}
       <section className="pt-28 pb-8 md:pt-32 md:pb-10">
         <div className="max-w-[1400px] mx-auto px-6 md:px-10">

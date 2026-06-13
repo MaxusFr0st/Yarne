@@ -123,7 +123,7 @@ export function Root() {
   }, [entryStorageKey, routeStorageKey]);
 
   return (
-    <div className="relative" style={{ backgroundColor: "#F5F2ED", minHeight: "100vh" }}>
+    <div className="relative" style={{ backgroundColor: "#F5F2ED", minHeight: "100dvh" }}>
       <Header />
       <Outlet />
       <Footer />
