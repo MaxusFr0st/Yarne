@@ -144,15 +144,11 @@
   html {
     font-size: var(--font-size);
     overflow-x: hidden;
-    /* Lock height to small viewport (browser chrome visible) to prevent
-       layout reflow when mobile bottom nav appears/disappears on scroll. */
-    height: 100%;
   }
 
   body {
     overflow-x: hidden;
-    /* Prevents the page from bouncing/chaining scroll into the browser chrome
-       on iOS and Android, eliminating the viewport-resize jump on scroll-up. */
+    /* Prevents overscroll bounce on iOS/Android without blocking normal scroll. */
     overscroll-behavior-y: none;
   }
 
