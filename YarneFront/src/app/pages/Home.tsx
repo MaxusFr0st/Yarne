@@ -43,6 +43,19 @@ export function Home() {
   const heroRef = useRef<HTMLDivElement>(null);
   const editorialRef = useRef<HTMLDivElement>(null);
 
+  // Detect mobile: parallax via JS scroll tracking causes viewport-resize
+  // jumps when the browser bottom bar appears/disappears on scroll-up.
+  // Disable it on touch devices — static images scroll just as elegantly.
+  const [isMobile, setIsMobile] = useState(
+    () => typeof window !== "undefined" && window.matchMedia("(max-width: 767px)").matches
+  );
+  useEffect(() => {
+    const mql = window.matchMedia("(max-width: 767px)");
+    const handler = (e: MediaQueryListEvent) => setIsMobile(e.matches);
+    mql.addEventListener("change", handler);
+    return () => mql.removeEventListener("change", handler);
+  }, []);
+
   const { scrollYProgress: heroScroll } = useScroll({
     target: heroRef,
     offset: ["start start", "end start"],
@@ -53,7 +66,7 @@ export function Home() {
     offset: ["start end", "end start"],
   });
 
-  // Parallax transforms
+  // Parallax transforms — only applied on desktop (see isMobile above)
   const heroY = useTransform(heroScroll, [0, 1], ["0%", "30%"]);
   const heroScale = useTransform(heroScroll, [0, 1], [1, 1.1]);
   const editorialY1 = useTransform(editorialScroll, [0, 1], ["0%", "-12%"]);
@@ -125,7 +138,7 @@ export function Home() {
         {/* Parallax background */}
         <motion.div
           className="absolute inset-0 will-change-transform"
-          style={{ y: heroY, scale: heroScale }}
+          style={isMobile ? {} : { y: heroY, scale: heroScale }}
         >
           {heroImageSrc ? (
             <Img
@@ -360,7 +373,7 @@ export function Home() {
             {/* Image with parallax */}
             <RevealText className="relative">
               <div className="relative rounded-[40px] overflow-hidden" style={{ aspectRatio: "4/5" }}>
-                <motion.div className="absolute inset-0 will-change-transform" style={{ y: editorialY1 }}>
+                <motion.div className="absolute inset-0 will-change-transform" style={isMobile ? {} : { y: editorialY1 }}>
                   {editorialImageSrc ? (
                     <Img
                       src={editorialImageSrc}
