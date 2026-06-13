@@ -146,7 +146,7 @@ export function MobileProductDetailView({
         </button>
 
         {images.length > 1 && (
-          <div className="absolute z-20 bottom-[clamp(14px,3.25vw,20px)] left-1/2 -translate-x-1/2 flex items-center gap-1.5">
+          <div className="absolute z-20 bottom-[clamp(10px,3.25vw,15px)] left-1/2 -translate-x-1/2 flex items-center gap-1.5">
             {images.map((_, i) => (
               <button
                 key={i}

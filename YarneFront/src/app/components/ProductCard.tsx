@@ -15,11 +15,13 @@ interface ProductCardProps {
   size?: "small" | "medium" | "large" | "carousel" | "collection";
   /** Skip viewport-based entrance animation (use in carousels) */
   inCarousel?: boolean;
+  /** Opacity-only entrance — avoids layout-adjacent motion on dense grids */
+  subtleEntrance?: boolean;
   /** Ref to carousel viewport - enables slide-in animation as cards scroll into view */
   viewportRoot?: React.RefObject<HTMLElement | null>;
 }
 
-export function ProductCard({ product, index = 0, size = "medium", inCarousel = false, viewportRoot }: ProductCardProps) {
+export function ProductCard({ product, index = 0, size = "medium", inCarousel = false, subtleEntrance = false, viewportRoot }: ProductCardProps) {
   const { t } = useTranslation();
   const locale = useLocale();
   const [activeColor, setActiveColor] = useState(0);
@@ -74,10 +76,16 @@ export function ProductCard({ product, index = 0, size = "medium", inCarousel = 
   const viewport = useCarouselViewport
     ? { root: viewportRoot, margin: "0px 80px", amount: 0.2, once: false }
     : { once: true, margin: "-60px" };
+  const entranceInitial = subtleEntrance || useCarouselViewport || inCarousel
+    ? { opacity: 0 }
+    : { opacity: 0, y: 40 };
+  const entranceAnimate = subtleEntrance || useCarouselViewport || inCarousel
+    ? { opacity: 1 }
+    : { opacity: 1, y: 0 };
   return (
     <motion.div
-      initial={useCarouselViewport || inCarousel ? { opacity: 0 } : { opacity: 0, y: 40 }}
-      whileInView={useCarouselViewport || inCarousel ? { opacity: 1 } : { opacity: 1, y: 0 }}
+      initial={entranceInitial}
+      whileInView={entranceAnimate}
       viewport={useCarouselViewport || !inCarousel ? viewport : undefined}
       transition={{ duration: 0.5, delay: inCarousel ? 0 : index * 0.08, ease: [0.25, 0.1, 0.25, 1] }}
       className={`group ${isCarouselCard ? "overflow-visible" : ""}`}

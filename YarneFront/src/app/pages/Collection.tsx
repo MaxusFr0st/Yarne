@@ -4,11 +4,30 @@ import { motion } from "motion/react";
 import { SlidersHorizontal, X } from "lucide-react";
 import { useProducts } from "../hooks/useProducts";
 import { ProductCard } from "../components/ProductCard";
+import { Skeleton } from "../components/ui/skeleton";
 
 const DEFAULT_CATEGORIES = ["All", "Sweaters", "Cardigans", "Vests", "Jackets"];
 const SORT_OPTIONS = ["Featured", "Price: Low to High", "Price: High to Low", "Newest"];
+const SKELETON_COUNT = 6;
 
 const easing = [0.25, 0.1, 0.25, 1] as const;
+
+function CollectionCardSkeleton() {
+  return (
+    <div aria-hidden>
+      <Skeleton className="aspect-[4/5] min-h-[220px] sm:min-h-[250px] md:min-h-0 md:aspect-[3/4] w-full rounded-[24px] md:rounded-[32px] bg-[#E5E0D8]" />
+      <div className="mt-4 space-y-2 px-1">
+        <Skeleton className="h-4 w-3/4 rounded bg-[#E5E0D8]" />
+        <Skeleton className="h-3 w-1/2 rounded bg-[#E5E0D8]" />
+        <div className="flex gap-2 pt-1">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <Skeleton key={i} className="h-3.5 w-3.5 rounded-full bg-[#E5E0D8]" />
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export function Collection() {
   const [searchParams] = useSearchParams();
@@ -18,12 +37,11 @@ export function Collection() {
   const [filterOpen, setFilterOpen] = useState(false);
   const [priceRange, setPriceRange] = useState<[number, number]>([0, 500]);
 
-  const { products } = useProducts(filterParam === "new" ? { isNew: true } : undefined);
-  const categories = [
-    "All",
-    ...Array.from(new Set(products.map((p) => p.category).filter(Boolean))).sort(),
-  ];
-  const CATEGORIES = categories.length > 1 ? categories : DEFAULT_CATEGORIES;
+  const { products, loading } = useProducts(filterParam === "new" ? { isNew: true } : undefined);
+  const apiCategories = Array.from(new Set(products.map((p) => p.category).filter(Boolean))).sort();
+  const CATEGORIES = loading
+    ? DEFAULT_CATEGORIES
+    : ["All", ...(apiCategories.length > 0 ? apiCategories : DEFAULT_CATEGORIES.slice(1))];
   let filtered = products;
   if (filterParam === "new") filtered = filtered.filter((p) => p.isNew);
   if (activeCategory !== "All") filtered = filtered.filter((p) => p.category === activeCategory);
@@ -67,10 +85,17 @@ export function Collection() {
               )}
             </h1>
             <p
-              className="text-[#2D241E]/50 mt-4 max-w-lg"
+              className="text-[#2D241E]/50 mt-4 max-w-lg min-h-[1.5rem]"
               style={{ fontFamily: "'DM Sans', sans-serif", lineHeight: 1.7, fontSize: "0.9rem" }}
+              aria-live="polite"
             >
-              {filtered.length} {filtered.length === 1 ? "piece" : "pieces"} — crafted from the world's finest natural fibres
+              {loading ? (
+                <span className="inline-block w-48 h-4 rounded bg-[#E5E0D8] animate-pulse align-middle" aria-hidden />
+              ) : (
+                <>
+                  {filtered.length} {filtered.length === 1 ? "piece" : "pieces"} — crafted from the world's finest natural fibres
+                </>
+              )}
             </p>
           </motion.div>
         </div>
@@ -79,9 +104,9 @@ export function Collection() {
       {/* Filter Bar */}
       <div className="sticky top-[var(--main-header-h)] z-30 border-y border-[#2D241E]/10" style={{ backgroundColor: "rgba(245,242,237,0.95)", backdropFilter: "blur(16px)" }}>
         <div className="max-w-[1400px] mx-auto px-6 md:px-10">
-          <div className="flex items-center justify-between py-2.5 gap-3 overflow-x-auto scrollbar-hide">
+          <div className="flex items-center justify-between py-2.5 gap-3 overflow-x-auto scrollbar-hide min-h-[44px]">
             {/* Categories */}
-            <div className="flex items-center gap-2 flex-shrink-0">
+            <div className="flex items-center gap-2 flex-shrink-0 min-h-[36px]">
               {CATEGORIES.map((cat) => (
                 <button
                   key={cat}
@@ -198,8 +223,24 @@ export function Collection() {
       </div>
 
       {/* Products Grid */}
-      <div className="max-w-[1400px] mx-auto px-6 md:px-10 py-10 md:py-12">
-        {filtered.length === 0 ? (
+      <div
+        className="max-w-[1400px] mx-auto px-6 md:px-10 py-10 md:py-12"
+        aria-busy={loading}
+      >
+        {loading ? (
+          <>
+            <div className="hidden md:grid md:grid-cols-2 lg:grid-cols-3 gap-5 lg:gap-8">
+              {Array.from({ length: SKELETON_COUNT }).map((_, i) => (
+                <CollectionCardSkeleton key={i} />
+              ))}
+            </div>
+            <div className="md:hidden grid grid-cols-1 gap-y-10 w-full max-w-md mx-auto px-2">
+              {Array.from({ length: SKELETON_COUNT }).map((_, i) => (
+                <CollectionCardSkeleton key={i} />
+              ))}
+            </div>
+          </>
+        ) : filtered.length === 0 ? (
           <motion.div
             className="text-center py-32"
             initial={{ opacity: 0 }}
@@ -217,14 +258,14 @@ export function Collection() {
             {/* Desktop: uniform 3-column grid */}
             <div className="hidden md:grid md:grid-cols-2 lg:grid-cols-3 gap-5 lg:gap-8">
               {filtered.map((product, i) => (
-                <ProductCard key={product.id} product={product} index={i} size="collection" />
+                <ProductCard key={product.id} product={product} index={i} size="collection" subtleEntrance />
               ))}
             </div>
 
             {/* Mobile: 1-column layout for better card display */}
             <div className="md:hidden grid grid-cols-1 gap-y-10 w-full max-w-md mx-auto px-2">
               {filtered.map((product, i) => (
-                <ProductCard key={product.id} product={product} index={i} size="collection" />
+                <ProductCard key={product.id} product={product} index={i} size="collection" subtleEntrance />
               ))}
             </div>
           </>
@@ -237,8 +278,8 @@ export function Collection() {
           <motion.div
             className="inline-block rounded-[40px] p-12 md:p-16"
             style={{ backgroundColor: "#EDE9E2" }}
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
+            initial={{ opacity: 0 }}
+            whileInView={{ opacity: 1 }}
             viewport={{ once: true }}
             transition={{ duration: 0.7, ease: easing }}
           >
