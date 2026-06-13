@@ -463,7 +463,7 @@ export function Home() {
       {/* ═══════════════════════════════
           FULL-WIDTH BANNER
       ═══════════════════════════════ */}
-      <section className="relative py-0 overflow-hidden" style={{ height: "60vh", minHeight: "400px" }}>
+      <section className="relative py-0 overflow-hidden" style={{ height: "60svh", minHeight: "400px" }}>
         <motion.div
           className="absolute inset-0"
           initial={{ opacity: 0 }}

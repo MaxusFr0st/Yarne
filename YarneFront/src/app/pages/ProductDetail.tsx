@@ -194,7 +194,7 @@ export function ProductDetail() {
             transition={{ duration: 0.8, ease: easing }}
           >
             {/* Main Image */}
-            <div className="relative rounded-[34px] sm:rounded-[40px] overflow-hidden bg-[#EDE9E2] h-[min(64vh,430px)] min-h-[320px] sm:min-h-[340px] md:h-[min(62vh,640px)] md:min-h-[440px] lg:h-[min(68vh,720px)] lg:min-h-[500px]">
+            <div className="relative rounded-[34px] sm:rounded-[40px] overflow-hidden bg-[#EDE9E2] h-[min(64svh,430px)] min-h-[320px] sm:min-h-[340px] md:h-[min(62svh,640px)] md:min-h-[440px] lg:h-[min(68svh,720px)] lg:min-h-[500px]">
               {images.length > 0 && (
                 <motion.div
                   key={`${activeColor}-${activeSize ?? ""}-${activeLace}-${safeImageIndex}`}

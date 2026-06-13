@@ -325,7 +325,7 @@ export function FeaturedShowcase() {
 
   return (
     <section
-      className="relative py-[clamp(10px,2.5vw,40px)] md:py-12 max-md:overflow-hidden max-md:box-border max-md:h-[calc(100dvh-var(--main-header-h))] max-md:py-[clamp(6px,1.6vw,10px)]"
+      className="relative py-[clamp(10px,2.5vw,40px)] md:py-12 max-md:overflow-hidden max-md:box-border max-md:h-[calc(100svh-var(--main-header-h))] max-md:py-[clamp(6px,1.6vw,10px)]"
       style={{ backgroundColor: "#F5F2ED" }}
     >
       <div className="max-w-[1400px] mx-auto px-[clamp(12px,3.5vw,40px)] max-md:h-full max-md:flex max-md:flex-col max-md:min-h-0">
@@ -427,7 +427,7 @@ export function FeaturedShowcase() {
           className="hidden md:grid gap-4 md:gap-4 lg:gap-5
                      md:grid-cols-2
                      lg:grid-cols-[5fr_4fr_4fr] lg:grid-rows-2
-                     lg:h-[clamp(560px,calc(100vh-var(--main-header-h)-72px),760px)]"
+                     lg:h-[clamp(560px,calc(100svh-var(--main-header-h)-72px),760px)]"
         >
           <motion.div
             initial={{ opacity: 0, y: 30 }}

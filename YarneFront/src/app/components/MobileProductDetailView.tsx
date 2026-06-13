@@ -96,7 +96,7 @@ export function MobileProductDetailView({
       {/* Gallery — tall hero; page scrolls naturally below */}
       <div
         className="relative w-full bg-[#EDE9E2] overflow-hidden"
-        style={{ height: "clamp(52dvh, 58dvh, 62dvh)" }}
+        style={{ height: "clamp(52svh, 58svh, 62svh)" }}
       >
         <div ref={emblaRef} className="h-full overflow-hidden touch-pan-x">
           <div className="flex h-full">
@@ -174,7 +174,7 @@ export function MobileProductDetailView({
           boxShadow: "0 -8px 32px rgba(45,36,30,0.1)",
         }}
       >
-        <div className="flex flex-col gap-[clamp(6px,1.4vh,9px)]">
+        <div className="flex flex-col gap-[clamp(6px,1.4svh,9px)]">
           <p
             className="text-[#2D241E]/45 uppercase shrink-0"
             style={{
@@ -414,13 +414,13 @@ export function MobileProductDetailView({
             type="button"
             onClick={onAddToBag}
             disabled={outOfStock}
-            className="shrink-0 mt-[clamp(6px,1.4vh,10px)] w-full flex items-center justify-center gap-2 rounded-full text-white disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+            className="shrink-0 mt-[clamp(6px,1.4svh,10px)] w-full flex items-center justify-center gap-2 rounded-full text-white disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
           style={{
             backgroundColor: outOfStock ? "#9A9088" : addedToBag ? "#2D5928" : "#2D241E",
             fontFamily: "'DM Sans', sans-serif",
             fontSize: "clamp(0.66rem, 2.6vw, 0.78rem)",
             letterSpacing: "0.12em",
-            padding: "clamp(11px, 2.6vh, 14px) clamp(16px, 4vw, 20px)",
+            padding: "clamp(11px, 2.6svh, 14px) clamp(16px, 4vw, 20px)",
           }}
           whileTap={{ scale: 0.98 }}
         >

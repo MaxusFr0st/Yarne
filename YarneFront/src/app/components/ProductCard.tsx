@@ -74,7 +74,7 @@ export function ProductCard({ product, index = 0, size = "medium", inCarousel = 
 
   const useCarouselViewport = inCarousel && viewportRoot;
   const viewport = useCarouselViewport
-    ? { root: viewportRoot, margin: "0px 80px", amount: 0.2, once: false }
+    ? { root: viewportRoot, margin: "0px 80px", amount: 0.2, once: true }
     : { once: true, margin: "-60px" };
   const entranceInitial = subtleEntrance || useCarouselViewport || inCarousel
     ? { opacity: 0 }
