@@ -14,6 +14,7 @@ import { MobileProductDetailView } from "../components/MobileProductDetailView";
 import { MobileRelatedProducts } from "../components/MobileRelatedProducts";
 import { resolveDisplayImages } from "../utils/variantImages";
 import { resolveDisplayStock } from "../utils/variantStock";
+import { resolveMediaUrl } from "../utils/storefrontMedia";
 import React from "react";
 
 const easing = [0.25, 0.1, 0.25, 1] as const;
@@ -59,13 +60,18 @@ export function ProductDetail() {
 
   useEffect(() => {
     if (!product) return;
-    const color = product.colors[activeColor];
-    const urls = resolveDisplayImages(product, color, activeSize, activeLace);
-    urls.forEach((src) => {
-      const img = new Image();
-      img.src = src;
-    });
-  }, [product, activeColor, activeSize, activeLace]);
+    const seen = new Set<string>();
+    for (const color of product.colors) {
+      const urls = resolveDisplayImages(product, color, activeSize, activeLace);
+      for (const src of urls) {
+        const resolved = resolveMediaUrl(src);
+        if (!resolved || seen.has(resolved)) continue;
+        seen.add(resolved);
+        const img = new Image();
+        img.src = resolved;
+      }
+    }
+  }, [product, activeSize, activeLace]);
 
   if (loading) {
     return (
