@@ -327,10 +327,10 @@ export function FeaturedShowcase() {
 
   return (
     <section
-      className="relative py-[clamp(10px,2.5vw,40px)] md:py-12 max-md:py-[clamp(6px,1.6vw,10px)]"
+      className="relative py-[clamp(10px,2.5vw,40px)] md:py-12 max-md:overflow-hidden max-md:box-border max-md:h-[calc(var(--app-vh)*100-var(--main-header-h))] max-md:py-[clamp(6px,1.6vw,10px)]"
       style={{ backgroundColor: "#F5F2ED" }}
     >
-      <div className="max-w-[1400px] mx-auto px-[clamp(12px,3.5vw,40px)]">
+      <div className="max-w-[1400px] mx-auto px-[clamp(12px,3.5vw,40px)] max-md:h-full max-md:flex max-md:flex-col max-md:min-h-0">
         {/* Mobile: compact inline header */}
         {skipEntrance ? (
           <div className="md:hidden shrink-0 mb-[clamp(4px,1vw,8px)]">{sectionHeader}</div>
@@ -362,9 +362,12 @@ export function FeaturedShowcase() {
           {sectionHeader}
         </motion.div>
 
-        {/* Mobile: aspect-ratio grid — stable heights in in-app browsers */}
-        <div className="md:hidden grid gap-[clamp(5px,1.4vw,8px)]">
-          <div className="aspect-[4/5]">
+        {/* Mobile: hero + bento — one locked viewport (--app-vh set at load, no scroll resize) */}
+        <div
+          className="md:hidden flex-1 min-h-0 grid gap-[clamp(5px,1.4vw,8px)]"
+          style={{ gridTemplateRows: "minmax(0, 1.05fr) minmax(0, 1fr)" }}
+        >
+          <div className="min-h-0 h-full">
             <ProductTile
               slot={selection.slot1}
               product={slot1Product}
@@ -373,8 +376,8 @@ export function FeaturedShowcase() {
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-[clamp(5px,1.4vw,8px)]">
-            <div className="row-span-2 aspect-[3/4]">
+          <div className="min-h-0 h-full grid grid-cols-2 grid-rows-2 gap-[clamp(5px,1.4vw,8px)]">
+            <div className="row-span-2 min-h-0 h-full">
               <ProductTile
                 slot={selection.slot2}
                 product={slot2Product}
@@ -384,11 +387,11 @@ export function FeaturedShowcase() {
               />
             </div>
 
-            <div className="aspect-[4/3]">
+            <div className="min-h-0 h-full">
               <TextTile slot={selection.slot3} />
             </div>
 
-            <div className="aspect-[4/3]">
+            <div className="min-h-0 h-full">
               <ProductTile
                 slot={selection.slot4}
                 product={slot4Product}
