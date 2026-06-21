@@ -353,7 +353,7 @@ export function AccountPage() {
   if (!isLoggedIn) {
     return (
       <main
-        className="min-h-[100dvh] flex items-center justify-center"
+        className="min-h-[100svh] flex items-center justify-center"
         style={{ backgroundColor: "#F5F2ED", paddingTop: "100px" }}
       >
         <motion.div
@@ -412,7 +412,7 @@ export function AccountPage() {
   const displayEmail = user?.email || "sophie@example.com";
 
   return (
-    <main style={{ backgroundColor: "#F5F2ED", minHeight: "100dvh" }}>
+    <main style={{ backgroundColor: "#F5F2ED", minHeight: "100svh" }}>
       {/* Page Header */}
       <section
         className="pt-32 pb-12 md:pt-40 md:pb-16"

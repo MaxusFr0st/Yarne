@@ -96,7 +96,7 @@ export function MobileProductDetailView({
       {/* Gallery — tall hero; page scrolls naturally below */}
       <div
         className="relative w-full bg-[#EDE9E2] overflow-hidden"
-        style={{ height: "clamp(52svh, 58svh, 62svh)" }}
+        style={{ height: "calc(var(--app-vh, 1svh) * 58)", maxHeight: "420px" }}
       >
         <div ref={emblaRef} className="h-full overflow-hidden touch-pan-x">
           <div className="flex h-full">

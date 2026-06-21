@@ -1986,7 +1986,7 @@ export function AdminPage() {
   };
 
   return (
-    <main style={{ backgroundColor: "#F5F2ED", minHeight: "100dvh" }} className="relative">
+    <main style={{ backgroundColor: "#F5F2ED", minHeight: "100svh" }} className="relative">
       {!apiAvailable && !loading && (
         <div className="fixed top-20 left-0 right-0 z-50 mx-4 md:mx-auto max-w-xl bg-[#4A0E0E] text-[#F5F2ED] px-6 py-4 rounded-2xl shadow-lg text-center" style={{ fontFamily: "'DM Sans', sans-serif" }}>
           Backend API unavailable. Docker: ensure api container runs on port 8080. Local: <code className="bg-black/20 px-2 py-0.5 rounded">dotnet run</code> and set <code className="bg-black/20 px-2 py-0.5 rounded">VITE_API_URL=http://localhost:5000</code>.

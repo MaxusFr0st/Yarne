@@ -8,6 +8,7 @@ import { ImageWithFallback } from "./figma/ImageWithFallback";
 import { LangLink } from "../i18n/LangLink";
 import { useLocale } from "../i18n/useLocale";
 import { formatPrice } from "../i18n/format";
+import { useTouchMobileLayout } from "../hooks/useTouchMobileLayout";
 
 interface ProductCardProps {
   product: Product;
@@ -27,6 +28,7 @@ export function ProductCard({ product, index = 0, size = "medium", inCarousel = 
   const [activeColor, setActiveColor] = useState(0);
   const [isHovered, setIsHovered] = useState(false);
   const { addToCart, wishlist, toggleWishlist } = useApp();
+  const skipEntrance = useTouchMobileLayout();
 
   const isWishlisted = wishlist.includes(product.id);
 
@@ -84,9 +86,9 @@ export function ProductCard({ product, index = 0, size = "medium", inCarousel = 
     : { opacity: 1, y: 0 };
   return (
     <motion.div
-      initial={entranceInitial}
-      whileInView={entranceAnimate}
-      viewport={useCarouselViewport || !inCarousel ? viewport : undefined}
+      initial={skipEntrance ? false : entranceInitial}
+      whileInView={skipEntrance ? undefined : entranceAnimate}
+      viewport={skipEntrance ? undefined : (useCarouselViewport || !inCarousel ? viewport : undefined)}
       transition={{ duration: 0.5, delay: inCarousel ? 0 : index * 0.08, ease: [0.25, 0.1, 0.25, 1] }}
       className={`group ${isCarouselCard ? "overflow-visible" : ""}`}
     >

@@ -54,7 +54,7 @@ export function Collection() {
   }
 
   return (
-    <main style={{ backgroundColor: "#F5F2ED", minHeight: "100dvh", overflowX: "hidden" }}>
+    <main style={{ backgroundColor: "#F5F2ED", minHeight: "100svh", overflowX: "hidden" }}>
       {/* Header Banner */}
       <section className="pt-28 pb-8 md:pt-32 md:pb-10">
         <div className="max-w-[1400px] mx-auto px-6 md:px-10">
@@ -102,7 +102,7 @@ export function Collection() {
       </section>
 
       {/* Filter Bar */}
-      <div className="sticky top-[var(--main-header-h)] z-30 border-y border-[#2D241E]/10" style={{ backgroundColor: "rgba(245,242,237,0.95)", backdropFilter: "blur(16px)" }}>
+      <div className="md:sticky top-[var(--main-header-h)] z-30 border-y border-[#2D241E]/10" style={{ backgroundColor: "rgba(245,242,237,0.95)", backdropFilter: "blur(16px)" }}>
         <div className="max-w-[1400px] mx-auto px-6 md:px-10">
           <div className="flex items-center justify-between py-2.5 gap-3 overflow-x-auto scrollbar-hide min-h-[44px]">
             {/* Categories */}

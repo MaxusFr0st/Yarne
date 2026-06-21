@@ -19,6 +19,7 @@ import {
   type ShowcaseProductSlot,
   type ShowcaseTextSlot,
 } from "../utils/featuredShowcaseSelection";
+import { useTouchMobileLayout } from "../hooks/useTouchMobileLayout";
 
 const easing = [0.25, 0.1, 0.25, 1] as const;
 
@@ -260,6 +261,7 @@ function TextTile({ slot }: TextTileProps) {
 export function FeaturedShowcase() {
   const { t } = useTranslation();
   const { products } = useProducts();
+  const skipEntrance = useTouchMobileLayout();
   const [selection, setSelection] = useState<FeaturedShowcaseSelection>(
     getDefaultFeaturedShowcaseSelection
   );
@@ -325,20 +327,24 @@ export function FeaturedShowcase() {
 
   return (
     <section
-      className="relative py-[clamp(10px,2.5vw,40px)] md:py-12 max-md:overflow-hidden max-md:box-border max-md:h-[calc(100svh-var(--main-header-h))] max-md:py-[clamp(6px,1.6vw,10px)]"
+      className="relative py-[clamp(10px,2.5vw,40px)] md:py-12 max-md:py-[clamp(6px,1.6vw,10px)]"
       style={{ backgroundColor: "#F5F2ED" }}
     >
-      <div className="max-w-[1400px] mx-auto px-[clamp(12px,3.5vw,40px)] max-md:h-full max-md:flex max-md:flex-col max-md:min-h-0">
+      <div className="max-w-[1400px] mx-auto px-[clamp(12px,3.5vw,40px)]">
         {/* Mobile: compact inline header */}
-        <motion.div
-          initial={{ opacity: 0, y: 12 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true, margin: "-40px" }}
-          transition={{ duration: 0.5, ease: easing }}
-          className="md:hidden shrink-0 mb-[clamp(4px,1vw,8px)]"
-        >
-          {sectionHeader}
-        </motion.div>
+        {skipEntrance ? (
+          <div className="md:hidden shrink-0 mb-[clamp(4px,1vw,8px)]">{sectionHeader}</div>
+        ) : (
+          <motion.div
+            initial={{ opacity: 0, y: 12 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, margin: "-40px" }}
+            transition={{ duration: 0.5, ease: easing }}
+            className="md:hidden shrink-0 mb-[clamp(4px,1vw,8px)]"
+          >
+            {sectionHeader}
+          </motion.div>
+        )}
 
         {/* Desktop: sticky section header */}
         <motion.div
@@ -356,36 +362,19 @@ export function FeaturedShowcase() {
           {sectionHeader}
         </motion.div>
 
-        {/* Mobile: hero + bento — one viewport, proportional rows (≈4/4.9 hero + bento) */}
-        <div
-          className="md:hidden flex-1 min-h-0 grid gap-[clamp(5px,1.4vw,8px)]"
-          style={{ gridTemplateRows: "minmax(0, 1.05fr) minmax(0, 1fr)" }}
-        >
-          <motion.div
-            initial={{ opacity: 0, y: 16 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true, margin: "-30px" }}
-            transition={{ duration: 0.6, ease: easing }}
-            className="min-h-0 h-full"
-          >
+        {/* Mobile: aspect-ratio grid — stable heights in in-app browsers */}
+        <div className="md:hidden grid gap-[clamp(5px,1.4vw,8px)]">
+          <div className="aspect-[4/5]">
             <ProductTile
               slot={selection.slot1}
               product={slot1Product}
               fallbackTitle="Handcrafted for you"
               variant="large"
             />
-          </motion.div>
+          </div>
 
-          <div
-            className="min-h-0 h-full grid grid-cols-2 grid-rows-2 gap-[clamp(5px,1.4vw,8px)]"
-          >
-            <motion.div
-              initial={{ opacity: 0, y: 16 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true, margin: "-30px" }}
-              transition={{ duration: 0.6, delay: 0.06, ease: easing }}
-              className="row-span-2 min-h-0 h-full"
-            >
+          <div className="grid grid-cols-2 gap-[clamp(5px,1.4vw,8px)]">
+            <div className="row-span-2 aspect-[3/4]">
               <ProductTile
                 slot={selection.slot2}
                 product={slot2Product}
@@ -393,32 +382,20 @@ export function FeaturedShowcase() {
                 variant="medium"
                 showWishlist
               />
-            </motion.div>
+            </div>
 
-            <motion.div
-              initial={{ opacity: 0, y: 16 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true, margin: "-30px" }}
-              transition={{ duration: 0.6, delay: 0.1, ease: easing }}
-              className="min-h-0 h-full"
-            >
+            <div className="aspect-[4/3]">
               <TextTile slot={selection.slot3} />
-            </motion.div>
+            </div>
 
-            <motion.div
-              initial={{ opacity: 0, y: 16 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true, margin: "-30px" }}
-              transition={{ duration: 0.6, delay: 0.14, ease: easing }}
-              className="min-h-0 h-full"
-            >
+            <div className="aspect-[4/3]">
               <ProductTile
                 slot={selection.slot4}
                 product={slot4Product}
                 fallbackTitle="Boxy Clutch"
                 variant="medium"
               />
-            </motion.div>
+            </div>
           </div>
         </div>
 

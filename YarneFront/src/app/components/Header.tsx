@@ -8,11 +8,13 @@ import { Logo } from "./Logo";
 import { LangLink } from "../i18n/LangLink";
 import { useLangNavigate } from "../i18n/useLangNavigate";
 import { LanguageSwitcher } from "../i18n/LanguageSwitcher";
+import { useTouchMobileLayout } from "../hooks/useTouchMobileLayout";
 
 export function Header() {
   const { t } = useTranslation();
   const { cartCount, openCart, openLogin, isLoggedIn, user, isAdmin } = useApp();
   const [scrolled, setScrolled] = useState(false);
+  const skipScrollStyle = useTouchMobileLayout();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const location = useLocation();
@@ -28,16 +30,16 @@ export function Header() {
     [];
 
   useEffect(() => {
+    if (skipScrollStyle) return;
+
     // Hysteresis: set scrolled at >40px, clear it only when <20px.
-    // This prevents the header from flickering when the mobile browser
-    // chrome appears/disappears and briefly changes window.scrollY.
     const onScroll = () => {
       const y = window.scrollY;
       setScrolled(prev => (prev ? y > 20 : y > 40));
     };
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
-  }, []);
+  }, [skipScrollStyle]);
 
   useEffect(() => {
     setMobileOpen(false);
@@ -50,10 +52,20 @@ export function Header() {
         style={{
           paddingTop: "max(env(safe-area-inset-top, 0px), 4px)",
           minHeight: "calc(var(--main-header-h) + env(safe-area-inset-top, 0px))",
-          backgroundColor: scrolled ? "rgba(245,242,237,0.92)" : "rgba(245,242,237,0.7)",
-          backdropFilter: scrolled ? "blur(20px)" : "blur(8px)",
-          borderBottom: scrolled ? "1px solid rgba(45,36,30,0.08)" : "1px solid transparent",
-          transition: "background-color 500ms ease, backdrop-filter 500ms ease, border-color 500ms ease",
+          backgroundColor: skipScrollStyle
+            ? "rgba(245,242,237,0.92)"
+            : scrolled
+              ? "rgba(245,242,237,0.92)"
+              : "rgba(245,242,237,0.7)",
+          backdropFilter: skipScrollStyle ? "blur(20px)" : scrolled ? "blur(20px)" : "blur(8px)",
+          borderBottom: skipScrollStyle
+            ? "1px solid rgba(45,36,30,0.08)"
+            : scrolled
+              ? "1px solid rgba(45,36,30,0.08)"
+              : "1px solid transparent",
+          transition: skipScrollStyle
+            ? undefined
+            : "background-color 500ms ease, backdrop-filter 500ms ease, border-color 500ms ease",
           willChange: "transform",
         }}
         initial={{ y: -80 }}

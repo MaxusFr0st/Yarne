@@ -19,11 +19,31 @@ import {
   getDefaultHomePageMediaSelection,
   loadHomePageMediaSelection,
 } from "../utils/homePageMediaSelection";
+import { useTouchMobileLayout } from "../hooks/useTouchMobileLayout";
 
 const easing = [0.25, 0.1, 0.25, 1] as const;
 
-// Animated text reveal
-function RevealText({ children, delay = 0, className = "", style = {} }: { children: ReactNode; delay?: number; className?: string; style?: CSSProperties }) {
+function RevealText({
+  children,
+  delay = 0,
+  className = "",
+  style = {},
+  skipEntrance = false,
+}: {
+  children: ReactNode;
+  delay?: number;
+  className?: string;
+  style?: CSSProperties;
+  skipEntrance?: boolean;
+}) {
+  if (skipEntrance) {
+    return (
+      <div className={className} style={style}>
+        {children}
+      </div>
+    );
+  }
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 30 }}
@@ -42,19 +62,7 @@ export function Home() {
   const { t } = useTranslation();
   const heroRef = useRef<HTMLDivElement>(null);
   const editorialRef = useRef<HTMLDivElement>(null);
-
-  // Detect mobile: parallax via JS scroll tracking causes viewport-resize
-  // jumps when the browser bottom bar appears/disappears on scroll-up.
-  // Disable it on touch devices — static images scroll just as elegantly.
-  const [isMobile, setIsMobile] = useState(
-    () => typeof window !== "undefined" && window.matchMedia("(max-width: 767px)").matches
-  );
-  useEffect(() => {
-    const mql = window.matchMedia("(max-width: 767px)");
-    const handler = (e: MediaQueryListEvent) => setIsMobile(e.matches);
-    mql.addEventListener("change", handler);
-    return () => mql.removeEventListener("change", handler);
-  }, []);
+  const skipEntrance = useTouchMobileLayout();
 
   const { scrollYProgress: heroScroll } = useScroll({
     target: heroRef,
@@ -133,12 +141,13 @@ export function Home() {
       ═══════════════════════════════ */}
       <section
         ref={heroRef}
-        className="relative h-[100svh] min-h-[640px] flex items-end overflow-hidden"
+        className="relative min-h-[640px] flex items-end overflow-hidden"
+        style={{ height: "calc(var(--app-vh, 1svh) * 100)" }}
       >
         {/* Parallax background */}
         <motion.div
           className="absolute inset-0 will-change-transform"
-          style={isMobile ? {} : { y: heroY, scale: heroScale }}
+          style={skipEntrance ? {} : { y: heroY, scale: heroScale }}
         >
           {heroImageSrc ? (
             <Img
@@ -247,7 +256,7 @@ export function Home() {
         <div className="max-w-[1400px] mx-auto px-6 md:px-10">
           <div className="flex flex-col md:flex-row items-center justify-center gap-10 md:gap-20">
             {brandStripItems.map((item, i) => (
-              <RevealText key={item.label} delay={i * 0.08} className="text-center">
+              <RevealText skipEntrance={skipEntrance} key={item.label} delay={i * 0.08} className="text-center">
                 <p
                   className="text-[#2D241E]/40 text-xs tracking-widest uppercase mb-1"
                   style={{ fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.18em" }}
@@ -283,11 +292,11 @@ export function Home() {
         <div className="max-w-[1400px] mx-auto px-8 md:px-10">
           {/* Sticky section header */}
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true, margin: "-80px" }}
+            initial={skipEntrance ? false : { opacity: 0, y: 20 }}
+            whileInView={skipEntrance ? undefined : { opacity: 1, y: 0 }}
+            viewport={skipEntrance ? undefined : { once: true, margin: "-80px" }}
             transition={{ duration: 0.7, ease: easing }}
-            className="sticky z-30 mb-8 md:mb-12 -mx-8 md:-mx-10 px-8 md:px-10 py-3 md:py-4 flex items-end justify-between gap-4"
+            className="md:sticky z-30 mb-8 md:mb-12 -mx-8 md:-mx-10 px-8 md:px-10 py-3 md:py-4 flex items-end justify-between gap-4"
             style={{
               top: "var(--main-header-h)",
               backgroundColor: "rgba(245,242,237,0.85)",
@@ -333,7 +342,7 @@ export function Home() {
           </div>
 
           {/* Shop All CTA */}
-          <RevealText delay={0.2} className="flex justify-center mt-14">
+          <RevealText skipEntrance={skipEntrance} delay={0.2} className="flex justify-center mt-14">
             <LangLink
               to="/collection"
               className="group flex items-center gap-3 px-10 py-5 rounded-full transition-all duration-400 hover:gap-4"
@@ -371,9 +380,9 @@ export function Home() {
         <div className="max-w-[1400px] mx-auto px-6 md:px-10">
           <div className="grid md:grid-cols-2 gap-8 md:gap-16 items-center">
             {/* Image with parallax */}
-            <RevealText className="relative">
+            <RevealText skipEntrance={skipEntrance} className="relative">
               <div className="relative rounded-[40px] overflow-hidden" style={{ aspectRatio: "4/5" }}>
-                <motion.div className="absolute inset-0 will-change-transform" style={isMobile ? {} : { y: editorialY1 }}>
+                <motion.div className="absolute inset-0 will-change-transform" style={skipEntrance ? {} : { y: editorialY1 }}>
                   {editorialImageSrc ? (
                     <Img
                       src={editorialImageSrc}
@@ -389,9 +398,9 @@ export function Home() {
               <motion.div
                 className="absolute -right-4 md:-right-10 bottom-16 rounded-[24px] p-6 shadow-2xl"
                 style={{ backgroundColor: "#F5F2ED", minWidth: "160px" }}
-                initial={{ opacity: 0, scale: 0.8 }}
-                whileInView={{ opacity: 1, scale: 1 }}
-                viewport={{ once: true }}
+                initial={skipEntrance ? false : { opacity: 0, scale: 0.8 }}
+                whileInView={skipEntrance ? undefined : { opacity: 1, scale: 1 }}
+                viewport={skipEntrance ? undefined : { once: true }}
                 transition={{ duration: 0.6, delay: 0.4, ease: easing }}
               >
                 <p
@@ -411,7 +420,7 @@ export function Home() {
 
             {/* Text */}
             <div className="flex flex-col justify-center gap-8">
-              <RevealText delay={0.1}>
+              <RevealText skipEntrance={skipEntrance} delay={0.1}>
                 <p
                   className="text-[#2D241E]/40 tracking-widest uppercase text-xs"
                   style={{ fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.2em" }}
@@ -419,7 +428,7 @@ export function Home() {
                   {t("home.editorial.eyebrow")}
                 </p>
               </RevealText>
-              <RevealText delay={0.15}>
+              <RevealText skipEntrance={skipEntrance} delay={0.15}>
                 <h2
                   className="text-[#2D241E]"
                   style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "clamp(2rem, 4vw, 3rem)", fontWeight: 400, lineHeight: 1.2 }}
@@ -427,7 +436,7 @@ export function Home() {
                   {t("home.editorial.titleLine1")}<br />{t("home.editorial.titleLine2")}
                 </h2>
               </RevealText>
-              <RevealText delay={0.2}>
+              <RevealText skipEntrance={skipEntrance} delay={0.2}>
                 <p
                   className="text-[#2D241E]/60"
                   style={{ fontFamily: "'DM Sans', sans-serif", lineHeight: 1.8, fontSize: "0.95rem" }}
@@ -435,7 +444,7 @@ export function Home() {
                   {t("home.editorial.paragraph1")}
                 </p>
               </RevealText>
-              <RevealText delay={0.25}>
+              <RevealText skipEntrance={skipEntrance} delay={0.25}>
                 <p
                   className="text-[#2D241E]/60"
                   style={{ fontFamily: "'DM Sans', sans-serif", lineHeight: 1.8, fontSize: "0.95rem" }}
@@ -443,7 +452,7 @@ export function Home() {
                   {t("home.editorial.paragraph2")}
                 </p>
               </RevealText>
-              <RevealText delay={0.3}>
+              <RevealText skipEntrance={skipEntrance} delay={0.3}>
                 <LangLink
                   to="/collection"
                   className="self-start flex items-center gap-3 group"
@@ -463,12 +472,12 @@ export function Home() {
       {/* ═══════════════════════════════
           FULL-WIDTH BANNER
       ═══════════════════════════════ */}
-      <section className="relative py-0 overflow-hidden" style={{ height: "60svh", minHeight: "400px" }}>
+      <section className="relative py-0 overflow-hidden" style={{ height: "calc(var(--app-vh, 1svh) * 60)", minHeight: "400px" }}>
         <motion.div
           className="absolute inset-0"
-          initial={{ opacity: 0 }}
-          whileInView={{ opacity: 1 }}
-          viewport={{ once: true }}
+          initial={skipEntrance ? false : { opacity: 0 }}
+          whileInView={skipEntrance ? undefined : { opacity: 1 }}
+          viewport={skipEntrance ? undefined : { once: true }}
           transition={{ duration: 1 }}
         >
           {lookbookImageSrc ? (
@@ -486,7 +495,7 @@ export function Home() {
           />
         </motion.div>
         <div className="relative z-10 h-full flex flex-col items-center justify-center text-center px-6">
-          <RevealText>
+          <RevealText skipEntrance={skipEntrance}>
             <p
               className="text-white/60 tracking-widest uppercase text-xs mb-5"
               style={{ fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.25em" }}
@@ -494,7 +503,7 @@ export function Home() {
               {t("home.lookbook.eyebrow")}
             </p>
           </RevealText>
-          <RevealText delay={0.1}>
+          <RevealText skipEntrance={skipEntrance} delay={0.1}>
             <h2
               className="text-white mb-8"
               style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "clamp(2rem, 5vw, 4rem)", fontWeight: 300, lineHeight: 1.15 }}
@@ -502,7 +511,7 @@ export function Home() {
               {t("home.lookbook.titleLine1")}<br />{t("home.lookbook.titleLine2")}
             </h2>
           </RevealText>
-          <RevealText delay={0.2}>
+          <RevealText skipEntrance={skipEntrance} delay={0.2}>
             <LangLink
               to="/collection"
               className="px-10 py-4 rounded-full border border-white/40 text-white hover:bg-white hover:text-[#2D241E] transition-all duration-400"
@@ -521,11 +530,11 @@ export function Home() {
         <div className="max-w-[1400px] mx-auto px-6 md:px-10">
           {/* Sticky section header */}
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true, margin: "-80px" }}
+            initial={skipEntrance ? false : { opacity: 0, y: 20 }}
+            whileInView={skipEntrance ? undefined : { opacity: 1, y: 0 }}
+            viewport={skipEntrance ? undefined : { once: true, margin: "-80px" }}
             transition={{ duration: 0.7, ease: easing }}
-            className="sticky z-30 mb-10 md:mb-14 -mx-6 md:-mx-10 px-6 md:px-10 py-3 md:py-4 text-center"
+            className="md:sticky z-30 mb-10 md:mb-14 -mx-6 md:-mx-10 px-6 md:px-10 py-3 md:py-4 text-center"
             style={{
               top: "var(--main-header-h)",
               backgroundColor: "rgba(245,242,237,0.85)",

@@ -5,11 +5,13 @@ import { useTranslation } from "react-i18next";
 import { useProducts } from "../hooks/useProducts";
 import { ProductCard } from "./ProductCard";
 import { loadCarouselSelection } from "../utils/carouselSelection";
+import { useTouchMobileLayout } from "../hooks/useTouchMobileLayout";
 
 const easing = [0.25, 0.1, 0.25, 1] as const;
 
 export function BestSellersCarousel() {
   const { t } = useTranslation();
+  const skipEntrance = useTouchMobileLayout();
   const viewportRef = useRef<HTMLDivElement>(null);
   const [emblaRef, emblaApi] = useEmblaCarousel({
     loop: true,
@@ -71,11 +73,11 @@ export function BestSellersCarousel() {
         {/* Sticky section header — pins below the main header while the
             carousel scrolls past, then releases when the section ends. */}
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true, margin: "-80px" }}
+          initial={skipEntrance ? false : { opacity: 0, y: 20 }}
+          whileInView={skipEntrance ? undefined : { opacity: 1, y: 0 }}
+          viewport={skipEntrance ? undefined : { once: true, margin: "-80px" }}
           transition={{ duration: 0.7, ease: easing }}
-          className="sticky z-30 mb-8 md:mb-12 -mx-6 md:-mx-10 px-6 md:px-10 py-3 md:py-4"
+          className="md:sticky z-30 mb-8 md:mb-12 -mx-6 md:-mx-10 px-6 md:px-10 py-3 md:py-4"
           style={{
             top: "var(--main-header-h)",
             backgroundColor: "rgba(237,233,226,0.85)",
@@ -124,9 +126,9 @@ export function BestSellersCarousel() {
               (viewportRef as React.MutableRefObject<HTMLDivElement | null>).current = el;
             }}
             className="relative overflow-x-hidden overflow-y-visible pt-4 pb-6 sm:pt-6 sm:pb-8 md:pt-8 md:pb-10 px-3 sm:px-12 md:px-8"
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true, margin: "-60px" }}
+            initial={skipEntrance ? false : { opacity: 0, y: 20 }}
+            whileInView={skipEntrance ? undefined : { opacity: 1, y: 0 }}
+            viewport={skipEntrance ? undefined : { once: true, margin: "-60px" }}
             transition={{ duration: 0.7, delay: 0.1, ease: easing }}
           >
             <div className="flex items-start pr-5 md:pr-0 pt-2">
