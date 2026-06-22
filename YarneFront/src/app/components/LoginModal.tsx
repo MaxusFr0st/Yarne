@@ -41,17 +41,23 @@ export function LoginModal() {
       }
     } catch {
       setError("Something went wrong. Please try again.");
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   const googleLogin = useGoogleLogin({
     onSuccess: async (tokenResponse) => {
       setLoading(true);
       setError("");
-      const result = await loginWithOAuth(tokenResponse.access_token, "google");
-      if (!result.ok) setError(result.error ?? "Google sign-in failed. Please try again.");
-      setLoading(false);
+      try {
+        const result = await loginWithOAuth(tokenResponse.access_token, "google");
+        if (!result.ok) setError(result.error ?? "Google sign-in failed. Please try again.");
+      } catch {
+        setError("Google sign-in failed. Check that the backend is running.");
+      } finally {
+        setLoading(false);
+      }
     },
     onError: () => {
       setError("Google sign-in was cancelled or failed.");
@@ -172,7 +178,7 @@ export function LoginModal() {
                   <button
                     type="button"
                     disabled={loading}
-                    onClick={() => { setError(""); setLoading(true); googleLogin(); }}
+                    onClick={() => { setError(""); googleLogin(); }}
                     className="w-full flex items-center justify-center gap-3 py-3.5 rounded-full border border-[#2D241E]/12 bg-white hover:bg-gray-50 transition-colors duration-200 disabled:opacity-50"
                     style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "0.875rem", color: "#3c3c3c" }}
                   >

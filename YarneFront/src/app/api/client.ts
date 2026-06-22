@@ -22,8 +22,15 @@ export async function apiRequest<T>(
 
   let res: Response;
   try {
-    res = await fetch(buildApiUrl(API_BASE, endpoint), { ...options, headers });
-  } catch {
+    res = await fetch(buildApiUrl(API_BASE, endpoint), {
+      ...options,
+      headers,
+      signal: options.signal ?? AbortSignal.timeout(20_000),
+    });
+  } catch (err) {
+    if (err instanceof DOMException && err.name === "TimeoutError") {
+      throw new Error(`API request timed out (${API_BASE}). The backend may be down — check Railway deploy logs.`);
+    }
     throw new Error(`Failed to reach API (${API_BASE}). Check backend/CORS and retry.`);
   }
 

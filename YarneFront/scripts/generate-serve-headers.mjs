@@ -15,7 +15,14 @@ function apiOrigin(raw) {
   }
 }
 
-const connectSrc = new Set(["'self'", "https://ipwho.is"]);
+const connectSrc = new Set([
+  "'self'",
+  "https://ipwho.is",
+  "https://accounts.google.com",
+  "https://oauth2.googleapis.com",
+  "https://www.googleapis.com",
+  "https://appleid.apple.com",
+]);
 const api = apiOrigin(process.env.VITE_API_URL);
 if (api) connectSrc.add(api);
 connectSrc.add("http://localhost:8080");
@@ -23,11 +30,12 @@ connectSrc.add("http://localhost:5000");
 
 const csp = [
   "default-src 'self'",
-  "script-src 'self'",
-  "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+  "script-src 'self' https://accounts.google.com https://appleid.cdn-apple.com",
+  "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://accounts.google.com",
   "img-src 'self' https: data: blob:",
   `connect-src ${[...connectSrc].join(" ")}`,
   "font-src 'self' data: https://fonts.gstatic.com",
+  "frame-src https://accounts.google.com https://appleid.apple.com",
   "frame-ancestors 'none'",
   "base-uri 'self'",
   "form-action 'self'",
