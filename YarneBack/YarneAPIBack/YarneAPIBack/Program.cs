@@ -17,12 +17,9 @@ builder.Logging.AddSimpleConsole(options =>
     options.TimestampFormat = "yyyy-MM-dd HH:mm:ss ";
 });
 
-// Railway assigns a runtime port via PORT; bind explicitly when present.
-var railwayPort = Environment.GetEnvironmentVariable("PORT");
-if (!string.IsNullOrWhiteSpace(railwayPort))
-{
-    builder.WebHost.UseUrls($"http://0.0.0.0:{railwayPort}");
-}
+// Railway injects PORT — always bind to it (healthcheck probes this exact port).
+var listenPort = Environment.GetEnvironmentVariable("PORT") ?? "8080";
+builder.WebHost.UseUrls($"http://0.0.0.0:{listenPort}");
 
 // Placeholder used only when DATABASE_URL is not yet configured on Railway.
 // The app starts and /healthz responds while bootstrap logs the setup steps.
@@ -150,7 +147,10 @@ builder.Services.AddSwaggerGen(c =>
 var app = builder.Build();
 
 if (app.Environment.IsProduction())
+{
     app.Logger.LogInformation("JWT secret loaded from {Source}", secretSource);
+    app.Logger.LogInformation("Listening on http://0.0.0.0:{Port}", listenPort);
+}
 
 if (app.Environment.IsDevelopment())
 {

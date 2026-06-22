@@ -10,10 +10,9 @@ RUN dotnet publish "YarneAPIBack.csproj" -c Release -o /app/publish
 FROM mcr.microsoft.com/dotnet/aspnet:9.0 AS final
 WORKDIR /app
 
-EXPOSE 8080
 ENV ASPNETCORE_ENVIRONMENT=Production
-ENV ASPNETCORE_HTTP_PORTS=8080
-ENV ASPNETCORE_URLS=http://0.0.0.0:8080
+# Railway injects PORT at runtime — Program.cs binds to it.
+# Do NOT set ASPNETCORE_URLS or ASPNETCORE_HTTP_PORTS here; they conflict with PORT.
 
 COPY --from=build /app/publish .
 ENTRYPOINT ["dotnet", "YarneAPIBack.dll"]

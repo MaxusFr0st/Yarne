@@ -15,13 +15,15 @@ public static class JwtSecretResolver
         if (!string.IsNullOrEmpty(fromRailway))
             return (fromRailway, RailwayVariable);
 
+        // ASP.NET binds Jwt__Secret env var into configuration["Jwt:Secret"].
+        var fromConfig = configuration["Jwt:Secret"]?.Trim();
+        if (!string.IsNullOrEmpty(fromConfig))
+            return (fromConfig, "Jwt:Secret");
+
+        // Legacy — lowest priority; delete JWT_SECRET on Railway if present.
         var fromLegacy = Environment.GetEnvironmentVariable(LegacyVariable)?.Trim();
         if (!string.IsNullOrEmpty(fromLegacy))
             return (fromLegacy, LegacyVariable);
-
-        var fromConfig = configuration["Jwt:Secret"]?.Trim();
-        if (!string.IsNullOrEmpty(fromConfig))
-            return (fromConfig, "Jwt:Secret (appsettings)");
 
         throw new InvalidOperationException(
             $"JWT secret is not configured. Set {RailwayVariable} in Railway environment variables.");
