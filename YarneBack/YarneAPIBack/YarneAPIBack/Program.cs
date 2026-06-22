@@ -43,15 +43,12 @@ builder.Services.AddDbContext<YarneDbContext>((sp, options) =>
         npgsqlOptions => npgsqlOptions.EnableRetryOnFailure(maxRetryCount: 10, maxRetryDelay: TimeSpan.FromSeconds(5), errorCodesToAdd: null));
 });
 
-// JWT
+// JWT — Railway Jwt__Secret takes priority over appsettings (see JwtSecretResolver).
 builder.Services.Configure<JwtSettings>(builder.Configuration.GetSection(JwtSettings.SectionName));
 var jwtSettings = builder.Configuration.GetSection(JwtSettings.SectionName).Get<JwtSettings>()
     ?? throw new InvalidOperationException("JWT settings are required");
-var legacyJwtSecret = Environment.GetEnvironmentVariable("JWT_SECRET");
-if (!string.IsNullOrWhiteSpace(legacyJwtSecret))
-{
-    jwtSettings.Secret = legacyJwtSecret;
-}
+var (resolvedSecret, secretSource) = JwtSecretResolver.Resolve(builder.Configuration);
+jwtSettings.Secret = resolvedSecret;
 ProductionStartupValidator.Validate(builder.Environment, jwtSettings);
 
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
@@ -151,6 +148,9 @@ builder.Services.AddSwaggerGen(c =>
 });
 
 var app = builder.Build();
+
+if (app.Environment.IsProduction())
+    app.Logger.LogInformation("JWT secret loaded from {Source}", secretSource);
 
 if (app.Environment.IsDevelopment())
 {
