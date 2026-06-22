@@ -13,6 +13,8 @@ namespace YarneAPIBack.Services;
 
 public class AuthService : IAuthService
 {
+    private static readonly JwtSecurityTokenHandler TokenHandler = new();
+
     private readonly YarneDbContext _context;
     private readonly JwtSettings _jwtSettings;
 
@@ -24,14 +26,15 @@ public class AuthService : IAuthService
 
     public async Task<AuthResponse?> RegisterAsync(RegisterRequest request, CancellationToken ct = default)
     {
-        if (await _context.Customers.AnyAsync(c => c.Email == request.Email, ct))
+        var emailTaken = await _context.Customers.AnyAsync(c => c.Email == request.Email, ct);
+        if (emailTaken)
             return null;
 
-        if (await _context.Customers.AnyAsync(c => c.UserName == request.UserName, ct))
+        var usernameTaken = await _context.Customers.AnyAsync(c => c.UserName == request.UserName, ct);
+        if (usernameTaken)
             return null;
 
-        var salt = BCrypt.Net.BCrypt.GenerateSalt(12);
-        var hash = BCrypt.Net.BCrypt.HashPassword(request.Password, salt);
+        var hash = BCrypt.Net.BCrypt.HashPassword(request.Password, workFactor: 12);
 
         var customer = new Models.Customer
         {
@@ -41,7 +44,7 @@ public class AuthService : IAuthService
             Email = request.Email,
             PhoneNumber = request.PhoneNumber,
             PasswordHash = hash,
-            PasswordSalt = salt,
+            PasswordSalt = hash,
             IsActive = true,
         };
 
@@ -78,28 +81,26 @@ public class AuthService : IAuthService
 
     private async Task<AuthResponse> GenerateTokenAsync(Models.Customer customer, CancellationToken ct = default)
     {
-        var roleName = "Customer";
         var roles = await _context.CustomerRoles
             .Where(cr => cr.CustomerId == customer.Id)
             .Select(cr => cr.Role.Name)
             .ToListAsync(ct);
-        if (roles.Contains("Admin"))
-            roleName = "Admin";
-        else if (roles.Count > 0)
-            roleName = roles[0];
+
+        var roleName = roles.Contains("Admin") ? "Admin"
+            : roles.Count > 0 ? roles[0]
+            : "Customer";
 
         var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_jwtSettings.Secret));
         var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
         var expires = DateTime.UtcNow.Add(_jwtSettings.GetExpirationForRole(roleName));
 
-        var claims = new List<Claim>
+        var claims = new[]
         {
-            new(ClaimTypes.NameIdentifier, customer.Id.ToString()),
-            new(ClaimTypes.Email, customer.Email),
-            new(ClaimTypes.Name, customer.UserName),
-            new(ClaimTypes.Role, roleName),
-            new(JwtRegisteredClaimNames.Sub, customer.Id.ToString()),
-            new(JwtRegisteredClaimNames.Email, customer.Email),
+            new Claim(JwtRegisteredClaimNames.Sub, customer.Id.ToString()),
+            new Claim(JwtRegisteredClaimNames.Email, customer.Email),
+            new Claim(JwtRegisteredClaimNames.UniqueName, customer.UserName),
+            new Claim(ClaimTypes.NameIdentifier, customer.Id.ToString()),
+            new Claim(ClaimTypes.Role, roleName),
         };
 
         var token = new JwtSecurityToken(
@@ -111,7 +112,7 @@ public class AuthService : IAuthService
 
         return new AuthResponse
         {
-            Token = new JwtSecurityTokenHandler().WriteToken(token),
+            Token = TokenHandler.WriteToken(token),
             Email = customer.Email,
             UserName = customer.UserName,
             FullName = $"{customer.FirstName} {customer.LastName}",
