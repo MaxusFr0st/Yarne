@@ -8,7 +8,7 @@ COPY package.json package-lock.json ./
 RUN npm install --include=dev
 
 COPY . .
-RUN node ./node_modules/vite/bin/vite.js build
+RUN node ./node_modules/vite/bin/vite.js build && node scripts/generate-serve-headers.mjs
 
 FROM node:20-alpine AS runtime
 WORKDIR /app

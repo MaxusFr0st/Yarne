@@ -76,12 +76,26 @@ builder.Services.AddRateLimiter(options =>
                 AutoReplenishment = true,
             });
     });
+    options.AddPolicy("auth-login", context =>
+    {
+        var key = context.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+        return RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: key,
+            factory: _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 8,
+                Window = TimeSpan.FromMinutes(1),
+                QueueLimit = 0,
+                AutoReplenishment = true,
+            });
+    });
 });
 
 // Services (SOLID - dependency injection)
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IProductService, ProductService>();
 builder.Services.AddScoped<IStorefrontSettingsService, StorefrontSettingsService>();
+builder.Services.AddScoped<IAdminActivityLogService, AdminActivityLogService>();
 
 builder.Services.AddControllers();
 

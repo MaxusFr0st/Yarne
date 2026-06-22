@@ -4,7 +4,7 @@
   "version": "0.0.1",
   "type": "module",
   "scripts": {
-    "build": "npx vite build",
+    "build": "npx vite build && node scripts/generate-serve-headers.mjs",
     "dev": "vite"
   },
   "dependencies": {

@@ -226,18 +226,6 @@ public class OrdersController : ControllerBase
             quantityByProductId[product.Id] = quantityByProductId.GetValueOrDefault(product.Id) + item.Quantity;
         }
 
-        foreach (var (productId, requestedQty) in quantityByProductId)
-        {
-            var product = productById[productId];
-            if (requestedQty > product.QuantityInStock)
-            {
-                return BadRequest(new
-                {
-                    message = $"Not enough stock for '{product.ProductCode}'. Available: {product.QuantityInStock}, requested: {requestedQty}.",
-                });
-            }
-        }
-
         var orderTotal = orderItems.Sum(i => i.UnitPrice * i.Quantity);
         var order = new Order
         {
@@ -250,8 +238,29 @@ public class OrdersController : ControllerBase
             OrderItems = orderItems,
         };
 
+        await using var transaction = await _context.Database.BeginTransactionAsync(ct);
+        foreach (var (productId, requestedQty) in quantityByProductId)
+        {
+            var product = productById[productId];
+            var rowsAffected = await _context.Products
+                .Where(p => p.Id == productId && p.QuantityInStock >= requestedQty)
+                .ExecuteUpdateAsync(
+                    setters => setters.SetProperty(p => p.QuantityInStock, p => p.QuantityInStock - requestedQty),
+                    ct);
+
+            if (rowsAffected == 0)
+            {
+                await transaction.RollbackAsync(ct);
+                return BadRequest(new
+                {
+                    message = $"Not enough stock for '{product.ProductCode}'. Please refresh and try again.",
+                });
+            }
+        }
+
         _context.Orders.Add(order);
         await _context.SaveChangesAsync(ct);
+        await transaction.CommitAsync(ct);
 
         var createdOrder = await BuildOrderQuery().FirstOrDefaultAsync(o => o.Id == order.Id, ct);
         if (createdOrder == null)

@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using YarneAPIBack.DTOs.Auth;
 using YarneAPIBack.Services.Contracts;
 
@@ -9,10 +10,12 @@ namespace YarneAPIBack.Controllers;
 public class AuthController : ControllerBase
 {
     private readonly IAuthService _authService;
+    private readonly IAdminActivityLogService _activityLogs;
 
-    public AuthController(IAuthService authService)
+    public AuthController(IAuthService authService, IAdminActivityLogService activityLogs)
     {
         _authService = authService;
+        _activityLogs = activityLogs;
     }
 
     [HttpPost("register")]
@@ -28,12 +31,31 @@ public class AuthController : ControllerBase
         if (result == null)
             return BadRequest(new { message = "Email or UserName already registered" });
 
+        await _activityLogs.LogAsync(
+            "user",
+            "created",
+            $"User account created: {request.Email}",
+            request.Email,
+            $"{request.FirstName} {request.LastName}".Trim(),
+            new
+            {
+                request.Email,
+                request.UserName,
+                request.FirstName,
+                request.LastName,
+            },
+            null,
+            request.Email,
+            ct);
+
         return Ok(result);
     }
 
     [HttpPost("login")]
+    [EnableRateLimiting("auth-login")]
     [ProducesResponseType(typeof(AuthResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
     public async Task<ActionResult<AuthResponse>> Login([FromBody] LoginRequest request, CancellationToken ct)
     {
         if (request == null)
