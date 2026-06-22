@@ -99,11 +99,12 @@ export function MobileProductDetailView({
         style={{ height: "calc(var(--app-vh, 1svh) * 58)", maxHeight: "420px" }}
       >
         <div ref={emblaRef} className="h-full overflow-hidden touch-pan-x">
-          <div className="flex h-full">
+          <div className="flex h-full" style={{ willChange: "transform" }}>
             {gallerySlides.map((src, i) => (
               <div
                 key={`${src || "placeholder"}-${i}`}
                 className="relative min-w-0 shrink-0 grow-0 basis-full h-full"
+                style={{ contain: "layout style paint" }}
               >
                 {src ? (
                   <ImageWithFallback

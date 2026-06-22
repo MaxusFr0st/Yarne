@@ -68,7 +68,7 @@ export function MobileRelatedProducts({ products }: MobileRelatedProductsProps) 
         }}
         className="relative overflow-x-hidden overflow-y-visible -mx-[clamp(14px,3.6vw,22px)] px-[clamp(14px,3.6vw,22px)] pb-2 touch-pan-x"
       >
-        <div className="flex items-start gap-[clamp(10px,2.5vw,14px)]">
+        <div className="flex items-start gap-[clamp(10px,2.5vw,14px)]" style={{ willChange: "transform" }}>
           {products.map((product, i) => (
             <div
               key={product.id}

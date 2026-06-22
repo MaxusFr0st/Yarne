@@ -154,6 +154,7 @@ export function Home() {
               src={heroImageSrc}
               alt="Yarné Hero"
               className="w-full h-full object-cover"
+              priority
             />
           ) : (
             <div className="absolute inset-0" style={{ background: "linear-gradient(135deg, #6b6560 0%, #a39e97 45%, #d4cfc8 100%)" }} />

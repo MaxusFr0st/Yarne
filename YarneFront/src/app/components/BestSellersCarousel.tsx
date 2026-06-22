@@ -17,7 +17,7 @@ export function BestSellersCarousel() {
     loop: true,
     align: "center",
     containScroll: "trimSnaps",
-    duration: 400,
+    duration: 25,
     dragFree: false,
     breakpoints: {
       "(min-width: 768px)": { align: "start" },
@@ -131,7 +131,7 @@ export function BestSellersCarousel() {
             viewport={skipEntrance ? undefined : { once: true, margin: "-60px" }}
             transition={{ duration: 0.7, delay: 0.1, ease: easing }}
           >
-            <div className="flex items-start pr-5 md:pr-0 pt-2">
+            <div className="flex items-start pr-5 md:pr-0 pt-2" style={{ willChange: "transform" }}>
               {carouselProducts.map((product, i) => (
                 <div
                   key={`${product.id}-${i}`}
