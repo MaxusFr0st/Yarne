@@ -12,6 +12,11 @@ using YarneAPIBack.Services.Contracts;
 
 var builder = WebApplication.CreateBuilder(args);
 
+builder.Logging.AddSimpleConsole(options =>
+{
+    options.TimestampFormat = "yyyy-MM-dd HH:mm:ss ";
+});
+
 // Railway assigns a runtime port via PORT; bind explicitly when present.
 var railwayPort = Environment.GetEnvironmentVariable("PORT");
 if (!string.IsNullOrWhiteSpace(railwayPort))
@@ -19,18 +24,16 @@ if (!string.IsNullOrWhiteSpace(railwayPort))
     builder.WebHost.UseUrls($"http://0.0.0.0:{railwayPort}");
 }
 
-// Database — Railway Postgres (DATABASE_URL / PG*), with retry on transient startup
-var postgresConnectionString = RailwayDatabaseConfiguration.Resolve(builder.Configuration);
-
-builder.Logging.AddSimpleConsole(options =>
+// Database — resolved when DbContext is first used so /healthz can start if Postgres is slow/misconfigured.
+builder.Services.AddDbContext<YarneDbContext>((sp, options) =>
 {
-    options.TimestampFormat = "yyyy-MM-dd HH:mm:ss ";
-});
-
-builder.Services.AddDbContext<YarneDbContext>(options =>
+    var configuration = sp.GetRequiredService<IConfiguration>();
+    var logger = sp.GetService<ILogger<YarneDbContext>>();
+    var postgresConnectionString = RailwayDatabaseConfiguration.Resolve(configuration, logger);
     options.UseNpgsql(
         postgresConnectionString,
-        npgsqlOptions => npgsqlOptions.EnableRetryOnFailure(maxRetryCount: 10, maxRetryDelay: TimeSpan.FromSeconds(5), errorCodesToAdd: null)));
+        npgsqlOptions => npgsqlOptions.EnableRetryOnFailure(maxRetryCount: 10, maxRetryDelay: TimeSpan.FromSeconds(5), errorCodesToAdd: null));
+});
 
 // JWT
 builder.Services.Configure<JwtSettings>(builder.Configuration.GetSection(JwtSettings.SectionName));
@@ -65,6 +68,9 @@ builder.Services.AddRateLimiter(options =>
     options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
     options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(context =>
     {
+        if (context.Request.Path.StartsWithSegments("/healthz"))
+            return RateLimitPartition.GetNoLimiter("healthz");
+
         var key = context.Connection.RemoteIpAddress?.ToString() ?? "unknown";
         return RateLimitPartition.GetFixedWindowLimiter(
             partitionKey: key,
@@ -139,7 +145,9 @@ builder.Services.AddSwaggerGen(c =>
 var app = builder.Build();
 
 // Railway health check hits /healthz before DB migrations finish — map early and start listening first.
-app.MapGet("/healthz", () => Results.Ok(new { status = "ok" }));
+app.MapGet("/healthz", () => Results.Ok(new { status = "ok" }))
+    .DisableRateLimiting()
+    .AllowAnonymous();
 
 if (app.Environment.IsDevelopment())
 {
