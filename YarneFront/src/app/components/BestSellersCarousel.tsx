@@ -107,35 +107,64 @@ export function BestSellersCarousel() {
           </h2>
         </motion.div>
 
-        {/* Carousel – wider container with edge fade (lighter on mobile) */}
+        {/* Carousel – Embla slide-gap pattern (padding-left per slide, not margin-right) */}
         <style>{`
-          .carousel-fade { mask-image: linear-gradient(to right, rgba(0,0,0,0.35) 0%, black 16px, black calc(100% - 16px), rgba(0,0,0,0.35) 100%); -webkit-mask-image: linear-gradient(to right, rgba(0,0,0,0.35) 0%, black 16px, black calc(100% - 16px), rgba(0,0,0,0.35) 100%); }
-          @media (min-width: 768px) { .carousel-fade { mask-image: linear-gradient(to right, rgba(0,0,0,0.25) 0%, black 48px, black calc(100% - 48px), rgba(0,0,0,0.25) 100%); -webkit-mask-image: linear-gradient(to right, rgba(0,0,0,0.25) 0%, black 48px, black calc(100% - 48px), rgba(0,0,0,0.25) 100%); } }
-          @media (max-width: 639px) {
-            .bestsellers-slide { flex: 0 0 62%; max-width: 14.5rem; }
+          .bestsellers-carousel {
+            --slide-spacing: 1rem;
+            --slide-size: 74%;
           }
-          @media (max-width: 374px) {
-            .bestsellers-slide { flex: 0 0 66%; max-width: 13.5rem; }
+          @media (min-width: 640px) {
+            .bestsellers-carousel {
+              --slide-spacing: 1.25rem;
+              --slide-size: 46%;
+            }
+          }
+          @media (min-width: 768px) {
+            .bestsellers-carousel {
+              --slide-spacing: 1.5rem;
+              --slide-size: calc((100% - (var(--slide-spacing) * 2)) / 3);
+            }
+          }
+          @media (min-width: 1024px) {
+            .bestsellers-carousel {
+              --slide-size: calc((100% - (var(--slide-spacing) * 3)) / 4);
+            }
+          }
+          .carousel-fade {
+            mask-image: linear-gradient(to right, rgba(0,0,0,0.35) 0%, black 16px, black calc(100% - 16px), rgba(0,0,0,0.35) 100%);
+            -webkit-mask-image: linear-gradient(to right, rgba(0,0,0,0.35) 0%, black 16px, black calc(100% - 16px), rgba(0,0,0,0.35) 100%);
+          }
+          @media (min-width: 768px) {
+            .carousel-fade {
+              mask-image: linear-gradient(to right, rgba(0,0,0,0.25) 0%, black 48px, black calc(100% - 48px), rgba(0,0,0,0.25) 100%);
+              -webkit-mask-image: linear-gradient(to right, rgba(0,0,0,0.25) 0%, black 48px, black calc(100% - 48px), rgba(0,0,0,0.25) 100%);
+            }
           }
         `}</style>
-        {/* Extra top space on parent — card aspect ratio lives on ProductCard, not here */}
         <div className="carousel-fade relative -mx-4 sm:-mx-12 md:-mx-8 pt-8 md:pt-10 pb-2 min-h-0 sm:min-h-[380px] md:min-h-[480px]">
           <motion.div
             ref={(el) => {
               (emblaRef as (el: HTMLDivElement | null) => void)(el);
               (viewportRef as React.MutableRefObject<HTMLDivElement | null>).current = el;
             }}
-            className="relative overflow-x-hidden overflow-y-visible pt-4 pb-6 sm:pt-6 sm:pb-8 md:pt-8 md:pb-10 px-3 sm:px-12 md:px-8"
+            className="bestsellers-carousel relative overflow-x-hidden overflow-y-visible touch-pan-x pt-4 pb-6 sm:pt-6 sm:pb-8 md:pt-8 md:pb-10 px-3 sm:px-12 md:px-8"
             initial={skipEntrance ? false : { opacity: 0, y: 20 }}
             whileInView={skipEntrance ? undefined : { opacity: 1, y: 0 }}
             viewport={skipEntrance ? undefined : { once: true, margin: "-60px" }}
             transition={{ duration: 0.7, delay: 0.1, ease: easing }}
           >
-            <div className="flex items-start pr-5 md:pr-0 pt-2" style={{ willChange: "transform" }}>
+            <div
+              className="flex items-start pt-2"
+              style={{ marginLeft: "calc(var(--slide-spacing) * -1)", willChange: "transform" }}
+            >
               {carouselProducts.map((product, i) => (
                 <div
                   key={`${product.id}-${i}`}
-                  className="bestsellers-slide shrink-0 min-w-0 mr-3 sm:mr-5 sm:basis-[44%] md:basis-[calc((100%-3rem)/3.2)] lg:basis-[calc((100%-4rem)/4)] self-start"
+                  className="shrink-0 min-w-0 self-start"
+                  style={{
+                    paddingLeft: "var(--slide-spacing)",
+                    flex: "0 0 var(--slide-size)",
+                  }}
                 >
                   <ProductCard product={product} index={i} size="carousel" inCarousel viewportRoot={viewportRef} />
                 </div>
@@ -144,24 +173,30 @@ export function BestSellersCarousel() {
           </motion.div>
         </div>
 
-        {/* Dot Indicators */}
+        {/* Dot Indicators — gap-3 meets 12px min touch spacing between targets */}
         {scrollSnaps.length > 1 && (
           <div className="flex items-center justify-center gap-3 mt-8 sm:mt-12 md:mt-10">
             {scrollSnaps.map((_, index) => (
               <button
                 key={index}
+                type="button"
                 onClick={() => emblaApi?.scrollTo(index)}
-                className="transition-all duration-300 rounded-full"
-                style={{
-                  width: index === selectedIndex ? 28 : 10,
-                  height: 10,
-                  backgroundColor:
-                    index === selectedIndex
-                      ? "#4A0E0E"
-                      : "rgba(45,36,30,0.2)",
-                }}
+                className="flex items-center justify-center min-h-[44px] min-w-[44px] cursor-pointer rounded-full transition-all duration-300"
                 aria-label={`Go to slide ${index + 1}`}
-              />
+                aria-current={index === selectedIndex}
+              >
+                <span
+                  className="block rounded-full transition-all duration-300"
+                  style={{
+                    width: index === selectedIndex ? 28 : 10,
+                    height: 10,
+                    backgroundColor:
+                      index === selectedIndex
+                        ? "#4A0E0E"
+                        : "rgba(45,36,30,0.2)",
+                  }}
+                />
+              </button>
             ))}
           </div>
         )}

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type CSSProperties } from "react";
 import useEmblaCarousel from "embla-carousel-react";
 import { useTranslation } from "react-i18next";
 import type { Product } from "../types/product";
@@ -66,14 +66,21 @@ export function MobileRelatedProducts({ products }: MobileRelatedProductsProps) 
           (emblaRef as (node: HTMLDivElement | null) => void)(el);
           viewportRef.current = el;
         }}
-        className="relative overflow-x-hidden overflow-y-visible -mx-[clamp(14px,3.6vw,22px)] px-[clamp(14px,3.6vw,22px)] pb-2 touch-pan-x"
+        className="related-carousel relative overflow-x-hidden overflow-y-visible touch-pan-x -mx-[clamp(14px,3.6vw,22px)] px-[clamp(14px,3.6vw,22px)] pb-2"
+        style={{ "--slide-spacing": "clamp(14px, 3.6vw, 18px)", "--slide-size": "clamp(68%, 72vw, 76%)" } as CSSProperties}
       >
-        <div className="flex items-start gap-[clamp(10px,2.5vw,14px)]" style={{ willChange: "transform" }}>
+        <div
+          className="flex items-start"
+          style={{ marginLeft: "calc(var(--slide-spacing) * -1)", willChange: "transform" }}
+        >
           {products.map((product, i) => (
             <div
               key={product.id}
               className="shrink-0 min-w-0 overflow-visible"
-              style={{ flex: "0 0 clamp(56%, 60vw, 66%)" }}
+              style={{
+                paddingLeft: "var(--slide-spacing)",
+                flex: "0 0 var(--slide-size)",
+              }}
             >
               <ProductCard product={product} index={i} size="carousel" inCarousel viewportRoot={viewportRef} />
             </div>
@@ -82,21 +89,25 @@ export function MobileRelatedProducts({ products }: MobileRelatedProductsProps) 
       </div>
 
       {products.length > 1 && (
-        <div className="flex items-center justify-center gap-1.5 mt-[clamp(10px,2.5vw,14px)]">
+        <div className="flex items-center justify-center gap-3 mt-[clamp(10px,2.5vw,14px)]">
           {products.map((_, i) => (
             <button
               key={i}
               type="button"
               onClick={() => emblaApi?.scrollTo(i)}
-              className="rounded-full transition-all duration-300 cursor-pointer"
-              style={{
-                width: selectedIndex === i ? "clamp(18px, 4.5vw, 22px)" : "clamp(6px, 1.5vw, 7px)",
-                height: "clamp(6px, 1.5vw, 7px)",
-                backgroundColor: selectedIndex === i ? "#2D241E" : "rgba(45,36,30,0.2)",
-              }}
+              className="flex items-center justify-center min-h-[44px] min-w-[44px] cursor-pointer rounded-full"
               aria-label={`${t("product.relatedSlide", { defaultValue: "Related product" })} ${i + 1}`}
               aria-current={selectedIndex === i}
-            />
+            >
+              <span
+                className="block rounded-full transition-all duration-300"
+                style={{
+                  width: selectedIndex === i ? "clamp(18px, 4.5vw, 22px)" : "clamp(6px, 1.5vw, 7px)",
+                  height: "clamp(6px, 1.5vw, 7px)",
+                  backgroundColor: selectedIndex === i ? "#2D241E" : "rgba(45,36,30,0.2)",
+                }}
+              />
+            </button>
           ))}
         </div>
       )}

@@ -113,7 +113,7 @@ export function ProductCard({ product, index = 0, size = "medium", inCarousel = 
                 style={{
                   opacity: i === activeColor ? 1 : 0,
                   transition: "opacity 0.6s cubic-bezier(0.25, 0.1, 0.25, 1), transform 0.5s cubic-bezier(0.25, 0.1, 0.25, 1)",
-                  transform: isHovered ? "scale(1.02)" : "scale(1)",
+                  transform: isHovered && !isCarouselCard ? "scale(1.02)" : "scale(1)",
                   transformOrigin: isCarouselCard ? "center top" : "center center",
                 }}
               />
@@ -204,7 +204,7 @@ export function ProductCard({ product, index = 0, size = "medium", inCarousel = 
         </div>
 
         {/* Product Info */}
-        <div className={`${isCarouselCard ? "mt-2.5 overflow-visible pb-0.5" : "mt-4"} px-1`}>
+        <div className={`${isCarouselCard ? "mt-3 overflow-visible pb-1" : "mt-4"} px-0.5`}>
           <div className="flex items-start justify-between gap-2">
             <div className="min-w-0">
               <p
