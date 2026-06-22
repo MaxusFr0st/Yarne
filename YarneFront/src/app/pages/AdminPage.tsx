@@ -1450,52 +1450,90 @@ function asStringArray(value: unknown): string[] {
   return value.filter((v): v is string => typeof v === "string" && v.trim().length > 0);
 }
 
-function parseLogDetails(detailsJson: string | null): string | null {
-  if (!detailsJson) return null;
+type LogDiffPill = { label: string; from: string; to: string };
+
+const LOG_FIELD_LABELS: Record<string, string> = {
+  name: "Name",
+  productCode: "SKU",
+  price: "Price",
+  quantityInStock: "Stock",
+  categoryName: "Category",
+  material: "Material",
+  isActive: "Active",
+  isNew: "New",
+  isBestseller: "Bestseller",
+  lace: "Lace",
+  description: "Description",
+};
+
+function formatFieldValue(key: string, value: unknown): string {
+  if (value == null) return "—";
+  if (key === "price") return `€${value}`;
+  if (typeof value === "boolean") return value ? "Yes" : "No";
+  const s = String(value);
+  return s.length > 28 ? `${s.slice(0, 26)}…` : s;
+}
+
+function parseLogDiff(detailsJson: string | null): { pills: LogDiffPill[]; extra: string | null } {
+  if (!detailsJson) return { pills: [], extra: null };
   try {
     const obj = JSON.parse(detailsJson) as Record<string, unknown>;
-    const parts: string[] = [];
+    const pills: LogDiffPill[] = [];
+    const extras: string[] = [];
 
     if (obj.changes && typeof obj.changes === "object" && !Array.isArray(obj.changes)) {
       const changes = obj.changes as Record<string, { from?: unknown; to?: unknown }>;
-      const labels: Record<string, string> = {
-        name: "Name",
-        productCode: "SKU",
-        price: "Price",
-        quantityInStock: "Stock",
-        categoryName: "Category",
-        material: "Material",
-        isActive: "Active",
-        isNew: "New",
-        isBestseller: "Bestseller",
-        lace: "Lace",
-        description: "Description",
-      };
       for (const [key, change] of Object.entries(changes)) {
-        const label = labels[key] ?? key;
-        const from = key === "price" && change.from != null ? `€${change.from}` : String(change.from ?? "—");
-        const to = key === "price" && change.to != null ? `€${change.to}` : String(change.to ?? "—");
-        parts.push(`${label}: ${from} → ${to}`);
+        pills.push({
+          label: LOG_FIELD_LABELS[key] ?? key,
+          from: formatFieldValue(key, change.from),
+          to: formatFieldValue(key, change.to),
+        });
       }
-    } else {
-      if (obj.price != null) parts.push(`€${obj.price}`);
-      if (obj.quantityInStock != null) parts.push(`stock ${obj.quantityInStock}`);
-      if (typeof obj.categoryName === "string") parts.push(obj.categoryName);
     }
 
-    if (typeof obj.email === "string") parts.push(obj.email);
-    if (typeof obj.label === "string") parts.push(obj.label);
-    if (typeof obj.productCode === "string" && !obj.changes) parts.push(obj.productCode);
-    if (typeof obj.catalogType === "string") parts.push(obj.catalogType);
     if (typeof obj.previousStatus === "string" && typeof obj.newStatus === "string") {
-      parts.push(`${obj.previousStatus} → ${obj.newStatus}`);
+      pills.push({ label: "Status", from: obj.previousStatus, to: obj.newStatus });
     }
-    if (typeof obj.originalFileName === "string") parts.push(obj.originalFileName);
-    if (typeof obj.customerEmail === "string") parts.push(obj.customerEmail);
-    return parts.length > 0 ? parts.join(" · ") : null;
+
+    if (typeof obj.originalFileName === "string") extras.push(obj.originalFileName);
+    if (typeof obj.catalogType === "string" && !pills.length) extras.push(obj.catalogType);
+    if (typeof obj.customerEmail === "string") extras.push(obj.customerEmail);
+    if (typeof obj.email === "string") extras.push(obj.email);
+    if (typeof obj.label === "string") extras.push(obj.label);
+    if (typeof obj.productCode === "string" && !pills.length) extras.push(obj.productCode);
+
+    const extra = extras.length > 0 ? extras.join(" · ") : null;
+    return { pills, extra };
   } catch {
-    return null;
+    return { pills: [], extra: null };
   }
+}
+
+function LogDiffPills({ pills }: { pills: LogDiffPill[] }) {
+  if (pills.length === 0) return null;
+  return (
+    <div className="flex flex-wrap gap-1.5 mt-2">
+      {pills.map((p) => (
+        <span
+          key={p.label}
+          className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px]"
+          style={{
+            backgroundColor: "rgba(45,36,30,0.06)",
+            color: "#2D241E",
+            fontFamily: "'DM Sans', sans-serif",
+            letterSpacing: "0.02em",
+          }}
+        >
+          <span style={{ color: "rgba(45,36,30,0.5)" }}>{p.label}</span>
+          <span className="mx-0.5" style={{ color: "rgba(45,36,30,0.3)" }}>·</span>
+          <span style={{ color: "#4A0E0E", opacity: 0.75, textDecoration: "line-through" }}>{p.from}</span>
+          <span style={{ color: "rgba(45,36,30,0.35)", margin: "0 1px" }}>→</span>
+          <span style={{ color: "#2D6A4F" }}>{p.to}</span>
+        </span>
+      ))}
+    </div>
+  );
 }
 
 type LogImageGroups = { added: string[]; removed: string[]; current: string[] };
@@ -4126,7 +4164,7 @@ export function AdminPage() {
                     </p>
                   ) : (
                     activityLogs.map((log) => {
-                      const details = parseLogDetails(log.detailsJson);
+                      const { pills, extra } = parseLogDiff(log.detailsJson);
                       const imageGroups = extractLogImageGroups(log.detailsJson, log.action, log.category);
                       return (
                         <div
@@ -4158,17 +4196,12 @@ export function AdminPage() {
                             <p className="text-[#2D241E] text-sm" style={{ fontFamily: "'DM Sans', sans-serif", lineHeight: 1.4 }}>
                               {log.summary}
                             </p>
-                            {details && (
+                            {extra && (
                               <p className="text-[#2D241E]/40 text-xs mt-1" style={{ fontFamily: "'DM Sans', sans-serif" }}>
-                                {details}
+                                {extra}
                               </p>
                             )}
-                            {log.entityLabel && log.entityLabel !== log.summary && (
-                              <p className="text-[#2D241E]/35 text-xs mt-0.5" style={{ fontFamily: "'DM Sans', sans-serif" }}>
-                                {log.entityLabel}
-                                {log.entityId ? ` · ${log.entityId}` : ""}
-                              </p>
-                            )}
+                            <LogDiffPills pills={pills} />
                             <LogImageStrip groups={imageGroups} />
                           </div>
                           <p className="text-[#2D241E]/40 text-xs mt-2 md:mt-0 truncate" style={{ fontFamily: "'DM Sans', sans-serif" }}>
