@@ -25,6 +25,10 @@ public partial class Customer
 
     public DateTime CreatedAt { get; set; }
 
+    public string? OAuthProvider { get; set; }
+
+    public string? OAuthProviderId { get; set; }
+
     public virtual ICollection<CustomerAddress> CustomerAddresses { get; set; } = new List<CustomerAddress>();
 
     public virtual ICollection<CustomerRole> CustomerRoles { get; set; } = new List<CustomerRole>();

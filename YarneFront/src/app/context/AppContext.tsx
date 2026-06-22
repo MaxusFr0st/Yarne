@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useCallback, useEffect } from "react";
-import { login as apiLogin, register as apiRegister } from "../api/auth";
+import { login as apiLogin, register as apiRegister, loginWithGoogle as apiLoginWithGoogle, loginWithApple as apiLoginWithApple } from "../api/auth";
 
 export interface CartItem {
   cartId: string;
@@ -35,6 +35,7 @@ interface AppContextType {
   user: { name: string; email: string; role: string } | null;
   isAdmin: boolean;
   login: (email: string, password: string) => Promise<{ ok: boolean; error?: string }>;
+  loginWithOAuth: (idToken: string, provider: "google" | "apple") => Promise<{ ok: boolean; error?: string }>;
   register: (data: { firstName: string; lastName: string; userName: string; email: string; password: string }) => Promise<{ ok: boolean; error?: string }>;
   logout: () => void;
 
@@ -213,6 +214,22 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  const loginWithOAuth = useCallback(async (idToken: string, provider: "google" | "apple"): Promise<{ ok: boolean; error?: string }> => {
+    try {
+      const res = provider === "google" ? await apiLoginWithGoogle(idToken) : await apiLoginWithApple(idToken);
+      const role = res.role ?? "Customer";
+      const userPayload = { email: res.email, fullName: res.fullName, userName: res.userName, role, expiresAt: res.expiresAt };
+      writeSessionAuth(res.token, JSON.stringify(userPayload));
+      setUser({ name: res.fullName, email: res.email, role });
+      setIsLoggedIn(true);
+      setLoginOpen(false);
+      return { ok: true };
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "OAuth sign-in failed. Please try again.";
+      return { ok: false, error: msg };
+    }
+  }, []);
+
   const register = useCallback(async (data: { firstName: string; lastName: string; userName: string; email: string; password: string }): Promise<{ ok: boolean; error?: string }> => {
     try {
       const res = await apiRegister(data);
@@ -255,6 +272,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         user,
         isAdmin: user?.role === "Admin",
         login,
+        loginWithOAuth,
         register,
         logout,
         wishlist,

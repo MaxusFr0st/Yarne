@@ -101,7 +101,9 @@ builder.Services.AddRateLimiter(options =>
 });
 
 // Services (SOLID - dependency injection)
+builder.Services.AddHttpClient();
 builder.Services.AddScoped<IAuthService, AuthService>();
+builder.Services.AddScoped<IOAuthService, OAuthService>();
 builder.Services.AddScoped<IProductService, ProductService>();
 builder.Services.AddScoped<IStorefrontSettingsService, StorefrontSettingsService>();
 builder.Services.AddScoped<IAdminActivityLogService, AdminActivityLogService>();

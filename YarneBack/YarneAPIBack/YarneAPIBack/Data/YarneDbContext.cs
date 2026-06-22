@@ -220,6 +220,8 @@ public partial class YarneDbContext : DbContext
             entity.Property(e => e.PasswordSalt).HasMaxLength(255);
             entity.Property(e => e.PhoneNumber).HasMaxLength(20);
             entity.Property(e => e.UserName).HasMaxLength(100);
+            entity.Property(e => e.OAuthProvider).HasMaxLength(50);
+            entity.Property(e => e.OAuthProviderId).HasMaxLength(255);
         });
 
         modelBuilder.Entity<CustomerAddress>(entity =>

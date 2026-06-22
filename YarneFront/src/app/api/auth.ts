@@ -36,3 +36,17 @@ export async function login(data: LoginRequest): Promise<AuthResponse> {
     body: JSON.stringify(data),
   });
 }
+
+export async function loginWithGoogle(idToken: string): Promise<AuthResponse> {
+  return apiRequest<AuthResponse>("/api/auth/google", {
+    method: "POST",
+    body: JSON.stringify({ idToken }),
+  });
+}
+
+export async function loginWithApple(idToken: string): Promise<AuthResponse> {
+  return apiRequest<AuthResponse>("/api/auth/apple", {
+    method: "POST",
+    body: JSON.stringify({ idToken }),
+  });
+}

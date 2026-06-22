@@ -11,11 +11,13 @@ public class AuthController : ControllerBase
 {
     private readonly IAuthService _authService;
     private readonly IAdminActivityLogService _activityLogs;
+    private readonly IOAuthService _oauthService;
 
-    public AuthController(IAuthService authService, IAdminActivityLogService activityLogs)
+    public AuthController(IAuthService authService, IAdminActivityLogService activityLogs, IOAuthService oauthService)
     {
         _authService = authService;
         _activityLogs = activityLogs;
+        _oauthService = oauthService;
     }
 
     [HttpPost("register")]
@@ -67,5 +69,49 @@ public class AuthController : ControllerBase
             return Unauthorized(new { message = "Invalid email or password" });
 
         return Ok(result);
+    }
+
+    [HttpPost("google")]
+    [EnableRateLimiting("auth-login")]
+    [ProducesResponseType(typeof(AuthResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    public async Task<ActionResult<AuthResponse>> GoogleLogin([FromBody] OAuthRequest request, CancellationToken ct)
+    {
+        if (request == null)
+            return BadRequest("Invalid request");
+
+        try
+        {
+            var result = await _oauthService.HandleGoogleAsync(request.IdToken, ct);
+            return Ok(result);
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return Unauthorized(new { message = ex.Message });
+        }
+    }
+
+    [HttpPost("apple")]
+    [EnableRateLimiting("auth-login")]
+    [ProducesResponseType(typeof(AuthResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    public async Task<ActionResult<AuthResponse>> AppleLogin([FromBody] OAuthRequest request, CancellationToken ct)
+    {
+        if (request == null)
+            return BadRequest("Invalid request");
+
+        try
+        {
+            var result = await _oauthService.HandleAppleAsync(request.IdToken, ct);
+            return Ok(result);
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return Unauthorized(new { message = ex.Message });
+        }
     }
 }
