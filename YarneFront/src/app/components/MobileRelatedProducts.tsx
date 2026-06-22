@@ -89,25 +89,21 @@ export function MobileRelatedProducts({ products }: MobileRelatedProductsProps) 
       </div>
 
       {products.length > 1 && (
-        <div className="flex items-center justify-center gap-3 mt-[clamp(10px,2.5vw,14px)]">
+        <div className="flex items-center justify-center gap-1.5 mt-[clamp(10px,2.5vw,14px)]">
           {products.map((_, i) => (
             <button
               key={i}
               type="button"
               onClick={() => emblaApi?.scrollTo(i)}
-              className="flex items-center justify-center min-h-[44px] min-w-[44px] cursor-pointer rounded-full"
+              className="rounded-full transition-all duration-300 cursor-pointer"
+              style={{
+                width: selectedIndex === i ? "clamp(18px, 4.5vw, 22px)" : "clamp(6px, 1.5vw, 7px)",
+                height: "clamp(6px, 1.5vw, 7px)",
+                backgroundColor: selectedIndex === i ? "#2D241E" : "rgba(45,36,30,0.2)",
+              }}
               aria-label={`${t("product.relatedSlide", { defaultValue: "Related product" })} ${i + 1}`}
               aria-current={selectedIndex === i}
-            >
-              <span
-                className="block rounded-full transition-all duration-300"
-                style={{
-                  width: selectedIndex === i ? "clamp(18px, 4.5vw, 22px)" : "clamp(6px, 1.5vw, 7px)",
-                  height: "clamp(6px, 1.5vw, 7px)",
-                  backgroundColor: selectedIndex === i ? "#2D241E" : "rgba(45,36,30,0.2)",
-                }}
-              />
-            </button>
+            />
           ))}
         </div>
       )}

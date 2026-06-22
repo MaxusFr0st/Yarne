@@ -173,7 +173,7 @@ export function BestSellersCarousel() {
           </motion.div>
         </div>
 
-        {/* Dot Indicators — gap-3 meets 12px min touch spacing between targets */}
+        {/* Dot Indicators */}
         {scrollSnaps.length > 1 && (
           <div className="flex items-center justify-center gap-3 mt-8 sm:mt-12 md:mt-10">
             {scrollSnaps.map((_, index) => (
@@ -181,22 +181,18 @@ export function BestSellersCarousel() {
                 key={index}
                 type="button"
                 onClick={() => emblaApi?.scrollTo(index)}
-                className="flex items-center justify-center min-h-[44px] min-w-[44px] cursor-pointer rounded-full transition-all duration-300"
+                className="transition-all duration-300 rounded-full cursor-pointer"
+                style={{
+                  width: index === selectedIndex ? 28 : 10,
+                  height: 10,
+                  backgroundColor:
+                    index === selectedIndex
+                      ? "#4A0E0E"
+                      : "rgba(45,36,30,0.2)",
+                }}
                 aria-label={`Go to slide ${index + 1}`}
                 aria-current={index === selectedIndex}
-              >
-                <span
-                  className="block rounded-full transition-all duration-300"
-                  style={{
-                    width: index === selectedIndex ? 28 : 10,
-                    height: 10,
-                    backgroundColor:
-                      index === selectedIndex
-                        ? "#4A0E0E"
-                        : "rgba(45,36,30,0.2)",
-                  }}
-                />
-              </button>
+              />
             ))}
           </div>
         )}
