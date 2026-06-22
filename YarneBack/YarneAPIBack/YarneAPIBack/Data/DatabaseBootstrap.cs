@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+using YarneAPIBack.Configuration;
 
 namespace YarneAPIBack.Data;
 
@@ -10,6 +11,14 @@ public static class DatabaseBootstrap
     {
         using var scope = app.Services.CreateScope();
         var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
+        var configuration = scope.ServiceProvider.GetRequiredService<IConfiguration>();
+
+        if (!RailwayDatabaseConfiguration.TryResolve(configuration, logger, out _))
+        {
+            logger.LogError("Skipping database bootstrap because PostgreSQL is not configured.");
+            return;
+        }
+
         var db = scope.ServiceProvider.GetRequiredService<YarneDbContext>();
 
         await DatabaseStartup.ApplyMigrationsWithRetryAsync(db, logger, cancellationToken: cancellationToken);
@@ -19,7 +28,6 @@ public static class DatabaseBootstrap
             await ApplyStartupPatchesAsync(db, logger, app.Environment, cancellationToken);
         }
 
-        var configuration = scope.ServiceProvider.GetRequiredService<IConfiguration>();
         await SeedData.EnsureSeedDataAsync(db, configuration, logger, cancellationToken);
     }
 

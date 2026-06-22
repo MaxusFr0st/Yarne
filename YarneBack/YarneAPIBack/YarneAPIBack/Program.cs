@@ -24,14 +24,20 @@ if (!string.IsNullOrWhiteSpace(railwayPort))
     builder.WebHost.UseUrls($"http://0.0.0.0:{railwayPort}");
 }
 
-// Database — resolved when DbContext is first used so /healthz can start if Postgres is slow/misconfigured.
+// Database — never throw during service registration; bootstrap validates connectivity.
+const string PendingDbConnection =
+    "Host=127.0.0.1;Port=5432;Database=yarne_unconfigured;Username=postgres;Password=postgres;Timeout=2;Pooling=false";
+
 builder.Services.AddDbContext<YarneDbContext>((sp, options) =>
 {
     var configuration = sp.GetRequiredService<IConfiguration>();
     var logger = sp.GetService<ILogger<YarneDbContext>>();
-    var postgresConnectionString = RailwayDatabaseConfiguration.Resolve(configuration, logger);
+    var connectionString = RailwayDatabaseConfiguration.TryResolve(configuration, logger, out var resolved)
+        ? resolved
+        : PendingDbConnection;
+
     options.UseNpgsql(
-        postgresConnectionString,
+        connectionString,
         npgsqlOptions => npgsqlOptions.EnableRetryOnFailure(maxRetryCount: 10, maxRetryDelay: TimeSpan.FromSeconds(5), errorCodesToAdd: null));
 });
 
@@ -144,11 +150,6 @@ builder.Services.AddSwaggerGen(c =>
 
 var app = builder.Build();
 
-// Railway health check hits /healthz before DB migrations finish — map early and start listening first.
-app.MapGet("/healthz", () => Results.Ok(new { status = "ok" }))
-    .DisableRateLimiting()
-    .AllowAnonymous();
-
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
@@ -208,24 +209,29 @@ app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
 
+// Railway probes /healthz while migrations run in the background.
+app.MapGet("/healthz", () => Results.Ok(new { status = "ok" }))
+    .DisableRateLimiting()
+    .AllowAnonymous();
+
 var runStartupDbPatches = builder.Configuration.GetValue(
     "Database:RunStartupPatches",
     builder.Environment.IsDevelopment());
 
-// Start HTTP server so Railway /healthz succeeds while migrations run.
-await app.StartAsync();
-
-try
+app.Lifetime.ApplicationStarted.Register(() =>
 {
-    await DatabaseBootstrap.RunAsync(app, runStartupDbPatches);
-}
-catch (Exception ex)
-{
-    var logger = app.Services.GetRequiredService<ILogger<Program>>();
-    if (app.Environment.IsDevelopment())
-        throw;
+    _ = Task.Run(async () =>
+    {
+        try
+        {
+            await DatabaseBootstrap.RunAsync(app, runStartupDbPatches);
+        }
+        catch (Exception ex)
+        {
+            var logger = app.Services.GetRequiredService<ILogger<Program>>();
+            logger.LogError(ex, "Database bootstrap failed. /healthz remains available.");
+        }
+    });
+});
 
-    logger.LogError(ex, "Database bootstrap failed. /healthz is up; API routes needing DB may return errors.");
-}
-
-await app.WaitForShutdownAsync();
+app.Run();

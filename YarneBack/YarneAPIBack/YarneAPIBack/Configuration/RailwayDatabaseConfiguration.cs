@@ -20,7 +20,16 @@ public static class RailwayDatabaseConfiguration
 
     public static string Resolve(IConfiguration configuration, ILogger? logger = null)
     {
+        if (TryResolve(configuration, logger, out var connection))
+            return connection;
+
+        throw new InvalidOperationException("PostgreSQL connection string is not configured. See startup logs for Railway setup steps.");
+    }
+
+    public static bool TryResolve(IConfiguration configuration, ILogger? logger, out string connectionString)
+    {
         var diagnostics = new StringBuilder();
+        connectionString = "";
 
         // Prefer PG* when Railway links Postgres (reliable even if legacy SQL Server DATABASE_URL is still set).
         var fromPg = BuildFromPgEnvironmentVariables();
@@ -28,7 +37,8 @@ public static class RailwayDatabaseConfiguration
         {
             try
             {
-                return Finalize(pgUsable, "PGHOST/PGUSER/...", logger);
+                connectionString = Finalize(pgUsable, "PGHOST/PGUSER/...", logger);
+                return true;
             }
             catch (Exception ex)
             {
@@ -44,7 +54,10 @@ public static class RailwayDatabaseConfiguration
         {
             var raw = Environment.GetEnvironmentVariable(key);
             if (TryUseUrl(raw, key, diagnostics, logger, out var connection))
-                return connection;
+            {
+                connectionString = connection;
+                return true;
+            }
         }
 
         // In Production/Railway, never fall back to appsettings SQL Server DefaultConnection.
@@ -52,20 +65,33 @@ public static class RailwayDatabaseConfiguration
         {
             var defaultFromConfig = configuration.GetConnectionString("DefaultConnection");
             if (TryUseUrl(defaultFromConfig, "ConnectionStrings:DefaultConnection", diagnostics, logger, out var fromConfig))
-                return fromConfig;
+            {
+                connectionString = fromConfig;
+                return true;
+            }
 
             var defaultFromEnv = Environment.GetEnvironmentVariable("ConnectionStrings__DefaultConnection");
             if (TryUseUrl(defaultFromEnv, "ConnectionStrings__DefaultConnection", diagnostics, logger, out var fromEnv))
-                return fromEnv;
+            {
+                connectionString = fromEnv;
+                return true;
+            }
         }
         else
         {
             Record(diagnostics, "ConnectionStrings__DefaultConnection", "***", "skipped in Production — remove this variable on Railway API if it contains Server=...");
         }
 
+        logger?.LogError(BuildResolutionHint(diagnostics).ToString());
+        return false;
+    }
+
+    private static StringBuilder BuildResolutionHint(StringBuilder diagnostics)
+    {
         var hint = new StringBuilder();
         hint.AppendLine("[Railway] No PostgreSQL connection string could be resolved.");
-        hint.AppendLine(diagnostics.ToString().TrimEnd());
+        if (diagnostics.Length > 0)
+            hint.AppendLine(diagnostics.ToString().TrimEnd());
         hint.AppendLine();
         hint.AppendLine("Fix on the API service (mindful-flexibility) in Railway:");
         hint.AppendLine("  1. Variables → DELETE the variable named DATABASE_URL (yours is still SQL Server, not Postgres).");
@@ -74,9 +100,7 @@ public static class RailwayDatabaseConfiguration
         hint.AppendLine("     The value must start with postgresql:// (preview in Railway UI).");
         hint.AppendLine("  OR add 5 references from Postgres: PGHOST, PGUSER, PGPASSWORD, PGDATABASE, PGPORT.");
         hint.AppendLine("  4. Redeploy the API.");
-
-        logger?.LogError(hint.ToString());
-        throw new InvalidOperationException(hint.ToString());
+        return hint;
     }
 
     private static bool TryUseUrl(
