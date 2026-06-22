@@ -4,6 +4,20 @@ namespace YarneAPIBack.Configuration;
 
 public static class ProductLogImageHelper
 {
+    private static string NormalizeCompareKey(string? url)
+    {
+        if (string.IsNullOrWhiteSpace(url)) return "";
+
+        var trimmed = url.Trim();
+        if (Uri.TryCreate(trimmed, UriKind.Absolute, out var absolute)
+            && absolute.AbsolutePath.StartsWith("/uploads/", StringComparison.OrdinalIgnoreCase))
+        {
+            return absolute.AbsolutePath;
+        }
+
+        return trimmed;
+    }
+
     public static List<string> CollectImageUrls(ProductDto product)
     {
         var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -11,10 +25,10 @@ public static class ProductLogImageHelper
 
         void Add(string? url)
         {
-            if (string.IsNullOrWhiteSpace(url)) return;
-            var trimmed = url.Trim();
-            if (seen.Add(trimmed))
-                urls.Add(trimmed);
+            var key = NormalizeCompareKey(url);
+            if (string.IsNullOrWhiteSpace(key)) return;
+            if (seen.Add(key))
+                urls.Add(key);
         }
 
         foreach (var url in product.ImageUrls ?? [])
@@ -37,11 +51,23 @@ public static class ProductLogImageHelper
         IReadOnlyList<string> before,
         IReadOnlyList<string> after)
     {
-        var beforeSet = new HashSet<string>(before, StringComparer.OrdinalIgnoreCase);
-        var afterSet = new HashSet<string>(after, StringComparer.OrdinalIgnoreCase);
+        var beforeSet = new HashSet<string>(
+            before.Select(NormalizeCompareKey).Where(k => k.Length > 0),
+            StringComparer.OrdinalIgnoreCase);
+        var afterSet = new HashSet<string>(
+            after.Select(NormalizeCompareKey).Where(k => k.Length > 0),
+            StringComparer.OrdinalIgnoreCase);
 
-        var added = after.Where(u => !beforeSet.Contains(u)).ToList();
-        var removed = before.Where(u => !afterSet.Contains(u)).ToList();
+        var added = after
+            .Select(NormalizeCompareKey)
+            .Where(k => k.Length > 0 && !beforeSet.Contains(k))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        var removed = before
+            .Select(NormalizeCompareKey)
+            .Where(k => k.Length > 0 && !afterSet.Contains(k))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
         return (added, removed);
     }
 }

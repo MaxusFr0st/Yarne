@@ -130,6 +130,60 @@ function RolePill({ role }: { role: "customer" | "admin" }) {
   );
 }
 
+/** Compact thumbnail + URL row for admin image fields (44px preview per UX guidelines). */
+function AdminImageUrlRow({
+  url,
+  onChange,
+  onRemove,
+  readOnly = false,
+  disabled = false,
+  placeholder,
+}: {
+  url: string;
+  onChange: (value: string) => void;
+  onRemove: () => void;
+  readOnly?: boolean;
+  disabled?: boolean;
+  placeholder?: string;
+}) {
+  const previewSrc = url.trim() ? resolveMediaUrl(url) : "";
+  return (
+    <div className="flex gap-2.5 items-center min-w-0">
+      <div
+        className="w-11 h-11 rounded-[10px] overflow-hidden shrink-0 flex items-center justify-center"
+        style={{
+          backgroundColor: "#EDE9E2",
+          border: "1px solid rgba(45,36,30,0.1)",
+        }}
+      >
+        {previewSrc ? (
+          <img src={previewSrc} alt="" className="w-full h-full object-cover" />
+        ) : (
+          <ImagePlus size={14} style={{ color: "rgba(45,36,30,0.25)" }} />
+        )}
+      </div>
+      <input
+        type="url"
+        value={url}
+        onChange={(e) => onChange(e.target.value)}
+        readOnly={readOnly}
+        disabled={disabled}
+        placeholder={placeholder}
+        className="flex-1 min-w-0 bg-transparent border rounded-[14px] px-3 py-2.5 text-[#2D241E] focus:outline-none text-sm placeholder:text-[#2D241E]/20 disabled:opacity-60"
+        style={{ fontFamily: "'DM Sans', sans-serif", borderColor: "rgba(45,36,30,0.15)" }}
+      />
+      <button
+        type="button"
+        disabled={disabled || readOnly}
+        onClick={onRemove}
+        className="w-9 h-9 rounded-full flex items-center justify-center hover:bg-[#4A0E0E]/10 text-[#4A0E0E] disabled:opacity-40 shrink-0 transition-colors"
+      >
+        <Trash2 size={14} />
+      </button>
+    </div>
+  );
+}
+
 const ORDER_STATUSES = ["Pending", "Processing", "Shipped", "Delivered", "Cancelled"] as const;
 type OrderStatus = (typeof ORDER_STATUSES)[number];
 
@@ -657,20 +711,15 @@ function ProductModal({
             </div>
           <div className="space-y-2">
               {form.imageUrls.map((url, i) => (
-                <div key={i} className="flex gap-2">
-                  <input
-                    type="url"
-                    value={url}
-                    onChange={(e) => setImageUrl(i, e.target.value)}
-                    readOnly={imagesLockedByColors}
-                    placeholder={`Image ${i + 1} URL or upload from device`}
-                    className="flex-1 bg-transparent border rounded-[14px] px-4 py-2.5 text-[#2D241E] focus:outline-none text-sm placeholder:text-[#2D241E]/20"
-                    style={{ fontFamily: "'DM Sans', sans-serif", borderColor: "rgba(45,36,30,0.15)" }}
-                  />
-                  <button type="button" disabled={imagesLockedByColors} onClick={() => removeImageUrl(i)} className="w-9 h-9 rounded-full flex items-center justify-center hover:bg-[#4A0E0E]/10 text-[#4A0E0E] disabled:opacity-40">
-                    <Trash2 size={14} />
-                  </button>
-                </div>
+                <AdminImageUrlRow
+                  key={i}
+                  url={url}
+                  onChange={(value) => setImageUrl(i, value)}
+                  onRemove={() => removeImageUrl(i)}
+                  readOnly={imagesLockedByColors}
+                  disabled={imagesLockedByColors}
+                  placeholder={`Image ${i + 1} URL or upload from device`}
+                />
               ))}
             </div>
           </div>
@@ -902,42 +951,32 @@ function ProductModal({
                               </p>
                             )}
                             {urls.map((url, i) => (
-                              <div key={i} className="flex gap-2 items-start">
-                                <input
-                                  type="url"
-                                  value={url}
-                                  onChange={(e) => {
-                                    setForm((p) => {
-                                      const next = { ...p.colorSizeVariants };
-                                      const arr = [...(next[key] ?? [])];
-                                      arr[i] = e.target.value;
+                              <AdminImageUrlRow
+                                key={i}
+                                url={url}
+                                onChange={(value) => {
+                                  setForm((p) => {
+                                    const next = { ...p.colorSizeVariants };
+                                    const arr = [...(next[key] ?? [])];
+                                    arr[i] = value;
+                                    next[key] = arr;
+                                    return { ...p, colorSizeVariants: next };
+                                  });
+                                }}
+                                onRemove={() => {
+                                  setForm((p) => {
+                                    const next = { ...p.colorSizeVariants };
+                                    const arr = (next[key] ?? []).filter((_, idx) => idx !== i);
+                                    if (arr.length === 0) {
+                                      delete next[key];
+                                    } else {
                                       next[key] = arr;
-                                      return { ...p, colorSizeVariants: next };
-                                    });
-                                  }}
-                                  placeholder={`Image ${i + 1} URL or upload from device`}
-                                  className="flex-1 bg-white/50 border rounded-[12px] px-3 py-2 text-sm text-[#2D241E] focus:outline-none placeholder:text-[#2D241E]/30"
-                                  style={{ fontFamily: "'DM Sans', sans-serif", borderColor: "rgba(45,36,30,0.15)" }}
-                                />
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    setForm((p) => {
-                                      const next = { ...p.colorSizeVariants };
-                                      const arr = (next[key] ?? []).filter((_, idx) => idx !== i);
-                                      if (arr.length === 0) {
-                                        delete next[key];
-                                      } else {
-                                        next[key] = arr;
-                                      }
-                                      return { ...p, colorSizeVariants: next };
-                                    });
-                                  }}
-                                  className="w-9 h-9 rounded-full flex items-center justify-center hover:bg-[#4A0E0E]/10 text-[#4A0E0E] shrink-0"
-                                >
-                                  <Trash2 size={14} />
-                                </button>
-                              </div>
+                                    }
+                                    return { ...p, colorSizeVariants: next };
+                                  });
+                                }}
+                                placeholder={`Image ${i + 1} URL or upload from device`}
+                              />
                             ))}
                             <button
                               type="button"
@@ -1416,12 +1455,37 @@ function parseLogDetails(detailsJson: string | null): string | null {
   try {
     const obj = JSON.parse(detailsJson) as Record<string, unknown>;
     const parts: string[] = [];
-    if (obj.price != null) parts.push(`€${obj.price}`);
-    if (obj.quantityInStock != null) parts.push(`stock ${obj.quantityInStock}`);
-    if (typeof obj.categoryName === "string") parts.push(obj.categoryName);
+
+    if (obj.changes && typeof obj.changes === "object" && !Array.isArray(obj.changes)) {
+      const changes = obj.changes as Record<string, { from?: unknown; to?: unknown }>;
+      const labels: Record<string, string> = {
+        name: "Name",
+        productCode: "SKU",
+        price: "Price",
+        quantityInStock: "Stock",
+        categoryName: "Category",
+        material: "Material",
+        isActive: "Active",
+        isNew: "New",
+        isBestseller: "Bestseller",
+        lace: "Lace",
+        description: "Description",
+      };
+      for (const [key, change] of Object.entries(changes)) {
+        const label = labels[key] ?? key;
+        const from = key === "price" && change.from != null ? `€${change.from}` : String(change.from ?? "—");
+        const to = key === "price" && change.to != null ? `€${change.to}` : String(change.to ?? "—");
+        parts.push(`${label}: ${from} → ${to}`);
+      }
+    } else {
+      if (obj.price != null) parts.push(`€${obj.price}`);
+      if (obj.quantityInStock != null) parts.push(`stock ${obj.quantityInStock}`);
+      if (typeof obj.categoryName === "string") parts.push(obj.categoryName);
+    }
+
     if (typeof obj.email === "string") parts.push(obj.email);
     if (typeof obj.label === "string") parts.push(obj.label);
-    if (typeof obj.productCode === "string") parts.push(obj.productCode);
+    if (typeof obj.productCode === "string" && !obj.changes) parts.push(obj.productCode);
     if (typeof obj.catalogType === "string") parts.push(obj.catalogType);
     if (typeof obj.previousStatus === "string" && typeof obj.newStatus === "string") {
       parts.push(`${obj.previousStatus} → ${obj.newStatus}`);
@@ -1451,7 +1515,7 @@ function extractLogImageGroups(detailsJson: string | null, action: string, categ
 
     if (category === "product") {
       if (action === "created") {
-        return { added: imageUrls, removed: [], current: imageUrls };
+        return { added: imageUrls, removed: [], current: [] };
       }
       if (action === "deleted") {
         const removed = removedImageUrls.length > 0 ? removedImageUrls : imageUrls;
@@ -1461,7 +1525,7 @@ function extractLogImageGroups(detailsJson: string | null, action: string, categ
         return {
           added: addedImageUrls,
           removed: removedImageUrls,
-          current: imageUrls,
+          current: [],
         };
       }
     }
@@ -1473,6 +1537,8 @@ function extractLogImageGroups(detailsJson: string | null, action: string, categ
 }
 
 function LogImageStrip({ groups }: { groups: LogImageGroups }) {
+  const maxVisible = 10;
+  const thumbClass = "w-12 h-12 rounded-[10px] overflow-hidden shrink-0";
   const hasAdded = groups.added.length > 0;
   const hasRemoved = groups.removed.length > 0;
   const showCurrent = !hasAdded && !hasRemoved && groups.current.length > 0;
@@ -1485,10 +1551,10 @@ function LogImageStrip({ groups }: { groups: LogImageGroups }) {
         {label}
       </span>
       <div className="flex gap-1.5 flex-wrap">
-        {urls.slice(0, 6).map((url) => (
+        {urls.slice(0, maxVisible).map((url) => (
           <div
             key={`${label}-${url}`}
-            className="w-10 h-10 rounded-[8px] overflow-hidden shrink-0"
+            className={thumbClass}
             style={{
               backgroundColor: "#EDE9E2",
               opacity: faded ? 0.55 : 1,
@@ -1498,9 +1564,9 @@ function LogImageStrip({ groups }: { groups: LogImageGroups }) {
             <img src={resolveMediaUrl(url)} alt="" className="w-full h-full object-cover" />
           </div>
         ))}
-        {urls.length > 6 && (
+        {urls.length > maxVisible && (
           <span className="text-[10px] text-[#2D241E]/40 self-center" style={{ fontFamily: "'DM Sans', sans-serif" }}>
-            +{urls.length - 6}
+            +{urls.length - maxVisible}
           </span>
         )}
       </div>
@@ -3338,7 +3404,7 @@ export function AdminPage() {
                       >
                         {/* Product */}
                         <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-[12px] overflow-hidden flex-shrink-0" style={{ backgroundColor: "#EDE9E2" }}>
+                          <div className="w-14 h-14 rounded-[12px] overflow-hidden flex-shrink-0" style={{ backgroundColor: "#EDE9E2" }}>
                             <img src={getProductPreviewUrl(p)} alt={p.name} className="w-full h-full object-cover" />
                           </div>
                           <div className="min-w-0">

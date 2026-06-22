@@ -107,28 +107,18 @@ public class ProductsController : ControllerBase
         var afterImages = ProductLogImageHelper.CollectImageUrls(product);
         var (addedImageUrls, removedImageUrls) = ProductLogImageHelper.DiffImageUrls(beforeImages, afterImages);
 
+        var updateLog = ProductChangeLogHelper.BuildUpdateLog(existingDetail, product, addedImageUrls, removedImageUrls);
+        if (!updateLog.HasChanges)
+            return Ok(product);
+
         var (actorUserId, actorEmail) = AdminActivityLogHelper.GetActor(HttpContext);
         await _activityLogs.LogAsync(
             "product",
             "updated",
-            $"Updated product \"{product.Name}\" ({product.ProductCode})",
+            updateLog.Summary,
             product.Id.ToString(),
             product.Name,
-            new
-            {
-                product.ProductCode,
-                product.Name,
-                product.Price,
-                product.QuantityInStock,
-                product.CategoryName,
-                product.IsActive,
-                product.IsNew,
-                product.IsBestseller,
-                product.Lace,
-                imageUrls = afterImages,
-                addedImageUrls,
-                removedImageUrls,
-            },
+            updateLog.Details,
             actorUserId,
             actorEmail,
             ct);
