@@ -21,11 +21,9 @@ builder.Logging.AddSimpleConsole(options =>
 var listenPort = Environment.GetEnvironmentVariable("PORT") ?? "8080";
 builder.WebHost.UseUrls($"http://0.0.0.0:{listenPort}");
 
-// Placeholder used only when DATABASE_URL is not yet configured on Railway.
-// The app starts and /healthz responds while bootstrap logs the setup steps.
-// This connection string intentionally points nowhere — it will never succeed.
-const string UnconfiguredDbPlaceholder =
-    "Host=127.0.0.1;Port=5432;Database=yarne_not_configured;Username=nobody;Password=;Timeout=2;Pooling=false";
+// Database — never throw during service registration; bootstrap validates connectivity.
+const string PendingDbConnection =
+    "Host=127.0.0.1;Port=5432;Database=yarne_unconfigured;Username=postgres;Password=postgres;Timeout=2;Pooling=false";
 
 builder.Services.AddDbContext<YarneDbContext>((sp, options) =>
 {
@@ -33,7 +31,7 @@ builder.Services.AddDbContext<YarneDbContext>((sp, options) =>
     var logger = sp.GetService<ILogger<YarneDbContext>>();
     var connectionString = RailwayDatabaseConfiguration.TryResolve(configuration, logger, out var resolved)
         ? resolved
-        : UnconfiguredDbPlaceholder;
+        : PendingDbConnection;
 
     options.UseNpgsql(
         connectionString,
@@ -174,12 +172,9 @@ else
     app.UseHsts();
 }
 
-// ForwardLimit = 1: only trust the immediate upstream proxy (Railway's edge).
-// This prevents clients from spoofing X-Forwarded-For to bypass IP rate limits.
 app.UseForwardedHeaders(new ForwardedHeadersOptions
 {
     ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto,
-    ForwardLimit = 1,
 });
 
 app.UseWhen(

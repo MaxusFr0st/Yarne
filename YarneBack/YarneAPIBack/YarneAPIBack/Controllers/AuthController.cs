@@ -23,6 +23,9 @@ public class AuthController : ControllerBase
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<ActionResult<AuthResponse>> Register([FromBody] RegisterRequest request, CancellationToken ct)
     {
+        if (request == null)
+            return BadRequest("Invalid request");
+
         var result = await _authService.RegisterAsync(request, ct);
 
         if (result == null)
@@ -34,7 +37,13 @@ public class AuthController : ControllerBase
             $"User account created: {request.Email}",
             request.Email,
             $"{request.FirstName} {request.LastName}".Trim(),
-            new { request.Email, request.UserName, request.FirstName, request.LastName },
+            new
+            {
+                request.Email,
+                request.UserName,
+                request.FirstName,
+                request.LastName,
+            },
             null,
             request.Email,
             ct);
@@ -49,6 +58,9 @@ public class AuthController : ControllerBase
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
     public async Task<ActionResult<AuthResponse>> Login([FromBody] LoginRequest request, CancellationToken ct)
     {
+        if (request == null)
+            return BadRequest("Invalid request");
+
         var result = await _authService.LoginAsync(request, ct);
 
         if (result == null)

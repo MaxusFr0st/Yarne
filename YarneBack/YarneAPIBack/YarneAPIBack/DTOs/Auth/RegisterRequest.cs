@@ -14,8 +14,7 @@ public class RegisterRequest
 
     [Required]
     [StringLength(100, MinimumLength = 3)]
-    [RegularExpression(@"^[a-zA-Z0-9_.-]+$",
-        ErrorMessage = "UserName can only contain letters, numbers, underscore, dot and hyphen")]
+    [RegularExpression(@"^[a-zA-Z0-9_.-]+$", ErrorMessage = "UserName can only contain letters, numbers, underscore, dot and hyphen")]
     public string UserName { get; set; } = null!;
 
     [Required]
@@ -28,8 +27,7 @@ public class RegisterRequest
     public string? PhoneNumber { get; set; }
 
     [Required]
-    [StringLength(100)]
-    [RegularExpression(@"^(?=.*[A-Z])(?=.*\d).{8,}$",
-        ErrorMessage = "Password must be at least 8 characters and contain at least one uppercase letter and one digit")]
+    [StringLength(100, MinimumLength = 8)]
+    [RegularExpression(@"^(?=.*[A-Z])(?=.*\d).{8,}$", ErrorMessage = "Password must be at least 8 characters and include one uppercase letter and one digit")]
     public string Password { get; set; } = null!;
 }
