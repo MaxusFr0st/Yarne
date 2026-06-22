@@ -2,9 +2,11 @@ using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using YarneAPIBack.Configuration;
 using YarneAPIBack.Data;
 using YarneAPIBack.DTOs.Order;
 using YarneAPIBack.Models;
+using YarneAPIBack.Services.Contracts;
 
 namespace YarneAPIBack.Controllers;
 
@@ -23,10 +25,12 @@ public class OrdersController : ControllerBase
     };
 
     private readonly YarneDbContext _context;
+    private readonly IAdminActivityLogService _activityLogs;
 
-    public OrdersController(YarneDbContext context)
+    public OrdersController(YarneDbContext context, IAdminActivityLogService activityLogs)
     {
         _context = context;
+        _activityLogs = activityLogs;
     }
 
     [HttpGet("my")]
@@ -284,6 +288,7 @@ public class OrdersController : ControllerBase
         if (order == null)
             return NotFound();
 
+        var previousStatus = order.Status;
         order.Status = canonicalStatus;
         order.EstimatedDelivery = request.EstimatedDelivery;
         await _context.SaveChangesAsync(ct);
@@ -291,6 +296,26 @@ public class OrdersController : ControllerBase
         var updatedOrder = await BuildOrderQuery().FirstOrDefaultAsync(o => o.Id == id, ct);
         if (updatedOrder == null)
             return StatusCode(StatusCodes.Status500InternalServerError, new { message = "Order was updated but could not be loaded." });
+
+        var (actorUserId, actorEmail) = AdminActivityLogHelper.GetActor(HttpContext);
+        await _activityLogs.LogAsync(
+            "order",
+            "updated",
+            $"Order #{id} status: {previousStatus} → {canonicalStatus}",
+            id.ToString(),
+            $"Order #{id}",
+            new
+            {
+                orderId = id,
+                previousStatus,
+                newStatus = canonicalStatus,
+                estimatedDelivery = request.EstimatedDelivery,
+                customerEmail = updatedOrder.Customer.Email,
+                total = updatedOrder.Total,
+            },
+            actorUserId,
+            actorEmail,
+            ct);
 
         return Ok(MapOrder(updatedOrder));
     }

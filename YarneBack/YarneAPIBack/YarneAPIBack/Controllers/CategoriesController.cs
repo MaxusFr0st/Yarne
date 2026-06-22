@@ -1,8 +1,10 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using YarneAPIBack.Configuration;
 using YarneAPIBack.Data;
 using YarneAPIBack.DTOs.Category;
+using YarneAPIBack.Services.Contracts;
 
 namespace YarneAPIBack.Controllers;
 
@@ -11,10 +13,12 @@ namespace YarneAPIBack.Controllers;
 public class CategoriesController : ControllerBase
 {
     private readonly YarneDbContext _context;
+    private readonly IAdminActivityLogService _activityLogs;
 
-    public CategoriesController(YarneDbContext context)
+    public CategoriesController(YarneDbContext context, IAdminActivityLogService activityLogs)
     {
         _context = context;
+        _activityLogs = activityLogs;
     }
 
     [HttpGet]
@@ -42,6 +46,19 @@ public class CategoriesController : ControllerBase
         var category = new Models.Category { Name = request.Name };
         _context.Categories.Add(category);
         await _context.SaveChangesAsync(ct);
+
+        var (actorUserId, actorEmail) = AdminActivityLogHelper.GetActor(HttpContext);
+        await _activityLogs.LogAsync(
+            "catalog",
+            "created",
+            $"Created category \"{category.Name}\"",
+            category.Id.ToString(),
+            category.Name,
+            new { catalogType = "category", category.Id, category.Name },
+            actorUserId,
+            actorEmail,
+            ct);
+
         return Created($"/api/categories/{category.Id}", new { id = category.Id, name = category.Name });
     }
 
@@ -59,8 +76,22 @@ public class CategoriesController : ControllerBase
         if (await _context.Categories.AnyAsync(c => c.Name == request.Name && c.Id != id, ct))
             return BadRequest(new { message = "Category with this name already exists" });
 
+        var previousName = category.Name;
         category.Name = request.Name;
         await _context.SaveChangesAsync(ct);
+
+        var (actorUserId, actorEmail) = AdminActivityLogHelper.GetActor(HttpContext);
+        await _activityLogs.LogAsync(
+            "catalog",
+            "updated",
+            $"Updated category: {previousName} → {category.Name}",
+            category.Id.ToString(),
+            category.Name,
+            new { catalogType = "category", category.Id, previousName, newName = category.Name },
+            actorUserId,
+            actorEmail,
+            ct);
+
         return Ok(new { id = category.Id, name = category.Name });
     }
 
@@ -73,8 +104,22 @@ public class CategoriesController : ControllerBase
         var category = await _context.Categories.FindAsync([id], ct);
         if (category == null) return NotFound();
 
+        var name = category.Name;
         _context.Categories.Remove(category);
         await _context.SaveChangesAsync(ct);
+
+        var (actorUserId, actorEmail) = AdminActivityLogHelper.GetActor(HttpContext);
+        await _activityLogs.LogAsync(
+            "catalog",
+            "deleted",
+            $"Deleted category \"{name}\"",
+            id.ToString(),
+            name,
+            new { catalogType = "category", id, name },
+            actorUserId,
+            actorEmail,
+            ct);
+
         return NoContent();
     }
 }

@@ -34,23 +34,35 @@ import {
 } from "../api/admin";
 import { register } from "../api/auth";
 import { fetchAdminOrders, fetchAdminOrdersSummary, updateOrderStatus, type OrderDto, type AdminOrdersSummaryDto } from "../api/orders";
+import type { ProductDto, ColorVariantDto } from "../api/products";
 import type { Product } from "../types/product";
 import { normalizeLaceVariants } from "../utils/variantStock";
 
+function mapColorVariant(c: ColorVariantDto) {
+  const seen = new Set<string>();
+  const imgs: string[] = [];
+  const push = (url?: string | null) => {
+    const trimmed = url?.trim();
+    if (!trimmed || seen.has(trimmed)) return;
+    seen.add(trimmed);
+    imgs.push(trimmed);
+  };
+  for (const url of c.imageUrls ?? []) push(url);
+  push(c.imageUrl);
+  return {
+    name: c.name,
+    hex: c.hex,
+    image: imgs[0] ?? c.imageUrl,
+    images: imgs.length > 0 ? imgs : c.imageUrl ? [c.imageUrl] : [],
+    sizeImages: c.sizeImages ?? {},
+    sizeStocks: c.sizeStocks ?? {},
+    laceVariants: normalizeLaceVariants(c.laceVariants),
+  };
+}
+
 function mapProductDtoToProduct(d: ProductDto): Product & { idNum: number; sku: string; stock: number } {
   const colors = d.colors && d.colors.length > 0
-    ? d.colors.map((c) => {
-        const imgs = c.imageUrls?.length ? c.imageUrls : [c.imageUrl];
-        return {
-          name: c.name,
-          hex: c.hex,
-          image: c.imageUrl,
-          images: imgs,
-          sizeImages: c.sizeImages ?? {},
-          sizeStocks: c.sizeStocks ?? {},
-          laceVariants: normalizeLaceVariants(c.laceVariants),
-        };
-      })
+    ? d.colors.map(mapColorVariant)
     : d.imageUrls.length > 0
     ? d.imageUrls.map((url, i) => ({ name: `Image ${i + 1}`, hex: "#2D241E", image: url, images: [url] }))
     : d.primaryImageUrl

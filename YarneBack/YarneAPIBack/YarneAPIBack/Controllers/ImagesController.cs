@@ -1,5 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using YarneAPIBack.Configuration;
+using YarneAPIBack.Services.Contracts;
 
 namespace YarneAPIBack.Controllers;
 
@@ -9,14 +11,19 @@ public class ImagesController : ControllerBase
 {
     private readonly IWebHostEnvironment _env;
     private readonly ILogger<ImagesController> _logger;
+    private readonly IAdminActivityLogService _activityLogs;
     private static readonly string[] AllowedExtensions = { ".jpg", ".jpeg", ".png", ".gif", ".webp" };
     private static readonly string[] AllowedMimeTypes = { "image/jpeg", "image/png", "image/gif", "image/webp" };
     private const int MaxFileSizeBytes = 5 * 1024 * 1024; // 5 MB
 
-    public ImagesController(IWebHostEnvironment env, ILogger<ImagesController> logger)
+    public ImagesController(
+        IWebHostEnvironment env,
+        ILogger<ImagesController> logger,
+        IAdminActivityLogService activityLogs)
     {
         _env = env;
         _logger = logger;
+        _activityLogs = activityLogs;
     }
 
     [HttpPost("upload")]
@@ -65,8 +72,26 @@ public class ImagesController : ControllerBase
             return StatusCode(500, new { message = "Failed to save file" });
         }
 
-        // Path-only URL: every device resolves this via VITE_API_URL (not the uploader's host).
         var url = $"/uploads/{fileName}";
+
+        var (actorUserId, actorEmail) = AdminActivityLogHelper.GetActor(HttpContext);
+        await _activityLogs.LogAsync(
+            "image",
+            "uploaded",
+            $"Uploaded image {file.FileName}",
+            fileName,
+            file.FileName,
+            new
+            {
+                imageUrl = url,
+                fileName,
+                originalFileName = file.FileName,
+                sizeBytes = file.Length,
+            },
+            actorUserId,
+            actorEmail,
+            ct);
+
         return Ok(new { url });
     }
 

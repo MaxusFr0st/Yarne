@@ -52,6 +52,8 @@ public partial class YarneDbContext : DbContext
 
     public virtual DbSet<AppSetting> AppSettings { get; set; }
 
+    public virtual DbSet<AdminActivityLog> AdminActivityLogs { get; set; }
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<AppSetting>(entity =>
@@ -61,6 +63,21 @@ public partial class YarneDbContext : DbContext
             entity.Property(e => e.Key).HasMaxLength(128);
             entity.Property(e => e.ValueJson).IsRequired();
             entity.Property(e => e.UpdatedAt).HasDefaultValueSql("CURRENT_TIMESTAMP");
+        });
+
+        modelBuilder.Entity<AdminActivityLog>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.ToTable("AdminActivityLog");
+            entity.Property(e => e.Category).HasMaxLength(32).IsRequired();
+            entity.Property(e => e.Action).HasMaxLength(32).IsRequired();
+            entity.Property(e => e.EntityId).HasMaxLength(128);
+            entity.Property(e => e.EntityLabel).HasMaxLength(255);
+            entity.Property(e => e.Summary).HasMaxLength(500).IsRequired();
+            entity.Property(e => e.ActorEmail).HasMaxLength(255);
+            entity.Property(e => e.CreatedAt).HasDefaultValueSql("CURRENT_TIMESTAMP");
+            entity.HasIndex(e => e.Category);
+            entity.HasIndex(e => e.CreatedAt);
         });
 
         modelBuilder.Entity<Category>(entity =>

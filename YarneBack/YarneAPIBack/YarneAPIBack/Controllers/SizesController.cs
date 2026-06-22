@@ -1,8 +1,10 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using YarneAPIBack.Configuration;
 using YarneAPIBack.Data;
 using YarneAPIBack.DTOs.Size;
+using YarneAPIBack.Services.Contracts;
 
 namespace YarneAPIBack.Controllers;
 
@@ -11,10 +13,12 @@ namespace YarneAPIBack.Controllers;
 public class SizesController : ControllerBase
 {
     private readonly YarneDbContext _context;
+    private readonly IAdminActivityLogService _activityLogs;
 
-    public SizesController(YarneDbContext context)
+    public SizesController(YarneDbContext context, IAdminActivityLogService activityLogs)
     {
         _context = context;
+        _activityLogs = activityLogs;
     }
 
     [HttpGet]
@@ -44,6 +48,18 @@ public class SizesController : ControllerBase
         _context.Sizes.Add(size);
         await _context.SaveChangesAsync(ct);
 
+        var (actorUserId, actorEmail) = AdminActivityLogHelper.GetActor(HttpContext);
+        await _activityLogs.LogAsync(
+            "catalog",
+            "created",
+            $"Created size \"{size.Name}\"",
+            size.Id.ToString(),
+            size.Name,
+            new { catalogType = "size", size.Id, size.Name },
+            actorUserId,
+            actorEmail,
+            ct);
+
         return Created($"/api/sizes/{size.Id}", new SizeDto { Id = size.Id, Name = size.Name });
     }
 
@@ -62,8 +78,22 @@ public class SizesController : ControllerBase
         if (await _context.Sizes.AnyAsync(s => s.Name == normalized && s.Id != id, ct))
             return BadRequest(new { message = "Size with this name already exists" });
 
+        var previousName = size.Name;
         size.Name = normalized;
         await _context.SaveChangesAsync(ct);
+
+        var (actorUserId, actorEmail) = AdminActivityLogHelper.GetActor(HttpContext);
+        await _activityLogs.LogAsync(
+            "catalog",
+            "updated",
+            $"Updated size: {previousName} → {size.Name}",
+            size.Id.ToString(),
+            size.Name,
+            new { catalogType = "size", size.Id, previousName, newName = size.Name },
+            actorUserId,
+            actorEmail,
+            ct);
+
         return Ok(new SizeDto { Id = size.Id, Name = size.Name });
     }
 
@@ -76,8 +106,22 @@ public class SizesController : ControllerBase
         var size = await _context.Sizes.FindAsync([id], ct);
         if (size == null) return NotFound();
 
+        var name = size.Name;
         _context.Sizes.Remove(size);
         await _context.SaveChangesAsync(ct);
+
+        var (actorUserId, actorEmail) = AdminActivityLogHelper.GetActor(HttpContext);
+        await _activityLogs.LogAsync(
+            "catalog",
+            "deleted",
+            $"Deleted size \"{name}\"",
+            id.ToString(),
+            name,
+            new { catalogType = "size", id, name },
+            actorUserId,
+            actorEmail,
+            ct);
+
         return NoContent();
     }
 }

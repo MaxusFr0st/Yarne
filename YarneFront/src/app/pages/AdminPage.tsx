@@ -4,6 +4,7 @@ import { useAdminData } from "../hooks/useAdminData";
 import { useApp } from "../context/AppContext";
 import { uploadImage } from "../api/images";
 import { normalizeStoredMediaUrl, resolveMediaUrl } from "../utils/storefrontMedia";
+import { getProductPreviewUrl } from "../utils/productPreview";
 import type { Product } from "../types/product";
 import {
   loadCarouselSelectionForAdmin,
@@ -52,7 +53,9 @@ import {
   ImagePlus,
   Palette,
   Info,
+  ScrollText,
 } from "lucide-react";
+import { fetchActivityLogs, type AdminActivityLogDto } from "../api/admin";
 
 const easing = [0.25, 0.1, 0.25, 1] as const;
 
@@ -1392,7 +1395,126 @@ function DeleteModal({ name, onClose, onConfirm }: { name: string; onClose: () =
 /* ─────────────────────────────────────────────
    MAIN ADMIN PAGE
 ───────────────────────────────────────────── */
-type AdminTab = "dashboard" | "contents" | "products" | "users" | "orders" | "usefulData" | "categories" | "countries" | "colors" | "sizes";
+type AdminTab = "dashboard" | "contents" | "products" | "users" | "orders" | "logs" | "usefulData" | "categories" | "countries" | "colors" | "sizes";
+type LogsSubTab = "all" | "product" | "user" | "push" | "order" | "catalog" | "image";
+
+function formatLogTimestamp(iso: string) {
+  return new Date(iso).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
+}
+
+function formatLogAction(action: string) {
+  return action.charAt(0).toUpperCase() + action.slice(1);
+}
+
+function asStringArray(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  return value.filter((v): v is string => typeof v === "string" && v.trim().length > 0);
+}
+
+function parseLogDetails(detailsJson: string | null): string | null {
+  if (!detailsJson) return null;
+  try {
+    const obj = JSON.parse(detailsJson) as Record<string, unknown>;
+    const parts: string[] = [];
+    if (obj.price != null) parts.push(`€${obj.price}`);
+    if (obj.quantityInStock != null) parts.push(`stock ${obj.quantityInStock}`);
+    if (typeof obj.categoryName === "string") parts.push(obj.categoryName);
+    if (typeof obj.email === "string") parts.push(obj.email);
+    if (typeof obj.label === "string") parts.push(obj.label);
+    if (typeof obj.productCode === "string") parts.push(obj.productCode);
+    if (typeof obj.catalogType === "string") parts.push(obj.catalogType);
+    if (typeof obj.previousStatus === "string" && typeof obj.newStatus === "string") {
+      parts.push(`${obj.previousStatus} → ${obj.newStatus}`);
+    }
+    if (typeof obj.originalFileName === "string") parts.push(obj.originalFileName);
+    if (typeof obj.customerEmail === "string") parts.push(obj.customerEmail);
+    return parts.length > 0 ? parts.join(" · ") : null;
+  } catch {
+    return null;
+  }
+}
+
+type LogImageGroups = { added: string[]; removed: string[]; current: string[] };
+
+function extractLogImageGroups(detailsJson: string | null, action: string, category: string): LogImageGroups {
+  if (!detailsJson) return { added: [], removed: [], current: [] };
+  try {
+    const obj = JSON.parse(detailsJson) as Record<string, unknown>;
+    const imageUrl = typeof obj.imageUrl === "string" ? obj.imageUrl : null;
+    const imageUrls = asStringArray(obj.imageUrls);
+    const addedImageUrls = asStringArray(obj.addedImageUrls);
+    const removedImageUrls = asStringArray(obj.removedImageUrls);
+
+    if (category === "image" && imageUrl) {
+      return { added: [imageUrl], removed: [], current: [imageUrl] };
+    }
+
+    if (category === "product") {
+      if (action === "created") {
+        return { added: imageUrls, removed: [], current: imageUrls };
+      }
+      if (action === "deleted") {
+        const removed = removedImageUrls.length > 0 ? removedImageUrls : imageUrls;
+        return { added: [], removed, current: [] };
+      }
+      if (action === "updated") {
+        return {
+          added: addedImageUrls,
+          removed: removedImageUrls,
+          current: imageUrls,
+        };
+      }
+    }
+
+    return { added: [], removed: [], current: imageUrls };
+  } catch {
+    return { added: [], removed: [], current: [] };
+  }
+}
+
+function LogImageStrip({ groups }: { groups: LogImageGroups }) {
+  const hasAdded = groups.added.length > 0;
+  const hasRemoved = groups.removed.length > 0;
+  const showCurrent = !hasAdded && !hasRemoved && groups.current.length > 0;
+
+  if (!hasAdded && !hasRemoved && !showCurrent) return null;
+
+  const renderThumbs = (urls: string[], label: string, faded?: boolean) => (
+    <div className="flex items-center gap-2 flex-wrap">
+      <span className="text-[10px] uppercase tracking-wider text-[#2D241E]/40 shrink-0" style={{ fontFamily: "'DM Sans', sans-serif" }}>
+        {label}
+      </span>
+      <div className="flex gap-1.5 flex-wrap">
+        {urls.slice(0, 6).map((url) => (
+          <div
+            key={`${label}-${url}`}
+            className="w-10 h-10 rounded-[8px] overflow-hidden shrink-0"
+            style={{
+              backgroundColor: "#EDE9E2",
+              opacity: faded ? 0.55 : 1,
+              border: faded ? "1px dashed rgba(74,14,14,0.35)" : "1px solid rgba(45,36,30,0.08)",
+            }}
+          >
+            <img src={resolveMediaUrl(url)} alt="" className="w-full h-full object-cover" />
+          </div>
+        ))}
+        {urls.length > 6 && (
+          <span className="text-[10px] text-[#2D241E]/40 self-center" style={{ fontFamily: "'DM Sans', sans-serif" }}>
+            +{urls.length - 6}
+          </span>
+        )}
+      </div>
+    </div>
+  );
+
+  return (
+    <div className="mt-2 flex flex-col gap-2">
+      {hasAdded && renderThumbs(groups.added, "Added")}
+      {hasRemoved && renderThumbs(groups.removed, "Removed", true)}
+      {showCurrent && renderThumbs(groups.current, "Images")}
+    </div>
+  );
+}
 
 export function AdminPage() {
   const { user } = useApp();
@@ -1450,6 +1572,9 @@ export function AdminPage() {
   );
   const [homeMediaUploading, setHomeMediaUploading] = useState<Record<string, boolean>>({});
   const [homeMediaUploadError, setHomeMediaUploadError] = useState<string | null>(null);
+  const [logsSubTab, setLogsSubTab] = useState<LogsSubTab>("all");
+  const [activityLogs, setActivityLogs] = useState<AdminActivityLogDto[]>([]);
+  const [logsLoading, setLogsLoading] = useState(false);
 
   const [productModal, setProductModal] = useState<{ open: boolean; editing: AdminProduct | null }>({ open: false, editing: null });
   const [userModal, setUserModal] = useState<{ open: boolean }>({ open: false });
@@ -1528,6 +1653,28 @@ export function AdminPage() {
       setMobileProductsPage(mobileProductsTotalPages);
     }
   }, [mobileProductsPage, mobileProductsTotalPages]);
+
+  useEffect(() => {
+    if (activeTab !== "logs" || !apiAvailable) return;
+    let cancelled = false;
+    setLogsLoading(true);
+    fetchActivityLogs({
+      category: logsSubTab === "all" ? undefined : logsSubTab,
+      limit: 200,
+    })
+      .then((rows) => {
+        if (!cancelled) setActivityLogs(rows);
+      })
+      .catch(() => {
+        if (!cancelled) setActivityLogs([]);
+      })
+      .finally(() => {
+        if (!cancelled) setLogsLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [activeTab, logsSubTab, apiAvailable]);
 
   const carouselProductSet = useMemo(() => new Set(carouselProductCodes), [carouselProductCodes]);
   const featuredHomeProductSet = useMemo(
@@ -1958,6 +2105,13 @@ export function AdminPage() {
   const activeUsers = users.filter((u) => u.status === "active").length;
   const lowStockCount = products.filter((p) => (p.stock ?? 0) < 10).length;
   const criticalLowStockCount = products.filter((p) => (p.stock ?? 0) <= 2).length;
+  const criticalLowStockProducts = useMemo(
+    () =>
+      products
+        .filter((p) => (p.stock ?? 0) <= 2)
+        .sort((a, b) => (a.stock ?? 0) - (b.stock ?? 0)),
+    [products]
+  );
   const pendingOrdersCount = Number(ordersSummary.pendingOrders ?? 0);
   const adminDisplayName = user?.name || "Administrator";
   const adminDisplayEmail = user?.email || "admin@yarne.local";
@@ -2090,6 +2244,7 @@ export function AdminPage() {
               { key: "products" as AdminTab, label: "Products", icon: <Package size={14} /> },
               { key: "users" as AdminTab, label: "Users", icon: <Users size={14} /> },
               { key: "orders" as AdminTab, label: "Orders", icon: <ShoppingCart size={14} /> },
+              { key: "logs" as AdminTab, label: "Logs", icon: <ScrollText size={14} /> },
               { key: "usefulData" as AdminTab, label: "Useful data", icon: <AlertTriangle size={14} /> },
               { key: "categories" as AdminTab, label: "Categories", icon: <Tag size={14} /> },
               { key: "countries" as AdminTab, label: "Countries", icon: <Globe size={14} /> },
@@ -2186,6 +2341,61 @@ export function AdminPage() {
                 ))}
               </div>
 
+              {criticalLowStockProducts.length > 0 && (
+                <div
+                  className="rounded-[24px] p-6 mb-12"
+                  style={{
+                    border: "1px solid rgba(196,48,48,0.25)",
+                    backgroundColor: "rgba(196,48,48,0.08)",
+                  }}
+                >
+                  <div className="flex items-start gap-3 mb-4">
+                    <div
+                      className="w-9 h-9 rounded-full flex items-center justify-center shrink-0"
+                      style={{ backgroundColor: "rgba(196,48,48,0.15)", color: "#9B2C2C" }}
+                    >
+                      <AlertTriangle size={18} />
+                    </div>
+                    <div>
+                      <p className="text-[#2D241E]" style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "1.25rem" }}>
+                        Low stock alert
+                      </p>
+                      <p className="text-[#2D241E]/55 text-sm mt-0.5" style={{ fontFamily: "'DM Sans', sans-serif" }}>
+                        {criticalLowStockProducts.length === 1
+                          ? "1 product has 2 or fewer units left."
+                          : `${criticalLowStockProducts.length} products have 2 or fewer units left.`}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                    {criticalLowStockProducts.map((p) => (
+                      <button
+                        key={`low-stock-${p.id}`}
+                        type="button"
+                        onClick={() => {
+                          setProductSearch(p.name);
+                          setActiveTab("products");
+                        }}
+                        className="flex items-center gap-3 rounded-[16px] px-3 py-2.5 text-left transition-colors hover:bg-[#2D241E]/[0.04]"
+                        style={{ border: "1px solid rgba(45,36,30,0.1)", backgroundColor: "rgba(245,242,237,0.85)" }}
+                      >
+                        <div className="w-11 h-11 rounded-[10px] overflow-hidden shrink-0" style={{ backgroundColor: "#EDE9E2" }}>
+                          <img src={getProductPreviewUrl(p)} alt={p.name} className="w-full h-full object-cover" />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="text-[#2D241E] text-sm truncate" style={{ fontFamily: "'DM Sans', sans-serif" }}>
+                            {p.name}
+                          </p>
+                          <p className="text-xs mt-0.5" style={{ fontFamily: "'DM Sans', sans-serif", color: p.stock === 0 ? "#4A0E0E" : "#9B6B2E" }}>
+                            {p.stock === 0 ? "Out of stock" : `${p.stock} left`} · {p.sku}
+                          </p>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {/* Products Preview */}
               <div className="grid md:grid-cols-2 gap-8">
                 {/* Recent Products */}
@@ -2203,7 +2413,7 @@ export function AdminPage() {
                       <div key={p.id} className="flex items-center justify-between px-6 py-4">
                         <div className="flex items-center gap-3">
                           <div className="w-8 h-8 rounded-[10px] overflow-hidden flex-shrink-0" style={{ backgroundColor: "#EDE9E2" }}>
-                            <img src={p.colors[0].image} alt={p.name} className="w-full h-full object-cover" />
+                            <img src={getProductPreviewUrl(p)} alt={p.name} className="w-full h-full object-cover" />
                           </div>
                           <div>
                             <p className="text-[#2D241E] text-sm" style={{ fontFamily: "'DM Sans', sans-serif", lineHeight: 1.3 }}>{p.name}</p>
@@ -2688,7 +2898,7 @@ export function AdminPage() {
                       : null;
                     const previewImage =
                       resolveMediaUrl(slot.imageUrl) ||
-                      resolveMediaUrl(linkedProduct?.colors?.[0]?.image) ||
+                      getProductPreviewUrl(linkedProduct ?? { colors: [] }) ||
                       "";
                     const isUploading = Boolean(showcaseUploading[key]);
                     return (
@@ -2982,7 +3192,7 @@ export function AdminPage() {
                         >
                           <div className="flex items-start gap-3">
                             <div className="w-12 h-12 rounded-[12px] overflow-hidden shrink-0" style={{ backgroundColor: "#EDE9E2" }}>
-                              <img src={p.colors[0].image} alt={p.name} className="w-full h-full object-cover" />
+                              <img src={getProductPreviewUrl(p)} alt={p.name} className="w-full h-full object-cover" />
                             </div>
                             <div className="min-w-0 flex-1">
                               <div className="flex items-start justify-between gap-2">
@@ -3129,7 +3339,7 @@ export function AdminPage() {
                         {/* Product */}
                         <div className="flex items-center gap-3">
                           <div className="w-10 h-10 rounded-[12px] overflow-hidden flex-shrink-0" style={{ backgroundColor: "#EDE9E2" }}>
-                            <img src={p.colors[0].image} alt={p.name} className="w-full h-full object-cover" />
+                            <img src={getProductPreviewUrl(p)} alt={p.name} className="w-full h-full object-cover" />
                           </div>
                           <div className="min-w-0">
                             <p className="text-[#2D241E] truncate" style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "0.88rem" }}>{p.name}</p>
@@ -3751,6 +3961,169 @@ export function AdminPage() {
                     ))
                   )}
                 </div>
+              </div>
+            </motion.div>
+          )}
+
+          {/* ── LOGS ── */}
+          {activeTab === "logs" && (
+            <motion.div
+              key="logs"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              transition={{ duration: 0.4, ease: easing }}
+            >
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
+                <div>
+                  <p className="text-[#2D241E]" style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "1.35rem" }}>
+                    Activity logs
+                  </p>
+                  <p className="text-[#2D241E]/45 text-sm mt-1" style={{ fontFamily: "'DM Sans', sans-serif" }}>
+                    Products, orders, users, catalog, images, and storefront publishes.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (!apiAvailable) return;
+                    setLogsLoading(true);
+                    fetchActivityLogs({
+                      category: logsSubTab === "all" ? undefined : logsSubTab,
+                      limit: 200,
+                    })
+                      .then(setActivityLogs)
+                      .catch(() => setActivityLogs([]))
+                      .finally(() => setLogsLoading(false));
+                  }}
+                  className="px-5 py-2.5 rounded-full text-[#2D241E] transition-colors hover:bg-[#2D241E]/5"
+                  style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "0.78rem", letterSpacing: "0.1em", border: "1px solid rgba(45,36,30,0.15)" }}
+                >
+                  <span className="uppercase tracking-widest">Refresh</span>
+                </button>
+              </div>
+
+              <div className="flex flex-wrap gap-2 mb-8">
+                {([
+                  { key: "all" as LogsSubTab, label: "All" },
+                  { key: "product" as LogsSubTab, label: "Products" },
+                  { key: "order" as LogsSubTab, label: "Orders" },
+                  { key: "catalog" as LogsSubTab, label: "Catalog" },
+                  { key: "image" as LogsSubTab, label: "Images" },
+                  { key: "user" as LogsSubTab, label: "Users" },
+                  { key: "push" as LogsSubTab, label: "Pushes" },
+                ]).map((tab) => (
+                  <button
+                    key={tab.key}
+                    type="button"
+                    onClick={() => setLogsSubTab(tab.key)}
+                    className="px-4 py-2 rounded-full transition-colors"
+                    style={{
+                      fontFamily: "'DM Sans', sans-serif",
+                      fontSize: "0.75rem",
+                      letterSpacing: "0.08em",
+                      backgroundColor: logsSubTab === tab.key ? "#2D241E" : "rgba(45,36,30,0.06)",
+                      color: logsSubTab === tab.key ? "#F5F2ED" : "rgba(45,36,30,0.55)",
+                    }}
+                  >
+                    <span className="uppercase tracking-widest">{tab.label}</span>
+                  </button>
+                ))}
+              </div>
+
+              <div className="rounded-[28px] overflow-hidden" style={{ border: "1px solid rgba(45,36,30,0.08)" }}>
+                <div
+                  className="grid px-6 py-4 text-xs tracking-widest uppercase hidden md:grid"
+                  style={{
+                    gridTemplateColumns: "140px 90px 1fr 160px",
+                    fontFamily: "'DM Sans', sans-serif",
+                    letterSpacing: "0.12em",
+                    color: "rgba(45,36,30,0.4)",
+                    backgroundColor: "rgba(45,36,30,0.03)",
+                    borderBottom: "1px solid rgba(45,36,30,0.06)",
+                  }}
+                >
+                  <span>When</span>
+                  <span>Action</span>
+                  <span>Summary</span>
+                  <span>By</span>
+                </div>
+
+                <div className="divide-y" style={{ borderColor: "rgba(45,36,30,0.06)" }}>
+                  {logsLoading ? (
+                    <p className="py-12 text-center text-[#2D241E]/40" style={{ fontFamily: "'DM Sans', sans-serif" }}>
+                      Loading logs…
+                    </p>
+                  ) : activityLogs.length === 0 ? (
+                    <p className="py-12 text-center text-[#2D241E]/40 px-6" style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "1.05rem" }}>
+                      {apiAvailable ? "No activity recorded yet." : "Connect to the API to view logs."}
+                    </p>
+                  ) : (
+                    activityLogs.map((log) => {
+                      const details = parseLogDetails(log.detailsJson);
+                      const imageGroups = extractLogImageGroups(log.detailsJson, log.action, log.category);
+                      return (
+                        <div
+                          key={log.id}
+                          className="px-6 py-4 hover:bg-[#2D241E]/[0.02] transition-colors md:grid md:items-start md:gap-4"
+                          style={{ gridTemplateColumns: "140px 90px 1fr 160px" }}
+                        >
+                          <p className="text-[#2D241E]/45 text-xs mb-2 md:mb-0" style={{ fontFamily: "'DM Sans', sans-serif" }}>
+                            {formatLogTimestamp(log.createdAt)}
+                          </p>
+                          <div className="mb-2 md:mb-0">
+                            <span
+                              className="inline-flex px-2 py-0.5 rounded-full text-[10px] uppercase tracking-wider"
+                              style={{
+                                fontFamily: "'DM Sans', sans-serif",
+                                backgroundColor:
+                                  log.action === "deleted"
+                                    ? "rgba(74,14,14,0.1)"
+                                    : log.action === "created"
+                                      ? "rgba(45,36,30,0.08)"
+                                      : "rgba(155,107,46,0.12)",
+                                color: log.action === "deleted" ? "#4A0E0E" : log.action === "created" ? "#2D241E" : "#9B6B2E",
+                              }}
+                            >
+                              {formatLogAction(log.action)}
+                            </span>
+                          </div>
+                          <div className="min-w-0">
+                            <p className="text-[#2D241E] text-sm" style={{ fontFamily: "'DM Sans', sans-serif", lineHeight: 1.4 }}>
+                              {log.summary}
+                            </p>
+                            {details && (
+                              <p className="text-[#2D241E]/40 text-xs mt-1" style={{ fontFamily: "'DM Sans', sans-serif" }}>
+                                {details}
+                              </p>
+                            )}
+                            {log.entityLabel && log.entityLabel !== log.summary && (
+                              <p className="text-[#2D241E]/35 text-xs mt-0.5" style={{ fontFamily: "'DM Sans', sans-serif" }}>
+                                {log.entityLabel}
+                                {log.entityId ? ` · ${log.entityId}` : ""}
+                              </p>
+                            )}
+                            <LogImageStrip groups={imageGroups} />
+                          </div>
+                          <p className="text-[#2D241E]/40 text-xs mt-2 md:mt-0 truncate" style={{ fontFamily: "'DM Sans', sans-serif" }}>
+                            {log.actorEmail ?? "System"}
+                          </p>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+
+                {!logsLoading && activityLogs.length > 0 && (
+                  <div
+                    className="px-6 py-4"
+                    style={{ borderTop: "1px solid rgba(45,36,30,0.06)", backgroundColor: "rgba(45,36,30,0.02)" }}
+                  >
+                    <span className="text-xs text-[#2D241E]/40" style={{ fontFamily: "'DM Sans', sans-serif" }}>
+                      Showing {activityLogs.length} most recent entries
+                    </span>
+                  </div>
+                )}
               </div>
             </motion.div>
           )}

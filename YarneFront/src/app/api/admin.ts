@@ -135,3 +135,32 @@ export async function deleteSize(id: number): Promise<void> {
 export async function fetchUsers(): Promise<UserDto[]> {
   return apiRequest<UserDto[]>("/api/users");
 }
+
+export interface AdminActivityLogDto {
+  id: number;
+  category: string;
+  action: string;
+  entityId: string | null;
+  entityLabel: string | null;
+  summary: string;
+  detailsJson: string | null;
+  actorUserId: number | null;
+  actorEmail: string | null;
+  createdAt: string;
+}
+
+export async function fetchActivityLogs(params?: {
+  category?: "product" | "user" | "push" | "order" | "catalog" | "image";
+  limit?: number;
+  offset?: number;
+}): Promise<AdminActivityLogDto[]> {
+  const search = new URLSearchParams();
+  if (params?.category) search.set("category", params.category);
+  if (params?.limit != null) search.set("limit", String(params.limit));
+  if (params?.offset != null) search.set("offset", String(params.offset));
+  const qs = search.toString();
+  const data = await apiRequest<AdminActivityLogDto[]>(
+    `/api/admin/activity-logs${qs ? `?${qs}` : ""}`
+  );
+  return Array.isArray(data) ? data : [];
+}
