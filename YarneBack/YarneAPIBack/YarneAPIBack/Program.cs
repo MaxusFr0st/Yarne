@@ -38,15 +38,20 @@ builder.Services.AddDbContext<YarneDbContext>((sp, options) =>
         npgsqlOptions => npgsqlOptions.EnableRetryOnFailure(maxRetryCount: 10, maxRetryDelay: TimeSpan.FromSeconds(5), errorCodesToAdd: null));
 });
 
-// JWT
-builder.Services.Configure<JwtSettings>(builder.Configuration.GetSection(JwtSettings.SectionName));
-var jwtSettings = builder.Configuration.GetSection(JwtSettings.SectionName).Get<JwtSettings>()
-    ?? throw new InvalidOperationException("JWT settings are required");
-var legacyJwtSecret = Environment.GetEnvironmentVariable("JWT_SECRET");
-if (!string.IsNullOrWhiteSpace(legacyJwtSecret))
+// JWT — bind config, then apply JWT_SECRET / Jwt__Secret for token generation (AuthService, OAuthService).
+builder.Services.Configure<JwtSettings>(options =>
 {
-    jwtSettings.Secret = legacyJwtSecret;
-}
+    builder.Configuration.GetSection(JwtSettings.SectionName).Bind(options);
+    var legacyJwtSecret = Environment.GetEnvironmentVariable("JWT_SECRET");
+    if (!string.IsNullOrWhiteSpace(legacyJwtSecret))
+        options.Secret = legacyJwtSecret;
+});
+var jwtSettings = builder.Configuration.GetSection(JwtSettings.SectionName).Get<JwtSettings>()
+    ?? new JwtSettings();
+builder.Configuration.GetSection(JwtSettings.SectionName).Bind(jwtSettings);
+var jwtSecretOverride = Environment.GetEnvironmentVariable("JWT_SECRET");
+if (!string.IsNullOrWhiteSpace(jwtSecretOverride))
+    jwtSettings.Secret = jwtSecretOverride;
 ProductionStartupValidator.Validate(builder.Environment, jwtSettings);
 
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
