@@ -70,11 +70,28 @@ public class AuthService : IAuthService
         if (customer == null)
             return null;
 
-        if (!BCrypt.Net.BCrypt.Verify(request.Password, customer.PasswordHash))
+        if (!HasPasswordLogin(customer))
+        {
+            throw new UnauthorizedAccessException(
+                "This account uses Google or Apple sign-in. Please use that button instead of email and password.");
+        }
+
+        try
+        {
+            if (!BCrypt.Net.BCrypt.Verify(request.Password, customer.PasswordHash))
+                return null;
+        }
+        catch (Exception)
+        {
             return null;
+        }
 
         return await GenerateTokenAsync(customer, ct);
     }
+
+    private static bool HasPasswordLogin(Models.Customer customer) =>
+        !string.IsNullOrWhiteSpace(customer.PasswordHash)
+        && customer.PasswordHash.StartsWith("$2", StringComparison.Ordinal);
 
     private async Task<AuthResponse> GenerateTokenAsync(Models.Customer customer, CancellationToken ct = default)
     {

@@ -69,12 +69,24 @@ public class AuthController : ControllerBase
         if (request == null)
             return BadRequest("Invalid request");
 
-        var result = await _authService.LoginAsync(request, ct);
+        try
+        {
+            var result = await _authService.LoginAsync(request, ct);
 
-        if (result == null)
-            return Unauthorized(new { message = "Invalid email or password" });
+            if (result == null)
+                return Unauthorized(new { message = "Invalid email or password" });
 
-        return Ok(result);
+            return Ok(result);
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return Unauthorized(new { message = ex.Message });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Email/password login failed.");
+            return StatusCode(StatusCodes.Status500InternalServerError, new { message = "Sign-in failed on the server. Please try again." });
+        }
     }
 
     [HttpPost("google")]
