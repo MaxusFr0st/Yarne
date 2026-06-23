@@ -111,8 +111,11 @@ To **change admin password** after first seed: set `APP_SEED_ADMIN_PASSWORD` and
 | Variable | Purpose |
 |----------|---------|
 | `VITE_API_URL` | `https://<your-api-domain>` (no trailing slash) — **required**. Without it, `/uploads/...` images load from the frontend host and show placeholders on phones/tablets. |
+| `VITE_GOOGLE_CLIENT_ID` | Google OAuth web client ID (optional — hides Google button if unset) |
+| `VITE_APPLE_CLIENT_ID` | Apple Services ID (optional) |
+| `VITE_APPLE_REDIRECT_URI` | Frontend origin, e.g. `https://yarne-production.up.railway.app` (optional) |
 
-Rebuild/redeploy frontend after changing this (baked into Vite build).
+Rebuild/redeploy frontend after changing any `VITE_*` variable (baked into the Docker build via `YarneFront/Dockerfile` `ARG`/`ENV`).
 
 **Example:** if API is `https://mindful-flexibility-production.up.railway.app`, set exactly that on the **Yarne** frontend service (not on Postgres).
 

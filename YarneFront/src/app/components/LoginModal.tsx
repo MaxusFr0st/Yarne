@@ -1,8 +1,9 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { X, Eye, EyeOff } from "lucide-react";
-import { useGoogleLogin } from "@react-oauth/google";
 import { useApp } from "../context/AppContext";
+import { appleClientId, appleRedirectUri, isAppleOAuthEnabled, isGoogleOAuthEnabled, isOAuthEnabled } from "../config/oauth";
+import { LoginGoogleButton } from "./LoginGoogleButton";
 
 declare global {
   interface Window {
@@ -46,27 +47,11 @@ export function LoginModal() {
     }
   };
 
-  const googleLogin = useGoogleLogin({
-    onSuccess: async (tokenResponse) => {
-      setLoading(true);
-      setError("");
-      try {
-        const result = await loginWithOAuth(tokenResponse.access_token, "google");
-        if (!result.ok) setError(result.error ?? "Google sign-in failed. Please try again.");
-      } catch {
-        setError("Google sign-in failed. Check that the backend is running.");
-      } finally {
-        setLoading(false);
-      }
-    },
-    onError: () => {
-      setError("Google sign-in was cancelled or failed.");
-      setLoading(false);
-    },
-    scope: "openid email profile",
-  });
-
   const handleAppleLogin = async () => {
+    if (!isAppleOAuthEnabled) {
+      setError("Apple Sign In is not configured.");
+      return;
+    }
     if (!window.AppleID) {
       setError("Apple Sign In is not available. Please try again later.");
       return;
@@ -75,9 +60,9 @@ export function LoginModal() {
       setLoading(true);
       setError("");
       window.AppleID.auth.init({
-        clientId: import.meta.env.VITE_APPLE_CLIENT_ID ?? "",
+        clientId: appleClientId,
         scope: "name email",
-        redirectURI: import.meta.env.VITE_APPLE_REDIRECT_URI ?? window.location.origin,
+        redirectURI: appleRedirectUri || window.location.origin,
         usePopup: true,
       });
       const data = await window.AppleID.auth.signIn();
@@ -85,8 +70,9 @@ export function LoginModal() {
       if (!result.ok) setError(result.error ?? "Apple sign-in failed. Please try again.");
     } catch {
       setError("Apple sign-in was cancelled or failed.");
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   const inputClass =
@@ -172,38 +158,31 @@ export function LoginModal() {
                 ))}
               </div>
 
-              {mode === "login" && (
+              {mode === "login" && isOAuthEnabled && (
                 <div className="mb-4 space-y-3">
-                  {/* Google */}
-                  <button
-                    type="button"
-                    disabled={loading}
-                    onClick={() => { setError(""); googleLogin(); }}
-                    className="w-full flex items-center justify-center gap-3 py-3.5 rounded-full border border-[#2D241E]/12 bg-white hover:bg-gray-50 transition-colors duration-200 disabled:opacity-50"
-                    style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "0.875rem", color: "#3c3c3c" }}
-                  >
-                    <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true">
-                      <path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.875 2.684-6.615z"/>
-                      <path fill="#34A853" d="M9 18c2.43 0 4.467-.806 5.956-2.184l-2.909-2.258c-.806.54-1.837.86-3.047.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332C2.438 15.983 5.482 18 9 18z"/>
-                      <path fill="#FBBC05" d="M3.964 10.707c-.18-.54-.282-1.117-.282-1.707 0-.59.102-1.167.282-1.707V4.961H.957C.347 6.175 0 7.548 0 9s.348 2.825.957 4.039l3.007-2.332z"/>
-                      <path fill="#EA4335" d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0 5.482 0 2.438 2.017.957 4.961L3.964 7.293C4.672 5.166 6.656 3.58 9 3.58z"/>
-                    </svg>
-                    Continue with Google
-                  </button>
+                  {isGoogleOAuthEnabled && (
+                    <LoginGoogleButton
+                      loading={loading}
+                      setLoading={setLoading}
+                      setError={setError}
+                      onToken={(token) => loginWithOAuth(token, "google")}
+                    />
+                  )}
 
-                  {/* Apple */}
-                  <button
-                    type="button"
-                    disabled={loading}
-                    onClick={handleAppleLogin}
-                    className="w-full flex items-center justify-center gap-3 py-3.5 rounded-full transition-colors duration-200 disabled:opacity-50"
-                    style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "0.875rem", backgroundColor: "#000", color: "#fff" }}
-                  >
-                    <svg width="16" height="19" viewBox="0 0 814 1000" aria-hidden="true" fill="currentColor">
-                      <path d="M788.1 340.9c-5.8 4.5-108.2 62.2-108.2 190.5 0 148.4 130.3 200.9 134.2 202.2-.6 3.2-20.7 71.9-68.7 141.9-42.8 61.6-87.5 123.1-155.5 123.1s-85.5-39.5-164-39.5c-76 0-103.7 40.8-165.9 40.8s-105-43.4-150.3-109.2c-52.5-73.5-96-191.9-96-304.5 0-151 103.7-230.3 205.3-230.3 64.1 0 117.6 42.5 157.9 42.5 38.1 0 97.5-44.9 164-44.9 26.5 0 108.2 2.6 168.6 81.3zm-201.8-176.8c31.1-36.9 53.1-88.1 53.1-139.3 0-7.1-.6-14.3-1.9-20.1-50.6 1.9-110.8 33.7-147.1 75.8-28.5 32.4-55.1 83.6-55.1 135.5 0 7.8 1.3 15.6 1.9 18.1 3.2.6 8.4 1.3 13.6 1.3 45.4 0 102.5-30.4 135.5-71.3z"/>
-                    </svg>
-                    Continue with Apple
-                  </button>
+                  {isAppleOAuthEnabled && (
+                    <button
+                      type="button"
+                      disabled={loading}
+                      onClick={handleAppleLogin}
+                      className="w-full flex items-center justify-center gap-3 py-3.5 rounded-full transition-colors duration-200 disabled:opacity-50"
+                      style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "0.875rem", backgroundColor: "#000", color: "#fff" }}
+                    >
+                      <svg width="16" height="19" viewBox="0 0 814 1000" aria-hidden="true" fill="currentColor">
+                        <path d="M788.1 340.9c-5.8 4.5-108.2 62.2-108.2 190.5 0 148.4 130.3 200.9 134.2 202.2-.6 3.2-20.7 71.9-68.7 141.9-42.8 61.6-87.5 123.1-155.5 123.1s-85.5-39.5-164-39.5c-76 0-103.7 40.8-165.9 40.8s-105-43.4-150.3-109.2c-52.5-73.5-96-191.9-96-304.5 0-151 103.7-230.3 205.3-230.3 64.1 0 117.6 42.5 157.9 42.5 38.1 0 97.5-44.9 164-44.9 26.5 0 108.2 2.6 168.6 81.3zm-201.8-176.8c31.1-36.9 53.1-88.1 53.1-139.3 0-7.1-.6-14.3-1.9-20.1-50.6 1.9-110.8 33.7-147.1 75.8-28.5 32.4-55.1 83.6-55.1 135.5 0 7.8 1.3 15.6 1.9 18.1 3.2.6 8.4 1.3 13.6 1.3 45.4 0 102.5-30.4 135.5-71.3z"/>
+                      </svg>
+                      Continue with Apple
+                    </button>
+                  )}
 
                   {/* Divider */}
                   <div className="flex items-center gap-3 pt-1">
