@@ -61,6 +61,26 @@ public static class DatabaseBootstrap
                           ) THEN
                             ALTER TABLE "Order" ADD COLUMN "EstimatedDelivery" timestamp without time zone NULL;
                           END IF;
+
+                          IF NOT EXISTS (
+                            SELECT 1
+                            FROM information_schema.columns
+                            WHERE table_schema = current_schema()
+                              AND table_name = 'Customer'
+                              AND column_name = 'OAuthProvider'
+                          ) THEN
+                            ALTER TABLE "Customer" ADD COLUMN "OAuthProvider" character varying(50) NULL;
+                          END IF;
+
+                          IF NOT EXISTS (
+                            SELECT 1
+                            FROM information_schema.columns
+                            WHERE table_schema = current_schema()
+                              AND table_name = 'Customer'
+                              AND column_name = 'OAuthProviderId'
+                          ) THEN
+                            ALTER TABLE "Customer" ADD COLUMN "OAuthProviderId" character varying(255) NULL;
+                          END IF;
                         END $$;
                         """,
                         cancellationToken);

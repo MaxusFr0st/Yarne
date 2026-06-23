@@ -12,12 +12,18 @@ public class AuthController : ControllerBase
     private readonly IAuthService _authService;
     private readonly IAdminActivityLogService _activityLogs;
     private readonly IOAuthService _oauthService;
+    private readonly ILogger<AuthController> _logger;
 
-    public AuthController(IAuthService authService, IAdminActivityLogService activityLogs, IOAuthService oauthService)
+    public AuthController(
+        IAuthService authService,
+        IAdminActivityLogService activityLogs,
+        IOAuthService oauthService,
+        ILogger<AuthController> logger)
     {
         _authService = authService;
         _activityLogs = activityLogs;
         _oauthService = oauthService;
+        _logger = logger;
     }
 
     [HttpPost("register")]
@@ -90,6 +96,11 @@ public class AuthController : ControllerBase
         catch (UnauthorizedAccessException ex)
         {
             return Unauthorized(new { message = ex.Message });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Google OAuth sign-in failed.");
+            return StatusCode(StatusCodes.Status500InternalServerError, new { message = "Google sign-in failed on the server. Try again or use email/password." });
         }
     }
 
