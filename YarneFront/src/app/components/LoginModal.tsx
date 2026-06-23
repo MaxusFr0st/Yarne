@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useId, useRef, useState, type Ref } from "react";
-import { motion, AnimatePresence, useReducedMotion } from "motion/react";
+import { motion, AnimatePresence, useReducedMotion, LayoutGroup } from "motion/react";
 import { X, Eye, EyeOff } from "lucide-react";
 import { useApp } from "../context/AppContext";
 import { appleClientId, appleRedirectUri, isAppleOAuthEnabled, isGoogleOAuthEnabled, isOAuthEnabled } from "../config/oauth";
@@ -105,11 +105,17 @@ export function LoginModal() {
   }, []);
 
   const switchMode = useCallback((next: AuthMode) => {
+    if (next === mode) return;
     setMode(next);
     setError("");
     setPassword("");
     setShowPass(false);
-  }, []);
+    if (!reduceMotion) {
+      window.setTimeout(() => {
+        (next === "register" ? firstNameRef : emailRef).current?.focus();
+      }, 300);
+    }
+  }, [mode, reduceMotion]);
 
   useEffect(() => {
     if (!loginOpen) {
@@ -125,15 +131,17 @@ export function LoginModal() {
     const prevOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
 
-    const focusTarget = mode === "login" ? emailRef.current : firstNameRef.current;
-    const focusTimer = window.setTimeout(() => focusTarget?.focus(), reduceMotion ? 0 : 120);
+    const focusTimer = window.setTimeout(
+      () => emailRef.current?.focus(),
+      reduceMotion ? 0 : 180
+    );
 
     return () => {
       document.removeEventListener("keydown", onKeyDown);
       document.body.style.overflow = prevOverflow;
       window.clearTimeout(focusTimer);
     };
-  }, [loginOpen, closeLogin, resetForm, reduceMotion, mode]);
+  }, [loginOpen, closeLogin, resetForm, reduceMotion]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -192,9 +200,33 @@ export function LoginModal() {
     ? { duration: 0 }
     : { duration: 0.32, ease: easing };
 
-  const contentTransition = reduceMotion
+  const expandTransition = reduceMotion
     ? { duration: 0 }
-    : { duration: 0.22, ease: easing };
+    : { duration: 0.28, ease: [0.25, 0.1, 0.25, 1] as const };
+
+  const layoutTransition = reduceMotion
+    ? { duration: 0 }
+    : { duration: 0.34, ease: [0.25, 0.1, 0.25, 1] as const };
+
+  const fieldStagger = reduceMotion
+    ? { duration: 0 }
+    : { duration: 0.24, ease: [0.25, 0.1, 0.25, 1] as const };
+
+  const registerFieldVariants = {
+    hidden: { opacity: 0, y: -8 },
+    visible: (i: number) => ({
+      opacity: 1,
+      y: 0,
+      transition: reduceMotion
+        ? { duration: 0 }
+        : { ...fieldStagger, delay: 0.04 + i * 0.045 },
+    }),
+    exit: {
+      opacity: 0,
+      y: -6,
+      transition: reduceMotion ? { duration: 0 } : { duration: 0.18, ease: [0.4, 0, 0.2, 1] as const },
+    },
+  };
 
   return (
     <AnimatePresence>
@@ -257,10 +289,10 @@ export function LoginModal() {
                     id={titleId}
                     className="text-[#2D241E]"
                     style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "clamp(1.65rem, 5vw, 2rem)", fontWeight: 400, lineHeight: 1.2 }}
-                    initial={reduceMotion ? false : { opacity: 0, y: 6 }}
+                    initial={reduceMotion ? false : { opacity: 0, y: 8 }}
                     animate={{ opacity: 1, y: 0 }}
-                    exit={reduceMotion ? undefined : { opacity: 0, y: -6 }}
-                    transition={contentTransition}
+                    exit={reduceMotion ? undefined : { opacity: 0, y: -8 }}
+                    transition={expandTransition}
                   >
                     {mode === "login" ? "Welcome back" : "Create account"}
                   </motion.h2>
@@ -300,96 +332,144 @@ export function LoginModal() {
                 ))}
               </div>
 
-              <AnimatePresence mode="wait" initial={false}>
-                <motion.div
-                  key={mode}
-                  initial={reduceMotion ? false : { opacity: 0, x: mode === "login" ? -10 : 10 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={reduceMotion ? undefined : { opacity: 0, x: mode === "login" ? 10 : -10 }}
-                  transition={contentTransition}
-                >
-                  {mode === "login" && isOAuthEnabled && (
-                    <div className="mb-5 space-y-3">
-                      {isGoogleOAuthEnabled && (
-                        <LoginGoogleButton
-                          loading={loading}
-                          setLoading={setLoading}
-                          setError={setError}
-                          onToken={(token) => loginWithOAuth(token, "google")}
-                        />
-                      )}
+              {/* OAuth + form — layout morphs height; fields fade/slide (no height:auto jank) */}
+              <LayoutGroup id="auth-form">
+                <div className="relative">
+                  <AnimatePresence initial={false}>
+                    {mode === "login" && isOAuthEnabled && (
+                      <motion.div
+                        key="oauth-block"
+                        layout="position"
+                        initial={reduceMotion ? false : { opacity: 0, y: -10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={reduceMotion ? undefined : { opacity: 0, y: -8 }}
+                        transition={{
+                          opacity: expandTransition,
+                          y: expandTransition,
+                          layout: layoutTransition,
+                        }}
+                      >
+                        <div className="mb-5 space-y-3">
+                          {isGoogleOAuthEnabled && (
+                            <LoginGoogleButton
+                              loading={loading}
+                              setLoading={setLoading}
+                              setError={setError}
+                              onToken={(token) => loginWithOAuth(token, "google")}
+                            />
+                          )}
 
-                      {isAppleOAuthEnabled && (
-                        <button
-                          type="button"
-                          disabled={loading}
-                          onClick={handleAppleLogin}
-                          className="w-full flex items-center justify-center gap-3 py-3.5 rounded-full transition-colors duration-200 disabled:opacity-50 cursor-pointer"
-                          style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "0.875rem", backgroundColor: "#000", color: "#fff" }}
-                        >
-                          <svg width="16" height="19" viewBox="0 0 814 1000" aria-hidden="true" fill="currentColor">
-                            <path d="M788.1 340.9c-5.8 4.5-108.2 62.2-108.2 190.5 0 148.4 130.3 200.9 134.2 202.2-.6 3.2-20.7 71.9-68.7 141.9-42.8 61.6-87.5 123.1-155.5 123.1s-85.5-39.5-164-39.5c-76 0-103.7 40.8-165.9 40.8s-105-43.4-150.3-109.2c-52.5-73.5-96-191.9-96-304.5 0-151 103.7-230.3 205.3-230.3 64.1 0 117.6 42.5 157.9 42.5 38.1 0 97.5-44.9 164-44.9 26.5 0 108.2 2.6 168.6 81.3zm-201.8-176.8c31.1-36.9 53.1-88.1 53.1-139.3 0-7.1-.6-14.3-1.9-20.1-50.6 1.9-110.8 33.7-147.1 75.8-28.5 32.4-55.1 83.6-55.1 135.5 0 7.8 1.3 15.6 1.9 18.1 3.2.6 8.4 1.3 13.6 1.3 45.4 0 102.5-30.4 135.5-71.3z" />
-                          </svg>
-                          Continue with Apple
-                        </button>
-                      )}
+                          {isAppleOAuthEnabled && (
+                            <button
+                              type="button"
+                              disabled={loading}
+                              onClick={handleAppleLogin}
+                              className="w-full flex items-center justify-center gap-3 py-3.5 rounded-full transition-colors duration-200 disabled:opacity-50 cursor-pointer"
+                              style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "0.875rem", backgroundColor: "#000", color: "#fff" }}
+                            >
+                              <svg width="16" height="19" viewBox="0 0 814 1000" aria-hidden="true" fill="currentColor">
+                                <path d="M788.1 340.9c-5.8 4.5-108.2 62.2-108.2 190.5 0 148.4 130.3 200.9 134.2 202.2-.6 3.2-20.7 71.9-68.7 141.9-42.8 61.6-87.5 123.1-155.5 123.1s-85.5-39.5-164-39.5c-76 0-103.7 40.8-165.9 40.8s-105-43.4-150.3-109.2c-52.5-73.5-96-191.9-96-304.5 0-151 103.7-230.3 205.3-230.3 64.1 0 117.6 42.5 157.9 42.5 38.1 0 97.5-44.9 164-44.9 26.5 0 108.2 2.6 168.6 81.3zm-201.8-176.8c31.1-36.9 53.1-88.1 53.1-139.3 0-7.1-.6-14.3-1.9-20.1-50.6 1.9-110.8 33.7-147.1 75.8-28.5 32.4-55.1 83.6-55.1 135.5 0 7.8 1.3 15.6 1.9 18.1 3.2.6 8.4 1.3 13.6 1.3 45.4 0 102.5-30.4 135.5-71.3z" />
+                              </svg>
+                              Continue with Apple
+                            </button>
+                          )}
 
-                      <div className="flex items-center gap-3 pt-1">
-                        <div className="flex-1 h-px bg-[#2D241E]/10" />
-                        <span className="text-xs text-[#2D241E]/35" style={{ fontFamily: "'DM Sans', sans-serif" }}>or</span>
-                        <div className="flex-1 h-px bg-[#2D241E]/10" />
-                      </div>
-                    </div>
-                  )}
-
-                  <form onSubmit={handleSubmit} className="space-y-4" noValidate>
-                    {mode === "register" && (
-                      <div className="space-y-4">
-                        <div className="grid grid-cols-2 gap-3">
-                          <AuthField
-                            id="auth-first-name"
-                            label="First name"
-                            value={firstName}
-                            onChange={setFirstName}
-                            autoComplete="given-name"
-                            maxLength={80}
-                            required
-                            inputRef={firstNameRef}
-                          />
-                          <AuthField
-                            id="auth-last-name"
-                            label="Last name"
-                            value={lastName}
-                            onChange={setLastName}
-                            autoComplete="family-name"
-                            maxLength={80}
-                            required
-                          />
+                          <div className="flex items-center gap-3 pt-1">
+                            <div className="flex-1 h-px bg-[#2D241E]/10" />
+                            <span className="text-xs text-[#2D241E]/35" style={{ fontFamily: "'DM Sans', sans-serif" }}>or</span>
+                            <div className="flex-1 h-px bg-[#2D241E]/10" />
+                          </div>
                         </div>
-                        <AuthField
-                          id="auth-username"
-                          label="Username"
-                          value={userName}
-                          onChange={setUserName}
-                          autoComplete="username"
-                          maxLength={50}
-                          required
-                        />
-                      </div>
+                      </motion.div>
                     )}
+                  </AnimatePresence>
 
-                    <AuthField
-                      id="auth-email"
-                      label="Email"
-                      type="email"
-                      value={email}
-                      onChange={setEmail}
-                      autoComplete="email"
-                      maxLength={254}
-                      required
-                      inputRef={emailRef}
-                    />
-                    {/* Honeypot — bots only */}
+                  <motion.form
+                    layout
+                    onSubmit={handleSubmit}
+                    className="space-y-4"
+                    noValidate
+                    transition={layoutTransition}
+                  >
+                    <AnimatePresence initial={false} mode="popLayout">
+                      {mode === "register" && (
+                        <motion.div
+                          key="register-fields"
+                          layout="position"
+                          initial={reduceMotion ? false : { opacity: 0, y: -12 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={reduceMotion ? undefined : { opacity: 0, y: -8 }}
+                          transition={{
+                            opacity: expandTransition,
+                            y: expandTransition,
+                            layout: layoutTransition,
+                          }}
+                        >
+                          <motion.div
+                            className="space-y-4 pb-1"
+                            initial="hidden"
+                            animate="visible"
+                            exit="hidden"
+                            variants={{
+                              visible: { transition: { staggerChildren: reduceMotion ? 0 : 0.045, delayChildren: 0.03 } },
+                              hidden: { transition: { staggerChildren: 0, staggerDirection: -1 } },
+                            }}
+                          >
+                            <motion.div className="grid grid-cols-2 gap-3" variants={{ hidden: {}, visible: {} }}>
+                              <motion.div variants={registerFieldVariants} custom={0}>
+                                <AuthField
+                                  id="auth-first-name"
+                                  label="First name"
+                                  value={firstName}
+                                  onChange={setFirstName}
+                                  autoComplete="given-name"
+                                  maxLength={80}
+                                  required
+                                  inputRef={firstNameRef}
+                                />
+                              </motion.div>
+                              <motion.div variants={registerFieldVariants} custom={1}>
+                                <AuthField
+                                  id="auth-last-name"
+                                  label="Last name"
+                                  value={lastName}
+                                  onChange={setLastName}
+                                  autoComplete="family-name"
+                                  maxLength={80}
+                                  required
+                                />
+                              </motion.div>
+                            </motion.div>
+                            <motion.div variants={registerFieldVariants} custom={2}>
+                              <AuthField
+                                id="auth-username"
+                                label="Username"
+                                value={userName}
+                                onChange={setUserName}
+                                autoComplete="username"
+                                maxLength={50}
+                                required
+                              />
+                            </motion.div>
+                          </motion.div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+
+                    <motion.div layout="position" transition={layoutTransition}>
+                      <AuthField
+                        id="auth-email"
+                        label="Email"
+                        type="email"
+                        value={email}
+                        onChange={setEmail}
+                        autoComplete="email"
+                        maxLength={254}
+                        required
+                        inputRef={emailRef}
+                      />
+                    </motion.div>
+
                     <input
                       type="text"
                       name="company"
@@ -399,38 +479,49 @@ export function LoginModal() {
                       aria-hidden="true"
                     />
 
-                    <AuthField
-                      id="auth-password"
-                      label="Password"
-                      type={showPass ? "text" : "password"}
-                      value={password}
-                      onChange={setPassword}
-                      autoComplete={mode === "login" ? "current-password" : "new-password"}
-                      maxLength={128}
-                      required
-                    >
-                      <button
-                        type="button"
-                        onClick={() => setShowPass((v) => !v)}
-                        aria-label={showPass ? "Hide password" : "Show password"}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 w-8 h-8 flex items-center justify-center rounded-full text-[#2D241E]/40 hover:text-[#2D241E]/70 hover:bg-[#2D241E]/5 transition-colors cursor-pointer"
+                    <motion.div layout="position" transition={layoutTransition}>
+                      <AuthField
+                        id="auth-password"
+                        label="Password"
+                        type={showPass ? "text" : "password"}
+                        value={password}
+                        onChange={setPassword}
+                        autoComplete={mode === "login" ? "current-password" : "new-password"}
+                        maxLength={128}
+                        required
                       >
-                        {showPass ? <EyeOff size={16} /> : <Eye size={16} />}
-                      </button>
-                    </AuthField>
+                        <button
+                          type="button"
+                          onClick={() => setShowPass((v) => !v)}
+                          aria-label={showPass ? "Hide password" : "Show password"}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 w-8 h-8 flex items-center justify-center rounded-full text-[#2D241E]/40 hover:text-[#2D241E]/70 hover:bg-[#2D241E]/5 transition-colors cursor-pointer"
+                        >
+                          {showPass ? <EyeOff size={16} /> : <Eye size={16} />}
+                        </button>
+                      </AuthField>
+                    </motion.div>
 
-                    {error && (
-                      <p
-                        role="alert"
-                        aria-live="polite"
-                        className="text-[#4A0E0E] text-sm text-center px-2"
-                        style={{ fontFamily: "'DM Sans', sans-serif" }}
-                      >
-                        {error}
-                      </p>
-                    )}
+                    <AnimatePresence mode="wait" initial={false}>
+                      {error && (
+                        <motion.p
+                          key={error}
+                          layout="position"
+                          role="alert"
+                          aria-live="polite"
+                          className="text-[#4A0E0E] text-sm text-center px-2"
+                          style={{ fontFamily: "'DM Sans', sans-serif" }}
+                          initial={reduceMotion ? false : { opacity: 0, y: -4 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={reduceMotion ? undefined : { opacity: 0, y: -4 }}
+                          transition={expandTransition}
+                        >
+                          {error}
+                        </motion.p>
+                      )}
+                    </AnimatePresence>
 
-                    <button
+                    <motion.button
+                      layout="position"
                       type="submit"
                       disabled={loading}
                       className="w-full py-3.5 rounded-full text-white transition-opacity duration-200 hover:opacity-90 disabled:opacity-50 mt-1 cursor-pointer"
@@ -440,21 +531,41 @@ export function LoginModal() {
                         fontSize: "0.8rem",
                         letterSpacing: "0.15em",
                       }}
+                      transition={layoutTransition}
                     >
                       {loading ? (
                         <span className="flex items-center justify-center gap-2">
                           <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                          {mode === "login" ? "Signing in…" : "Creating account…"}
+                          <AnimatePresence mode="wait" initial={false}>
+                            <motion.span
+                              key={mode}
+                              initial={reduceMotion ? false : { opacity: 0, y: 4 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              exit={reduceMotion ? undefined : { opacity: 0, y: -4 }}
+                              transition={{ duration: 0.18 }}
+                            >
+                              {mode === "login" ? "Signing in…" : "Creating account…"}
+                            </motion.span>
+                          </AnimatePresence>
                         </span>
                       ) : (
-                        <span className="uppercase tracking-widest">
-                          {mode === "login" ? "Sign In" : "Create Account"}
-                        </span>
+                        <AnimatePresence mode="wait" initial={false}>
+                          <motion.span
+                            key={mode}
+                            className="uppercase tracking-widest inline-block"
+                            initial={reduceMotion ? false : { opacity: 0, y: 5 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={reduceMotion ? undefined : { opacity: 0, y: -5 }}
+                            transition={{ duration: 0.22, ease: easing }}
+                          >
+                            {mode === "login" ? "Sign In" : "Create Account"}
+                          </motion.span>
+                        </AnimatePresence>
                       )}
-                    </button>
-                  </form>
-                </motion.div>
-              </AnimatePresence>
+                    </motion.button>
+                  </motion.form>
+                </div>
+              </LayoutGroup>
 
               <p
                 className="text-center text-[#2D241E]/40 text-xs mt-6 leading-relaxed"
