@@ -17,6 +17,7 @@ public static class DatabaseStartup
             {
                 await db.Database.MigrateAsync(cancellationToken);
                 logger.LogInformation("Database migrations applied successfully.");
+                await CustomerSchemaPatches.EnsureOAuthColumnsAsync(db, logger, cancellationToken);
                 return;
             }
             catch (Exception ex) when (attempt < maxAttempts)

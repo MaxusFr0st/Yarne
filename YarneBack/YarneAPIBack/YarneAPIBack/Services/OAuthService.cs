@@ -3,6 +3,7 @@ using System.Security.Claims;
 using System.Text;
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using YarneAPIBack.Configuration;
@@ -19,6 +20,7 @@ public class OAuthService : IOAuthService
     private readonly JwtSettings _jwtSettings;
     private readonly IConfiguration _configuration;
     private readonly IHttpClientFactory _httpClientFactory;
+    private readonly ILogger<OAuthService> _logger;
 
     private static readonly SemaphoreSlim _appleKeysCacheLock = new(1, 1);
     private static IList<JsonWebKey>? _cachedAppleKeys;
@@ -28,16 +30,20 @@ public class OAuthService : IOAuthService
         YarneDbContext context,
         IOptions<JwtSettings> jwtSettings,
         IConfiguration configuration,
-        IHttpClientFactory httpClientFactory)
+        IHttpClientFactory httpClientFactory,
+        ILogger<OAuthService> logger)
     {
         _context = context;
         _jwtSettings = jwtSettings.Value;
         _configuration = configuration;
         _httpClientFactory = httpClientFactory;
+        _logger = logger;
     }
 
     public async Task<AuthResponse> HandleGoogleAsync(string accessToken, CancellationToken ct = default)
     {
+        await CustomerSchemaPatches.EnsureOAuthColumnsAsync(_context, _logger, ct);
+
         var client = _httpClientFactory.CreateClient();
         HttpResponseMessage response;
         try
@@ -169,6 +175,7 @@ public class OAuthService : IOAuthService
                 PasswordHash = "",
                 PasswordSalt = "",
                 IsActive = true,
+                CreatedAt = DateTime.UtcNow,
                 OAuthProvider = provider,
                 OAuthProviderId = providerId,
             };
