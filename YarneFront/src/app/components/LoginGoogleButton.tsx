@@ -33,7 +33,7 @@ export function LoginGoogleButton({ loading, setLoading, setError, onToken }: Pr
       type="button"
       disabled={loading}
       onClick={handleClick}
-      className="w-full flex items-center justify-center gap-3 py-3.5 rounded-full border border-[#2D241E]/12 bg-white hover:bg-gray-50 transition-colors duration-200 disabled:opacity-50"
+      className="w-full flex items-center justify-center gap-3 py-3.5 rounded-full border border-[#2D241E]/12 bg-white hover:bg-gray-50 transition-colors duration-200 disabled:opacity-50 cursor-pointer"
       style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "0.875rem", color: "#3c3c3c" }}
     >
       <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true">
