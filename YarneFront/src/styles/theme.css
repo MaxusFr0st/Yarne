@@ -146,13 +146,7 @@
   html {
     font-size: var(--font-size);
     overflow-x: hidden;
-    scroll-behavior: smooth;
-  }
-
-  @media (prefers-reduced-motion: reduce) {
-    html {
-      scroll-behavior: auto;
-    }
+    scroll-behavior: auto;
   }
 
   @keyframes bounce-soft {

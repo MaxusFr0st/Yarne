@@ -64,40 +64,42 @@ export function Root() {
   useLayoutEffect(() => {
     if (typeof window === "undefined") return;
 
+    const snapScroll = (top: number) => {
+      const y = Math.max(0, Math.round(top));
+      // Legacy form + auto — never smooth-scroll on route changes (html scroll-behavior stays auto).
+      window.scrollTo(0, y);
+    };
+
     const restoreScroll = () => {
       if (location.hash) {
         const id = location.hash.slice(1);
         const target = id ? document.getElementById(id) : null;
         if (target) {
-          target.scrollIntoView();
+          target.scrollIntoView({ behavior: "auto", block: "start" });
           return;
         }
       }
 
       const preserved = consumePreservedScroll();
       if (preserved != null) {
-        window.scrollTo({ top: preserved, left: 0, behavior: "auto" });
+        snapScroll(preserved);
         return;
       }
 
-      const positions = positionsRef.current;
-      let nextTop = 0;
-
       if (navigationType === "POP") {
-        nextTop =
+        const positions = positionsRef.current;
+        const nextTop =
           (entryStorageKey && Number.isFinite(positions[entryStorageKey]) ? positions[entryStorageKey] : undefined) ??
           (Number.isFinite(positions[routeStorageKey]) ? positions[routeStorageKey] : 0);
+        snapScroll(nextTop);
+        return;
       }
 
-      window.scrollTo({ top: Math.max(0, Math.round(nextTop)), left: 0, behavior: "auto" });
+      // PUSH / REPLACE — snap to top before paint so the new page never flashes mid-scroll.
+      snapScroll(0);
     };
 
-    // Wait until layout settles to avoid restoring too early.
-    const firstFrame = window.requestAnimationFrame(() => {
-      window.requestAnimationFrame(restoreScroll);
-    });
-
-    return () => window.cancelAnimationFrame(firstFrame);
+    restoreScroll();
   }, [entryStorageKey, location.hash, navigationType, routeStorageKey]);
 
   useEffect(() => {
