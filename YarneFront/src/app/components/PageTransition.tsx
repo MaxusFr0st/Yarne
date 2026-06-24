@@ -6,9 +6,9 @@ type PageTransitionProps = {
   children: ReactNode;
 };
 
-const EASE_OUT = [0.22, 1, 0.36, 1] as const;
+const EASE_OUT = [0.16, 1, 0.3, 1] as const;
 
-/** Opacity-only route enter — 220ms, no y-shift (avoids scroll-up feel on mobile). */
+/** Opacity-only route enter — soft ease-out, no y-shift. */
 export function PageTransition({ children }: PageTransitionProps) {
   const location = useLocation();
   const reduced = useReducedMotion();
@@ -20,7 +20,7 @@ export function PageTransition({ children }: PageTransitionProps) {
       className="min-h-[calc(100svh-var(--main-header-h))]"
       initial={reduced ? false : { opacity: 0 }}
       animate={{ opacity: 1 }}
-      transition={{ duration: reduced ? 0 : 0.22, ease: EASE_OUT }}
+      transition={{ duration: reduced ? 0 : 0.32, ease: EASE_OUT }}
     >
       {children}
     </motion.div>

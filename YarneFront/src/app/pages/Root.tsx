@@ -35,16 +35,26 @@ function writeScrollPositions(positions: ScrollPositions): void {
   window.sessionStorage.setItem(SCROLL_STORAGE_KEY, JSON.stringify(positions));
 }
 
+function routeStorageKey(pathname: string, search: string): string {
+  return `route:${pathname}${search}`;
+}
+
+function entryStorageKey(key: string | undefined): string {
+  return key ? `entry:${key}` : "";
+}
+
 export function Root() {
   const location = useLocation();
   const navigationType = useNavigationType();
   const positionsRef = useRef<ScrollPositions>(readScrollPositions());
+  const prevLocationRef = useRef(location);
   const rafRef = useRef<number | null>(null);
+  const restoreTimersRef = useRef<number[]>([]);
   const { i18n } = useTranslation();
 
   const routeKey = `${location.pathname}${location.search}`;
-  const routeStorageKey = `route:${routeKey}`;
-  const entryStorageKey = location.key ? `entry:${location.key}` : "";
+  const currentRouteKey = routeStorageKey(location.pathname, location.search);
+  const currentEntryKey = entryStorageKey(location.key);
 
   // URL is the source of truth: keep i18next + <html lang> in sync with it.
   useEffect(() => {
@@ -64,10 +74,44 @@ export function Root() {
   useLayoutEffect(() => {
     if (typeof window === "undefined") return;
 
+    const prev = prevLocationRef.current;
+    const pathChanged =
+      prev.pathname !== location.pathname ||
+      prev.search !== location.search ||
+      prev.key !== location.key;
+
+    // Save leaving page scroll BEFORE any snap — useEffect cleanup runs too late (after snap to 0).
+    if (pathChanged) {
+      const y = Math.max(0, Math.round(window.scrollY));
+      const prevRouteKey = routeStorageKey(prev.pathname, prev.search);
+      const prevEntryKey = entryStorageKey(prev.key);
+      const next = { ...positionsRef.current, [prevRouteKey]: y };
+      if (prevEntryKey) next[prevEntryKey] = y;
+      positionsRef.current = next;
+      writeScrollPositions(next);
+    }
+
+    prevLocationRef.current = location;
+
     const snapScroll = (top: number) => {
+      window.scrollTo(0, Math.max(0, Math.round(top)));
+    };
+
+    const clearRestoreTimers = () => {
+      for (const id of restoreTimersRef.current) window.clearTimeout(id);
+      restoreTimersRef.current = [];
+    };
+
+    const restoreWithRetries = (top: number) => {
+      clearRestoreTimers();
       const y = Math.max(0, Math.round(top));
-      // Legacy form + auto — never smooth-scroll on route changes (html scroll-behavior stays auto).
-      window.scrollTo(0, y);
+      const apply = () => snapScroll(y);
+      apply();
+      requestAnimationFrame(() => {
+        requestAnimationFrame(apply);
+      });
+      // Retry after layout/async content (product grids) settle.
+      restoreTimersRef.current = [50, 150, 350].map((ms) => window.setTimeout(apply, ms));
     };
 
     const restoreScroll = () => {
@@ -82,33 +126,36 @@ export function Root() {
 
       const preserved = consumePreservedScroll();
       if (preserved != null) {
-        snapScroll(preserved);
+        restoreWithRetries(preserved);
         return;
       }
 
       if (navigationType === "POP") {
         const positions = positionsRef.current;
         const nextTop =
-          (entryStorageKey && Number.isFinite(positions[entryStorageKey]) ? positions[entryStorageKey] : undefined) ??
-          (Number.isFinite(positions[routeStorageKey]) ? positions[routeStorageKey] : 0);
-        snapScroll(nextTop);
+          (currentEntryKey && Number.isFinite(positions[currentEntryKey]) ? positions[currentEntryKey] : undefined) ??
+          (Number.isFinite(positions[currentRouteKey]) ? positions[currentRouteKey] : 0);
+        restoreWithRetries(nextTop);
         return;
       }
 
-      // PUSH / REPLACE — snap to top before paint so the new page never flashes mid-scroll.
+      // PUSH / REPLACE — snap to top before paint.
+      clearRestoreTimers();
       snapScroll(0);
     };
 
     restoreScroll();
-  }, [entryStorageKey, location.hash, navigationType, routeStorageKey]);
+
+    return () => clearRestoreTimers();
+  }, [currentEntryKey, currentRouteKey, location.hash, location.key, location.pathname, location.search, navigationType]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
 
     const persistNow = () => {
       const y = Math.max(0, Math.round(window.scrollY));
-      const next = { ...positionsRef.current, [routeStorageKey]: y };
-      if (entryStorageKey) next[entryStorageKey] = y;
+      const next = { ...positionsRef.current, [currentRouteKey]: y };
+      if (currentEntryKey) next[currentEntryKey] = y;
       positionsRef.current = next;
       writeScrollPositions(next);
     };
@@ -130,7 +177,7 @@ export function Root() {
         rafRef.current = null;
       }
     };
-  }, [entryStorageKey, routeStorageKey]);
+  }, [currentEntryKey, currentRouteKey]);
 
   return (
     <div className="relative" style={{ backgroundColor: "#F5F2ED", minHeight: "100svh" }}>
