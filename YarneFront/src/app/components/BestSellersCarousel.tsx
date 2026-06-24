@@ -111,12 +111,12 @@ export function BestSellersCarousel() {
         <style>{`
           .bestsellers-carousel {
             --slide-spacing: 1rem;
-            --slide-size: 74%;
+            --slide-size: 78%;
           }
           @media (min-width: 640px) {
             .bestsellers-carousel {
               --slide-spacing: 1.25rem;
-              --slide-size: 46%;
+              --slide-size: 48%;
             }
           }
           @media (min-width: 768px) {
@@ -130,18 +130,8 @@ export function BestSellersCarousel() {
               --slide-size: calc((100% - (var(--slide-spacing) * 3)) / 4);
             }
           }
-          .carousel-fade {
-            mask-image: linear-gradient(to right, rgba(0,0,0,0.35) 0%, black 16px, black calc(100% - 16px), rgba(0,0,0,0.35) 100%);
-            -webkit-mask-image: linear-gradient(to right, rgba(0,0,0,0.35) 0%, black 16px, black calc(100% - 16px), rgba(0,0,0,0.35) 100%);
-          }
-          @media (min-width: 768px) {
-            .carousel-fade {
-              mask-image: linear-gradient(to right, rgba(0,0,0,0.25) 0%, black 48px, black calc(100% - 48px), rgba(0,0,0,0.25) 100%);
-              -webkit-mask-image: linear-gradient(to right, rgba(0,0,0,0.25) 0%, black 48px, black calc(100% - 48px), rgba(0,0,0,0.25) 100%);
-            }
-          }
         `}</style>
-        <div className="carousel-fade relative -mx-4 sm:-mx-12 md:-mx-8 pt-8 md:pt-10 pb-2 min-h-0 sm:min-h-[380px] md:min-h-[480px]">
+        <div className="relative -mx-4 sm:-mx-12 md:-mx-8 pt-8 md:pt-10 pb-2 min-h-0 sm:min-h-[360px] md:min-h-[460px]">
           <motion.div
             ref={(el) => {
               (emblaRef as (el: HTMLDivElement | null) => void)(el);

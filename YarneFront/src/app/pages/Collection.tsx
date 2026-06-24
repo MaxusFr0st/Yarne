@@ -15,7 +15,7 @@ const easing = [0.25, 0.1, 0.25, 1] as const;
 function CollectionCardSkeleton() {
   return (
     <div aria-hidden>
-      <Skeleton className="aspect-[4/5] min-h-[220px] sm:min-h-[250px] md:min-h-0 md:aspect-[3/4] w-full rounded-[24px] md:rounded-[32px] bg-[#E5E0D8]" />
+      <Skeleton className="aspect-[3/4] w-full rounded-[24px] md:rounded-[32px] bg-[#E5E0D8]" />
       <div className="mt-4 space-y-2 px-1">
         <Skeleton className="h-4 w-3/4 rounded bg-[#E5E0D8]" />
         <Skeleton className="h-3 w-1/2 rounded bg-[#E5E0D8]" />
@@ -234,7 +234,7 @@ export function Collection() {
                 <CollectionCardSkeleton key={i} />
               ))}
             </div>
-            <div className="md:hidden grid grid-cols-1 gap-y-10 w-full max-w-md mx-auto px-2">
+            <div className="md:hidden grid grid-cols-1 gap-y-8 w-full">
               {Array.from({ length: SKELETON_COUNT }).map((_, i) => (
                 <CollectionCardSkeleton key={i} />
               ))}
@@ -263,7 +263,7 @@ export function Collection() {
             </div>
 
             {/* Mobile: 1-column layout for better card display */}
-            <div className="md:hidden grid grid-cols-1 gap-y-10 w-full max-w-md mx-auto px-2">
+            <div className="md:hidden grid grid-cols-1 gap-y-8 w-full">
               {filtered.map((product, i) => (
                 <ProductCard key={product.id} product={product} index={i} size="collection" subtleEntrance />
               ))}

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router";
-import { motion, AnimatePresence } from "motion/react";
+import { motion, AnimatePresence, LayoutGroup, useReducedMotion } from "motion/react";
 import { ArrowLeft, Heart, ChevronDown, ShoppingBag, Check } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useLocale } from "../i18n/useLocale";
@@ -21,6 +21,7 @@ const easing = [0.25, 0.1, 0.25, 1] as const;
 
 export function ProductDetail() {
   const { t } = useTranslation();
+  const reduceMotion = useReducedMotion();
   const locale = useLocale();
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -195,21 +196,25 @@ export function ProductDetail() {
           >
             {/* Main Image */}
             <div className="relative rounded-[34px] sm:rounded-[40px] overflow-hidden bg-[#EDE9E2] h-[min(64svh,430px)] min-h-[320px] sm:min-h-[340px] md:h-[min(62svh,640px)] md:min-h-[440px] lg:h-[min(68svh,720px)] lg:min-h-[500px]">
-              {images.length > 0 && (
-                <motion.div
-                  key={`${activeColor}-${activeSize ?? ""}-${activeLace}-${safeImageIndex}`}
-                  className="absolute inset-0"
-                  initial={{ opacity: 0.85 }}
-                  animate={{ opacity: 1 }}
-                  transition={{ duration: 0.15, ease: easing }}
-                >
-                  <ImageWithFallback
-                    src={images[safeImageIndex]}
-                    alt={`${product.name} – ${product.colors[activeColor].name}`}
-                    className="w-full h-full object-cover"
-                  />
-                </motion.div>
-              )}
+              <AnimatePresence mode="wait">
+                {images.length > 0 && (
+                  <motion.div
+                    key={`${activeColor}-${activeSize ?? ""}-${activeLace}-${safeImageIndex}`}
+                    className="absolute inset-0"
+                    initial={reduceMotion ? false : { opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={reduceMotion ? undefined : { opacity: 0 }}
+                    transition={{ duration: reduceMotion ? 0 : 0.28, ease: easing }}
+                  >
+                    <ImageWithFallback
+                      src={images[safeImageIndex]}
+                      alt={`${product.name} – ${product.colors[activeColor].name}`}
+                      className="w-full h-full object-cover object-[center_25%]"
+                      priority
+                    />
+                  </motion.div>
+                )}
+              </AnimatePresence>
 
               {/* Badges */}
               <div className="absolute top-5 left-5 flex gap-2">
@@ -238,10 +243,11 @@ export function ProductDetail() {
                 <button
                   key={i}
                   onClick={() => setActiveImage(i)}
-                  className="flex-1 rounded-[16px] sm:rounded-[18px] overflow-hidden bg-[#EDE9E2] transition-all duration-300 cursor-pointer h-[64px] sm:h-[84px] md:h-[110px] lg:h-[124px] xl:h-[132px]"
+                  className="flex-1 rounded-[16px] sm:rounded-[18px] overflow-hidden bg-[#EDE9E2] transition-all duration-300 ease-out cursor-pointer h-[64px] sm:h-[84px] md:h-[110px] lg:h-[124px] xl:h-[132px]"
                   style={{
-                    opacity: safeImageIndex === i ? 1 : 0.5,
+                    opacity: safeImageIndex === i ? 1 : 0.45,
                     border: safeImageIndex === i ? "2px solid #2D241E" : "2px solid transparent",
+                    transform: safeImageIndex === i ? "scale(1)" : "scale(0.98)",
                   }}
                 >
                   <ImageWithFallback
@@ -306,16 +312,28 @@ export function ProductDetail() {
                   className="text-[#2D241E]/60 text-xs"
                   style={{ fontFamily: "'DM Sans', sans-serif" }}
                 >
-                  {product.colors[activeColor].name}
+                  <AnimatePresence mode="wait">
+                    <motion.span
+                      key={product.colors[activeColor].name}
+                      initial={reduceMotion ? false : { opacity: 0, y: 4 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={reduceMotion ? undefined : { opacity: 0, y: -4 }}
+                      transition={{ duration: 0.2, ease: easing }}
+                    >
+                      {product.colors[activeColor].name}
+                    </motion.span>
+                  </AnimatePresence>
                 </p>
               </div>
               <div className="flex gap-3">
                 {product.colors.map((color, i) => (
-                  <button
+                  <motion.button
                     key={color.name}
                     onClick={() => handleColorChange(i)}
                     title={color.name}
-                    className="cursor-pointer transition-all duration-200 hover:ring-2 hover:ring-[#2D241E]/25"
+                    className="cursor-pointer"
+                    animate={{ scale: i === activeColor ? 1.08 : 1 }}
+                    transition={{ duration: 0.22, ease: easing }}
                     style={{
                       width: 32,
                       height: 32,
@@ -323,7 +341,6 @@ export function ProductDetail() {
                       backgroundColor: color.hex,
                       border: i === activeColor ? "2px solid #2D241E" : "1.5px solid rgba(45,36,30,0.2)",
                       boxShadow: i === activeColor ? "0 0 0 3px #F5F2ED, 0 0 0 5px #2D241E" : "none",
-                      transition: "all 0.2s ease",
                     }}
                   />
                 ))}
@@ -339,30 +356,40 @@ export function ProductDetail() {
                 >
                   {t("product.lace.label", { defaultValue: "Lace" })}
                 </p>
-                <div
-                  className="inline-flex p-1 rounded-full"
-                  style={{ backgroundColor: "rgba(45,36,30,0.06)", border: "1px solid rgba(45,36,30,0.12)" }}
-                >
-                  {[
-                    { value: false, label: t("product.lace.withoutLace", { defaultValue: "Without lace" }) },
-                    { value: true, label: t("product.lace.withLace", { defaultValue: "With lace" }) },
-                  ].map((opt) => (
-                    <button
-                      key={String(opt.value)}
-                      type="button"
-                      onClick={() => handleLaceChange(opt.value)}
-                      className="px-4 py-2 rounded-full text-xs transition-all duration-200 cursor-pointer"
-                      style={{
-                        fontFamily: "'DM Sans', sans-serif",
-                        letterSpacing: "0.08em",
-                        backgroundColor: activeLace === opt.value ? "#2D241E" : "transparent",
-                        color: activeLace === opt.value ? "#F5F2ED" : "#2D241E",
-                      }}
-                    >
-                      {opt.label}
-                    </button>
-                  ))}
-                </div>
+                <LayoutGroup id="desktop-lace">
+                  <div
+                    className="relative inline-flex p-1 rounded-full"
+                    style={{ backgroundColor: "rgba(45,36,30,0.06)", border: "1px solid rgba(45,36,30,0.12)" }}
+                  >
+                    {[
+                      { value: false, label: t("product.lace.withoutLace", { defaultValue: "Without lace" }) },
+                      { value: true, label: t("product.lace.withLace", { defaultValue: "With lace" }) },
+                    ].map((opt) => (
+                      <button
+                        key={String(opt.value)}
+                        type="button"
+                        onClick={() => handleLaceChange(opt.value)}
+                        className="relative z-10 px-4 py-2 rounded-full text-xs cursor-pointer"
+                        style={{
+                          fontFamily: "'DM Sans', sans-serif",
+                          letterSpacing: "0.08em",
+                          color: activeLace === opt.value ? "#F5F2ED" : "#2D241E",
+                          transition: "color 0.22s ease",
+                        }}
+                      >
+                        {activeLace === opt.value && (
+                          <motion.span
+                            layoutId="desktop-lace-pill"
+                            className="absolute inset-0 rounded-full bg-[#2D241E]"
+                            style={{ zIndex: -1 }}
+                            transition={{ duration: reduceMotion ? 0 : 0.28, ease: easing }}
+                          />
+                        )}
+                        <span className="relative">{opt.label}</span>
+                      </button>
+                    ))}
+                  </div>
+                </LayoutGroup>
               </div>
             )}
 
@@ -384,10 +411,12 @@ export function ProductDetail() {
               </div>
               <div className="flex flex-wrap gap-2">
                 {displaySizes.map((size) => (
-                  <button
+                  <motion.button
                     key={size}
                     onClick={() => { setActiveSize(size); setSizeError(false); }}
-                    className="min-w-[52px] py-2.5 rounded-full text-xs transition-all duration-200 cursor-pointer"
+                    className="min-w-[52px] py-2.5 rounded-full text-xs cursor-pointer"
+                    animate={{ scale: activeSize === size ? 1.03 : 1 }}
+                    transition={{ duration: 0.2, ease: easing }}
                     style={{
                       fontFamily: "'DM Sans', sans-serif",
                       letterSpacing: "0.08em",
@@ -398,10 +427,11 @@ export function ProductDetail() {
                         : sizeError
                         ? "1.5px solid rgba(74,14,14,0.5)"
                         : "1.5px solid rgba(45,36,30,0.2)",
+                      transition: "background-color 0.22s ease, color 0.22s ease, border-color 0.22s ease",
                     }}
                   >
                     {size}
-                  </button>
+                  </motion.button>
                 ))}
               </div>
               <AnimatePresence>

@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using SixLabors.ImageSharp;
 using YarneAPIBack.Configuration;
 using YarneAPIBack.Services.Contracts;
 
@@ -12,18 +13,21 @@ public class ImagesController : ControllerBase
     private readonly IWebHostEnvironment _env;
     private readonly ILogger<ImagesController> _logger;
     private readonly IAdminActivityLogService _activityLogs;
+    private readonly IImageUploadNormalizer _imageNormalizer;
     private static readonly string[] AllowedExtensions = { ".jpg", ".jpeg", ".png", ".gif", ".webp" };
     private static readonly string[] AllowedMimeTypes = { "image/jpeg", "image/png", "image/gif", "image/webp" };
-    private const int MaxFileSizeBytes = 5 * 1024 * 1024; // 5 MB
+    private const int MaxFileSizeBytes = 15 * 1024 * 1024; // 15 MB — normalized to WebP on save
 
     public ImagesController(
         IWebHostEnvironment env,
         ILogger<ImagesController> logger,
-        IAdminActivityLogService activityLogs)
+        IAdminActivityLogService activityLogs,
+        IImageUploadNormalizer imageNormalizer)
     {
         _env = env;
         _logger = logger;
         _activityLogs = activityLogs;
+        _imageNormalizer = imageNormalizer;
     }
 
     [HttpPost("upload")]
@@ -44,55 +48,77 @@ public class ImagesController : ControllerBase
             return BadRequest(new { message = "Invalid content type for image upload" });
 
         if (file.Length > MaxFileSizeBytes)
-            return BadRequest(new { message = "File too large. Max 5 MB" });
+            return BadRequest(new { message = "File too large. Max 15 MB" });
 
-        await using (var sniffStream = file.OpenReadStream())
-        {
-            var header = new byte[12];
-            var read = await sniffStream.ReadAsync(header, ct);
-            if (!HasValidSignature(ext, header, read))
-                return BadRequest(new { message = "File signature does not match the extension" });
-        }
+        await using var uploadStream = file.OpenReadStream();
+        var header = new byte[12];
+        var read = await uploadStream.ReadAsync(header, ct);
+        if (!HasValidSignature(ext, header, read))
+            return BadRequest(new { message = "File signature does not match the extension" });
 
-        var webRoot = _env.WebRootPath ?? Path.Combine(_env.ContentRootPath, "wwwroot");
-        var uploadsDir = Path.Combine(webRoot, "uploads");
-        Directory.CreateDirectory(uploadsDir);
+        uploadStream.Position = 0;
 
-        var fileName = $"{Guid.NewGuid():N}{ext}";
-        var filePath = Path.Combine(uploadsDir, fileName);
-
+        NormalizedUploadImage normalized;
         try
         {
-            using (var stream = new FileStream(filePath, FileMode.CreateNew, FileAccess.Write, FileShare.None))
-                await file.CopyToAsync(stream, ct);
+            normalized = await _imageNormalizer.NormalizeAsync(uploadStream, ct);
         }
-        catch (Exception ex)
+        catch (UnknownImageFormatException)
         {
-            _logger.LogError(ex, "Failed to save upload");
-            return StatusCode(500, new { message = "Failed to save file" });
+            return BadRequest(new { message = "Could not read image file" });
+        }
+        catch (InvalidImageContentException)
+        {
+            return BadRequest(new { message = "Image file is corrupted or unsupported" });
         }
 
-        var url = $"/uploads/{fileName}";
+        await using (normalized.Output)
+        {
+            var webRoot = _env.WebRootPath ?? Path.Combine(_env.ContentRootPath, "wwwroot");
+            var uploadsDir = Path.Combine(webRoot, "uploads");
+            Directory.CreateDirectory(uploadsDir);
 
-        var (actorUserId, actorEmail) = AdminActivityLogHelper.GetActor(HttpContext);
-        await _activityLogs.LogAsync(
-            "image",
-            "uploaded",
-            $"Uploaded image {file.FileName}",
-            fileName,
-            file.FileName,
-            new
+            var fileName = $"{Guid.NewGuid():N}{normalized.FileExtension}";
+            var filePath = Path.Combine(uploadsDir, fileName);
+
+            try
             {
-                imageUrl = url,
-                fileName,
-                originalFileName = file.FileName,
-                sizeBytes = file.Length,
-            },
-            actorUserId,
-            actorEmail,
-            ct);
+                await using var stream = new FileStream(filePath, FileMode.CreateNew, FileAccess.Write, FileShare.None);
+                await normalized.Output.CopyToAsync(stream, ct);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to save normalized upload");
+                return StatusCode(500, new { message = "Failed to save file" });
+            }
 
-        return Ok(new { url });
+            var url = $"/uploads/{fileName}";
+            var outputSize = normalized.Output.Length;
+
+            var (actorUserId, actorEmail) = AdminActivityLogHelper.GetActor(HttpContext);
+            await _activityLogs.LogAsync(
+                "image",
+                "uploaded",
+                $"Uploaded image {file.FileName}",
+                fileName,
+                file.FileName,
+                new
+                {
+                    imageUrl = url,
+                    fileName,
+                    originalFileName = file.FileName,
+                    originalSizeBytes = file.Length,
+                    sizeBytes = outputSize,
+                    width = normalized.Width,
+                    height = normalized.Height,
+                    contentType = normalized.ContentType,
+                },
+                actorUserId,
+                actorEmail,
+                ct);
+
+            return Ok(new { url });
+        }
     }
 
     private static bool HasValidSignature(string extension, byte[] header, int bytesRead)

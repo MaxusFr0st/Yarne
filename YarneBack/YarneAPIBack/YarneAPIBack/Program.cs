@@ -112,6 +112,7 @@ builder.Services.AddScoped<IOAuthService, OAuthService>();
 builder.Services.AddScoped<IProductService, ProductService>();
 builder.Services.AddScoped<IStorefrontSettingsService, StorefrontSettingsService>();
 builder.Services.AddScoped<IAdminActivityLogService, AdminActivityLogService>();
+builder.Services.AddSingleton<IImageUploadNormalizer, ImageUploadNormalizer>();
 
 builder.Services.AddControllers();
 

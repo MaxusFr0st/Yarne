@@ -34,17 +34,8 @@ export function ProductCard({ product, index = 0, size = "medium", inCarousel = 
 
   const isCarouselCard = inCarousel || size === "carousel";
 
-  /** Mobile-first: shorter 4:5 portrait keeps cards editorial, not chunky */
-  const aspectClass =
-    size === "carousel"
-      ? "aspect-[4/5] min-h-0 w-full sm:aspect-[3/4]"
-      : size === "collection"
-        ? "aspect-[4/5] min-h-[220px] sm:min-h-[250px] md:min-h-0 md:aspect-[3/4] w-full"
-      : size === "small"
-        ? "aspect-[4/5] min-h-[180px] md:min-h-0 md:aspect-[3/4] w-full"
-        : size === "large"
-          ? "aspect-[4/5] min-h-[260px] md:min-h-0 md:aspect-[4/5] w-full"
-          : "aspect-[4/5] min-h-[220px] md:min-h-0 md:aspect-[3/4] w-full";
+  /** Unified 3:4 portrait — consistent ratio on every breakpoint, no min-height fights */
+  const aspectClass = "aspect-[3/4] w-full min-h-0";
 
   const imageRadiusClass = isCarouselCard
     ? "rounded-[22px] sm:rounded-[28px]"
@@ -107,8 +98,8 @@ export function ProductCard({ product, index = 0, size = "medium", inCarousel = 
                 alt={`${product.name} in ${color.name}`}
                 className={
                   isCarouselCard
-                    ? "absolute inset-0 h-full w-full object-cover object-top"
-                    : "absolute inset-0 h-full w-full object-cover object-[center_38%]"
+                    ? "absolute inset-0 h-full w-full object-cover object-[center_20%]"
+                    : "absolute inset-0 h-full w-full object-cover object-[center_30%]"
                 }
                 style={{
                   opacity: i === activeColor ? 1 : 0,
@@ -164,7 +155,7 @@ export function ProductCard({ product, index = 0, size = "medium", inCarousel = 
           {/* Wishlist */}
           <button
             onClick={handleWishlist}
-            className="absolute top-4 right-4 w-9 h-9 rounded-full flex items-center justify-center transition-all duration-300"
+            className="absolute top-4 right-4 w-9 h-9 rounded-full flex items-center justify-center transition-all duration-300 cursor-pointer"
             style={{
               backgroundColor: isWishlisted ? "#4A0E0E" : "rgba(245,242,237,0.85)",
               backdropFilter: "blur(8px)",
@@ -250,7 +241,7 @@ export function ProductCard({ product, index = 0, size = "medium", inCarousel = 
                   e.stopPropagation();
                   setActiveColor(i);
                 }}
-                className={`relative shrink-0 transition-transform duration-200 ${isCarouselCard ? "" : "hover:scale-110"}`}
+                className={`relative shrink-0 transition-transform duration-200 cursor-pointer ${isCarouselCard ? "" : "hover:scale-110"}`}
                 style={{
                   width: i === activeColor ? 18 : 14,
                   height: i === activeColor ? 18 : 14,

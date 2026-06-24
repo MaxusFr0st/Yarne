@@ -15,7 +15,7 @@ export function MobileRelatedProducts({ products }: MobileRelatedProductsProps) 
     align: "start",
     containScroll: "trimSnaps",
     dragFree: false,
-    duration: 28,
+    duration: 22,
   });
   const [selectedIndex, setSelectedIndex] = useState(0);
 
@@ -67,7 +67,7 @@ export function MobileRelatedProducts({ products }: MobileRelatedProductsProps) 
           viewportRef.current = el;
         }}
         className="related-carousel relative overflow-x-hidden overflow-y-visible touch-pan-x -mx-[clamp(14px,3.6vw,22px)] px-[clamp(14px,3.6vw,22px)] pb-2"
-        style={{ "--slide-spacing": "clamp(14px, 3.6vw, 18px)", "--slide-size": "clamp(68%, 72vw, 76%)" } as CSSProperties}
+        style={{ "--slide-spacing": "clamp(14px, 3.6vw, 18px)", "--slide-size": "clamp(72%, 76vw, 80%)" } as CSSProperties}
       >
         <div
           className="flex items-start"

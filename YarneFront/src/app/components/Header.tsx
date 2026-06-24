@@ -72,7 +72,7 @@ export function Header() {
         animate={{ y: 0 }}
         transition={{ duration: 0.6, ease: [0.25, 0.1, 0.25, 1] }}
       >
-        <div className="max-w-[1400px] mx-auto px-6 md:px-10">
+        <div className="max-w-[1400px] mx-auto px-4 sm:px-6 md:px-10">
           <div className="grid grid-cols-[1fr_auto_1fr] items-center h-[52px] md:h-[60px]">
             {/* Left: mobile menu + desktop nav */}
             <div className="flex items-center justify-self-start min-w-0">
@@ -91,11 +91,11 @@ export function Header() {
 
             {/* Mobile: Hamburger */}
             <button
-              className="md:hidden text-[#2D241E] p-2 -ml-2"
+              className="md:hidden flex items-center justify-center w-11 h-11 -ml-2 rounded-full text-[#2D241E] hover:bg-[#2D241E]/5 transition-colors duration-200 cursor-pointer"
               onClick={() => setMobileOpen(true)}
               aria-label={t("header.openMenu")}
             >
-              <Menu size={22} />
+              <Menu size={22} strokeWidth={1.5} />
             </button>
             </div>
 
@@ -108,7 +108,7 @@ export function Header() {
             </LangLink>
 
             {/* Right: cart (all breakpoints) + desktop actions */}
-            <div className="flex items-center justify-self-end justify-end gap-4 md:gap-6">
+            <div className="flex items-center justify-self-end justify-end gap-1.5 sm:gap-2 md:gap-6">
             <div className="hidden md:flex items-center gap-6">
               {RIGHT_NAV_LINKS.map((link) => (
                 <LangLink
@@ -157,10 +157,58 @@ export function Header() {
                 </button>
               )}
             </div>
-              <LanguageSwitcher className="md:hidden" />
+
+              {/* Mobile: account + cart — sign in one tap from any page */}
+              <div className="flex md:hidden items-center gap-1">
+                {isLoggedIn ? (
+                  <button
+                    type="button"
+                    onClick={() => navigate("/account")}
+                    className="flex items-center justify-center w-10 h-10 rounded-full text-[#2D241E] hover:bg-[#2D241E]/5 transition-colors duration-200 cursor-pointer"
+                    aria-label={t("header.myAccount")}
+                    title={user?.name ? `${t("header.myAccount")} — ${user.name}` : t("header.myAccount")}
+                  >
+                    <User size={20} strokeWidth={1.5} />
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={openLogin}
+                    className="flex items-center gap-1.5 h-9 pl-2.5 pr-3 rounded-full border border-[#2D241E]/12 bg-white/60 text-[#2D241E] hover:border-[#4A0E0E]/30 hover:text-[#4A0E0E] transition-colors duration-200 cursor-pointer"
+                    aria-label={t("header.signIn")}
+                  >
+                    <User size={16} strokeWidth={1.5} />
+                    <span
+                      className="hidden min-[360px]:inline text-[0.62rem] uppercase tracking-[0.14em]"
+                      style={{ fontFamily: "'DM Sans', sans-serif" }}
+                    >
+                      {t("header.signIn")}
+                    </span>
+                  </button>
+                )}
+                <button
+                  onClick={openCart}
+                  className="relative flex items-center justify-center w-10 h-10 rounded-full text-[#2D241E] hover:bg-[#2D241E]/5 transition-colors duration-200 cursor-pointer"
+                  aria-label={t("header.cart")}
+                >
+                  <ShoppingBag size={20} strokeWidth={1.5} />
+                  {cartCount > 0 && (
+                    <motion.span
+                      initial={{ scale: 0 }}
+                      animate={{ scale: 1 }}
+                      className="absolute top-0.5 right-0.5 min-w-[16px] h-4 px-1 rounded-full text-[10px] flex items-center justify-center text-white"
+                      style={{ backgroundColor: "#4A0E0E", fontFamily: "'DM Sans', sans-serif" }}
+                    >
+                      {cartCount}
+                    </motion.span>
+                  )}
+                </button>
+              </div>
+
+              {/* Desktop cart */}
               <button
                 onClick={openCart}
-                className="relative text-[#2D241E] hover:text-[#4A0E0E] transition-colors duration-300"
+                className="relative hidden md:flex text-[#2D241E] hover:text-[#4A0E0E] transition-colors duration-300 cursor-pointer"
                 aria-label={t("header.cart")}
               >
                 <ShoppingBag size={20} strokeWidth={1.5} />
@@ -211,6 +259,25 @@ export function Header() {
                 </button>
               </div>
               <nav className="flex-1 p-8 flex flex-col gap-6">
+                {!isLoggedIn && (
+                  <motion.button
+                    type="button"
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: 0.08, ease: [0.25, 0.1, 0.25, 1] }}
+                    onClick={() => { openLogin(); setMobileOpen(false); }}
+                    className="flex items-center justify-center gap-2 w-full py-3.5 rounded-full text-white cursor-pointer transition-colors duration-200"
+                    style={{
+                      backgroundColor: "#2D241E",
+                      fontFamily: "'DM Sans', sans-serif",
+                      fontSize: "0.72rem",
+                      letterSpacing: "0.14em",
+                    }}
+                  >
+                    <User size={16} strokeWidth={1.5} />
+                    <span className="uppercase tracking-widest">{t("header.signIn")}</span>
+                  </motion.button>
+                )}
                 {[
                   ...LEFT_NAV_LINKS,
                   ...RIGHT_NAV_LINKS,
