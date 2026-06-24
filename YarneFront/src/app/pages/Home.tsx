@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import type { ReactNode, CSSProperties } from "react";
-import { motion, useScroll, useTransform } from "motion/react";
+import { motion, useReducedMotion, useScroll, useTransform } from "motion/react";
 import { ArrowRight, ChevronDown } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useProducts } from "../hooks/useProducts";
@@ -20,64 +19,29 @@ import {
   loadHomePageMediaSelection,
 } from "../utils/homePageMediaSelection";
 import { useTouchMobileLayout } from "../hooks/useTouchMobileLayout";
+import { ScrollReveal, SectionEyebrow, SectionRule, SectionTitle } from "../components/ScrollReveal";
 
-const easing = [0.25, 0.1, 0.25, 1] as const;
-
-function RevealText({
-  children,
-  delay = 0,
-  className = "",
-  style = {},
-  skipEntrance = false,
-}: {
-  children: ReactNode;
-  delay?: number;
-  className?: string;
-  style?: CSSProperties;
-  skipEntrance?: boolean;
-}) {
-  if (skipEntrance) {
-    return (
-      <div className={className} style={style}>
-        {children}
-      </div>
-    );
-  }
-
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 30 }}
-      whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true, margin: "-80px" }}
-      transition={{ duration: 0.8, delay, ease: easing }}
-      className={className}
-      style={style}
-    >
-      {children}
-    </motion.div>
-  );
-}
+const ease = [0.22, 1, 0.36, 1] as const;
 
 export function Home() {
   const { t } = useTranslation();
   const heroRef = useRef<HTMLDivElement>(null);
   const editorialRef = useRef<HTMLDivElement>(null);
-  const skipEntrance = useTouchMobileLayout();
+  const touch = useTouchMobileLayout();
+  const reducedMotion = useReducedMotion();
+  const animateHero = !touch && !reducedMotion;
 
   const { scrollYProgress: heroScroll } = useScroll({
     target: heroRef,
     offset: ["start start", "end start"],
   });
-
   const { scrollYProgress: editorialScroll } = useScroll({
     target: editorialRef,
     offset: ["start end", "end start"],
   });
 
-  // Parallax transforms — only applied on desktop (see isMobile above)
-  const heroY = useTransform(heroScroll, [0, 1], ["0%", "30%"]);
-  const heroScale = useTransform(heroScroll, [0, 1], [1, 1.1]);
-  const editorialY1 = useTransform(editorialScroll, [0, 1], ["0%", "-12%"]);
+  const heroY = useTransform(heroScroll, [0, 1], ["0%", "22%"]);
+  const editorialY = useTransform(editorialScroll, [0, 1], ["0%", "-10%"]);
 
   const { products } = useProducts();
   const [homeSectionsSelection, setHomeSectionsSelection] = useState(getDefaultHomeSectionsSelection);
@@ -116,449 +80,323 @@ export function Home() {
   }, [homeSectionsSelection.moreFromCollectionProductCodes, products]);
 
   const brandStripItems = [
-    {
-      label: t("home.brandStrip.yarnOriginsLabel"),
-      value: t("home.brandStrip.yarnOriginsValue"),
-    },
-    {
-      label: t("home.brandStrip.craftedSinceLabel"),
-      value: t("home.brandStrip.craftedSinceValue"),
-    },
-    {
-      label: t("home.brandStrip.materialsLabel"),
-      value: t("home.brandStrip.materialsValue"),
-    },
-    {
-      label: t("home.brandStrip.carbonLabel"),
-      value: t("home.brandStrip.carbonValue"),
-    },
+    { label: t("home.brandStrip.yarnOriginsLabel"), value: t("home.brandStrip.yarnOriginsValue") },
+    { label: t("home.brandStrip.craftedSinceLabel"), value: t("home.brandStrip.craftedSinceValue") },
+    { label: t("home.brandStrip.materialsLabel"), value: t("home.brandStrip.materialsValue") },
+    { label: t("home.brandStrip.carbonLabel"), value: t("home.brandStrip.carbonValue") },
   ];
 
   return (
-    <main className="relative overflow-x-hidden" style={{ backgroundColor: "#F5F2ED", fontFamily: "'DM Sans', sans-serif" }}>
-      {/* ═══════════════════════════════
-          HERO SECTION
-      ═══════════════════════════════ */}
+    <main className="relative overflow-x-hidden bg-[#F5F2ED]" style={{ fontFamily: "'DM Sans', sans-serif" }}>
+      {/* ─── HERO ─── */}
       <section
         ref={heroRef}
-        className="relative min-h-[640px] flex items-end overflow-hidden"
-        style={{ height: "calc(var(--app-vh, 1svh) * 100)" }}
+        className="relative flex items-end overflow-hidden h-[100svh] min-h-[600px]"
       >
-        {/* Parallax background */}
         <motion.div
-          className="absolute inset-0 will-change-transform"
-          style={skipEntrance ? {} : { y: heroY, scale: heroScale }}
+          className="absolute inset-0"
+          style={animateHero ? { y: heroY } : undefined}
         >
           {heroImageSrc ? (
-            <Img
-              src={heroImageSrc}
-              alt="Yarné Hero"
-              className="w-full h-full object-cover"
-              priority
-            />
+            <Img src={heroImageSrc} alt="Yarné Hero" className="h-full w-full object-cover" priority />
           ) : (
-            <div className="absolute inset-0" style={{ background: "linear-gradient(135deg, #6b6560 0%, #a39e97 45%, #d4cfc8 100%)" }} />
+            <div
+              className="absolute inset-0"
+              style={{ background: "linear-gradient(145deg, #4a3f38 0%, #8a8078 50%, #d4cfc8 100%)" }}
+            />
           )}
-          {/* Dark overlay */}
           <div
             className="absolute inset-0"
-            style={{ background: "linear-gradient(to top, rgba(45,36,30,0.72) 0%, rgba(45,36,30,0.1) 60%, transparent 100%)" }}
+            style={{
+              background:
+                "linear-gradient(105deg, rgba(45,36,30,0.78) 0%, rgba(45,36,30,0.35) 45%, rgba(45,36,30,0.15) 100%)",
+            }}
           />
         </motion.div>
 
-        {/* Hero Content */}
-        <div className="relative z-10 max-w-[1400px] mx-auto px-6 md:px-10 pb-16 md:pb-24 w-full">
-          <div className="max-w-3xl">
-            <motion.p
-              className="text-white/70 tracking-widest uppercase text-xs mb-6"
-              style={{ letterSpacing: "0.25em", fontFamily: "'DM Sans', sans-serif" }}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.8, delay: 0.3, ease: easing }}
+        {/* Signature thread line */}
+        <div
+          className="absolute left-5 md:left-10 top-[calc(var(--main-header-h)+1.5rem)] bottom-28 w-px z-10 hidden sm:block"
+          style={{ background: "linear-gradient(to bottom, transparent, rgba(245,242,237,0.55), transparent)" }}
+          aria-hidden
+        />
+
+        <div className="relative z-10 w-full max-w-[1400px] mx-auto px-6 md:px-10 pb-14 md:pb-20">
+          <div className="max-w-xl md:max-w-2xl">
+            <p
+              className="text-white/65 tracking-[0.28em] uppercase text-[0.65rem] mb-5 md:mb-6"
+              style={{ fontFamily: "'DM Sans', sans-serif" }}
             >
               {t("home.hero.eyebrow")}
-            </motion.p>
-            <motion.h1
+            </p>
+            <h1
               className="text-white"
               style={{
                 fontFamily: "'Cormorant Garamond', serif",
-                fontSize: "clamp(2.8rem, 7vw, 5.5rem)",
+                fontSize: "clamp(2.6rem, 8vw, 5.25rem)",
                 fontWeight: 400,
-                lineHeight: 1.08,
+                lineHeight: 1.06,
                 letterSpacing: "-0.02em",
               }}
-              initial={{ opacity: 0, y: 40 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.9, delay: 0.4, ease: easing }}
             >
-              {t("home.hero.titleLine1")}<br />
-              <em style={{ fontStyle: "italic", fontWeight: 300 }}>{t("home.hero.titleAccent")}</em>
-            </motion.h1>
-            <motion.p
-              className="text-white/65 mt-6 max-w-md text-base"
-              style={{ fontFamily: "'DM Sans', sans-serif", lineHeight: 1.7 }}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.8, delay: 0.6, ease: easing }}
+              {t("home.hero.titleLine1")}
+              <br />
+              <em className="font-light italic">{t("home.hero.titleAccent")}</em>
+            </h1>
+            <p
+              className="text-white/70 mt-5 md:mt-6 max-w-md text-[0.95rem] leading-relaxed min-h-[4.25rem]"
+              style={{ fontFamily: "'DM Sans', sans-serif" }}
             >
               {t("home.hero.subtitle")}
-            </motion.p>
-            <motion.div
-              className="flex flex-wrap gap-4 mt-10"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.8, delay: 0.75, ease: easing }}
-            >
+            </p>
+            <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 mt-8 md:mt-10 w-full max-w-lg">
               <LangLink
                 to="/collection"
-                className="flex items-center gap-3 px-8 py-4 rounded-full text-[#2D241E] bg-[#F5F2ED] hover:bg-white transition-all duration-300 group"
-                style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "0.8rem", letterSpacing: "0.15em" }}
+                className="flex items-center justify-center gap-2.5 w-full sm:w-auto px-7 py-3.5 rounded-full bg-[#F5F2ED] text-[#2D241E] hover:bg-white transition-colors duration-200 group cursor-pointer"
+                style={{ fontSize: "0.75rem", letterSpacing: "0.16em" }}
               >
                 <span className="uppercase tracking-widest">{t("home.hero.ctaPrimary")}</span>
-                <ArrowRight size={15} className="group-hover:translate-x-1 transition-transform duration-300" />
+                <ArrowRight size={14} className="group-hover:translate-x-0.5 transition-transform duration-200" />
               </LangLink>
               <LangLink
                 to="/collection?filter=new"
-                className="flex items-center gap-3 px-8 py-4 rounded-full text-white border border-white/30 hover:border-white/60 transition-all duration-300"
-                style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "0.8rem", letterSpacing: "0.15em" }}
+                className="flex items-center justify-center gap-2.5 w-full sm:w-auto px-7 py-3.5 rounded-full text-white border border-white/35 hover:border-white/70 hover:bg-white/10 transition-colors duration-200 cursor-pointer"
+                style={{ fontSize: "0.75rem", letterSpacing: "0.16em" }}
               >
                 <span className="uppercase tracking-widest">{t("home.hero.ctaSecondary")}</span>
               </LangLink>
-            </motion.div>
+            </div>
           </div>
         </div>
 
-        {/* Scroll cue */}
-        <motion.div
-          className="absolute bottom-8 right-10 hidden md:flex flex-col items-center gap-2"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 1.5, duration: 0.8 }}
-        >
+        <div className="absolute bottom-8 right-8 md:right-12 hidden md:flex flex-col items-center gap-2 text-white/45">
           <span
-            className="text-white/50 text-xs tracking-widest uppercase"
-            style={{ writingMode: "vertical-rl", letterSpacing: "0.2em", fontFamily: "'DM Sans', sans-serif" }}
+            className="text-[0.62rem] tracking-[0.25em] uppercase"
+            style={{ writingMode: "vertical-rl", fontFamily: "'DM Sans', sans-serif" }}
           >
             {t("home.hero.scroll")}
           </span>
-          <motion.div
-            animate={{ y: [0, 6, 0] }}
-            transition={{ repeat: Infinity, duration: 1.5, ease: "easeInOut" }}
-          >
-            <ChevronDown size={18} className="text-white/50" />
-          </motion.div>
-        </motion.div>
+          <ChevronDown size={16} className="animate-[bounce-soft_2s_ease-in-out_infinite] motion-reduce:animate-none" />
+        </div>
       </section>
 
-      {/* ═══════════════════════════════
-          BRAND STRIP
-      ═══════════════════════════════ */}
-      <section className="py-16 border-y border-[#2D241E]/8">
-        <div className="max-w-[1400px] mx-auto px-6 md:px-10">
-          <div className="flex flex-col md:flex-row items-center justify-center gap-10 md:gap-20">
+      {/* ─── BRAND STRIP ─── */}
+      <section className="border-y border-[#2D241E]/8 bg-[#F5F2ED]">
+        <div className="max-w-[1400px] mx-auto px-6 md:px-10 py-12 md:py-14">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-px bg-[#2D241E]/8 rounded-2xl overflow-hidden">
             {brandStripItems.map((item, i) => (
-              <RevealText skipEntrance={skipEntrance} key={item.label} delay={i * 0.08} className="text-center">
+              <ScrollReveal
+                key={item.label}
+                delay={i * 0.06}
+                y={14}
+                className="bg-[#F5F2ED] px-5 py-6 md:py-8 text-center"
+              >
                 <p
-                  className="text-[#2D241E]/40 text-xs tracking-widest uppercase mb-1"
-                  style={{ fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.18em" }}
+                  className="text-[#2D241E]/40 text-[0.62rem] tracking-[0.2em] uppercase mb-1.5"
+                  style={{ fontFamily: "'DM Sans', sans-serif" }}
                 >
                   {item.label}
                 </p>
                 <p
-                  className="text-[#2D241E]"
-                  style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "1.15rem", fontWeight: 500 }}
+                  className="text-[#2D241E] text-[1.05rem] md:text-[1.15rem]"
+                  style={{ fontFamily: "'Cormorant Garamond', serif", fontWeight: 500 }}
                 >
                   {item.value}
                 </p>
-              </RevealText>
+              </ScrollReveal>
             ))}
           </div>
         </div>
       </section>
 
-      {/* ═══════════════════════════════
-          BEST SELLERS CAROUSEL
-      ═══════════════════════════════ */}
+      <SectionRule />
+
       <FeaturedShowcase />
 
-      {/* ═══════════════════════════════
-          BEST SELLERS CAROUSEL
-      ═══════════════════════════════ */}
+      <SectionRule label={t("home.bestSellers.eyebrow", { defaultValue: "Bestsellers" })} />
+
       <BestSellersCarousel />
 
-      {/* ═══════════════════════════════
-          FEATURED PRODUCTS
-      ═══════════════════════════════ */}
-      <section className="relative py-10 md:py-14">
-        <div className="max-w-[1400px] mx-auto px-8 md:px-10">
-          {/* Sticky section header */}
-          <motion.div
-            initial={skipEntrance ? false : { opacity: 0, y: 20 }}
-            whileInView={skipEntrance ? undefined : { opacity: 1, y: 0 }}
-            viewport={skipEntrance ? undefined : { once: true, margin: "-80px" }}
-            transition={{ duration: 0.7, ease: easing }}
-            className="md:sticky z-30 mb-8 md:mb-12 -mx-8 md:-mx-10 px-8 md:px-10 py-3 md:py-4 flex items-end justify-between gap-4"
-            style={{
-              top: "var(--main-header-h)",
-              backgroundColor: "rgba(245,242,237,0.85)",
-              backdropFilter: "blur(10px)",
-            }}
-          >
+      {/* ─── FEATURED GRID ─── */}
+      <section className="relative py-12 md:py-16 bg-[#EDE9E2]/60">
+        <div className="max-w-[1400px] mx-auto px-6 md:px-10">
+          <ScrollReveal className="md:sticky z-30 mb-10 md:mb-12 -mx-6 md:-mx-10 px-6 md:px-10 py-4 flex items-end justify-between gap-4" style={{ top: "var(--main-header-h)", backgroundColor: "rgba(237,233,226,0.88)", backdropFilter: "blur(10px)" }}>
             <div>
-              <p
-                className="text-[#2D241E]/40 uppercase mb-1.5"
-                style={{ fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.22em", fontSize: "0.65rem" }}
-              >
-                {t("home.featured.eyebrow")}
-              </p>
-              <h2
-                className="text-[#2D241E]"
-                style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "clamp(1.5rem, 3.2vw, 2.4rem)", fontWeight: 400, lineHeight: 1.15 }}
-              >
+              <SectionEyebrow>{t("home.featured.eyebrow")}</SectionEyebrow>
+              <SectionTitle>
                 {homeSectionsSelection.featuredTitle || DEFAULT_FEATURED_TITLE}
-              </h2>
+              </SectionTitle>
             </div>
             <LangLink
               to="/collection"
-              className="hidden md:flex items-center gap-2 text-[#2D241E]/60 hover:text-[#4A0E0E] transition-colors duration-300 group flex-shrink-0"
-              style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "0.78rem", letterSpacing: "0.12em" }}
+              className="hidden md:flex items-center gap-2 text-[#2D241E]/55 hover:text-[#4A0E0E] transition-colors duration-200 group shrink-0 cursor-pointer"
+              style={{ fontSize: "0.75rem", letterSpacing: "0.14em" }}
             >
               <span className="uppercase tracking-widest">{t("home.featured.viewAll")}</span>
-              <ArrowRight size={14} className="group-hover:translate-x-1 transition-transform duration-300" />
+              <ArrowRight size={14} className="group-hover:translate-x-0.5 transition-transform duration-200" />
             </LangLink>
-          </motion.div>
+          </ScrollReveal>
 
-          {/* Uniform 4-column grid – Desktop */}
-          <div className="hidden md:grid md:grid-cols-2 lg:grid-cols-4 gap-5 lg:gap-6">
+          <div className="hidden md:grid md:grid-cols-2 lg:grid-cols-4 gap-5 lg:gap-7">
             {featured.map((product, i) => (
-              <ProductCard key={product.id} product={product} index={i} />
+              <ScrollReveal key={product.id} delay={i * 0.05} y={18}>
+                <ProductCard product={product} index={i} subtleEntrance />
+              </ScrollReveal>
             ))}
           </div>
 
-          {/* Mobile: 1 column for better card display */}
-          <div className="md:hidden grid grid-cols-1 gap-y-8 w-full">
+          <div className="md:hidden grid grid-cols-1 gap-y-9 w-full">
             {featured.map((product, i) => (
-              <ProductCard key={product.id} product={product} index={i} />
+              <ScrollReveal key={product.id} delay={i * 0.04} y={12}>
+                <ProductCard product={product} index={i} subtleEntrance />
+              </ScrollReveal>
             ))}
           </div>
 
-          {/* Shop All CTA */}
-          <RevealText skipEntrance={skipEntrance} delay={0.2} className="flex justify-center mt-14">
+          <ScrollReveal delay={0.15} className="flex justify-center mt-12 md:mt-14">
             <LangLink
               to="/collection"
-              className="group flex items-center gap-3 px-10 py-5 rounded-full transition-all duration-400 hover:gap-4"
-              style={{
-                backgroundColor: "#2D241E",
-                fontFamily: "'DM Sans', sans-serif",
-                fontSize: "0.78rem",
-                letterSpacing: "0.15em",
-                color: "#F5F2ED",
-              }}
+              className="group flex items-center gap-3 px-9 py-4 rounded-full bg-[#2D241E] text-[#F5F2ED] hover:bg-[#4A0E0E] transition-colors duration-200 cursor-pointer"
+              style={{ fontSize: "0.75rem", letterSpacing: "0.15em" }}
             >
               <span className="uppercase tracking-widest">
                 {t("home.featured.shopAllPieces", { count: products.length })}
               </span>
-              <ArrowRight size={15} className="group-hover:translate-x-1 transition-transform duration-300" />
+              <ArrowRight size={14} className="group-hover:translate-x-0.5 transition-transform duration-200" />
             </LangLink>
-          </RevealText>
-
-          <div className="md:hidden flex justify-center mt-4">
-            <LangLink
-              to="/collection"
-              className="px-8 py-4 rounded-full border border-[#2D241E]/25 text-[#2D241E] text-sm hover:bg-[#2D241E] hover:text-[#F5F2ED] transition-all duration-300"
-              style={{ fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.1em" }}
-            >
-              <span className="uppercase tracking-widest">{t("common.viewAll")}</span>
-            </LangLink>
-          </div>
+          </ScrollReveal>
         </div>
       </section>
 
-      {/* ═══════════════════════════════
-          EDITORIAL SECTION
-      ═══════════════════════════════ */}
-      <section ref={editorialRef} className="relative py-20 md:py-28 overflow-hidden">
+      {/* ─── EDITORIAL ─── */}
+      <section ref={editorialRef} className="relative py-16 md:py-24 overflow-hidden bg-[#F5F2ED]">
         <div className="max-w-[1400px] mx-auto px-6 md:px-10">
-          <div className="grid md:grid-cols-2 gap-8 md:gap-16 items-center">
-            {/* Image with parallax */}
-            <RevealText skipEntrance={skipEntrance} className="relative">
-              <div className="relative rounded-[40px] overflow-hidden" style={{ aspectRatio: "4/5" }}>
-                <motion.div className="absolute inset-0 will-change-transform" style={skipEntrance ? {} : { y: editorialY1 }}>
+          <div className="grid md:grid-cols-2 gap-10 md:gap-16 items-center">
+            <ScrollReveal className="relative">
+              <div className="relative rounded-[2rem] md:rounded-[2.5rem] overflow-hidden aspect-[4/5] bg-[#EDE9E2]">
+                <motion.div
+                  className="absolute inset-0"
+                  style={animateHero ? { y: editorialY } : undefined}
+                >
                   {editorialImageSrc ? (
                     <Img
                       src={editorialImageSrc}
                       alt={t("home.editorial.eyebrow")}
-                      className="w-full h-[115%] object-cover"
+                      className="h-[112%] w-full object-cover"
                     />
-                  ) : (
-                    <div className="w-full h-[115%] bg-[#EDE9E2]" />
-                  )}
+                  ) : null}
                 </motion.div>
               </div>
-              {/* Floating stat */}
-              <motion.div
-                className="absolute -right-4 md:-right-10 bottom-16 rounded-[24px] p-6 shadow-2xl"
-                style={{ backgroundColor: "#F5F2ED", minWidth: "160px" }}
-                initial={skipEntrance ? false : { opacity: 0, scale: 0.8 }}
-                whileInView={skipEntrance ? undefined : { opacity: 1, scale: 1 }}
-                viewport={skipEntrance ? undefined : { once: true }}
-                transition={{ duration: 0.6, delay: 0.4, ease: easing }}
+              <div
+                className="absolute -right-2 md:-right-8 bottom-12 md:bottom-16 rounded-2xl px-6 py-5 shadow-lg border border-[#2D241E]/6"
+                style={{ backgroundColor: "#F5F2ED" }}
               >
                 <p
-                  className="text-[#4A0E0E]"
-                  style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "2.5rem", fontWeight: 400, lineHeight: 1 }}
+                  className="text-[#4A0E0E] text-[2.25rem] leading-none"
+                  style={{ fontFamily: "'Cormorant Garamond', serif" }}
                 >
                   15+
                 </p>
-                <p
-                  className="text-[#2D241E]/50 text-xs mt-1"
-                  style={{ fontFamily: "'DM Sans', sans-serif" }}
-                >
+                <p className="text-[#2D241E]/50 text-xs mt-1" style={{ fontFamily: "'DM Sans', sans-serif" }}>
                   {t("home.editorial.yearsLabel")}
                 </p>
-              </motion.div>
-            </RevealText>
+              </div>
+            </ScrollReveal>
 
-            {/* Text */}
-            <div className="flex flex-col justify-center gap-8">
-              <RevealText skipEntrance={skipEntrance} delay={0.1}>
-                <p
-                  className="text-[#2D241E]/40 tracking-widest uppercase text-xs"
-                  style={{ fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.2em" }}
-                >
-                  {t("home.editorial.eyebrow")}
-                </p>
-              </RevealText>
-              <RevealText skipEntrance={skipEntrance} delay={0.15}>
-                <h2
-                  className="text-[#2D241E]"
-                  style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "clamp(2rem, 4vw, 3rem)", fontWeight: 400, lineHeight: 1.2 }}
-                >
-                  {t("home.editorial.titleLine1")}<br />{t("home.editorial.titleLine2")}
-                </h2>
-              </RevealText>
-              <RevealText skipEntrance={skipEntrance} delay={0.2}>
-                <p
-                  className="text-[#2D241E]/60"
-                  style={{ fontFamily: "'DM Sans', sans-serif", lineHeight: 1.8, fontSize: "0.95rem" }}
-                >
+            <div className="flex flex-col gap-6 md:gap-7">
+              <ScrollReveal delay={0.05}>
+                <SectionEyebrow>{t("home.editorial.eyebrow")}</SectionEyebrow>
+                <SectionTitle className="mt-1">
+                  {t("home.editorial.titleLine1")}
+                  <br />
+                  {t("home.editorial.titleLine2")}
+                </SectionTitle>
+              </ScrollReveal>
+              <ScrollReveal delay={0.1}>
+                <p className="text-[#2D241E]/62 text-[0.92rem] leading-[1.85]" style={{ fontFamily: "'DM Sans', sans-serif" }}>
                   {t("home.editorial.paragraph1")}
                 </p>
-              </RevealText>
-              <RevealText skipEntrance={skipEntrance} delay={0.25}>
-                <p
-                  className="text-[#2D241E]/60"
-                  style={{ fontFamily: "'DM Sans', sans-serif", lineHeight: 1.8, fontSize: "0.95rem" }}
-                >
+              </ScrollReveal>
+              <ScrollReveal delay={0.14}>
+                <p className="text-[#2D241E]/62 text-[0.92rem] leading-[1.85]" style={{ fontFamily: "'DM Sans', sans-serif" }}>
                   {t("home.editorial.paragraph2")}
                 </p>
-              </RevealText>
-              <RevealText skipEntrance={skipEntrance} delay={0.3}>
+              </ScrollReveal>
+              <ScrollReveal delay={0.18}>
                 <LangLink
                   to="/collection"
-                  className="self-start flex items-center gap-3 group"
-                  style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "0.78rem", letterSpacing: "0.15em", color: "#2D241E" }}
+                  className="inline-flex items-center gap-2.5 group text-[#2D241E] hover:text-[#4A0E0E] transition-colors duration-200 cursor-pointer"
+                  style={{ fontSize: "0.75rem", letterSpacing: "0.15em" }}
                 >
-                  <span className="uppercase tracking-widest border-b border-[#2D241E]/40 pb-0.5 group-hover:border-[#4A0E0E] group-hover:text-[#4A0E0E] transition-all duration-300">
+                  <span className="uppercase tracking-widest border-b border-[#2D241E]/35 pb-0.5 group-hover:border-[#4A0E0E]">
                     {t("home.editorial.ourStory")}
                   </span>
-                  <ArrowRight size={14} className="group-hover:translate-x-1 transition-transform duration-300 group-hover:text-[#4A0E0E]" />
+                  <ArrowRight size={14} className="group-hover:translate-x-0.5 transition-transform duration-200" />
                 </LangLink>
-              </RevealText>
+              </ScrollReveal>
             </div>
           </div>
         </div>
       </section>
 
-      {/* ═══════════════════════════════
-          FULL-WIDTH BANNER
-      ═══════════════════════════════ */}
-      <section className="relative py-0 overflow-hidden" style={{ height: "calc(var(--app-vh, 1svh) * 60)", minHeight: "400px" }}>
-        <motion.div
-          className="absolute inset-0"
-          initial={skipEntrance ? false : { opacity: 0 }}
-          whileInView={skipEntrance ? undefined : { opacity: 1 }}
-          viewport={skipEntrance ? undefined : { once: true }}
-          transition={{ duration: 1 }}
-        >
+      {/* ─── LOOKBOOK BANNER ─── */}
+      <section className="relative overflow-hidden h-[min(70svh,640px)] min-h-[380px]">
+        <div className="absolute inset-0">
           {lookbookImageSrc ? (
-            <Img
-              src={lookbookImageSrc}
-              alt="Lookbook"
-              className="w-full h-full object-cover"
-            />
+            <Img src={lookbookImageSrc} alt="Lookbook" className="h-full w-full object-cover" />
           ) : (
-            <div className="w-full h-full bg-[#2D241E]/20" />
+            <div className="h-full w-full bg-[#2D241E]/25" />
           )}
           <div
             className="absolute inset-0"
-            style={{ background: "linear-gradient(120deg, rgba(10,17,40,0.75) 0%, rgba(10,17,40,0.2) 100%)" }}
+            style={{ background: "linear-gradient(120deg, rgba(45,36,30,0.82) 0%, rgba(45,36,30,0.25) 100%)" }}
           />
-        </motion.div>
+        </div>
         <div className="relative z-10 h-full flex flex-col items-center justify-center text-center px-6">
-          <RevealText skipEntrance={skipEntrance}>
+          <ScrollReveal>
             <p
-              className="text-white/60 tracking-widest uppercase text-xs mb-5"
-              style={{ fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.25em" }}
+              className="text-white/55 tracking-[0.28em] uppercase text-[0.65rem] mb-4"
+              style={{ fontFamily: "'DM Sans', sans-serif" }}
             >
               {t("home.lookbook.eyebrow")}
             </p>
-          </RevealText>
-          <RevealText skipEntrance={skipEntrance} delay={0.1}>
             <h2
-              className="text-white mb-8"
-              style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "clamp(2rem, 5vw, 4rem)", fontWeight: 300, lineHeight: 1.15 }}
+              className="text-white font-light leading-[1.12] mb-8"
+              style={{
+                fontFamily: "'Cormorant Garamond', serif",
+                fontSize: "clamp(2rem, 5.5vw, 3.75rem)",
+              }}
             >
-              {t("home.lookbook.titleLine1")}<br />{t("home.lookbook.titleLine2")}
+              {t("home.lookbook.titleLine1")}
+              <br />
+              {t("home.lookbook.titleLine2")}
             </h2>
-          </RevealText>
-          <RevealText skipEntrance={skipEntrance} delay={0.2}>
             <LangLink
               to="/collection"
-              className="px-10 py-4 rounded-full border border-white/40 text-white hover:bg-white hover:text-[#2D241E] transition-all duration-400"
-              style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "0.78rem", letterSpacing: "0.15em" }}
+              className="inline-flex px-9 py-3.5 rounded-full border border-white/40 text-white hover:bg-white hover:text-[#2D241E] transition-colors duration-200 cursor-pointer"
+              style={{ fontSize: "0.75rem", letterSpacing: "0.15em" }}
             >
               <span className="uppercase tracking-widest">{t("home.lookbook.cta")}</span>
             </LangLink>
-          </RevealText>
+          </ScrollReveal>
         </div>
       </section>
 
-      {/* ═══════════════════════════════
-          REST OF COLLECTION PREVIEW
-      ═══════════════════════════════ */}
-      <section className="relative py-10 md:py-14">
+      {/* ─── MORE FROM COLLECTION ─── */}
+      <section className="relative py-12 md:py-16 bg-[#F5F2ED]">
         <div className="max-w-[1400px] mx-auto px-6 md:px-10">
-          {/* Sticky section header */}
-          <motion.div
-            initial={skipEntrance ? false : { opacity: 0, y: 20 }}
-            whileInView={skipEntrance ? undefined : { opacity: 1, y: 0 }}
-            viewport={skipEntrance ? undefined : { once: true, margin: "-80px" }}
-            transition={{ duration: 0.7, ease: easing }}
-            className="md:sticky z-30 mb-10 md:mb-14 -mx-6 md:-mx-10 px-6 md:px-10 py-3 md:py-4 text-center"
-            style={{
-              top: "var(--main-header-h)",
-              backgroundColor: "rgba(245,242,237,0.85)",
-              backdropFilter: "blur(10px)",
-            }}
-          >
-            <p
-              className="text-[#2D241E]/40 uppercase mb-1.5"
-              style={{ fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.22em", fontSize: "0.65rem" }}
-            >
-              {t("home.moreFromCollection.eyebrow")}
-            </p>
-            <h2
-              className="text-[#2D241E]"
-              style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "clamp(1.5rem, 3.2vw, 2.4rem)", fontWeight: 400, lineHeight: 1.15 }}
-            >
+          <ScrollReveal className="text-center mb-10 md:mb-14 md:sticky z-30 -mx-6 md:-mx-10 px-6 md:px-10 py-4" style={{ top: "var(--main-header-h)", backgroundColor: "rgba(245,242,237,0.88)", backdropFilter: "blur(10px)" }}>
+            <SectionEyebrow className="mb-2">{t("home.moreFromCollection.eyebrow")}</SectionEyebrow>
+            <SectionTitle>
               {homeSectionsSelection.moreFromCollectionTitle || DEFAULT_MORE_FROM_COLLECTION_TITLE}
-            </h2>
-          </motion.div>
+            </SectionTitle>
+          </ScrollReveal>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-y-10 gap-x-6 lg:gap-8 w-full">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-y-10 gap-x-6 lg:gap-8">
             {moreFromCollectionProducts.map((product, i) => (
-              <ProductCard key={product.id} product={product} index={i} size="collection" />
+              <ScrollReveal key={product.id} delay={(i % 3) * 0.06} y={16}>
+                <ProductCard product={product} index={i} size="collection" subtleEntrance />
+              </ScrollReveal>
             ))}
           </div>
         </div>
