@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using Microsoft.EntityFrameworkCore;
+using YarneAPIBack.Accounting.Models;
 using YarneAPIBack.Models;
 
 namespace YarneAPIBack.Data;
@@ -53,6 +54,12 @@ public partial class YarneDbContext : DbContext
     public virtual DbSet<AppSetting> AppSettings { get; set; }
 
     public virtual DbSet<AdminActivityLog> AdminActivityLogs { get; set; }
+
+    public virtual DbSet<AccountingCategory> AccountingCategories { get; set; }
+
+    public virtual DbSet<AccountingPurchase> AccountingPurchases { get; set; }
+
+    public virtual DbSet<MarketingExpenditure> MarketingExpenditures { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -403,6 +410,46 @@ public partial class YarneDbContext : DbContext
             entity.HasIndex(e => e.Name, "UQ__Role__737584F61F3480C1").IsUnique();
 
             entity.Property(e => e.Name).HasMaxLength(50);
+        });
+
+        modelBuilder.Entity<AccountingCategory>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.ToTable("AccountingCategory");
+            entity.Property(e => e.Name).HasMaxLength(150).IsRequired();
+            entity.Property(e => e.Description).HasMaxLength(500);
+            entity.Property(e => e.CreatedAt).HasDefaultValueSql("CURRENT_TIMESTAMP");
+            entity.HasIndex(e => e.Name).IsUnique();
+        });
+
+        modelBuilder.Entity<AccountingPurchase>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.ToTable("AccountingPurchase");
+            entity.Property(e => e.Name).HasMaxLength(255).IsRequired();
+            entity.Property(e => e.Description).HasMaxLength(1000);
+            entity.Property(e => e.Supplier).HasMaxLength(255);
+            entity.Property(e => e.Notes).HasMaxLength(1000);
+            entity.Property(e => e.UnitCost).HasColumnType("decimal(18,2)");
+            entity.Property(e => e.SaleUnitPrice).HasColumnType("decimal(18,2)");
+            entity.Property(e => e.CreatedAt).HasDefaultValueSql("CURRENT_TIMESTAMP");
+            entity.HasOne(e => e.Category).WithMany(c => c.Purchases)
+                .HasForeignKey(e => e.CategoryId)
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.HasIndex(e => e.CategoryId);
+            entity.HasIndex(e => e.PurchaseDate);
+        });
+
+        modelBuilder.Entity<MarketingExpenditure>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.ToTable("MarketingExpenditure");
+            entity.Property(e => e.Name).HasMaxLength(255).IsRequired();
+            entity.Property(e => e.Description).HasMaxLength(1000);
+            entity.Property(e => e.Notes).HasMaxLength(1000);
+            entity.Property(e => e.Amount).HasColumnType("decimal(18,2)");
+            entity.Property(e => e.CreatedAt).HasDefaultValueSql("CURRENT_TIMESTAMP");
+            entity.HasIndex(e => e.ExpenseDate);
         });
 
         OnModelCreatingPartial(modelBuilder);

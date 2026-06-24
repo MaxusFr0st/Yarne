@@ -56,6 +56,7 @@ import {
   ScrollText,
 } from "lucide-react";
 import { fetchActivityLogs, type AdminActivityLogDto } from "../api/admin";
+import { AdminAccountingTab } from "../components/admin/AdminAccountingTab";
 
 const easing = [0.25, 0.1, 0.25, 1] as const;
 
@@ -1434,7 +1435,7 @@ function DeleteModal({ name, onClose, onConfirm }: { name: string; onClose: () =
 /* ─────────────────────────────────────────────
    MAIN ADMIN PAGE
 ───────────────────────────────────────────── */
-type AdminTab = "dashboard" | "contents" | "products" | "users" | "orders" | "logs" | "usefulData" | "categories" | "countries" | "colors" | "sizes";
+type AdminTab = "dashboard" | "contents" | "products" | "users" | "orders" | "logs" | "accounting" | "categories" | "countries" | "colors" | "sizes";
 type LogsSubTab = "all" | "product" | "user" | "push" | "order" | "catalog" | "image";
 
 function formatLogTimestamp(iso: string) {
@@ -2349,7 +2350,7 @@ export function AdminPage() {
               { key: "users" as AdminTab, label: "Users", icon: <Users size={14} /> },
               { key: "orders" as AdminTab, label: "Orders", icon: <ShoppingCart size={14} /> },
               { key: "logs" as AdminTab, label: "Logs", icon: <ScrollText size={14} /> },
-              { key: "usefulData" as AdminTab, label: "Useful data", icon: <AlertTriangle size={14} /> },
+              { key: "accounting" as AdminTab, label: "Accounting", icon: <DollarSign size={14} /> },
               { key: "categories" as AdminTab, label: "Categories", icon: <Tag size={14} /> },
               { key: "countries" as AdminTab, label: "Countries", icon: <Globe size={14} /> },
               { key: "colors" as AdminTab, label: "Colors", icon: <Palette size={14} /> },
@@ -2410,7 +2411,7 @@ export function AdminPage() {
                     color: criticalLowStockCount > 0 ? "#9B6B2E" : "#2D241E",
                     goTo: "products" as AdminTab,
                   },
-                  { icon: <Info size={20} />, label: "Usefulll data", value: "Info", sub: "Planned insights page", color: "#4A0E0E", goTo: "usefulData" as AdminTab },
+                  { icon: <DollarSign size={20} />, label: "Accounting", value: "Finance", sub: "Purchases, revenue & reports", color: "#1E3A5F", goTo: "accounting" as AdminTab },
                 ].map((card, i) => (
                   <motion.div
                     key={card.label}
@@ -3882,24 +3883,9 @@ export function AdminPage() {
             </motion.div>
           )}
 
-          {/* ── USEFUL DATA ── */}
-          {activeTab === "usefulData" && (
-            <motion.div
-              key="useful-data"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
-              transition={{ duration: 0.4, ease: easing }}
-            >
-              <div className="rounded-[28px] p-10 text-center" style={{ border: "1px solid rgba(45,36,30,0.08)", backgroundColor: "rgba(45,36,30,0.02)" }}>
-                <p className="text-[#2D241E]/40 tracking-widest uppercase text-xs mb-3" style={{ fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.12em" }}>
-                  Usefulll data
-                </p>
-                <h3 className="text-[#2D241E]" style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "1.5rem", fontWeight: 400 }}>
-                  Empty page for future analytics
-                </h3>
-              </div>
-            </motion.div>
+          {/* ── ACCOUNTING ── */}
+          {activeTab === "accounting" && (
+            <AdminAccountingTab />
           )}
 
           {/* ── CATEGORIES ── */}

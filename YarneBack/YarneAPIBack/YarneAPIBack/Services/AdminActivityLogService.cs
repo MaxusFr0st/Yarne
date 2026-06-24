@@ -11,7 +11,7 @@ public class AdminActivityLogService : IAdminActivityLogService
 {
     private static readonly HashSet<string> AllowedCategories = new(StringComparer.OrdinalIgnoreCase)
     {
-        "product", "user", "push", "order", "catalog", "image",
+        "product", "user", "push", "order", "catalog", "image", "accounting",
     };
 
     private readonly YarneDbContext _context;

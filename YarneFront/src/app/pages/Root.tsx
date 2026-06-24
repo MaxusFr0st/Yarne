@@ -10,12 +10,14 @@ import { getLocaleFromPath } from "../i18n/useLocale";
 import { consumePreservedScroll } from "../i18n/localeNavigation";
 import {
   captureScrollPosition,
+  consumeReturnScroll,
   entryStorageKey,
+  markReturnScroll,
+  persistScrollPosition,
   readScrollPositions,
   resolveScrollPosition,
   restoreScrollPosition,
   routeStorageKey,
-  writeScrollPositions,
   type ScrollPositions,
 } from "../utils/scrollRestoration";
 
@@ -63,6 +65,7 @@ export function Root() {
         location.search,
         location.key,
       );
+      markReturnScroll(location.pathname, location.search, location.key);
     };
 
     document.addEventListener("pointerdown", onPointerDown, true);
@@ -114,12 +117,16 @@ export function Root() {
     }
 
     if (navigationType === "POP") {
-      const nextTop = resolveScrollPosition(
-        positionsRef.current,
-        location.pathname,
-        location.search,
-        location.key,
-      );
+      positionsRef.current = readScrollPositions();
+      const returnY = consumeReturnScroll(location.pathname, location.search, location.key);
+      const nextTop =
+        returnY ??
+        resolveScrollPosition(
+          positionsRef.current,
+          location.pathname,
+          location.search,
+          location.key,
+        );
       restoreScrollPosition(nextTop, (cleanup) => {
         restoreCleanupRef.current = cleanup;
       });
@@ -138,11 +145,12 @@ export function Root() {
     if (typeof window === "undefined") return;
 
     const persistNow = () => {
-      const y = Math.max(0, Math.round(window.scrollY));
-      const next = { ...positionsRef.current, [currentRouteKey]: y };
-      if (currentEntryKey) next[currentEntryKey] = y;
-      positionsRef.current = next;
-      writeScrollPositions(next);
+      positionsRef.current = persistScrollPosition(
+        positionsRef.current,
+        location.pathname,
+        location.search,
+        location.key,
+      );
     };
 
     const onScroll = () => {
@@ -155,14 +163,13 @@ export function Root() {
 
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => {
-      persistNow();
       window.removeEventListener("scroll", onScroll);
       if (rafRef.current != null) {
         window.cancelAnimationFrame(rafRef.current);
         rafRef.current = null;
       }
     };
-  }, [currentEntryKey, currentRouteKey]);
+  }, [currentEntryKey, currentRouteKey, location.key, location.pathname, location.search]);
 
   return (
     <div className="relative" style={{ backgroundColor: "#F5F2ED", minHeight: "100svh" }}>

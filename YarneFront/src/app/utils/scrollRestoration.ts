@@ -1,6 +1,13 @@
 const STORAGE_KEY = "yarne.scroll.positions.v2";
+const RETURN_SCROLL_KEY = "yarne.scroll.return.v1";
 
 export type ScrollPositions = Record<string, number>;
+
+type ReturnScrollMarker = {
+  route: string;
+  entry: string;
+  y: number;
+};
 
 function normalizePath(pathname: string): string {
   if (pathname.length > 1 && pathname.endsWith("/")) {
@@ -63,7 +70,64 @@ export function captureScrollPosition(
   historyKey: string | undefined,
 ): ScrollPositions {
   if (typeof window === "undefined") return positions;
-  return saveScrollPosition(positions, pathname, search, historyKey, window.scrollY);
+  const y = Math.max(0, Math.round(window.scrollY));
+  const routeKey = routeStorageKey(pathname, search);
+  const existing = positions[routeKey] ?? 0;
+  const top = y === 0 && existing > 48 ? existing : y;
+  return saveScrollPosition(positions, pathname, search, historyKey, top);
+}
+
+/** Remember where to land when the user pops back to this history entry. */
+export function markReturnScroll(
+  pathname: string,
+  search: string,
+  historyKey: string | undefined,
+): void {
+  if (typeof window === "undefined") return;
+  const y = Math.max(0, Math.round(window.scrollY));
+  if (y <= 0) return;
+  const marker: ReturnScrollMarker = {
+    route: routeStorageKey(pathname, search),
+    entry: entryStorageKey(historyKey),
+    y,
+  };
+  window.sessionStorage.setItem(RETURN_SCROLL_KEY, JSON.stringify(marker));
+}
+
+export function consumeReturnScroll(
+  pathname: string,
+  search: string,
+  historyKey: string | undefined,
+): number | null {
+  if (typeof window === "undefined") return null;
+  const raw = window.sessionStorage.getItem(RETURN_SCROLL_KEY);
+  if (!raw) return null;
+  try {
+    const marker = JSON.parse(raw) as ReturnScrollMarker;
+    const route = routeStorageKey(pathname, search);
+    const entry = entryStorageKey(historyKey);
+    const matches = marker.route === route || (entry.length > 0 && marker.entry === entry);
+    if (!matches || !Number.isFinite(marker.y) || marker.y < 0) return null;
+    window.sessionStorage.removeItem(RETURN_SCROLL_KEY);
+    return Math.round(marker.y);
+  } catch {
+    return null;
+  }
+}
+
+export function persistScrollPosition(
+  positions: ScrollPositions,
+  pathname: string,
+  search: string,
+  historyKey: string | undefined,
+): ScrollPositions {
+  if (typeof window === "undefined") return positions;
+  const y = Math.max(0, Math.round(window.scrollY));
+  const routeKey = routeStorageKey(pathname, search);
+  const existing = positions[routeKey] ?? 0;
+  // Never clobber a deep-scroll snapshot with 0 (happens after route snap on leave).
+  if (y === 0 && existing > 48) return positions;
+  return saveScrollPosition(positions, pathname, search, historyKey, y);
 }
 
 export function resolveScrollPosition(
