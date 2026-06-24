@@ -338,6 +338,16 @@ export function FeaturedShowcase() {
     ? productByCode.get(selection.slot4.productCode) ?? null
     : null;
 
+  useEffect(() => {
+    for (const p of [slot1Product, slot2Product, slot4Product]) {
+      if (!p) continue;
+      const url = resolveMediaUrl(p.colors?.[0]?.image);
+      if (!url) continue;
+      const img = new Image();
+      img.src = url;
+    }
+  }, [slot1Product, slot2Product, slot4Product]);
+
   const eyebrow =
     selection.eyebrow.trim() ||
     t("showcase.defaultEyebrow", { defaultValue: DEFAULT_SHOWCASE_EYEBROW });
