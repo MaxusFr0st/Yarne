@@ -149,25 +149,10 @@ export function ProductDetail() {
 
   return (
     <main className="overflow-x-hidden min-h-[100svh]" style={{ backgroundColor: "#F5F2ED" }}>
-      <AnimatePresence mode="wait">
-        {!showContent ? (
-          <motion.div
-            key="product-pending"
-            className="min-h-[50svh]"
-            aria-busy="true"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: reduceMotion ? 0 : 0.35, ease: enterEase }}
-          />
-        ) : (
-          <motion.div
-            key={product!.id}
-            initial={reduceMotion ? false : { opacity: 0, y: 14 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={reduceMotion ? undefined : { opacity: 0, y: -8 }}
-            transition={{ duration: reduceMotion ? 0 : CONTENT_ENTER_S, ease: enterEase }}
-          >
+      {!showContent ? (
+        <div className="min-h-[50svh]" aria-busy="true" />
+      ) : (
+        <>
       <MobileProductDetailView
         product={product!}
         images={images}
@@ -194,25 +179,20 @@ export function ProductDetail() {
 
       {/* ── Desktop layout ── */}
       <div className="hidden md:block max-w-[1400px] mx-auto px-5 md:px-10 pt-24 pb-24">
-        <motion.button
+        <button
+          type="button"
           onClick={() => navigate(-1)}
           className="flex items-center gap-2 text-[#2D241E]/50 hover:text-[#2D241E] transition-colors duration-300 mb-5 group"
           style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "0.78rem", letterSpacing: "0.12em" }}
-          initial={{ opacity: 0, x: -10 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ duration: 0.5, ease: easing }}
         >
           <ArrowLeft size={14} className="group-hover:-translate-x-1 transition-transform duration-300" />
           <span className="uppercase tracking-widest">Back</span>
-        </motion.button>
+        </button>
 
         <div className="grid md:grid-cols-2 lg:grid-cols-[minmax(0,1fr)_minmax(340px,420px)] gap-6 md:gap-8 lg:gap-12 items-start mt-0">
           {/* Left: Image Gallery */}
-          <motion.div
+          <div
             className="w-full max-w-[335px] sm:max-w-[380px] mx-auto md:max-w-none md:mx-0 lg:max-w-[620px] lg:justify-self-center"
-            initial={{ opacity: 0, x: -30 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.8, ease: easing }}
           >
             {/* Main Image */}
             <div className="relative rounded-[34px] sm:rounded-[40px] overflow-hidden bg-[#EDE9E2] h-[min(64svh,430px)] min-h-[320px] sm:min-h-[340px] md:h-[min(62svh,640px)] md:min-h-[440px] lg:h-[min(68svh,720px)] lg:min-h-[500px]">
@@ -269,14 +249,11 @@ export function ProductDetail() {
               ))}
             </div>
 
-          </motion.div>
+          </div>
 
           {/* Right: Product Info */}
-          <motion.div
+          <div
             className="flex flex-col gap-6 md:sticky md:top-[calc(var(--main-header-h)+24px)]"
-            initial={{ opacity: 0, x: 30 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.8, delay: 0.1, ease: easing }}
           >
             {/* Category */}
             <p
@@ -584,7 +561,7 @@ export function ProductDetail() {
                 </div>
               </div>
             </div>
-          </motion.div>
+          </div>
         </div>
       </div>
 
@@ -621,9 +598,8 @@ export function ProductDetail() {
           </div>
         </section>
       )}
-          </motion.div>
-        )}
-      </AnimatePresence>
+        </>
+      )}
     </main>
   );
 }

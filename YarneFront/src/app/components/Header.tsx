@@ -11,6 +11,7 @@ import { LanguageSwitcher } from "../i18n/LanguageSwitcher";
 import { useTouchMobileLayout } from "../hooks/useTouchMobileLayout";
 import { LOCALE_DISPLAY, LOCALE_STORAGE_KEY, SUPPORTED_LOCALES, type Locale } from "../i18n/config";
 import { stripLocaleFromPath } from "../i18n/useLocale";
+import { preserveScrollForLocaleSwitch } from "../i18n/localeNavigation";
 
 export function Header() {
   const { t, i18n } = useTranslation();
@@ -32,6 +33,7 @@ export function Header() {
   const changeLocale = (next: Locale) => {
     if (next === activeLocale) return;
     try { window.localStorage.setItem(LOCALE_STORAGE_KEY, next); } catch { /* ignore */ }
+    preserveScrollForLocaleSwitch();
     void i18n.changeLanguage(next);
     const rest = stripLocaleFromPath(location.pathname);
     const target = `/${next}${rest === "/" ? "" : rest}${location.search}${location.hash}`;
@@ -101,9 +103,9 @@ export function Header() {
             : "background-color 500ms ease, backdrop-filter 500ms ease, border-color 500ms ease",
           willChange: "transform",
         }}
-        initial={{ y: -80 }}
+        initial={false}
         animate={{ y: 0 }}
-        transition={{ duration: 0.6, ease: [0.25, 0.1, 0.25, 1] }}
+        transition={{ duration: 0 }}
       >
         <div className="max-w-[1400px] mx-auto px-4 sm:px-6 md:px-10">
           <div className="grid grid-cols-[1fr_auto_1fr] items-center h-[52px] md:h-[60px]">

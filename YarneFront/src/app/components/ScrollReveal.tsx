@@ -1,5 +1,6 @@
-import { motion, useReducedMotion } from "motion/react";
+import { motion, useInView, useReducedMotion } from "motion/react";
 import type React from "react";
+import { useRef } from "react";
 import type { CSSProperties, ReactNode } from "react";
 import { useTouchMobileLayout } from "../hooks/useTouchMobileLayout";
 
@@ -17,7 +18,7 @@ type ScrollRevealProps = {
   amount?: number;
 };
 
-/** Scroll-triggered reveal — opacity-only on touch, full y+opacity on desktop, disabled on reduced-motion. */
+/** Scroll-triggered reveal — useInView + animate (reliable on mobile Safari). */
 export function ScrollReveal({
   children,
   className = "",
@@ -25,10 +26,16 @@ export function ScrollReveal({
   delay = 0,
   y = 22,
   once = true,
-  amount = 0.15,
+  amount = 0.12,
 }: ScrollRevealProps) {
   const reduced = useReducedMotion();
   const touch = useTouchMobileLayout();
+  const ref = useRef<HTMLDivElement>(null);
+  const inView = useInView(ref, {
+    once,
+    amount,
+    margin: touch ? "0px 0px -8% 0px" : "0px 0px -40px 0px",
+  });
 
   if (reduced) {
     return (
@@ -38,14 +45,16 @@ export function ScrollReveal({
     );
   }
 
+  const shiftY = touch ? 0 : y;
+
   return (
     <motion.div
+      ref={ref}
       className={className}
       style={style}
-      initial={{ opacity: 0, y: touch ? 0 : y }}
-      whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once, amount, margin: touch ? "-20px" : "-40px" }}
-      transition={{ duration: touch ? 0.45 : 0.55, delay: touch ? delay * 0.6 : delay, ease: EASE_OUT }}
+      initial={{ opacity: 0, y: shiftY }}
+      animate={inView ? { opacity: 1, y: 0 } : { opacity: 0, y: shiftY }}
+      transition={{ duration: touch ? 0.5 : 0.55, delay: touch ? delay * 0.5 : delay, ease: EASE_OUT }}
     >
       {children}
     </motion.div>

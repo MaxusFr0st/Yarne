@@ -58,11 +58,7 @@ export function Collection() {
       {/* Header Banner */}
       <section className="pt-28 pb-8 md:pt-32 md:pb-10">
         <div className="max-w-[1400px] mx-auto px-6 md:px-10">
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8, ease: easing }}
-          >
+          <div>
             <p
               className="text-[#2D241E]/40 tracking-widest uppercase text-xs mb-4"
               style={{ fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.2em" }}
@@ -97,7 +93,7 @@ export function Collection() {
                 </>
               )}
             </p>
-          </motion.div>
+          </div>
         </div>
       </section>
 

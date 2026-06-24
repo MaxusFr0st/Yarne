@@ -20,6 +20,7 @@ import {
   type ShowcaseTextSlot,
 } from "../utils/featuredShowcaseSelection";
 import { useTouchMobileLayout } from "../hooks/useTouchMobileLayout";
+import { useMotionEntrance } from "../hooks/useMotionEntrance";
 
 const easing = [0.25, 0.1, 0.25, 1] as const;
 
@@ -82,18 +83,18 @@ function ProductTile({ slot, product, fallbackTitle, variant, showWishlist = fal
   const href = product ? `/product/${product.id}` : "/collection";
 
   const isLarge = variant === "large";
-  /** Tighter crop on phones — object-position only (scale breaks locked grid on touch GPUs). */
+  /** Fixed crop on touch — no width breakpoints (they jump when browser chrome resizes). */
   const mobileImageFrameClass = touch
     ? isLarge
-      ? "max-md:object-[center_32%] max-[390px]:object-[center_26%] max-[374px]:object-[center_22%]"
+      ? "max-md:object-[center_28%]"
       : variant === "wide"
-        ? "max-md:object-[center_34%] max-[390px]:object-[center_28%] max-[374px]:object-[center_24%]"
-        : "max-md:object-[center_30%] max-[390px]:object-[center_24%] max-[374px]:object-[center_20%]"
+        ? "max-md:object-[center_30%]"
+        : "max-md:object-[center_26%]"
     : isLarge
-      ? "max-md:scale-[1.16] max-md:object-[center_32%] max-[390px]:scale-[1.28] max-[390px]:object-[center_26%] max-[374px]:scale-[1.36] max-[374px]:object-[center_22%]"
+      ? "max-md:scale-[1.16] max-md:object-[center_32%] md:group-hover:scale-[1.04]"
       : variant === "wide"
-        ? "max-md:scale-[1.12] max-md:object-[center_34%] max-[390px]:scale-[1.24] max-[390px]:object-[center_28%] max-[374px]:scale-[1.32] max-[374px]:object-[center_24%]"
-        : "max-md:scale-[1.18] max-md:object-[center_30%] max-[390px]:scale-[1.30] max-[390px]:object-[center_24%] max-[374px]:scale-[1.38] max-[374px]:object-[center_20%]";
+        ? "max-md:scale-[1.12] max-md:object-[center_34%] md:group-hover:scale-[1.04]"
+        : "max-md:scale-[1.18] max-md:object-[center_30%] md:group-hover:scale-[1.04]";
   const isWishlisted = product ? wishlist.includes(product.id) : false;
   const eyebrow = slot.eyebrow.trim();
   const ctaLabel = slot.ctaLabel.trim();
@@ -303,7 +304,8 @@ function TextTile({ slot }: TextTileProps) {
 export function FeaturedShowcase() {
   const { t } = useTranslation();
   const { products } = useProducts();
-  const skipEntrance = useTouchMobileLayout();
+  const touchLayout = useTouchMobileLayout();
+  const { disabled: motionDisabled } = useMotionEntrance();
   const [selection, setSelection] = useState<FeaturedShowcaseSelection>(
     getFeaturedShowcaseSelection
   );
@@ -391,8 +393,8 @@ export function FeaturedShowcase() {
     </>
   );
 
-  const mobileSectionHeight = skipEntrance
-    ? "calc(100svh - var(--main-header-h))"
+  const mobileSectionHeight = touchLayout
+    ? "calc(var(--app-vh, 1svh) * 100 - var(--main-header-h))"
     : undefined;
 
   return (
@@ -402,12 +404,20 @@ export function FeaturedShowcase() {
     >
       <div className="max-w-[1400px] mx-auto px-[clamp(12px,3.5vw,40px)] max-md:h-full max-md:flex max-md:flex-col max-md:min-h-0">
         {/* Mobile: compact inline header */}
-        {skipEntrance ? (
-          <div className="md:hidden shrink-0 mb-[clamp(4px,1vw,8px)]">{sectionHeader}</div>
+        {touchLayout ? (
+          <motion.div
+            initial={motionDisabled ? false : { opacity: 0 }}
+            whileInView={motionDisabled ? undefined : { opacity: 1 }}
+            viewport={{ once: true, amount: 0.2 }}
+            transition={{ duration: 0.45, ease: easing }}
+            className="md:hidden shrink-0 mb-[clamp(4px,1vw,8px)]"
+          >
+            {sectionHeader}
+          </motion.div>
         ) : (
           <motion.div
-            initial={{ opacity: 0, y: 12 }}
-            whileInView={{ opacity: 1, y: 0 }}
+            initial={motionDisabled ? false : { opacity: 0, y: 12 }}
+            whileInView={motionDisabled ? undefined : { opacity: 1, y: 0 }}
             viewport={{ once: true, margin: "-40px" }}
             transition={{ duration: 0.5, ease: easing }}
             className="md:hidden shrink-0 mb-[clamp(4px,1vw,8px)]"
@@ -483,8 +493,8 @@ export function FeaturedShowcase() {
                      lg:h-[clamp(560px,calc(100svh-var(--main-header-h)-72px),760px)]"
         >
           <motion.div
-            initial={skipEntrance ? false : { opacity: 0, y: 30 }}
-            whileInView={skipEntrance ? undefined : { opacity: 1, y: 0 }}
+            initial={motionDisabled ? false : { opacity: 0, y: 30 }}
+            whileInView={motionDisabled ? undefined : { opacity: 1, y: 0 }}
             viewport={{ once: true, margin: "-60px" }}
             transition={{ duration: 0.7, ease: easing }}
             className="aspect-[4/4.6] lg:row-span-2 lg:aspect-auto lg:h-full"
@@ -499,10 +509,10 @@ export function FeaturedShowcase() {
           </motion.div>
 
           <motion.div
-            initial={skipEntrance ? false : { opacity: 0, y: 30 }}
-            whileInView={skipEntrance ? undefined : { opacity: 1, y: 0 }}
+            initial={motionDisabled ? false : { opacity: 0, y: 30 }}
+            whileInView={motionDisabled ? undefined : { opacity: 1, y: 0 }}
             viewport={{ once: true, margin: "-60px" }}
-            transition={{ duration: 0.7, delay: skipEntrance ? 0 : 0.05, ease: easing }}
+            transition={{ duration: 0.7, delay: motionDisabled ? 0 : 0.05, ease: easing }}
             className="aspect-[4/4.4] lg:aspect-auto lg:h-full"
           >
             <ProductTile
@@ -515,20 +525,20 @@ export function FeaturedShowcase() {
           </motion.div>
 
           <motion.div
-            initial={skipEntrance ? false : { opacity: 0, y: 30 }}
-            whileInView={skipEntrance ? undefined : { opacity: 1, y: 0 }}
+            initial={motionDisabled ? false : { opacity: 0, y: 30 }}
+            whileInView={motionDisabled ? undefined : { opacity: 1, y: 0 }}
             viewport={{ once: true, margin: "-60px" }}
-            transition={{ duration: 0.7, delay: skipEntrance ? 0 : 0.05, ease: easing }}
+            transition={{ duration: 0.7, delay: motionDisabled ? 0 : 0.05, ease: easing }}
             className="aspect-[4/4.4] lg:aspect-auto lg:h-full"
           >
             <TextTile slot={selection.slot3} />
           </motion.div>
 
           <motion.div
-            initial={skipEntrance ? false : { opacity: 0, y: 30 }}
-            whileInView={skipEntrance ? undefined : { opacity: 1, y: 0 }}
+            initial={motionDisabled ? false : { opacity: 0, y: 30 }}
+            whileInView={motionDisabled ? undefined : { opacity: 1, y: 0 }}
             viewport={{ once: true, margin: "-60px" }}
-            transition={{ duration: 0.7, delay: skipEntrance ? 0 : 0.05, ease: easing }}
+            transition={{ duration: 0.7, delay: motionDisabled ? 0 : 0.05, ease: easing }}
             className="aspect-[4/4.4] lg:col-span-2 lg:aspect-auto lg:h-full"
           >
             <ProductTile

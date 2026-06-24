@@ -8,7 +8,7 @@ import { ImageWithFallback } from "./figma/ImageWithFallback";
 import { LangLink } from "../i18n/LangLink";
 import { useLocale } from "../i18n/useLocale";
 import { formatPrice } from "../i18n/format";
-import { useTouchMobileLayout } from "../hooks/useTouchMobileLayout";
+import { useMotionEntrance } from "../hooks/useMotionEntrance";
 
 interface ProductCardProps {
   product: Product;
@@ -28,7 +28,7 @@ export function ProductCard({ product, index = 0, size = "medium", inCarousel = 
   const [activeColor, setActiveColor] = useState(0);
   const [isHovered, setIsHovered] = useState(false);
   const { addToCart, wishlist, toggleWishlist } = useApp();
-  const skipEntrance = useTouchMobileLayout();
+  const { disabled: motionDisabled, opacityOnly } = useMotionEntrance();
 
   const isWishlisted = wishlist.includes(product.id);
 
@@ -69,17 +69,21 @@ export function ProductCard({ product, index = 0, size = "medium", inCarousel = 
   const viewport = useCarouselViewport
     ? { root: viewportRoot, margin: "0px 80px", amount: 0.2, once: true }
     : { once: true, margin: "-60px" };
-  const entranceInitial = subtleEntrance || useCarouselViewport || inCarousel
-    ? { opacity: 0 }
-    : { opacity: 0, y: 40 };
-  const entranceAnimate = subtleEntrance || useCarouselViewport || inCarousel
-    ? { opacity: 1 }
-    : { opacity: 1, y: 0 };
+  const entranceInitial = motionDisabled
+    ? false
+    : opacityOnly || subtleEntrance || useCarouselViewport || inCarousel
+      ? { opacity: 0 }
+      : { opacity: 0, y: 40 };
+  const entranceAnimate = motionDisabled
+    ? undefined
+    : opacityOnly || subtleEntrance || useCarouselViewport || inCarousel
+      ? { opacity: 1 }
+      : { opacity: 1, y: 0 };
   return (
     <motion.div
-      initial={skipEntrance ? false : entranceInitial}
-      whileInView={skipEntrance ? undefined : entranceAnimate}
-      viewport={skipEntrance ? undefined : (useCarouselViewport || !inCarousel ? viewport : undefined)}
+      initial={entranceInitial}
+      whileInView={entranceAnimate}
+      viewport={motionDisabled ? undefined : (useCarouselViewport || !inCarousel ? viewport : undefined)}
       transition={{ duration: 0.5, delay: inCarousel ? 0 : index * 0.08, ease: [0.25, 0.1, 0.25, 1] }}
       className={`group ${isCarouselCard ? "overflow-visible" : ""}`}
     >
@@ -103,9 +107,11 @@ export function ProductCard({ product, index = 0, size = "medium", inCarousel = 
                 }
                 style={{
                   opacity: i === activeColor ? 1 : 0,
-                  transition: "opacity 0.6s cubic-bezier(0.25, 0.1, 0.25, 1), transform 0.5s cubic-bezier(0.25, 0.1, 0.25, 1)",
-                  transform: isHovered && !isCarouselCard ? "scale(1.02)" : "scale(1)",
-                  transformOrigin: isCarouselCard ? "center top" : "center center",
+                  transition: isCarouselCard
+                    ? "opacity 0.6s cubic-bezier(0.25, 0.1, 0.25, 1)"
+                    : "opacity 0.6s cubic-bezier(0.25, 0.1, 0.25, 1), transform 0.5s cubic-bezier(0.25, 0.1, 0.25, 1)",
+                  transform: isCarouselCard ? "scale(1)" : isHovered ? "scale(1.02)" : "scale(1)",
+                  transformOrigin: isCarouselCard ? "center center" : "center center",
                 }}
               />
             ))}

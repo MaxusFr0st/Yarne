@@ -7,6 +7,7 @@ import { LoginModal } from "../components/LoginModal";
 import { Footer } from "../components/Footer";
 import { PageTransition } from "../components/PageTransition";
 import { getLocaleFromPath } from "../i18n/useLocale";
+import { consumePreservedScroll } from "../i18n/localeNavigation";
 
 const SCROLL_STORAGE_KEY = "yarne.scroll.positions.v2";
 
@@ -71,6 +72,12 @@ export function Root() {
           target.scrollIntoView();
           return;
         }
+      }
+
+      const preserved = consumePreservedScroll();
+      if (preserved != null) {
+        window.scrollTo({ top: preserved, left: 0, behavior: "auto" });
+        return;
       }
 
       const positions = positionsRef.current;

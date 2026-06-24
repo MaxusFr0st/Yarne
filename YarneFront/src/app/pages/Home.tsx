@@ -95,31 +95,24 @@ export function Home() {
         style={{ height: "calc(var(--app-vh, 1svh) * 100)" }}
       >
         {animateHero ? (
-          <motion.div className="absolute inset-0" style={{ y: heroY }}>
+          <motion.div className="absolute inset-0 overflow-hidden" style={{ y: heroY }}>
             {heroImageSrc ? (
-              <Img src={heroImageSrc} alt="Yarné Hero" className="h-full w-full object-cover" priority />
+              <Img src={heroImageSrc} alt="Yarné Hero" className="absolute inset-0 h-[108%] w-full object-cover object-center" priority />
             ) : (
               <div className="absolute inset-0" style={{ background: "linear-gradient(145deg, #4a3f38 0%, #8a8078 50%, #d4cfc8 100%)" }} />
             )}
-            <div className="absolute inset-0" style={{ background: "linear-gradient(105deg, rgba(45,36,30,0.78) 0%, rgba(45,36,30,0.35) 45%, rgba(45,36,30,0.15) 100%)" }} />
+            <div className="absolute inset-0" style={{ background: "linear-gradient(105deg, rgba(45,36,30,0.72) 0%, rgba(45,36,30,0.38) 55%, rgba(45,36,30,0.12) 100%)" }} />
           </motion.div>
         ) : (
-          <div className="absolute inset-0">
+          <div className="absolute inset-0 overflow-hidden">
             {heroImageSrc ? (
-              <Img src={heroImageSrc} alt="Yarné Hero" className="h-full w-full object-cover" priority />
+              <Img src={heroImageSrc} alt="Yarné Hero" className="absolute inset-0 h-full w-full object-cover object-center" priority />
             ) : (
               <div className="absolute inset-0" style={{ background: "linear-gradient(145deg, #4a3f38 0%, #8a8078 50%, #d4cfc8 100%)" }} />
             )}
-            <div className="absolute inset-0" style={{ background: "linear-gradient(105deg, rgba(45,36,30,0.78) 0%, rgba(45,36,30,0.35) 45%, rgba(45,36,30,0.15) 100%)" }} />
+            <div className="absolute inset-0" style={{ background: "linear-gradient(105deg, rgba(45,36,30,0.72) 0%, rgba(45,36,30,0.38) 55%, rgba(45,36,30,0.12) 100%)" }} />
           </div>
         )}
-
-        {/* Signature thread line */}
-        <div
-          className="absolute left-5 md:left-10 top-[calc(var(--main-header-h)+1.5rem)] bottom-28 w-px z-10 hidden sm:block"
-          style={{ background: "linear-gradient(to bottom, transparent, rgba(245,242,237,0.55), transparent)" }}
-          aria-hidden
-        />
 
         <div className="relative z-10 w-full max-w-[1400px] mx-auto px-6 md:px-10 pb-14 md:pb-20">
           <div className="max-w-xl md:max-w-2xl">
@@ -275,18 +268,25 @@ export function Home() {
           <div className="grid md:grid-cols-2 gap-10 md:gap-16 items-center">
             <ScrollReveal className="relative">
               <div className="relative rounded-[2rem] md:rounded-[2.5rem] overflow-hidden aspect-[4/5] bg-[#EDE9E2]">
-                <motion.div
-                  className="absolute inset-0"
-                  style={animateHero ? { y: editorialY } : undefined}
-                >
-                  {editorialImageSrc ? (
+                {animateHero ? (
+                  <motion.div className="absolute inset-0" style={{ y: editorialY }}>
+                    {editorialImageSrc ? (
+                      <Img
+                        src={editorialImageSrc}
+                        alt={t("home.editorial.eyebrow")}
+                        className="h-full w-full object-cover object-center"
+                      />
+                    ) : null}
+                  </motion.div>
+                ) : (
+                  editorialImageSrc ? (
                     <Img
                       src={editorialImageSrc}
                       alt={t("home.editorial.eyebrow")}
-                      className="h-[112%] w-full object-cover"
+                      className="absolute inset-0 h-full w-full object-cover object-center"
                     />
-                  ) : null}
-                </motion.div>
+                  ) : null
+                )}
               </div>
               <div
                 className="absolute -right-2 md:-right-8 bottom-12 md:bottom-16 rounded-2xl px-6 py-5 shadow-lg border border-[#2D241E]/6"

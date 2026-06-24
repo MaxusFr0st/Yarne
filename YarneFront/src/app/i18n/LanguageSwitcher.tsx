@@ -11,6 +11,7 @@ import {
   type Locale,
 } from "./config";
 import { stripLocaleFromPath } from "./useLocale";
+import { preserveScrollForLocaleSwitch } from "./localeNavigation";
 
 type Variant = "compact" | "full";
 
@@ -46,6 +47,7 @@ export function LanguageSwitcher({
       } catch {
         // ignore — storage may be disabled
       }
+      preserveScrollForLocaleSwitch();
     }
     void i18n.changeLanguage(next);
     const rest = stripLocaleFromPath(location.pathname);

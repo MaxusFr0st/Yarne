@@ -5,13 +5,14 @@ import { useTranslation } from "react-i18next";
 import { useProducts } from "../hooks/useProducts";
 import { ProductCard } from "./ProductCard";
 import { loadCarouselSelection } from "../utils/carouselSelection";
-import { useTouchMobileLayout } from "../hooks/useTouchMobileLayout";
+import { useMotionEntrance } from "../hooks/useMotionEntrance";
+import { Skeleton } from "./ui/skeleton";
 
 const easing = [0.25, 0.1, 0.25, 1] as const;
 
 export function BestSellersCarousel() {
   const { t } = useTranslation();
-  const skipEntrance = useTouchMobileLayout();
+  const { disabled: motionDisabled, opacityOnly } = useMotionEntrance();
   const viewportRef = useRef<HTMLDivElement>(null);
   const [emblaRef, emblaApi] = useEmblaCarousel({
     loop: true,
@@ -56,6 +57,8 @@ export function BestSellersCarousel() {
       ? products.filter((p) => p.isBestseller).slice(0, 8)
       : products.slice(0, 8);
   const carouselProducts = selectedProducts.length > 0 ? selectedProducts : fallbackProducts;
+  const showSkeleton = carouselProducts.length === 0;
+  const slides = showSkeleton ? Array.from({ length: 4 }, (_, i) => ({ id: `sk-${i}` })) : carouselProducts;
 
   useEffect(() => {
     let cancelled = false;
@@ -73,9 +76,9 @@ export function BestSellersCarousel() {
         {/* Sticky section header — pins below the main header while the
             carousel scrolls past, then releases when the section ends. */}
         <motion.div
-          initial={skipEntrance ? false : { opacity: 0, y: 20 }}
-          whileInView={skipEntrance ? undefined : { opacity: 1, y: 0 }}
-          viewport={skipEntrance ? undefined : { once: true, margin: "-80px" }}
+          initial={motionDisabled ? false : opacityOnly ? { opacity: 0 } : { opacity: 0, y: 20 }}
+          whileInView={motionDisabled ? undefined : opacityOnly ? { opacity: 1 } : { opacity: 1, y: 0 }}
+          viewport={motionDisabled ? undefined : { once: true, margin: "-80px" }}
           transition={{ duration: 0.7, ease: easing }}
           className="md:sticky z-30 mb-8 md:mb-12 -mx-6 md:-mx-10 px-6 md:px-10 py-3 md:py-4"
           style={{
@@ -131,32 +134,36 @@ export function BestSellersCarousel() {
             }
           }
         `}</style>
-        <div className="relative -mx-4 sm:-mx-12 md:-mx-8 pt-8 md:pt-10 pb-2 min-h-0 sm:min-h-[360px] md:min-h-[460px]">
+        <div className="relative -mx-4 sm:-mx-12 md:-mx-8 pt-8 md:pt-10 pb-2 min-h-[320px] sm:min-h-[360px] md:min-h-[460px]">
           <motion.div
             ref={(el) => {
               (emblaRef as (el: HTMLDivElement | null) => void)(el);
               (viewportRef as React.MutableRefObject<HTMLDivElement | null>).current = el;
             }}
             className="bestsellers-carousel relative overflow-x-hidden overflow-y-visible pt-4 pb-6 sm:pt-6 sm:pb-8 md:pt-8 md:pb-10 px-3 sm:px-12 md:px-8"
-            initial={skipEntrance ? false : { opacity: 0, y: 20 }}
-            whileInView={skipEntrance ? undefined : { opacity: 1, y: 0 }}
-            viewport={skipEntrance ? undefined : { once: true, margin: "-60px" }}
+            initial={motionDisabled ? false : opacityOnly ? { opacity: 0 } : { opacity: 0, y: 20 }}
+            whileInView={motionDisabled ? undefined : opacityOnly ? { opacity: 1 } : { opacity: 1, y: 0 }}
+            viewport={motionDisabled ? undefined : { once: true, margin: "-60px" }}
             transition={{ duration: 0.7, delay: 0.1, ease: easing }}
           >
             <div
               className="flex items-start pt-2 [touch-action:pan-y_pinch-zoom]"
               style={{ marginLeft: "calc(var(--slide-spacing) * -1)", willChange: "transform" }}
             >
-              {carouselProducts.map((product, i) => (
+              {slides.map((item, i) => (
                 <div
-                  key={`${product.id}-${i}`}
+                  key={showSkeleton ? item.id : `${item.id}-${i}`}
                   className="shrink-0 min-w-0 self-start"
                   style={{
                     paddingLeft: "var(--slide-spacing)",
                     flex: "0 0 var(--slide-size)",
                   }}
                 >
-                  <ProductCard product={product} index={i} size="carousel" inCarousel viewportRoot={viewportRef} />
+                  {showSkeleton ? (
+                    <Skeleton className="aspect-[3/4] w-full rounded-[22px] sm:rounded-[28px] bg-[#E5E0D8]" />
+                  ) : (
+                    <ProductCard product={item as (typeof carouselProducts)[number]} index={i} size="carousel" inCarousel viewportRoot={viewportRef} />
+                  )}
                 </div>
               ))}
             </div>
