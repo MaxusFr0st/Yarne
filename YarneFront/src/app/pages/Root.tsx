@@ -8,40 +8,16 @@ import { Footer } from "../components/Footer";
 import { PageTransition } from "../components/PageTransition";
 import { getLocaleFromPath } from "../i18n/useLocale";
 import { consumePreservedScroll } from "../i18n/localeNavigation";
-
-const SCROLL_STORAGE_KEY = "yarne.scroll.positions.v2";
-
-type ScrollPositions = Record<string, number>;
-
-function readScrollPositions(): ScrollPositions {
-  if (typeof window === "undefined") return {};
-  const raw = window.sessionStorage.getItem(SCROLL_STORAGE_KEY);
-  if (!raw) return {};
-  try {
-    const parsed = JSON.parse(raw) as Record<string, unknown>;
-    const normalized: ScrollPositions = {};
-    for (const [key, value] of Object.entries(parsed)) {
-      const num = Number(value);
-      if (Number.isFinite(num) && num >= 0) normalized[key] = num;
-    }
-    return normalized;
-  } catch {
-    return {};
-  }
-}
-
-function writeScrollPositions(positions: ScrollPositions): void {
-  if (typeof window === "undefined") return;
-  window.sessionStorage.setItem(SCROLL_STORAGE_KEY, JSON.stringify(positions));
-}
-
-function routeStorageKey(pathname: string, search: string): string {
-  return `route:${pathname}${search}`;
-}
-
-function entryStorageKey(key: string | undefined): string {
-  return key ? `entry:${key}` : "";
-}
+import {
+  captureScrollPosition,
+  entryStorageKey,
+  readScrollPositions,
+  resolveScrollPosition,
+  restoreScrollPosition,
+  routeStorageKey,
+  writeScrollPositions,
+  type ScrollPositions,
+} from "../utils/scrollRestoration";
 
 export function Root() {
   const location = useLocation();
@@ -49,14 +25,12 @@ export function Root() {
   const positionsRef = useRef<ScrollPositions>(readScrollPositions());
   const prevLocationRef = useRef(location);
   const rafRef = useRef<number | null>(null);
-  const restoreTimersRef = useRef<number[]>([]);
+  const restoreCleanupRef = useRef<(() => void) | null>(null);
   const { i18n } = useTranslation();
 
-  const routeKey = `${location.pathname}${location.search}`;
   const currentRouteKey = routeStorageKey(location.pathname, location.search);
   const currentEntryKey = entryStorageKey(location.key);
 
-  // URL is the source of truth: keep i18next + <html lang> in sync with it.
   useEffect(() => {
     const fromPath = getLocaleFromPath(location.pathname);
     if (!fromPath) return;
@@ -71,8 +45,35 @@ export function Root() {
     window.history.scrollRestoration = "manual";
   }, []);
 
+  // Capture scroll at click — runs before route change / snap-to-top.
+  useEffect(() => {
+    const onPointerDown = (event: PointerEvent) => {
+      if (event.button !== 0) return;
+      const target = event.target;
+      if (!(target instanceof Element)) return;
+      const anchor = target.closest("a[href]");
+      if (!anchor || !(anchor instanceof HTMLAnchorElement)) return;
+      if (anchor.target === "_blank" || anchor.hasAttribute("download")) return;
+      const href = anchor.getAttribute("href");
+      if (!href || href.startsWith("#") || /^[a-z][a-z0-9+\-.]*:/i.test(href)) return;
+
+      positionsRef.current = captureScrollPosition(
+        positionsRef.current,
+        location.pathname,
+        location.search,
+        location.key,
+      );
+    };
+
+    document.addEventListener("pointerdown", onPointerDown, true);
+    return () => document.removeEventListener("pointerdown", onPointerDown, true);
+  }, [location.key, location.pathname, location.search]);
+
   useLayoutEffect(() => {
     if (typeof window === "undefined") return;
+
+    restoreCleanupRef.current?.();
+    restoreCleanupRef.current = null;
 
     const prev = prevLocationRef.current;
     const pathChanged =
@@ -80,15 +81,13 @@ export function Root() {
       prev.search !== location.search ||
       prev.key !== location.key;
 
-    // Save leaving page scroll BEFORE any snap — useEffect cleanup runs too late (after snap to 0).
     if (pathChanged) {
-      const y = Math.max(0, Math.round(window.scrollY));
-      const prevRouteKey = routeStorageKey(prev.pathname, prev.search);
-      const prevEntryKey = entryStorageKey(prev.key);
-      const next = { ...positionsRef.current, [prevRouteKey]: y };
-      if (prevEntryKey) next[prevEntryKey] = y;
-      positionsRef.current = next;
-      writeScrollPositions(next);
+      positionsRef.current = captureScrollPosition(
+        positionsRef.current,
+        prev.pathname,
+        prev.search,
+        prev.key,
+      );
     }
 
     prevLocationRef.current = location;
@@ -97,56 +96,42 @@ export function Root() {
       window.scrollTo(0, Math.max(0, Math.round(top)));
     };
 
-    const clearRestoreTimers = () => {
-      for (const id of restoreTimersRef.current) window.clearTimeout(id);
-      restoreTimersRef.current = [];
-    };
+    if (location.hash) {
+      const id = location.hash.slice(1);
+      const target = id ? document.getElementById(id) : null;
+      if (target) {
+        target.scrollIntoView({ behavior: "auto", block: "start" });
+        return;
+      }
+    }
 
-    const restoreWithRetries = (top: number) => {
-      clearRestoreTimers();
-      const y = Math.max(0, Math.round(top));
-      const apply = () => snapScroll(y);
-      apply();
-      requestAnimationFrame(() => {
-        requestAnimationFrame(apply);
+    const preserved = consumePreservedScroll();
+    if (preserved != null) {
+      restoreScrollPosition(preserved, (cleanup) => {
+        restoreCleanupRef.current = cleanup;
       });
-      // Retry after layout/async content (product grids) settle.
-      restoreTimersRef.current = [50, 150, 350].map((ms) => window.setTimeout(apply, ms));
+      return;
+    }
+
+    if (navigationType === "POP") {
+      const nextTop = resolveScrollPosition(
+        positionsRef.current,
+        location.pathname,
+        location.search,
+        location.key,
+      );
+      restoreScrollPosition(nextTop, (cleanup) => {
+        restoreCleanupRef.current = cleanup;
+      });
+      return;
+    }
+
+    snapScroll(0);
+
+    return () => {
+      restoreCleanupRef.current?.();
+      restoreCleanupRef.current = null;
     };
-
-    const restoreScroll = () => {
-      if (location.hash) {
-        const id = location.hash.slice(1);
-        const target = id ? document.getElementById(id) : null;
-        if (target) {
-          target.scrollIntoView({ behavior: "auto", block: "start" });
-          return;
-        }
-      }
-
-      const preserved = consumePreservedScroll();
-      if (preserved != null) {
-        restoreWithRetries(preserved);
-        return;
-      }
-
-      if (navigationType === "POP") {
-        const positions = positionsRef.current;
-        const nextTop =
-          (currentEntryKey && Number.isFinite(positions[currentEntryKey]) ? positions[currentEntryKey] : undefined) ??
-          (Number.isFinite(positions[currentRouteKey]) ? positions[currentRouteKey] : 0);
-        restoreWithRetries(nextTop);
-        return;
-      }
-
-      // PUSH / REPLACE — snap to top before paint.
-      clearRestoreTimers();
-      snapScroll(0);
-    };
-
-    restoreScroll();
-
-    return () => clearRestoreTimers();
   }, [currentEntryKey, currentRouteKey, location.hash, location.key, location.pathname, location.search, navigationType]);
 
   useEffect(() => {

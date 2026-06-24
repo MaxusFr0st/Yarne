@@ -1,0 +1,143 @@
+const STORAGE_KEY = "yarne.scroll.positions.v2";
+
+export type ScrollPositions = Record<string, number>;
+
+function normalizePath(pathname: string): string {
+  if (pathname.length > 1 && pathname.endsWith("/")) {
+    return pathname.slice(0, -1);
+  }
+  return pathname;
+}
+
+export function routeStorageKey(pathname: string, search: string): string {
+  return `route:${normalizePath(pathname)}${search}`;
+}
+
+export function entryStorageKey(key: string | undefined): string {
+  return key ? `entry:${key}` : "";
+}
+
+export function readScrollPositions(): ScrollPositions {
+  if (typeof window === "undefined") return {};
+  const raw = window.sessionStorage.getItem(STORAGE_KEY);
+  if (!raw) return {};
+  try {
+    const parsed = JSON.parse(raw) as Record<string, unknown>;
+    const normalized: ScrollPositions = {};
+    for (const [k, value] of Object.entries(parsed)) {
+      const num = Number(value);
+      if (Number.isFinite(num) && num >= 0) normalized[k] = num;
+    }
+    return normalized;
+  } catch {
+    return {};
+  }
+}
+
+export function writeScrollPositions(positions: ScrollPositions): void {
+  if (typeof window === "undefined") return;
+  window.sessionStorage.setItem(STORAGE_KEY, JSON.stringify(positions));
+}
+
+export function saveScrollPosition(
+  positions: ScrollPositions,
+  pathname: string,
+  search: string,
+  historyKey: string | undefined,
+  y: number,
+): ScrollPositions {
+  const top = Math.max(0, Math.round(y));
+  const routeKey = routeStorageKey(pathname, search);
+  const entryKey = entryStorageKey(historyKey);
+  const next = { ...positions, [routeKey]: top };
+  if (entryKey) next[entryKey] = top;
+  writeScrollPositions(next);
+  return next;
+}
+
+/** Call at click time — before the router changes route or scroll snaps to 0. */
+export function captureScrollPosition(
+  positions: ScrollPositions,
+  pathname: string,
+  search: string,
+  historyKey: string | undefined,
+): ScrollPositions {
+  if (typeof window === "undefined") return positions;
+  return saveScrollPosition(positions, pathname, search, historyKey, window.scrollY);
+}
+
+export function resolveScrollPosition(
+  positions: ScrollPositions,
+  pathname: string,
+  search: string,
+  historyKey: string | undefined,
+): number {
+  const entryKey = entryStorageKey(historyKey);
+  const routeKey = routeStorageKey(pathname, search);
+  if (entryKey && Number.isFinite(positions[entryKey])) return positions[entryKey];
+  if (Number.isFinite(positions[routeKey])) return positions[routeKey];
+  return 0;
+}
+
+const RESTORE_DELAYS_MS = [0, 16, 50, 100, 200, 400, 800, 1200, 2000];
+
+export function restoreScrollPosition(
+  top: number,
+  onCleanup?: (cleanup: () => void) => void,
+): void {
+  if (typeof window === "undefined") return;
+
+  const target = Math.max(0, Math.round(top));
+  const snap = () => window.scrollTo(0, target);
+
+  if (target === 0) {
+    snap();
+    return;
+  }
+
+  const canReach = () => {
+    const maxScroll = document.documentElement.scrollHeight - window.innerHeight;
+    return maxScroll >= target - 8;
+  };
+
+  const apply = () => {
+    if (!canReach()) return false;
+    snap();
+    return Math.abs(window.scrollY - target) <= 8;
+  };
+
+  let observer: ResizeObserver | null = null;
+  const timers: number[] = [];
+
+  const cleanup = () => {
+    observer?.disconnect();
+    observer = null;
+    for (const id of timers) window.clearTimeout(id);
+    timers.length = 0;
+  };
+
+  apply();
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      if (apply()) cleanup();
+    });
+  });
+
+  if (typeof ResizeObserver !== "undefined") {
+    observer = new ResizeObserver(() => {
+      if (apply()) cleanup();
+    });
+    observer.observe(document.documentElement);
+  }
+
+  for (const ms of RESTORE_DELAYS_MS) {
+    timers.push(
+      window.setTimeout(() => {
+        if (apply()) cleanup();
+      }, ms),
+    );
+  }
+
+  timers.push(window.setTimeout(cleanup, 2500));
+  onCleanup?.(cleanup);
+}
