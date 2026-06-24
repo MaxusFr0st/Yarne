@@ -39,6 +39,7 @@ function ProductTile({ slot, product, fallbackTitle, variant, showWishlist = fal
   const { t } = useTranslation();
   const locale = useLocale();
   const { wishlist, toggleWishlist } = useApp();
+  const touch = useTouchMobileLayout();
   const title = product?.name ?? fallbackTitle;
   const price = product?.price;
   const targetImageSrc = useMemo(
@@ -49,9 +50,10 @@ function ProductTile({ slot, product, fallbackTitle, variant, showWishlist = fal
     [slot.imageUrl, product?.colors],
   );
   const [displaySrc, setDisplaySrc] = useState(targetImageSrc);
-  const [imageReady, setImageReady] = useState(false);
+  const [imageReady, setImageReady] = useState(touch);
 
   useEffect(() => {
+    if (touch) return;
     if (targetImageSrc === displaySrc) return;
     const img = new Image();
     img.decoding = "async";
@@ -64,26 +66,34 @@ function ProductTile({ slot, product, fallbackTitle, variant, showWishlist = fal
       setImageReady(true);
     };
     img.src = targetImageSrc;
-  }, [targetImageSrc, displaySrc]);
+  }, [targetImageSrc, displaySrc, touch]);
 
   useEffect(() => {
+    if (touch) return;
     setImageReady(false);
     const img = new Image();
     img.decoding = "async";
     img.onload = () => setImageReady(true);
     img.onerror = () => setImageReady(true);
     img.src = displaySrc;
-  }, [displaySrc]);
+  }, [displaySrc, touch]);
 
+  const imageSrc = touch ? targetImageSrc : displaySrc;
   const href = product ? `/product/${product.id}` : "/collection";
 
   const isLarge = variant === "large";
-  /** Tighter crop on phones; strongest on iPhone SE / narrow viewports */
-  const mobileImageFrameClass = isLarge
-    ? "max-md:scale-[1.16] max-md:object-[center_32%] max-[390px]:scale-[1.28] max-[390px]:object-[center_26%] max-[374px]:scale-[1.36] max-[374px]:object-[center_22%]"
-    : variant === "wide"
-      ? "max-md:scale-[1.12] max-md:object-[center_34%] max-[390px]:scale-[1.24] max-[390px]:object-[center_28%] max-[374px]:scale-[1.32] max-[374px]:object-[center_24%]"
-      : "max-md:scale-[1.18] max-md:object-[center_30%] max-[390px]:scale-[1.30] max-[390px]:object-[center_24%] max-[374px]:scale-[1.38] max-[374px]:object-[center_20%]";
+  /** Tighter crop on phones — object-position only (scale breaks locked grid on touch GPUs). */
+  const mobileImageFrameClass = touch
+    ? isLarge
+      ? "max-md:object-[center_32%] max-[390px]:object-[center_26%] max-[374px]:object-[center_22%]"
+      : variant === "wide"
+        ? "max-md:object-[center_34%] max-[390px]:object-[center_28%] max-[374px]:object-[center_24%]"
+        : "max-md:object-[center_30%] max-[390px]:object-[center_24%] max-[374px]:object-[center_20%]"
+    : isLarge
+      ? "max-md:scale-[1.16] max-md:object-[center_32%] max-[390px]:scale-[1.28] max-[390px]:object-[center_26%] max-[374px]:scale-[1.36] max-[374px]:object-[center_22%]"
+      : variant === "wide"
+        ? "max-md:scale-[1.12] max-md:object-[center_34%] max-[390px]:scale-[1.24] max-[390px]:object-[center_28%] max-[374px]:scale-[1.32] max-[374px]:object-[center_24%]"
+        : "max-md:scale-[1.18] max-md:object-[center_30%] max-[390px]:scale-[1.30] max-[390px]:object-[center_24%] max-[374px]:scale-[1.38] max-[374px]:object-[center_20%]";
   const isWishlisted = product ? wishlist.includes(product.id) : false;
   const eyebrow = slot.eyebrow.trim();
   const ctaLabel = slot.ctaLabel.trim();
@@ -101,10 +111,10 @@ function ProductTile({ slot, product, fallbackTitle, variant, showWishlist = fal
       aria-label={t("showcase.openProduct", { title })}
     >
       <Img
-        src={displaySrc}
+        src={imageSrc}
         alt={title}
         priority={priority}
-        className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-500 ease-out ${mobileImageFrameClass} md:group-hover:scale-[1.04] ${imageReady ? "opacity-100" : "opacity-0"}`}
+        className={`absolute inset-0 w-full h-full object-cover ${touch ? "" : "transition-opacity duration-500 ease-out"} ${mobileImageFrameClass} md:group-hover:scale-[1.04] ${touch || imageReady ? "opacity-100" : "opacity-0"}`}
       />
 
       <div
@@ -381,10 +391,14 @@ export function FeaturedShowcase() {
     </>
   );
 
+  const mobileSectionHeight = skipEntrance
+    ? "calc(100svh - var(--main-header-h))"
+    : undefined;
+
   return (
     <section
-      className="relative py-[clamp(10px,2.5vw,40px)] md:py-12 max-md:overflow-hidden max-md:box-border max-md:h-[calc(var(--app-vh)*100-var(--main-header-h))] max-md:py-[clamp(6px,1.6vw,10px)]"
-      style={{ backgroundColor: "#F5F2ED" }}
+      className="relative py-[clamp(10px,2.5vw,40px)] md:py-12 max-md:overflow-hidden max-md:box-border max-md:py-[clamp(6px,1.6vw,10px)]"
+      style={{ backgroundColor: "#F5F2ED", height: mobileSectionHeight }}
     >
       <div className="max-w-[1400px] mx-auto px-[clamp(12px,3.5vw,40px)] max-md:h-full max-md:flex max-md:flex-col max-md:min-h-0">
         {/* Mobile: compact inline header */}
