@@ -66,11 +66,11 @@ export function MobileRelatedProducts({ products }: MobileRelatedProductsProps) 
           (emblaRef as (node: HTMLDivElement | null) => void)(el);
           viewportRef.current = el;
         }}
-        className="related-carousel relative overflow-x-hidden overflow-y-visible touch-pan-x -mx-[clamp(14px,3.6vw,22px)] px-[clamp(14px,3.6vw,22px)] pb-2"
+        className="related-carousel relative overflow-x-hidden overflow-y-visible -mx-[clamp(14px,3.6vw,22px)] px-[clamp(14px,3.6vw,22px)] pb-2"
         style={{ "--slide-spacing": "clamp(14px, 3.6vw, 18px)", "--slide-size": "clamp(72%, 76vw, 80%)" } as CSSProperties}
       >
         <div
-          className="flex items-start"
+          className="flex items-start [touch-action:pan-y_pinch-zoom]"
           style={{ marginLeft: "calc(var(--slide-spacing) * -1)", willChange: "transform" }}
         >
           {products.map((product, i) => (

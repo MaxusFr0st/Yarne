@@ -158,8 +158,9 @@ export function Header() {
               )}
             </div>
 
-              {/* Mobile: account + cart — sign in one tap from any page */}
-              <div className="flex md:hidden items-center gap-1">
+              {/* Mobile: language + account + cart */}
+              <div className="flex md:hidden items-center gap-0.5">
+                <LanguageSwitcher className="mr-0.5" />
                 {isLoggedIn ? (
                   <button
                     type="button"
@@ -174,16 +175,11 @@ export function Header() {
                   <button
                     type="button"
                     onClick={openLogin}
-                    className="flex items-center gap-1.5 h-9 pl-2.5 pr-3 rounded-full border border-[#2D241E]/12 bg-white/60 text-[#2D241E] hover:border-[#4A0E0E]/30 hover:text-[#4A0E0E] transition-colors duration-200 cursor-pointer"
+                    className="flex items-center justify-center w-10 h-10 rounded-full text-[#2D241E] hover:bg-[#2D241E]/5 transition-colors duration-200 cursor-pointer"
                     aria-label={t("header.signIn")}
+                    title={t("header.signIn")}
                   >
-                    <User size={16} strokeWidth={1.5} />
-                    <span
-                      className="hidden min-[360px]:inline text-[0.62rem] uppercase tracking-[0.14em]"
-                      style={{ fontFamily: "'DM Sans', sans-serif" }}
-                    >
-                      {t("header.signIn")}
-                    </span>
+                    <User size={20} strokeWidth={1.5} />
                   </button>
                 )}
                 <button
@@ -259,25 +255,6 @@ export function Header() {
                 </button>
               </div>
               <nav className="flex-1 p-8 flex flex-col gap-6">
-                {!isLoggedIn && (
-                  <motion.button
-                    type="button"
-                    initial={{ opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: 0.08, ease: [0.25, 0.1, 0.25, 1] }}
-                    onClick={() => { openLogin(); setMobileOpen(false); }}
-                    className="flex items-center justify-center gap-2 w-full py-3.5 rounded-full text-white cursor-pointer transition-colors duration-200"
-                    style={{
-                      backgroundColor: "#2D241E",
-                      fontFamily: "'DM Sans', sans-serif",
-                      fontSize: "0.72rem",
-                      letterSpacing: "0.14em",
-                    }}
-                  >
-                    <User size={16} strokeWidth={1.5} />
-                    <span className="uppercase tracking-widest">{t("header.signIn")}</span>
-                  </motion.button>
-                )}
                 {[
                   ...LEFT_NAV_LINKS,
                   ...RIGHT_NAV_LINKS,
@@ -317,41 +294,6 @@ export function Header() {
                   <LanguageSwitcher variant="full" />
                 </div>
               </nav>
-              <div className="p-8 flex gap-6 border-t border-[#2D241E]/10">
-                <button
-                  onClick={() => { setSearchOpen(true); setMobileOpen(false); }}
-                  className="text-[#2D241E]"
-                  aria-label={t("header.search")}
-                >
-                  <Search size={20} strokeWidth={1.5} />
-                </button>
-                <button
-                  onClick={() => {
-                    if (isLoggedIn) {
-                      navigate("/account");
-                    } else {
-                      openLogin();
-                    }
-                    setMobileOpen(false);
-                  }}
-                  className="text-[#2D241E]"
-                  aria-label={isLoggedIn ? t("header.myAccount") : t("header.signIn")}
-                >
-                  <User size={20} strokeWidth={1.5} />
-                </button>
-                <button
-                  onClick={() => { openCart(); setMobileOpen(false); }}
-                  className="relative text-[#2D241E]"
-                  aria-label={t("header.cart")}
-                >
-                  <ShoppingBag size={20} strokeWidth={1.5} />
-                  {cartCount > 0 && (
-                    <span className="absolute -top-2 -right-2 w-4 h-4 rounded-full text-[10px] flex items-center justify-center text-white bg-[#4A0E0E]">
-                      {cartCount}
-                    </span>
-                  )}
-                </button>
-              </div>
             </motion.div>
           </>
         )}

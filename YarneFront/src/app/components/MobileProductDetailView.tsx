@@ -92,7 +92,7 @@ export function MobileProductDetailView({
   const safeGalleryIndex = images.length ? ((galleryIndex % images.length) + images.length) % images.length : 0;
   const gallerySlides = images.length > 0 ? images : [""];
   const transitionEase = [0.25, 0.1, 0.25, 1] as const;
-  const variantFade = reduceMotion ? { duration: 0 } : { duration: 0.28, ease: transitionEase };
+  const variantFade = reduceMotion ? { duration: 0 } : { duration: 0.2, ease: transitionEase };
 
   return (
     <div className="md:hidden relative pt-[var(--main-header-h)]">
@@ -108,8 +108,8 @@ export function MobileProductDetailView({
           animate={{ opacity: 1 }}
           transition={variantFade}
         >
-          <div ref={emblaRef} className="h-full overflow-hidden touch-pan-x">
-            <div className="flex h-full" style={{ willChange: "transform" }}>
+          <div ref={emblaRef} className="h-full overflow-hidden">
+            <div className="flex h-full [touch-action:pan-y_pinch-zoom]" style={{ willChange: "transform" }}>
               {gallerySlides.map((src, i) => (
                 <div
                   key={`${src || "placeholder"}-${i}`}

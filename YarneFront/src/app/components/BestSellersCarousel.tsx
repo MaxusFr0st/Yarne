@@ -137,14 +137,14 @@ export function BestSellersCarousel() {
               (emblaRef as (el: HTMLDivElement | null) => void)(el);
               (viewportRef as React.MutableRefObject<HTMLDivElement | null>).current = el;
             }}
-            className="bestsellers-carousel relative overflow-x-hidden overflow-y-visible touch-pan-x pt-4 pb-6 sm:pt-6 sm:pb-8 md:pt-8 md:pb-10 px-3 sm:px-12 md:px-8"
+            className="bestsellers-carousel relative overflow-x-hidden overflow-y-visible pt-4 pb-6 sm:pt-6 sm:pb-8 md:pt-8 md:pb-10 px-3 sm:px-12 md:px-8"
             initial={skipEntrance ? false : { opacity: 0, y: 20 }}
             whileInView={skipEntrance ? undefined : { opacity: 1, y: 0 }}
             viewport={skipEntrance ? undefined : { once: true, margin: "-60px" }}
             transition={{ duration: 0.7, delay: 0.1, ease: easing }}
           >
             <div
-              className="flex items-start pt-2"
+              className="flex items-start pt-2 [touch-action:pan-y_pinch-zoom]"
               style={{ marginLeft: "calc(var(--slide-spacing) * -1)", willChange: "transform" }}
             >
               {carouselProducts.map((product, i) => (

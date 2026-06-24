@@ -13,7 +13,7 @@ import { resolveMediaUrl } from "../utils/storefrontMedia";
 import {
   DEFAULT_SHOWCASE_EYEBROW,
   DEFAULT_SHOWCASE_TITLE,
-  getDefaultFeaturedShowcaseSelection,
+  getFeaturedShowcaseSelection,
   loadFeaturedShowcaseSelection,
   type FeaturedShowcaseSelection,
   type ShowcaseProductSlot,
@@ -32,9 +32,10 @@ type ProductTileProps = {
   fallbackTitle: string;
   variant: "large" | "medium" | "wide";
   showWishlist?: boolean;
+  priority?: boolean;
 };
 
-function ProductTile({ slot, product, fallbackTitle, variant, showWishlist = false }: ProductTileProps) {
+function ProductTile({ slot, product, fallbackTitle, variant, showWishlist = false, priority = false }: ProductTileProps) {
   const { t } = useTranslation();
   const locale = useLocale();
   const { wishlist, toggleWishlist } = useApp();
@@ -72,6 +73,7 @@ function ProductTile({ slot, product, fallbackTitle, variant, showWishlist = fal
       <Img
         src={imageSrc}
         alt={title}
+        priority={priority}
         className={`absolute inset-0 w-full h-full object-cover transition-transform duration-700 ${mobileImageFrameClass} md:group-hover:scale-[1.04]`}
       />
 
@@ -263,7 +265,7 @@ export function FeaturedShowcase() {
   const { products } = useProducts();
   const skipEntrance = useTouchMobileLayout();
   const [selection, setSelection] = useState<FeaturedShowcaseSelection>(
-    getDefaultFeaturedShowcaseSelection
+    getFeaturedShowcaseSelection
   );
 
   useEffect(() => {
@@ -373,6 +375,7 @@ export function FeaturedShowcase() {
               product={slot1Product}
               fallbackTitle="Handcrafted for you"
               variant="large"
+              priority
             />
           </div>
 
@@ -384,6 +387,7 @@ export function FeaturedShowcase() {
                 fallbackTitle="Femmora"
                 variant="medium"
                 showWishlist
+                priority
               />
             </div>
 
@@ -397,6 +401,7 @@ export function FeaturedShowcase() {
                 product={slot4Product}
                 fallbackTitle="Boxy Clutch"
                 variant="medium"
+                priority
               />
             </div>
           </div>
@@ -421,6 +426,7 @@ export function FeaturedShowcase() {
               product={slot1Product}
               fallbackTitle="Grand Bag"
               variant="large"
+              priority
             />
           </motion.div>
 
@@ -428,7 +434,7 @@ export function FeaturedShowcase() {
             initial={{ opacity: 0, y: 30 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true, margin: "-60px" }}
-            transition={{ duration: 0.7, delay: 0.08, ease: easing }}
+            transition={{ duration: 0.7, delay: skipEntrance ? 0 : 0.05, ease: easing }}
             className="aspect-[4/4.4] lg:aspect-auto lg:h-full"
           >
             <ProductTile
@@ -436,6 +442,7 @@ export function FeaturedShowcase() {
               product={slot2Product}
               fallbackTitle="Femmora Mini"
               variant="medium"
+              priority
             />
           </motion.div>
 
@@ -443,17 +450,17 @@ export function FeaturedShowcase() {
             initial={{ opacity: 0, y: 30 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true, margin: "-60px" }}
-            transition={{ duration: 0.7, delay: 0.12, ease: easing }}
+            transition={{ duration: 0.7, delay: skipEntrance ? 0 : 0.05, ease: easing }}
             className="aspect-[4/4.4] lg:aspect-auto lg:h-full"
           >
             <TextTile slot={selection.slot3} />
           </motion.div>
 
           <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            whileInView={{ opacity: 1, y: 0 }}
+            initial={skipEntrance ? false : { opacity: 0, y: 30 }}
+            whileInView={skipEntrance ? undefined : { opacity: 1, y: 0 }}
             viewport={{ once: true, margin: "-60px" }}
-            transition={{ duration: 0.7, delay: 0.16, ease: easing }}
+            transition={{ duration: 0.7, delay: skipEntrance ? 0 : 0.05, ease: easing }}
             className="aspect-[4/4.4] lg:col-span-2 lg:aspect-auto lg:h-full"
           >
             <ProductTile
@@ -461,6 +468,7 @@ export function FeaturedShowcase() {
               product={slot4Product}
               fallbackTitle="Dva Shopper"
               variant="wide"
+              priority
             />
           </motion.div>
         </div>

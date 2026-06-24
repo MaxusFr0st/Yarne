@@ -76,9 +76,11 @@ export function ProductDetail() {
 
   if (loading) {
     return (
-      <main className="min-h-[100svh] flex items-center justify-center" style={{ backgroundColor: "#F5F2ED" }}>
-        <div className="w-8 h-8 border-2 border-[#2D241E]/30 border-t-[#2D241E] rounded-full animate-spin" />
-      </main>
+      <main
+        className="min-h-[100svh]"
+        style={{ backgroundColor: "#F5F2ED" }}
+        aria-busy="true"
+      />
     );
   }
 
@@ -147,7 +149,13 @@ export function ProductDetail() {
   const outOfStock = displayStock <= 0;
 
   return (
-    <main className="overflow-x-hidden" style={{ backgroundColor: "#F5F2ED" }}>
+    <motion.main
+      className="overflow-x-hidden"
+      style={{ backgroundColor: "#F5F2ED" }}
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: reduceMotion ? 0 : 0.4, ease: easing }}
+    >
       <MobileProductDetailView
         product={product}
         images={images}
@@ -204,7 +212,7 @@ export function ProductDetail() {
                     initial={reduceMotion ? false : { opacity: 0 }}
                     animate={{ opacity: 1 }}
                     exit={reduceMotion ? undefined : { opacity: 0 }}
-                    transition={{ duration: reduceMotion ? 0 : 0.28, ease: easing }}
+                    transition={{ duration: reduceMotion ? 0 : 0.2, ease: easing }}
                   >
                     <ImageWithFallback
                       src={images[safeImageIndex]}
@@ -382,7 +390,7 @@ export function ProductDetail() {
                             layoutId="desktop-lace-pill"
                             className="absolute inset-0 rounded-full bg-[#2D241E]"
                             style={{ zIndex: -1 }}
-                            transition={{ duration: reduceMotion ? 0 : 0.28, ease: easing }}
+                            transition={{ duration: reduceMotion ? 0 : 0.2, ease: easing }}
                           />
                         )}
                         <span className="relative">{opt.label}</span>
@@ -612,6 +620,6 @@ export function ProductDetail() {
           </div>
         </section>
       )}
-    </main>
+    </motion.main>
   );
 }
