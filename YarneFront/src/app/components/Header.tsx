@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from "react";
-import { useLocation } from "react-router";
-import { Search, ShoppingBag, User, Menu, X } from "lucide-react";
+import React, { useState, useEffect, useRef } from "react";
+import { useLocation, useNavigate } from "react-router";
+import { Search, ShoppingBag, User, Menu, X, ChevronDown } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { useTranslation } from "react-i18next";
 import { useApp } from "../context/AppContext";
@@ -9,16 +9,34 @@ import { LangLink } from "../i18n/LangLink";
 import { useLangNavigate } from "../i18n/useLangNavigate";
 import { LanguageSwitcher } from "../i18n/LanguageSwitcher";
 import { useTouchMobileLayout } from "../hooks/useTouchMobileLayout";
+import { LOCALE_DISPLAY, LOCALE_STORAGE_KEY, SUPPORTED_LOCALES, type Locale } from "../i18n/config";
+import { stripLocaleFromPath } from "../i18n/useLocale";
 
 export function Header() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { cartCount, openCart, openLogin, isLoggedIn, user, isAdmin } = useApp();
   const [scrolled, setScrolled] = useState(false);
   const skipScrollStyle = useTouchMobileLayout();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
+  const [langOpen, setLangOpen] = useState(false);
+  const langRef = useRef<HTMLDivElement>(null);
   const location = useLocation();
   const navigate = useLangNavigate();
+  const rawNavigate = useNavigate();
+
+  const activeLocale = (SUPPORTED_LOCALES as readonly string[]).includes(i18n.language)
+    ? (i18n.language as Locale)
+    : "en";
+
+  const changeLocale = (next: Locale) => {
+    if (next === activeLocale) return;
+    try { window.localStorage.setItem(LOCALE_STORAGE_KEY, next); } catch { /* ignore */ }
+    void i18n.changeLanguage(next);
+    const rest = stripLocaleFromPath(location.pathname);
+    const target = `/${next}${rest === "/" ? "" : rest}${location.search}${location.hash}`;
+    rawNavigate(target || `/${next}`, { replace: true });
+  };
 
   // Orphan routes (Journal, About) currently 404. Hide until those pages
   // exist; revive by adding entries to RIGHT_NAV_LINKS.
@@ -43,7 +61,22 @@ export function Header() {
 
   useEffect(() => {
     setMobileOpen(false);
+    setLangOpen(false);
   }, [location]);
+
+  useEffect(() => {
+    if (!langOpen) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setLangOpen(false); };
+    const onOutside = (e: MouseEvent) => {
+      if (langRef.current && !langRef.current.contains(e.target as Node)) setLangOpen(false);
+    };
+    document.addEventListener("keydown", onKey);
+    document.addEventListener("mousedown", onOutside);
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      document.removeEventListener("mousedown", onOutside);
+    };
+  }, [langOpen]);
 
   return (
     <>
@@ -74,29 +107,93 @@ export function Header() {
       >
         <div className="max-w-[1400px] mx-auto px-4 sm:px-6 md:px-10">
           <div className="grid grid-cols-[1fr_auto_1fr] items-center h-[52px] md:h-[60px]">
-            {/* Left: mobile menu + desktop nav */}
-            <div className="flex items-center justify-self-start min-w-0">
-            <nav className="hidden md:flex items-center gap-8 justify-start">
-              {LEFT_NAV_LINKS.map((link) => (
-                <LangLink
-                  key={link.key}
-                  to={link.href}
-                  className="text-[#2D241E] text-sm tracking-widest uppercase hover:text-[#4A0E0E] transition-colors duration-300"
-                  style={{ fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.12em" }}
-                >
-                  {link.label}
-                </LangLink>
-              ))}
-            </nav>
+            {/* Left: mobile hamburger + lang dropdown / desktop nav */}
+            <div className="flex items-center justify-self-start min-w-0 gap-1">
+              <nav className="hidden md:flex items-center gap-8 justify-start">
+                {LEFT_NAV_LINKS.map((link) => (
+                  <LangLink
+                    key={link.key}
+                    to={link.href}
+                    className="text-[#2D241E] text-sm tracking-widest uppercase hover:text-[#4A0E0E] transition-colors duration-300"
+                    style={{ fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.12em" }}
+                  >
+                    {link.label}
+                  </LangLink>
+                ))}
+              </nav>
 
-            {/* Mobile: Hamburger */}
-            <button
-              className="md:hidden flex items-center justify-center w-11 h-11 -ml-2 rounded-full text-[#2D241E] hover:bg-[#2D241E]/5 transition-colors duration-200 cursor-pointer"
-              onClick={() => setMobileOpen(true)}
-              aria-label={t("header.openMenu")}
-            >
-              <Menu size={22} strokeWidth={1.5} />
-            </button>
+              {/* Mobile: Hamburger */}
+              <button
+                className="md:hidden flex items-center justify-center w-11 h-11 -ml-2 rounded-full text-[#2D241E] hover:bg-[#2D241E]/5 transition-colors duration-200 cursor-pointer"
+                onClick={() => setMobileOpen(true)}
+                aria-label={t("header.openMenu")}
+                style={{ touchAction: "manipulation" }}
+              >
+                <Menu size={22} strokeWidth={1.5} />
+              </button>
+
+              {/* Mobile: Language dropdown — left of logo */}
+              <div ref={langRef} className="md:hidden relative">
+                <button
+                  type="button"
+                  onClick={() => setLangOpen(o => !o)}
+                  aria-expanded={langOpen}
+                  aria-haspopup="listbox"
+                  aria-label={t("language.label")}
+                  className="flex items-center gap-[3px] h-8 px-1.5 rounded-[4px] text-[#2D241E] hover:bg-[#2D241E]/5 transition-colors duration-150 cursor-pointer focus-visible:outline-2 focus-visible:outline-[#2D241E] focus-visible:outline-offset-2"
+                  style={{
+                    fontFamily: "'DM Sans', sans-serif",
+                    fontSize: "0.68rem",
+                    letterSpacing: "0.14em",
+                    touchAction: "manipulation",
+                    WebkitTapHighlightColor: "transparent",
+                  }}
+                >
+                  <span className="uppercase">{LOCALE_DISPLAY[activeLocale].short}</span>
+                  <ChevronDown
+                    size={10}
+                    strokeWidth={2}
+                    className="transition-transform duration-200"
+                    style={{ transform: langOpen ? "rotate(180deg)" : "rotate(0deg)" }}
+                    aria-hidden="true"
+                  />
+                </button>
+
+                <AnimatePresence>
+                  {langOpen && (
+                    <motion.ul
+                      role="listbox"
+                      aria-label={t("language.label")}
+                      className="absolute left-0 top-full mt-1 z-[60] rounded-lg overflow-hidden shadow-[0_4px_24px_rgba(45,36,30,0.12)] border border-[#2D241E]/8"
+                      style={{ backgroundColor: "#F5F2ED", minWidth: "72px" }}
+                      initial={{ opacity: 0, y: -6, scale: 0.95 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: -6, scale: 0.95 }}
+                      transition={{ duration: 0.16, ease: [0.25, 0.1, 0.25, 1] }}
+                    >
+                      {SUPPORTED_LOCALES.filter(code => code !== activeLocale).map(code => (
+                        <li key={code} role="option" aria-selected={false}>
+                          <button
+                            type="button"
+                            onClick={() => { changeLocale(code); setLangOpen(false); }}
+                            className="w-full text-left px-3 py-2.5 text-[#2D241E]/55 hover:text-[#2D241E] hover:bg-[#2D241E]/5 transition-colors duration-150 cursor-pointer"
+                            style={{
+                              fontFamily: "'DM Sans', sans-serif",
+                              fontSize: "0.68rem",
+                              letterSpacing: "0.14em",
+                              touchAction: "manipulation",
+                              WebkitTapHighlightColor: "transparent",
+                            }}
+                            aria-label={LOCALE_DISPLAY[code].native}
+                          >
+                            <span className="uppercase">{LOCALE_DISPLAY[code].short}</span>
+                          </button>
+                        </li>
+                      ))}
+                    </motion.ul>
+                  )}
+                </AnimatePresence>
+              </div>
             </div>
 
             {/* Center Logo */}
@@ -158,9 +255,8 @@ export function Header() {
               )}
             </div>
 
-              {/* Mobile: language + account + cart */}
+              {/* Mobile: account + cart */}
               <div className="flex md:hidden items-center gap-0.5">
-                <LanguageSwitcher className="mr-0.5" />
                 {isLoggedIn ? (
                   <button
                     type="button"

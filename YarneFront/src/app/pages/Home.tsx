@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { motion, useReducedMotion, useScroll, useTransform } from "motion/react";
 import { ArrowRight, ChevronDown } from "lucide-react";
 import { useTranslation } from "react-i18next";
@@ -91,28 +91,28 @@ export function Home() {
       {/* ─── HERO ─── */}
       <section
         ref={heroRef}
-        className="relative flex items-end overflow-hidden h-[100svh] min-h-[600px]"
+        className="relative flex items-end overflow-hidden min-h-[600px]"
+        style={{ height: "calc(var(--app-vh, 1svh) * 100)" }}
       >
-        <motion.div
-          className="absolute inset-0"
-          style={animateHero ? { y: heroY } : undefined}
-        >
-          {heroImageSrc ? (
-            <Img src={heroImageSrc} alt="Yarné Hero" className="h-full w-full object-cover" priority />
-          ) : (
-            <div
-              className="absolute inset-0"
-              style={{ background: "linear-gradient(145deg, #4a3f38 0%, #8a8078 50%, #d4cfc8 100%)" }}
-            />
-          )}
-          <div
-            className="absolute inset-0"
-            style={{
-              background:
-                "linear-gradient(105deg, rgba(45,36,30,0.78) 0%, rgba(45,36,30,0.35) 45%, rgba(45,36,30,0.15) 100%)",
-            }}
-          />
-        </motion.div>
+        {animateHero ? (
+          <motion.div className="absolute inset-0" style={{ y: heroY }}>
+            {heroImageSrc ? (
+              <Img src={heroImageSrc} alt="Yarné Hero" className="h-full w-full object-cover" priority />
+            ) : (
+              <div className="absolute inset-0" style={{ background: "linear-gradient(145deg, #4a3f38 0%, #8a8078 50%, #d4cfc8 100%)" }} />
+            )}
+            <div className="absolute inset-0" style={{ background: "linear-gradient(105deg, rgba(45,36,30,0.78) 0%, rgba(45,36,30,0.35) 45%, rgba(45,36,30,0.15) 100%)" }} />
+          </motion.div>
+        ) : (
+          <div className="absolute inset-0">
+            {heroImageSrc ? (
+              <Img src={heroImageSrc} alt="Yarné Hero" className="h-full w-full object-cover" priority />
+            ) : (
+              <div className="absolute inset-0" style={{ background: "linear-gradient(145deg, #4a3f38 0%, #8a8078 50%, #d4cfc8 100%)" }} />
+            )}
+            <div className="absolute inset-0" style={{ background: "linear-gradient(105deg, rgba(45,36,30,0.78) 0%, rgba(45,36,30,0.35) 45%, rgba(45,36,30,0.15) 100%)" }} />
+          </div>
+        )}
 
         {/* Signature thread line */}
         <div
@@ -137,7 +137,8 @@ export function Home() {
                 fontWeight: 400,
                 lineHeight: 1.06,
                 letterSpacing: "-0.02em",
-              }}
+                textWrap: "balance",
+              } as React.CSSProperties}
             >
               {t("home.hero.titleLine1")}
               <br />

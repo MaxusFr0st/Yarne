@@ -1,4 +1,5 @@
 import { motion, useReducedMotion } from "motion/react";
+import type React from "react";
 import type { CSSProperties, ReactNode } from "react";
 import { useTouchMobileLayout } from "../hooks/useTouchMobileLayout";
 
@@ -16,7 +17,7 @@ type ScrollRevealProps = {
   amount?: number;
 };
 
-/** Scroll-triggered reveal — opacity-only on touch, respects prefers-reduced-motion. */
+/** Scroll-triggered reveal — opacity-only on touch, full y+opacity on desktop, disabled on reduced-motion. */
 export function ScrollReveal({
   children,
   className = "",
@@ -29,7 +30,7 @@ export function ScrollReveal({
   const reduced = useReducedMotion();
   const touch = useTouchMobileLayout();
 
-  if (reduced || touch) {
+  if (reduced) {
     return (
       <div className={className} style={style}>
         {children}
@@ -41,10 +42,10 @@ export function ScrollReveal({
     <motion.div
       className={className}
       style={style}
-      initial={{ opacity: 0, y }}
+      initial={{ opacity: 0, y: touch ? 0 : y }}
       whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once, amount, margin: "-40px" }}
-      transition={{ duration: 0.55, delay, ease: EASE_OUT }}
+      viewport={{ once, amount, margin: touch ? "-20px" : "-40px" }}
+      transition={{ duration: touch ? 0.45 : 0.55, delay: touch ? delay * 0.6 : delay, ease: EASE_OUT }}
     >
       {children}
     </motion.div>
@@ -80,7 +81,8 @@ export function SectionTitle({ children, className = "", as: Tag = "h2" }: Secti
       style={{
         fontFamily: "'Cormorant Garamond', serif",
         fontSize: "clamp(1.75rem, 4vw, 2.75rem)",
-      }}
+        textWrap: "balance",
+      } as React.CSSProperties}
     >
       {children}
     </Tag>
