@@ -5,6 +5,7 @@ import { Header } from "../components/Header";
 import { CartDrawer } from "../components/CartDrawer";
 import { LoginModal } from "../components/LoginModal";
 import { Footer } from "../components/Footer";
+import { PageTransition } from "../components/PageTransition";
 import { getLocaleFromPath } from "../i18n/useLocale";
 
 const SCROLL_STORAGE_KEY = "yarne.scroll.positions.v2";
@@ -125,7 +126,9 @@ export function Root() {
   return (
     <div className="relative" style={{ backgroundColor: "#F5F2ED", minHeight: "100svh" }}>
       <Header />
-      <Outlet />
+      <PageTransition>
+        <Outlet />
+      </PageTransition>
       <Footer />
       <CartDrawer />
       <LoginModal />

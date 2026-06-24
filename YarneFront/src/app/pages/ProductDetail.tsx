@@ -8,6 +8,7 @@ import { formatPrice } from "../i18n/format";
 import { useProduct, useProducts } from "../hooks/useProducts";
 import { useApp } from "../context/AppContext";
 import { ImageWithFallback } from "../components/figma/ImageWithFallback";
+import { CrossfadeImage } from "../components/figma/CrossfadeImage";
 import { ProductCard } from "../components/ProductCard";
 import { LangLink } from "../i18n/LangLink";
 import { MobileProductDetailView } from "../components/MobileProductDetailView";
@@ -18,6 +19,8 @@ import { resolveMediaUrl } from "../utils/storefrontMedia";
 import React from "react";
 
 const easing = [0.25, 0.1, 0.25, 1] as const;
+const enterEase = [0.22, 1, 0.36, 1] as const;
+const CONTENT_ENTER_S = 0.55;
 
 export function ProductDetail() {
   const { t } = useTranslation();
@@ -74,17 +77,7 @@ export function ProductDetail() {
     }
   }, [product, activeSize, activeLace]);
 
-  if (loading) {
-    return (
-      <main
-        className="min-h-[100svh]"
-        style={{ backgroundColor: "#F5F2ED" }}
-        aria-busy="true"
-      />
-    );
-  }
-
-  if (!product) {
+  if (!loading && !product) {
     return (
       <main
         className="min-h-[100svh] flex flex-col items-center justify-center"
@@ -107,11 +100,16 @@ export function ProductDetail() {
     );
   }
 
-  const isWishlisted = wishlist.includes(product.id);
+  const showContent = Boolean(product);
 
-  const selectedColor = product.colors[activeColor];
-  const displayStock = resolveDisplayStock(selectedColor, activeSize, activeLace, product.stock);
-  const images = resolveDisplayImages(product, selectedColor, activeSize, activeLace);
+  const isWishlisted = product ? wishlist.includes(product.id) : false;
+  const selectedColor = product?.colors[activeColor];
+  const displayStock = product && selectedColor
+    ? resolveDisplayStock(selectedColor, activeSize, activeLace, product.stock)
+    : 0;
+  const images = product && selectedColor
+    ? resolveDisplayImages(product, selectedColor, activeSize, activeLace)
+    : [];
   const safeImageIndex = images.length ? Math.min(activeImage, images.length - 1) : 0;
 
   const handleColorChange = (i: number) => {
@@ -125,6 +123,7 @@ export function ProductDetail() {
   };
 
   const handleAddToBag = () => {
+    if (!product || !selectedColor) return;
     if (!activeSize) {
       setSizeError(true);
       setTimeout(() => setSizeError(false), 2000);
@@ -149,15 +148,28 @@ export function ProductDetail() {
   const outOfStock = displayStock <= 0;
 
   return (
-    <motion.main
-      className="overflow-x-hidden"
-      style={{ backgroundColor: "#F5F2ED" }}
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      transition={{ duration: reduceMotion ? 0 : 0.4, ease: easing }}
-    >
+    <main className="overflow-x-hidden min-h-[100svh]" style={{ backgroundColor: "#F5F2ED" }}>
+      <AnimatePresence mode="wait">
+        {!showContent ? (
+          <motion.div
+            key="product-pending"
+            className="min-h-[50svh]"
+            aria-busy="true"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: reduceMotion ? 0 : 0.35, ease: enterEase }}
+          />
+        ) : (
+          <motion.div
+            key={product!.id}
+            initial={reduceMotion ? false : { opacity: 0, y: 14 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={reduceMotion ? undefined : { opacity: 0, y: -8 }}
+            transition={{ duration: reduceMotion ? 0 : CONTENT_ENTER_S, ease: enterEase }}
+          >
       <MobileProductDetailView
-        product={product}
+        product={product!}
         images={images}
         locale={locale}
         activeColor={activeColor}
@@ -168,7 +180,7 @@ export function ProductDetail() {
         sizeError={sizeError}
         outOfStock={outOfStock}
         displayStock={displayStock}
-        laceEnabled={product.lace === true}
+        laceEnabled={product!.lace === true}
         activeLace={activeLace}
         onLaceChange={handleLaceChange}
         onBack={() => navigate(-1)}
@@ -204,25 +216,14 @@ export function ProductDetail() {
           >
             {/* Main Image */}
             <div className="relative rounded-[34px] sm:rounded-[40px] overflow-hidden bg-[#EDE9E2] h-[min(64svh,430px)] min-h-[320px] sm:min-h-[340px] md:h-[min(62svh,640px)] md:min-h-[440px] lg:h-[min(68svh,720px)] lg:min-h-[500px]">
-              <AnimatePresence mode="wait">
-                {images.length > 0 && (
-                  <motion.div
-                    key={`${activeColor}-${activeSize ?? ""}-${activeLace}-${safeImageIndex}`}
-                    className="absolute inset-0"
-                    initial={reduceMotion ? false : { opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={reduceMotion ? undefined : { opacity: 0 }}
-                    transition={{ duration: reduceMotion ? 0 : 0.2, ease: easing }}
-                  >
-                    <ImageWithFallback
-                      src={images[safeImageIndex]}
-                      alt={`${product.name} – ${product.colors[activeColor].name}`}
-                      className="w-full h-full object-cover object-[center_25%]"
-                      priority
-                    />
-                  </motion.div>
-                )}
-              </AnimatePresence>
+              {images.length > 0 && (
+                <CrossfadeImage
+                  src={images[safeImageIndex]}
+                  alt={`${product!.name} – ${product!.colors[activeColor].name}`}
+                  className="object-[center_25%]"
+                  priority
+                />
+              )}
 
               {/* Badges */}
               <div className="absolute top-5 left-5 flex gap-2">
@@ -620,6 +621,9 @@ export function ProductDetail() {
           </div>
         </section>
       )}
-    </motion.main>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </main>
   );
 }

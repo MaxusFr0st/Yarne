@@ -7,6 +7,7 @@ import type { Product } from "../types/product";
 import type { Locale } from "../i18n/config";
 import { formatPrice } from "../i18n/format";
 import { ImageWithFallback } from "./figma/ImageWithFallback";
+import { CrossfadeImage } from "./figma/CrossfadeImage";
 
 type MobileProductDetailViewProps = {
   product: Product;
@@ -85,14 +86,13 @@ export function MobileProductDetailView({
   useEffect(() => {
     if (!emblaApi) return;
     emblaApi.reInit({ loop: canLoop });
-    emblaApi.scrollTo(0, true);
+    emblaApi.scrollTo(0, false);
     setGalleryIndex(0);
   }, [emblaApi, imageKey, activeColor, activeSize, activeLace, canLoop]);
 
   const safeGalleryIndex = images.length ? ((galleryIndex % images.length) + images.length) % images.length : 0;
   const gallerySlides = images.length > 0 ? images : [""];
   const transitionEase = [0.25, 0.1, 0.25, 1] as const;
-  const variantFade = reduceMotion ? { duration: 0 } : { duration: 0.2, ease: transitionEase };
 
   return (
     <div className="md:hidden relative pt-[var(--main-header-h)]">
@@ -101,37 +101,29 @@ export function MobileProductDetailView({
         className="relative w-full bg-[#EDE9E2] overflow-hidden"
         style={{ height: "calc(var(--app-vh, 1svh) * 58)", maxHeight: "420px" }}
       >
-        <motion.div
-          key={imageKey}
-          className="h-full"
-          initial={reduceMotion ? false : { opacity: 0.88 }}
-          animate={{ opacity: 1 }}
-          transition={variantFade}
-        >
-          <div ref={emblaRef} className="h-full overflow-hidden">
-            <div className="flex h-full [touch-action:pan-y_pinch-zoom]" style={{ willChange: "transform" }}>
-              {gallerySlides.map((src, i) => (
-                <div
-                  key={`${src || "placeholder"}-${i}`}
-                  className="relative min-w-0 shrink-0 grow-0 basis-full h-full"
-                  style={{ contain: "layout style paint" }}
-                >
-                  {src ? (
-                    <ImageWithFallback
-                      src={src}
-                      alt={`${product.name} – ${product.colors[activeColor]?.name ?? ""} – ${i + 1}`}
-                      className="absolute inset-0 w-full h-full object-cover object-[center_25%]"
-                      draggable={false}
-                      priority={i === 0}
-                    />
-                  ) : (
-                    <div className="absolute inset-0 bg-[#EDE9E2]" />
-                  )}
-                </div>
-              ))}
-            </div>
+        <div ref={emblaRef} className="h-full overflow-hidden">
+          <div className="flex h-full [touch-action:pan-y_pinch-zoom]" style={{ willChange: "transform" }}>
+            {gallerySlides.map((src, i) => (
+              <div
+                key={i}
+                className="relative min-w-0 shrink-0 grow-0 basis-full h-full"
+                style={{ contain: "layout style paint" }}
+              >
+                {src ? (
+                  <CrossfadeImage
+                    src={src}
+                    alt={`${product.name} – ${product.colors[activeColor]?.name ?? ""} – ${i + 1}`}
+                    className="object-[center_25%]"
+                    objectPosition="center 25%"
+                    priority={i === 0}
+                  />
+                ) : (
+                  <div className="absolute inset-0 bg-[#EDE9E2]" />
+                )}
+              </div>
+            ))}
           </div>
-        </motion.div>
+        </div>
 
         <button
           type="button"

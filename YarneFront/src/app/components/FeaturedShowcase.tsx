@@ -41,10 +41,40 @@ function ProductTile({ slot, product, fallbackTitle, variant, showWishlist = fal
   const { wishlist, toggleWishlist } = useApp();
   const title = product?.name ?? fallbackTitle;
   const price = product?.price;
-  const imageSrc =
-    resolveMediaUrl(slot.imageUrl) ||
-    resolveMediaUrl(product?.colors?.[0]?.image) ||
-    PLACEHOLDER_IMG;
+  const targetImageSrc = useMemo(
+    () =>
+      resolveMediaUrl(slot.imageUrl) ||
+      resolveMediaUrl(product?.colors?.[0]?.image) ||
+      PLACEHOLDER_IMG,
+    [slot.imageUrl, product?.colors],
+  );
+  const [displaySrc, setDisplaySrc] = useState(targetImageSrc);
+  const [imageReady, setImageReady] = useState(false);
+
+  useEffect(() => {
+    if (targetImageSrc === displaySrc) return;
+    const img = new Image();
+    img.decoding = "async";
+    img.onload = () => {
+      setDisplaySrc(targetImageSrc);
+      setImageReady(true);
+    };
+    img.onerror = () => {
+      setDisplaySrc(targetImageSrc);
+      setImageReady(true);
+    };
+    img.src = targetImageSrc;
+  }, [targetImageSrc, displaySrc]);
+
+  useEffect(() => {
+    setImageReady(false);
+    const img = new Image();
+    img.decoding = "async";
+    img.onload = () => setImageReady(true);
+    img.onerror = () => setImageReady(true);
+    img.src = displaySrc;
+  }, [displaySrc]);
+
   const href = product ? `/product/${product.id}` : "/collection";
 
   const isLarge = variant === "large";
@@ -71,10 +101,10 @@ function ProductTile({ slot, product, fallbackTitle, variant, showWishlist = fal
       aria-label={t("showcase.openProduct", { title })}
     >
       <Img
-        src={imageSrc}
+        src={displaySrc}
         alt={title}
         priority={priority}
-        className={`absolute inset-0 w-full h-full object-cover transition-transform duration-700 ${mobileImageFrameClass} md:group-hover:scale-[1.04]`}
+        className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-500 ease-out ${mobileImageFrameClass} md:group-hover:scale-[1.04] ${imageReady ? "opacity-100" : "opacity-0"}`}
       />
 
       <div
@@ -271,12 +301,26 @@ export function FeaturedShowcase() {
   useEffect(() => {
     let cancelled = false;
     void loadFeaturedShowcaseSelection().then((next) => {
-      if (!cancelled) setSelection(next);
+      if (cancelled) return;
+      setSelection((prev) => {
+        if (JSON.stringify(prev) === JSON.stringify(next)) return prev;
+        return next;
+      });
     });
     return () => {
       cancelled = true;
     };
   }, []);
+
+  useEffect(() => {
+    const slots = [selection.slot1, selection.slot2, selection.slot4];
+    for (const slot of slots) {
+      const url = resolveMediaUrl(slot.imageUrl);
+      if (!url) continue;
+      const img = new Image();
+      img.src = url;
+    }
+  }, [selection.slot1.imageUrl, selection.slot2.imageUrl, selection.slot4.imageUrl]);
 
   const productByCode = useMemo(() => {
     const map = new Map<string, Product>();
@@ -415,8 +459,8 @@ export function FeaturedShowcase() {
                      lg:h-[clamp(560px,calc(100svh-var(--main-header-h)-72px),760px)]"
         >
           <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            whileInView={{ opacity: 1, y: 0 }}
+            initial={skipEntrance ? false : { opacity: 0, y: 30 }}
+            whileInView={skipEntrance ? undefined : { opacity: 1, y: 0 }}
             viewport={{ once: true, margin: "-60px" }}
             transition={{ duration: 0.7, ease: easing }}
             className="aspect-[4/4.6] lg:row-span-2 lg:aspect-auto lg:h-full"
@@ -431,8 +475,8 @@ export function FeaturedShowcase() {
           </motion.div>
 
           <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            whileInView={{ opacity: 1, y: 0 }}
+            initial={skipEntrance ? false : { opacity: 0, y: 30 }}
+            whileInView={skipEntrance ? undefined : { opacity: 1, y: 0 }}
             viewport={{ once: true, margin: "-60px" }}
             transition={{ duration: 0.7, delay: skipEntrance ? 0 : 0.05, ease: easing }}
             className="aspect-[4/4.4] lg:aspect-auto lg:h-full"
@@ -447,8 +491,8 @@ export function FeaturedShowcase() {
           </motion.div>
 
           <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            whileInView={{ opacity: 1, y: 0 }}
+            initial={skipEntrance ? false : { opacity: 0, y: 30 }}
+            whileInView={skipEntrance ? undefined : { opacity: 1, y: 0 }}
             viewport={{ once: true, margin: "-60px" }}
             transition={{ duration: 0.7, delay: skipEntrance ? 0 : 0.05, ease: easing }}
             className="aspect-[4/4.4] lg:aspect-auto lg:h-full"
