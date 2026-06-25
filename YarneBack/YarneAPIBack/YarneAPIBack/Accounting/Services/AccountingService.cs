@@ -221,8 +221,6 @@ public class AccountingService : IAccountingService
             .Include(t => t.Lines)
             .FirstOrDefaultAsync(t => t.Id == id, ct);
         if (entity == null) return false;
-        if (entity.IsLocked)
-            throw new AccountingBusinessException("This import is locked and cannot be deleted.");
 
         _context.ImportTransactions.Remove(entity);
         await _context.SaveChangesAsync(ct);

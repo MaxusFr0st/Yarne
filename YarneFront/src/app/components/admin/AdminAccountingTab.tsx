@@ -392,7 +392,7 @@ export function AdminAccountingTab() {
 
   // ── Delete confirm ────────────────────────────────────────────────────────
   const [deleteTarget, setDeleteTarget] = useState<{
-    type: "material" | "import" | "expense" | "usage" | "expcat"; id: number; name: string;
+    type: "material" | "import" | "expense" | "usage" | "expcat"; id: number; name: string; locked?: boolean;
   } | null>(null);
 
   // ── Stock report expansion ────────────────────────────────────────────────
@@ -1127,14 +1127,15 @@ export function AdminAccountingTab() {
                         <span className="text-[#2D241E]/60">{imp.lineCount}</span>
                         <span className="text-[#2D241E] font-medium">{formatEuro(imp.totalAmount)}</span>
                         <div className="flex items-center justify-end gap-1">
-                          {imp.isLocked ? (
+                          {imp.isLocked && (
                             <span
                               className="flex items-center gap-1 text-xs px-2 py-0.5 rounded-full"
                               style={{ backgroundColor: "rgba(45,36,30,0.08)", fontFamily: "'DM Sans', sans-serif", color: "#2D241E", letterSpacing: "0.08em" }}
                             >
                               <Lock size={10} /> Locked
                             </span>
-                          ) : (
+                          )}
+                          {!imp.isLocked && (
                             <>
                               <button
                                 type="button"
@@ -1149,6 +1150,16 @@ export function AdminAccountingTab() {
                                 onDelete={() => setDeleteTarget({ type: "import", id: imp.id, name: imp.supplier ?? `Import #${imp.id}` })}
                               />
                             </>
+                          )}
+                          {imp.isLocked && (
+                            <button
+                              type="button"
+                              onClick={() => setDeleteTarget({ type: "import", id: imp.id, name: imp.supplier ?? `Import #${imp.id}`, locked: true })}
+                              title="Delete locked import"
+                              className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-[#4A0E0E]/10 transition-colors duration-200 cursor-pointer"
+                            >
+                              <Trash2 size={13} style={{ color: "#4A0E0E", opacity: 0.7 }} />
+                            </button>
                           )}
                         </div>
                         <button
@@ -1241,6 +1252,16 @@ export function AdminAccountingTab() {
                             onDelete={() => setDeleteTarget({ type: "import", id: imp.id, name: imp.supplier ?? `Import #${imp.id}` })}
                           />
                         </>
+                      )}
+                      {imp.isLocked && (
+                        <button
+                          type="button"
+                          onClick={() => setDeleteTarget({ type: "import", id: imp.id, name: imp.supplier ?? `Import #${imp.id}`, locked: true })}
+                          title="Delete locked import"
+                          className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-[#4A0E0E]/10 transition-colors duration-200 cursor-pointer"
+                        >
+                          <Trash2 size={13} style={{ color: "#4A0E0E", opacity: 0.7 }} />
+                        </button>
                       )}
                     </div>
                   </div>
@@ -2065,6 +2086,11 @@ export function AdminAccountingTab() {
           <ModalShell title="Confirm delete" onClose={() => setDeleteTarget(null)}>
             <p className="text-[#2D241E]/70 mb-6" style={{ fontFamily: "'DM Sans', sans-serif" }}>
               Delete <strong>{deleteTarget.name}</strong>? This cannot be undone.
+              {deleteTarget.locked && (
+                <span className="block mt-2 text-[#4A0E0E]/80 text-sm">
+                  This import is locked. Deleting it will remove its stock from inventory totals.
+                </span>
+              )}
             </p>
             <div className="flex gap-3 justify-end">
               <GhostButton onClick={() => setDeleteTarget(null)}>Cancel</GhostButton>
