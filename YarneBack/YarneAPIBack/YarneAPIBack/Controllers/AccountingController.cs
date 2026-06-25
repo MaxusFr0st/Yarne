@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using YarneAPIBack.Accounting;
 using YarneAPIBack.Accounting.DTOs;
 using YarneAPIBack.Accounting.Services.Contracts;
 using YarneAPIBack.Configuration;
@@ -170,30 +171,134 @@ public class AccountingController : ControllerBase
         if (req.Lines.Any(l => l.UnitPrice < 0))
             return BadRequest(new { message = "Line unit price cannot be negative." });
 
-        var result = await _accounting.UpdateImportTransactionAsync(id, req, ct);
-        if (result == null) return NotFound();
+        try
+        {
+            var result = await _accounting.UpdateImportTransactionAsync(id, req, ct);
+            if (result == null) return NotFound();
 
-        var (actorId, actorEmail) = AdminActivityLogHelper.GetActor(HttpContext);
-        await _activityLogs.LogAsync("accounting", "updated",
-            $"Updated import transaction #{id}",
-            entityId: id.ToString(), actorUserId: actorId, actorEmail: actorEmail, ct: ct);
+            var (actorId, actorEmail) = AdminActivityLogHelper.GetActor(HttpContext);
+            await _activityLogs.LogAsync("accounting", "updated",
+                $"Updated import transaction #{id}",
+                entityId: id.ToString(), actorUserId: actorId, actorEmail: actorEmail, ct: ct);
 
-        return Ok(result);
+            return Ok(result);
+        }
+        catch (AccountingBusinessException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
     }
 
     [HttpDelete("imports/{id:int}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> DeleteImport(int id, CancellationToken ct = default)
     {
-        var deleted = await _accounting.DeleteImportTransactionAsync(id, ct);
-        if (!deleted) return NotFound();
+        try
+        {
+            var deleted = await _accounting.DeleteImportTransactionAsync(id, ct);
+            if (!deleted) return NotFound();
 
-        var (actorId, actorEmail) = AdminActivityLogHelper.GetActor(HttpContext);
-        await _activityLogs.LogAsync("accounting", "deleted", $"Deleted import transaction #{id}",
-            entityId: id.ToString(), actorUserId: actorId, actorEmail: actorEmail, ct: ct);
+            var (actorId, actorEmail) = AdminActivityLogHelper.GetActor(HttpContext);
+            await _activityLogs.LogAsync("accounting", "deleted", $"Deleted import transaction #{id}",
+                entityId: id.ToString(), actorUserId: actorId, actorEmail: actorEmail, ct: ct);
 
-        return NoContent();
+            return NoContent();
+        }
+        catch (AccountingBusinessException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    [HttpPost("imports/{id:int}/lock")]
+    [ProducesResponseType(typeof(ImportTransactionDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<ActionResult<ImportTransactionDto>> LockImport(int id, CancellationToken ct = default)
+    {
+        try
+        {
+            var result = await _accounting.LockImportTransactionAsync(id, ct);
+            if (result == null) return NotFound();
+
+            var (actorId, actorEmail) = AdminActivityLogHelper.GetActor(HttpContext);
+            await _activityLogs.LogAsync("accounting", "updated", $"Locked import transaction #{id}",
+                entityId: id.ToString(), actorUserId: actorId, actorEmail: actorEmail, ct: ct);
+
+            return Ok(result);
+        }
+        catch (AccountingBusinessException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    // ─── Expense categories ───────────────────────────────────────────────────
+
+    [HttpGet("expense-categories")]
+    [ProducesResponseType(typeof(IReadOnlyList<ExpenseCategoryDto>), StatusCodes.Status200OK)]
+    public async Task<ActionResult<IReadOnlyList<ExpenseCategoryDto>>> GetExpenseCategoryRecords(CancellationToken ct = default)
+    {
+        var result = await _accounting.GetExpenseCategoryRecordsAsync(ct);
+        return Ok(result);
+    }
+
+    [HttpPost("expense-categories")]
+    [ProducesResponseType(typeof(ExpenseCategoryDto), StatusCodes.Status201Created)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<ActionResult<ExpenseCategoryDto>> CreateExpenseCategory(
+        [FromBody] CreateExpenseCategoryRequest req, CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(req.Name))
+            return BadRequest(new { message = "Name is required." });
+        try
+        {
+            var result = await _accounting.CreateExpenseCategoryAsync(req, ct);
+            return CreatedAtAction(nameof(GetExpenseCategoryRecords), result);
+        }
+        catch (AccountingBusinessException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    [HttpPut("expense-categories/{id:int}")]
+    [ProducesResponseType(typeof(ExpenseCategoryDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<ActionResult<ExpenseCategoryDto>> UpdateExpenseCategory(
+        int id, [FromBody] UpdateExpenseCategoryRequest req, CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(req.Name))
+            return BadRequest(new { message = "Name is required." });
+        try
+        {
+            var result = await _accounting.UpdateExpenseCategoryAsync(id, req, ct);
+            return result == null ? NotFound() : Ok(result);
+        }
+        catch (AccountingBusinessException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    [HttpDelete("expense-categories/{id:int}")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> DeleteExpenseCategory(int id, CancellationToken ct = default)
+    {
+        try
+        {
+            var deleted = await _accounting.DeleteExpenseCategoryAsync(id, ct);
+            return deleted ? NoContent() : NotFound();
+        }
+        catch (AccountingBusinessException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
     }
 
     // ─── Expenses ─────────────────────────────────────────────────────────────
@@ -240,15 +345,22 @@ public class AccountingController : ControllerBase
         if (req.Amount < 0)
             return BadRequest(new { message = "Amount cannot be negative." });
 
-        var result = await _accounting.CreateExpenseAsync(req, ct);
+        try
+        {
+            var result = await _accounting.CreateExpenseAsync(req, ct);
 
-        var (actorId, actorEmail) = AdminActivityLogHelper.GetActor(HttpContext);
-        await _activityLogs.LogAsync("accounting", "created",
-            $"Created expense '{result.Name}' [{result.Category}] ({result.Amount:N2})",
-            entityId: result.Id.ToString(), entityLabel: result.Name,
-            actorUserId: actorId, actorEmail: actorEmail, ct: ct);
+            var (actorId, actorEmail) = AdminActivityLogHelper.GetActor(HttpContext);
+            await _activityLogs.LogAsync("accounting", "created",
+                $"Created expense '{result.Name}' [{result.Category}] ({result.Amount:N2})",
+                entityId: result.Id.ToString(), entityLabel: result.Name,
+                actorUserId: actorId, actorEmail: actorEmail, ct: ct);
 
-        return CreatedAtAction(nameof(GetExpense), new { id = result.Id }, result);
+            return CreatedAtAction(nameof(GetExpense), new { id = result.Id }, result);
+        }
+        catch (AccountingBusinessException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
     }
 
     [HttpPut("expenses/{id:int}")]
@@ -265,15 +377,22 @@ public class AccountingController : ControllerBase
         if (req.Amount < 0)
             return BadRequest(new { message = "Amount cannot be negative." });
 
-        var result = await _accounting.UpdateExpenseAsync(id, req, ct);
-        if (result == null) return NotFound();
+        try
+        {
+            var result = await _accounting.UpdateExpenseAsync(id, req, ct);
+            if (result == null) return NotFound();
 
-        var (actorId, actorEmail) = AdminActivityLogHelper.GetActor(HttpContext);
-        await _activityLogs.LogAsync("accounting", "updated", $"Updated expense '{result.Name}'",
-            entityId: id.ToString(), entityLabel: result.Name,
-            actorUserId: actorId, actorEmail: actorEmail, ct: ct);
+            var (actorId, actorEmail) = AdminActivityLogHelper.GetActor(HttpContext);
+            await _activityLogs.LogAsync("accounting", "updated", $"Updated expense '{result.Name}'",
+                entityId: id.ToString(), entityLabel: result.Name,
+                actorUserId: actorId, actorEmail: actorEmail, ct: ct);
 
-        return Ok(result);
+            return Ok(result);
+        }
+        catch (AccountingBusinessException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
     }
 
     [HttpDelete("expenses/{id:int}")]
@@ -306,6 +425,23 @@ public class AccountingController : ControllerBase
 
     // ─── Material Usage ───────────────────────────────────────────────────────
 
+    [HttpGet("usage/order-options")]
+    [ProducesResponseType(typeof(UsageOrderOptionsDto), StatusCodes.Status200OK)]
+    public async Task<ActionResult<UsageOrderOptionsDto>> GetUsageOrderOptions(CancellationToken ct = default)
+    {
+        var result = await _accounting.GetUsageOrderOptionsAsync(ct);
+        return Ok(result);
+    }
+
+    [HttpPost("external-orders")]
+    [ProducesResponseType(typeof(ExternalOrderDto), StatusCodes.Status201Created)]
+    public async Task<ActionResult<ExternalOrderDto>> CreateExternalOrder(
+        [FromBody] CreateExternalOrderRequest req, CancellationToken ct = default)
+    {
+        var result = await _accounting.CreateExternalOrderAsync(req, ct);
+        return CreatedAtAction(nameof(GetUsageOrderOptions), result);
+    }
+
     [HttpGet("usage")]
     [ProducesResponseType(typeof(IReadOnlyList<MaterialUsageRecordDto>), StatusCodes.Status200OK)]
     public async Task<ActionResult<IReadOnlyList<MaterialUsageRecordDto>>> GetUsage(
@@ -335,14 +471,21 @@ public class AccountingController : ControllerBase
         if (req.QuantityUsed <= 0)
             return BadRequest(new { message = "QuantityUsed must be positive." });
 
-        var result = await _accounting.CreateUsageRecordAsync(req, ct);
+        try
+        {
+            var result = await _accounting.CreateUsageRecordAsync(req, ct);
 
-        var (actorId, actorEmail) = AdminActivityLogHelper.GetActor(HttpContext);
-        await _activityLogs.LogAsync("accounting", "created",
-            $"Recorded usage of {result.QuantityUsed} {result.MaterialName}",
-            entityId: result.Id.ToString(), actorUserId: actorId, actorEmail: actorEmail, ct: ct);
+            var (actorId, actorEmail) = AdminActivityLogHelper.GetActor(HttpContext);
+            await _activityLogs.LogAsync("accounting", "created",
+                $"Recorded usage of {result.QuantityUsed} {result.MaterialName}",
+                entityId: result.Id.ToString(), actorUserId: actorId, actorEmail: actorEmail, ct: ct);
 
-        return CreatedAtAction(nameof(GetUsageRecord), new { id = result.Id }, result);
+            return CreatedAtAction(nameof(GetUsageRecord), new { id = result.Id }, result);
+        }
+        catch (AccountingBusinessException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
     }
 
     [HttpPut("usage/{id:int}")]
@@ -355,14 +498,21 @@ public class AccountingController : ControllerBase
         if (req.QuantityUsed <= 0)
             return BadRequest(new { message = "QuantityUsed must be positive." });
 
-        var result = await _accounting.UpdateUsageRecordAsync(id, req, ct);
-        if (result == null) return NotFound();
+        try
+        {
+            var result = await _accounting.UpdateUsageRecordAsync(id, req, ct);
+            if (result == null) return NotFound();
 
-        var (actorId, actorEmail) = AdminActivityLogHelper.GetActor(HttpContext);
-        await _activityLogs.LogAsync("accounting", "updated", $"Updated usage record #{id}",
-            entityId: id.ToString(), actorUserId: actorId, actorEmail: actorEmail, ct: ct);
+            var (actorId, actorEmail) = AdminActivityLogHelper.GetActor(HttpContext);
+            await _activityLogs.LogAsync("accounting", "updated", $"Updated usage record #{id}",
+                entityId: id.ToString(), actorUserId: actorId, actorEmail: actorEmail, ct: ct);
 
-        return Ok(result);
+            return Ok(result);
+        }
+        catch (AccountingBusinessException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
     }
 
     [HttpDelete("usage/{id:int}")]

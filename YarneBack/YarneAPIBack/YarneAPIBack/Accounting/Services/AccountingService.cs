@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using YarneAPIBack.Accounting;
 using YarneAPIBack.Accounting.DTOs;
 using YarneAPIBack.Accounting.Models;
 using YarneAPIBack.Accounting.Services.Contracts;
@@ -188,6 +189,8 @@ public class AccountingService : IAccountingService
             .Include(t => t.Lines)
             .FirstOrDefaultAsync(t => t.Id == id, ct);
         if (entity == null) return null;
+        if (entity.IsLocked)
+            throw new AccountingBusinessException("This import is locked and cannot be edited.");
 
         entity.Supplier        = string.IsNullOrWhiteSpace(req.Supplier) ? null : req.Supplier.Trim();
         entity.TransactionDate = req.TransactionDate.ToUniversalTime();
@@ -218,8 +221,86 @@ public class AccountingService : IAccountingService
             .Include(t => t.Lines)
             .FirstOrDefaultAsync(t => t.Id == id, ct);
         if (entity == null) return false;
+        if (entity.IsLocked)
+            throw new AccountingBusinessException("This import is locked and cannot be deleted.");
 
         _context.ImportTransactions.Remove(entity);
+        await _context.SaveChangesAsync(ct);
+        return true;
+    }
+
+    public async Task<ImportTransactionDto?> LockImportTransactionAsync(int id, CancellationToken ct = default)
+    {
+        var entity = await _context.ImportTransactions
+            .Include(t => t.Lines)
+                .ThenInclude(l => l.Material)
+            .FirstOrDefaultAsync(t => t.Id == id, ct);
+        if (entity == null) return null;
+
+        entity.IsLocked = true;
+        await _context.SaveChangesAsync(ct);
+        return MapImport(entity);
+    }
+
+    // ─── Expense categories ────────────────────────────────────────────────────
+
+    public async Task<IReadOnlyList<ExpenseCategoryDto>> GetExpenseCategoryRecordsAsync(CancellationToken ct = default)
+    {
+        var rows = await _context.ExpenseCategories.AsNoTracking().OrderBy(c => c.Name).ToListAsync(ct);
+        return rows.Select(MapExpenseCategory).ToList();
+    }
+
+    public async Task<ExpenseCategoryDto> CreateExpenseCategoryAsync(CreateExpenseCategoryRequest req, CancellationToken ct = default)
+    {
+        var name = req.Name.Trim();
+        if (await _context.ExpenseCategories.AnyAsync(c => c.Name == name, ct))
+            throw new AccountingBusinessException($"Category '{name}' already exists.");
+
+        var entity = new ExpenseCategory
+        {
+            Name        = name,
+            Description = string.IsNullOrWhiteSpace(req.Description) ? null : req.Description.Trim(),
+            CreatedAt   = DateTime.UtcNow,
+        };
+        _context.ExpenseCategories.Add(entity);
+        await _context.SaveChangesAsync(ct);
+        return MapExpenseCategory(entity);
+    }
+
+    public async Task<ExpenseCategoryDto?> UpdateExpenseCategoryAsync(int id, UpdateExpenseCategoryRequest req, CancellationToken ct = default)
+    {
+        var entity = await _context.ExpenseCategories.FindAsync([id], ct);
+        if (entity == null) return null;
+
+        var name = req.Name.Trim();
+        if (await _context.ExpenseCategories.AnyAsync(c => c.Name == name && c.Id != id, ct))
+            throw new AccountingBusinessException($"Category '{name}' already exists.");
+
+        var oldName = entity.Name;
+        entity.Name        = name;
+        entity.Description = string.IsNullOrWhiteSpace(req.Description) ? null : req.Description.Trim();
+        await _context.SaveChangesAsync(ct);
+
+        if (oldName != name)
+        {
+            await _context.Expenses
+                .Where(e => e.Category == oldName)
+                .ExecuteUpdateAsync(s => s.SetProperty(e => e.Category, name), ct);
+        }
+
+        return MapExpenseCategory(entity);
+    }
+
+    public async Task<bool> DeleteExpenseCategoryAsync(int id, CancellationToken ct = default)
+    {
+        var entity = await _context.ExpenseCategories.FindAsync([id], ct);
+        if (entity == null) return false;
+
+        var inUse = await _context.Expenses.AnyAsync(e => e.Category == entity.Name, ct);
+        if (inUse)
+            throw new AccountingBusinessException($"Cannot delete category '{entity.Name}' — expenses still use it.");
+
+        _context.ExpenseCategories.Remove(entity);
         await _context.SaveChangesAsync(ct);
         return true;
     }
@@ -250,6 +331,8 @@ public class AccountingService : IAccountingService
 
     public async Task<ExpenseDto> CreateExpenseAsync(CreateExpenseRequest req, CancellationToken ct = default)
     {
+        await EnsureExpenseCategoryExistsAsync(req.Category, ct);
+
         var entity = new Expense
         {
             Category    = req.Category.Trim(),
@@ -269,6 +352,8 @@ public class AccountingService : IAccountingService
     {
         var entity = await _context.Expenses.FindAsync([id], ct);
         if (entity == null) return null;
+
+        await EnsureExpenseCategoryExistsAsync(req.Category, ct);
 
         entity.Category    = req.Category.Trim();
         entity.Name        = req.Name.Trim();
@@ -292,11 +377,10 @@ public class AccountingService : IAccountingService
 
     public async Task<IReadOnlyList<string>> GetExpenseCategoriesAsync(CancellationToken ct = default)
     {
-        return await _context.Expenses
+        return await _context.ExpenseCategories
             .AsNoTracking()
-            .Select(e => e.Category)
-            .Distinct()
-            .OrderBy(c => c)
+            .OrderBy(c => c.Name)
+            .Select(c => c.Name)
             .ToListAsync(ct);
     }
 
@@ -340,7 +424,10 @@ public class AccountingService : IAccountingService
         if (materialId.HasValue) query = query.Where(u => u.MaterialId == materialId.Value);
         if (orderId.HasValue)    query = query.Where(u => u.OrderId == orderId.Value);
 
-        var rows = await query.OrderByDescending(u => u.UsageDate).ToListAsync(ct);
+        var rows = await query
+            .Include(u => u.ExternalOrder)
+            .OrderByDescending(u => u.UsageDate)
+            .ToListAsync(ct);
         return rows.Select(MapUsage).ToList();
     }
 
@@ -356,14 +443,20 @@ public class AccountingService : IAccountingService
     public async Task<MaterialUsageRecordDto> CreateUsageRecordAsync(
         CreateMaterialUsageRequest req, CancellationToken ct = default)
     {
+        if (req.OrderId.HasValue && req.ExternalOrderId.HasValue)
+            throw new AccountingBusinessException("Link usage to either a website order or an external order, not both.");
+
+        await EnsureUsageQuantityAvailableAsync(req.MaterialId, req.QuantityUsed, excludeUsageId: null, ct);
+
         var entity = new MaterialUsageRecord
         {
-            MaterialId   = req.MaterialId,
-            OrderId      = req.OrderId,
-            QuantityUsed = req.QuantityUsed,
-            UsageDate    = req.UsageDate.ToUniversalTime(),
-            Notes        = string.IsNullOrWhiteSpace(req.Notes) ? null : req.Notes.Trim(),
-            CreatedAt    = DateTime.UtcNow,
+            MaterialId       = req.MaterialId,
+            OrderId          = req.OrderId,
+            ExternalOrderId  = req.ExternalOrderId,
+            QuantityUsed     = req.QuantityUsed,
+            UsageDate        = req.UsageDate.ToUniversalTime(),
+            Notes            = string.IsNullOrWhiteSpace(req.Notes) ? null : req.Notes.Trim(),
+            CreatedAt        = DateTime.UtcNow,
         };
         _context.MaterialUsageRecords.Add(entity);
         await _context.SaveChangesAsync(ct);
@@ -380,9 +473,15 @@ public class AccountingService : IAccountingService
             .FirstOrDefaultAsync(u => u.Id == id, ct);
         if (entity == null) return null;
 
-        entity.MaterialId   = req.MaterialId;
-        entity.OrderId      = req.OrderId;
-        entity.QuantityUsed = req.QuantityUsed;
+        if (req.OrderId.HasValue && req.ExternalOrderId.HasValue)
+            throw new AccountingBusinessException("Link usage to either a website order or an external order, not both.");
+
+        await EnsureUsageQuantityAvailableAsync(req.MaterialId, req.QuantityUsed, excludeUsageId: id, ct);
+
+        entity.MaterialId      = req.MaterialId;
+        entity.OrderId         = req.OrderId;
+        entity.ExternalOrderId = req.ExternalOrderId;
+        entity.QuantityUsed    = req.QuantityUsed;
         entity.UsageDate    = req.UsageDate.ToUniversalTime();
         entity.Notes        = string.IsNullOrWhiteSpace(req.Notes) ? null : req.Notes.Trim();
         await _context.SaveChangesAsync(ct);
@@ -401,6 +500,62 @@ public class AccountingService : IAccountingService
         _context.MaterialUsageRecords.Remove(entity);
         await _context.SaveChangesAsync(ct);
         return true;
+    }
+
+    // ─── External orders & usage picker ───────────────────────────────────────
+
+    public async Task<UsageOrderOptionsDto> GetUsageOrderOptionsAsync(CancellationToken ct = default)
+    {
+        var from = DateTime.UtcNow.AddMonths(-1);
+
+        var websiteOrders = await _context.Orders
+            .AsNoTracking()
+            .Include(o => o.Customer)
+            .Where(o => o.OrderDate >= from)
+            .OrderByDescending(o => o.OrderDate)
+            .Take(200)
+            .ToListAsync(ct);
+
+        var externalOrders = await _context.ExternalOrders
+            .AsNoTracking()
+            .Where(o => o.OrderDate >= from)
+            .OrderByDescending(o => o.OrderDate)
+            .ToListAsync(ct);
+
+        return new UsageOrderOptionsDto
+        {
+            WebsiteOrders = websiteOrders.Select(o => new WebsiteOrderOptionDto
+            {
+                OrderId      = o.Id,
+                DisplayId    = FormatWebsiteOrderId(o.Id),
+                OrderDate    = o.OrderDate,
+                Status       = o.Status,
+                CustomerName = $"{o.Customer.FirstName} {o.Customer.LastName}".Trim(),
+                Total        = o.Total,
+            }).ToList(),
+            ExternalOrders = externalOrders.Select(MapExternalOrderOption).ToList(),
+        };
+    }
+
+    public async Task<ExternalOrderDto> CreateExternalOrderAsync(CreateExternalOrderRequest req, CancellationToken ct = default)
+    {
+        var entity = new ExternalOrder
+        {
+            Label         = string.IsNullOrWhiteSpace(req.Label) ? null : req.Label.Trim(),
+            CustomerName  = string.IsNullOrWhiteSpace(req.CustomerName) ? null : req.CustomerName.Trim(),
+            OrderDate     = req.OrderDate.ToUniversalTime(),
+            Notes         = string.IsNullOrWhiteSpace(req.Notes) ? null : req.Notes.Trim(),
+            CreatedAt     = DateTime.UtcNow,
+        };
+        _context.ExternalOrders.Add(entity);
+        await _context.SaveChangesAsync(ct);
+        return MapExternalOrder(entity);
+    }
+
+    public async Task<IReadOnlyList<ExternalOrderDto>> GetExternalOrdersAsync(CancellationToken ct = default)
+    {
+        var rows = await _context.ExternalOrders.AsNoTracking().OrderByDescending(o => o.OrderDate).ToListAsync(ct);
+        return rows.Select(MapExternalOrder).ToList();
     }
 
     // ─── Stock Reports ────────────────────────────────────────────────────────
@@ -616,6 +771,7 @@ public class AccountingService : IAccountingService
         TransactionDate = t.TransactionDate,
         ReceivedDate    = t.ReceivedDate,
         InvoiceRef      = t.InvoiceRef,
+        IsLocked        = t.IsLocked,
         CreatedAt       = t.CreatedAt,
         TotalAmount     = t.Lines.Sum(l => l.Quantity * l.UnitPrice),
         LineCount       = t.Lines.Count,
@@ -629,6 +785,7 @@ public class AccountingService : IAccountingService
         ReceivedDate    = t.ReceivedDate,
         Notes           = t.Notes,
         InvoiceRef      = t.InvoiceRef,
+        IsLocked        = t.IsLocked,
         CreatedAt       = t.CreatedAt,
         TotalAmount     = t.Lines.Sum(l => l.Quantity * l.UnitPrice),
         Lines = t.Lines.Select(l => new ImportTransactionLineDto
@@ -667,15 +824,91 @@ public class AccountingService : IAccountingService
 
     private static MaterialUsageRecordDto MapUsage(MaterialUsageRecord u) => new()
     {
-        Id           = u.Id,
-        MaterialId   = u.MaterialId,
-        MaterialName = u.Material?.Name ?? string.Empty,
-        OrderId      = u.OrderId,
-        QuantityUsed = u.QuantityUsed,
-        UsageDate    = u.UsageDate,
-        Notes        = u.Notes,
-        CreatedAt    = u.CreatedAt,
+        Id              = u.Id,
+        MaterialId      = u.MaterialId,
+        MaterialName    = u.Material?.Name ?? string.Empty,
+        OrderId         = u.OrderId,
+        ExternalOrderId = u.ExternalOrderId,
+        OrderDisplay    = BuildOrderDisplay(u),
+        QuantityUsed    = u.QuantityUsed,
+        UsageDate       = u.UsageDate,
+        Notes           = u.Notes,
+        CreatedAt       = u.CreatedAt,
     };
+
+    private static string? BuildOrderDisplay(MaterialUsageRecord u)
+    {
+        if (u.OrderId.HasValue)
+            return FormatWebsiteOrderId(u.OrderId.Value);
+        if (u.ExternalOrderId.HasValue)
+        {
+            var baseId = FormatExternalOrderId(u.ExternalOrderId.Value);
+            return string.IsNullOrWhiteSpace(u.ExternalOrder?.Label) ? baseId : $"{baseId} — {u.ExternalOrder.Label}";
+        }
+        return null;
+    }
+
+    private static ExpenseCategoryDto MapExpenseCategory(ExpenseCategory c) => new()
+    {
+        Id          = c.Id,
+        Name        = c.Name,
+        Description = c.Description,
+        CreatedAt   = c.CreatedAt,
+    };
+
+    private static ExternalOrderDto MapExternalOrder(ExternalOrder o) => new()
+    {
+        Id           = o.Id,
+        DisplayId    = FormatExternalOrderId(o.Id),
+        Label        = o.Label,
+        CustomerName = o.CustomerName,
+        OrderDate    = o.OrderDate,
+        Notes        = o.Notes,
+        CreatedAt    = o.CreatedAt,
+    };
+
+    private static ExternalOrderOptionDto MapExternalOrderOption(ExternalOrder o) => new()
+    {
+        Id           = o.Id,
+        DisplayId    = FormatExternalOrderId(o.Id),
+        Label        = o.Label,
+        CustomerName = o.CustomerName,
+        OrderDate    = o.OrderDate,
+    };
+
+    private static string FormatWebsiteOrderId(int orderId) => $"#KG-{orderId:D5}";
+
+    private static string FormatExternalOrderId(int id) => $"EXT-{id:D4}";
+
+    private async Task EnsureExpenseCategoryExistsAsync(string category, CancellationToken ct)
+    {
+        var name = category.Trim();
+        if (!await _context.ExpenseCategories.AnyAsync(c => c.Name == name, ct))
+            throw new AccountingBusinessException($"Unknown expense category '{name}'. Create it in Categories first.");
+    }
+
+    private async Task EnsureUsageQuantityAvailableAsync(
+        int materialId, decimal quantityUsed, int? excludeUsageId, CancellationToken ct)
+    {
+        if (quantityUsed <= 0)
+            throw new AccountingBusinessException("Quantity used must be greater than zero.");
+
+        var imported = await _context.ImportTransactionLines
+            .AsNoTracking()
+            .Where(l => l.MaterialId == materialId)
+            .SumAsync(l => (decimal?)l.Quantity, ct) ?? 0m;
+
+        var usedQuery = _context.MaterialUsageRecords.AsNoTracking().Where(u => u.MaterialId == materialId);
+        if (excludeUsageId.HasValue)
+            usedQuery = usedQuery.Where(u => u.Id != excludeUsageId.Value);
+
+        var used = await usedQuery.SumAsync(u => (decimal?)u.QuantityUsed, ct) ?? 0m;
+        var available = imported - used;
+
+        if (quantityUsed > available)
+            throw new AccountingBusinessException(
+                $"Not enough stock. Available: {available:G29}, requested: {quantityUsed:G29}.");
+    }
 
     private static StockReportDetailDto MapStockReportDetail(StockReport r) => new()
     {

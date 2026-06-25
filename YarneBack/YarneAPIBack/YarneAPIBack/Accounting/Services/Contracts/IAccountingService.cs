@@ -18,6 +18,13 @@ public interface IAccountingService
     Task<ImportTransactionDto> CreateImportTransactionAsync(CreateImportTransactionRequest req, CancellationToken ct = default);
     Task<ImportTransactionDto?> UpdateImportTransactionAsync(int id, UpdateImportTransactionRequest req, CancellationToken ct = default);
     Task<bool> DeleteImportTransactionAsync(int id, CancellationToken ct = default);
+    Task<ImportTransactionDto?> LockImportTransactionAsync(int id, CancellationToken ct = default);
+
+    // Expense categories
+    Task<IReadOnlyList<ExpenseCategoryDto>> GetExpenseCategoryRecordsAsync(CancellationToken ct = default);
+    Task<ExpenseCategoryDto> CreateExpenseCategoryAsync(CreateExpenseCategoryRequest req, CancellationToken ct = default);
+    Task<ExpenseCategoryDto?> UpdateExpenseCategoryAsync(int id, UpdateExpenseCategoryRequest req, CancellationToken ct = default);
+    Task<bool> DeleteExpenseCategoryAsync(int id, CancellationToken ct = default);
 
     // Expenses
     Task<IReadOnlyList<ExpenseDto>> GetExpensesAsync(string? category, DateTime? from, DateTime? to, CancellationToken ct = default);
@@ -36,6 +43,11 @@ public interface IAccountingService
     Task<MaterialUsageRecordDto> CreateUsageRecordAsync(CreateMaterialUsageRequest req, CancellationToken ct = default);
     Task<MaterialUsageRecordDto?> UpdateUsageRecordAsync(int id, UpdateMaterialUsageRequest req, CancellationToken ct = default);
     Task<bool> DeleteUsageRecordAsync(int id, CancellationToken ct = default);
+
+    // External orders & usage order picker
+    Task<UsageOrderOptionsDto> GetUsageOrderOptionsAsync(CancellationToken ct = default);
+    Task<ExternalOrderDto> CreateExternalOrderAsync(CreateExternalOrderRequest req, CancellationToken ct = default);
+    Task<IReadOnlyList<ExternalOrderDto>> GetExternalOrdersAsync(CancellationToken ct = default);
 
     // Stock reports (immutable snapshots)
     Task<IReadOnlyList<StockReportSummaryDto>> GetStockReportsAsync(CancellationToken ct = default);

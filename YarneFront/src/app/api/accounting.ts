@@ -48,6 +48,7 @@ export interface ImportTransactionDto {
   receivedDate: string | null;
   notes: string | null;
   invoiceRef: string | null;
+  isLocked: boolean;
   createdAt: string;
   totalAmount: number;
   lines: ImportTransactionLineDto[];
@@ -59,6 +60,7 @@ export interface ImportTransactionSummaryDto {
   transactionDate: string;
   receivedDate: string | null;
   invoiceRef: string | null;
+  isLocked: boolean;
   createdAt: string;
   totalAmount: number;
   lineCount: number;
@@ -80,6 +82,8 @@ export interface MaterialUsageRecordDto {
   materialId: number;
   materialName: string;
   orderId: number | null;
+  externalOrderId: number | null;
+  orderDisplay: string | null;
   quantityUsed: number;
   usageDate: string;
   notes: string | null;
@@ -189,10 +193,50 @@ export type CreateExpenseRequest = {
 export type CreateMaterialUsageRequest = {
   materialId: number;
   orderId?: number | null;
+  externalOrderId?: number | null;
   quantityUsed: number;
   usageDate: string;
   notes?: string | null;
 };
+
+export interface ExpenseCategoryDto {
+  id: number;
+  name: string;
+  description: string | null;
+  createdAt: string;
+}
+
+export interface WebsiteOrderOptionDto {
+  orderId: number;
+  displayId: string;
+  orderDate: string;
+  status: string;
+  customerName: string;
+  total: number;
+}
+
+export interface ExternalOrderOptionDto {
+  id: number;
+  displayId: string;
+  label: string | null;
+  customerName: string | null;
+  orderDate: string;
+}
+
+export interface UsageOrderOptionsDto {
+  websiteOrders: WebsiteOrderOptionDto[];
+  externalOrders: ExternalOrderOptionDto[];
+}
+
+export interface ExternalOrderDto {
+  id: number;
+  displayId: string;
+  label: string | null;
+  customerName: string | null;
+  orderDate: string;
+  notes: string | null;
+  createdAt: string;
+}
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -292,6 +336,40 @@ export async function updateExpense(id: number, body: CreateExpenseRequest): Pro
 
 export async function deleteExpense(id: number): Promise<void> {
   await apiRequest(`/api/accounting/expenses/${id}`, { method: "DELETE" });
+}
+
+export async function lockImport(id: number): Promise<ImportTransactionDto> {
+  return apiRequest<ImportTransactionDto>(`/api/accounting/imports/${id}/lock`, { method: "POST" });
+}
+
+export async function fetchExpenseCategoryRecords(): Promise<ExpenseCategoryDto[]> {
+  const data = await apiRequest<ExpenseCategoryDto[]>("/api/accounting/expense-categories");
+  return Array.isArray(data) ? data : [];
+}
+
+export async function createExpenseCategory(body: { name: string; description?: string | null }): Promise<ExpenseCategoryDto> {
+  return apiRequest<ExpenseCategoryDto>("/api/accounting/expense-categories", { method: "POST", body: JSON.stringify(body) });
+}
+
+export async function updateExpenseCategory(id: number, body: { name: string; description?: string | null }): Promise<ExpenseCategoryDto> {
+  return apiRequest<ExpenseCategoryDto>(`/api/accounting/expense-categories/${id}`, { method: "PUT", body: JSON.stringify(body) });
+}
+
+export async function deleteExpenseCategory(id: number): Promise<void> {
+  await apiRequest(`/api/accounting/expense-categories/${id}`, { method: "DELETE" });
+}
+
+export async function fetchUsageOrderOptions(): Promise<UsageOrderOptionsDto> {
+  return apiRequest<UsageOrderOptionsDto>("/api/accounting/usage/order-options");
+}
+
+export async function createExternalOrder(body: {
+  label?: string | null;
+  customerName?: string | null;
+  orderDate: string;
+  notes?: string | null;
+}): Promise<ExternalOrderDto> {
+  return apiRequest<ExternalOrderDto>("/api/accounting/external-orders", { method: "POST", body: JSON.stringify(body) });
 }
 
 // ─── Sold ────────────────────────────────────────────────────────────────────

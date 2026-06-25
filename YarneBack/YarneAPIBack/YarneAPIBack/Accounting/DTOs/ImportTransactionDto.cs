@@ -19,6 +19,7 @@ public class ImportTransactionDto
     public DateTime? ReceivedDate { get; set; }
     public string? Notes { get; set; }
     public string? InvoiceRef { get; set; }
+    public bool IsLocked { get; set; }
     public DateTime CreatedAt { get; set; }
     public decimal TotalAmount { get; set; }
     public List<ImportTransactionLineDto> Lines { get; set; } = [];
@@ -31,6 +32,7 @@ public class ImportTransactionSummaryDto
     public DateTime TransactionDate { get; set; }
     public DateTime? ReceivedDate { get; set; }
     public string? InvoiceRef { get; set; }
+    public bool IsLocked { get; set; }
     public DateTime CreatedAt { get; set; }
     public decimal TotalAmount { get; set; }
     public int LineCount { get; set; }

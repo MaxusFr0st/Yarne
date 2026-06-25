@@ -76,6 +76,10 @@ public partial class YarneDbContext : DbContext
 
     public virtual DbSet<StockReportLine> StockReportLines { get; set; }
 
+    public virtual DbSet<ExpenseCategory> ExpenseCategories { get; set; }
+
+    public virtual DbSet<ExternalOrder> ExternalOrders { get; set; }
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<AppSetting>(entity =>
@@ -490,6 +494,7 @@ public partial class YarneDbContext : DbContext
             entity.Property(e => e.Supplier).HasMaxLength(255);
             entity.Property(e => e.Notes).HasMaxLength(1000);
             entity.Property(e => e.InvoiceRef).HasMaxLength(150);
+            entity.Property(e => e.IsLocked).HasDefaultValue(false);
             entity.Property(e => e.CreatedAt).HasDefaultValueSql("CURRENT_TIMESTAMP");
             entity.HasIndex(e => e.TransactionDate);
         });
@@ -537,9 +542,35 @@ public partial class YarneDbContext : DbContext
                 .WithMany(m => m.UsageRecords)
                 .HasForeignKey(e => e.MaterialId)
                 .OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(e => e.ExternalOrder)
+                .WithMany(o => o.UsageRecords)
+                .HasForeignKey(e => e.ExternalOrderId)
+                .OnDelete(DeleteBehavior.SetNull);
             entity.HasIndex(e => e.MaterialId);
             entity.HasIndex(e => e.OrderId);
+            entity.HasIndex(e => e.ExternalOrderId);
             entity.HasIndex(e => e.UsageDate);
+        });
+
+        modelBuilder.Entity<ExpenseCategory>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.ToTable("ExpenseCategory");
+            entity.Property(e => e.Name).HasMaxLength(100).IsRequired();
+            entity.Property(e => e.Description).HasMaxLength(500);
+            entity.Property(e => e.CreatedAt).HasDefaultValueSql("CURRENT_TIMESTAMP");
+            entity.HasIndex(e => e.Name).IsUnique();
+        });
+
+        modelBuilder.Entity<ExternalOrder>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.ToTable("ExternalOrder");
+            entity.Property(e => e.Label).HasMaxLength(255);
+            entity.Property(e => e.CustomerName).HasMaxLength(255);
+            entity.Property(e => e.Notes).HasMaxLength(1000);
+            entity.Property(e => e.CreatedAt).HasDefaultValueSql("CURRENT_TIMESTAMP");
+            entity.HasIndex(e => e.OrderDate);
         });
 
         modelBuilder.Entity<StockReport>(entity =>
