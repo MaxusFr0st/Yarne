@@ -212,29 +212,6 @@ public class AccountingController : ControllerBase
         }
     }
 
-    [HttpPost("imports/{id:int}/lock")]
-    [ProducesResponseType(typeof(ImportTransactionDto), StatusCodes.Status200OK)]
-    [ProducesResponseType(StatusCodes.Status404NotFound)]
-    [ProducesResponseType(StatusCodes.Status400BadRequest)]
-    public async Task<ActionResult<ImportTransactionDto>> LockImport(int id, CancellationToken ct = default)
-    {
-        try
-        {
-            var result = await _accounting.LockImportTransactionAsync(id, ct);
-            if (result == null) return NotFound();
-
-            var (actorId, actorEmail) = AdminActivityLogHelper.GetActor(HttpContext);
-            await _activityLogs.LogAsync("accounting", "updated", $"Locked import transaction #{id}",
-                entityId: id.ToString(), actorUserId: actorId, actorEmail: actorEmail, ct: ct);
-
-            return Ok(result);
-        }
-        catch (AccountingBusinessException ex)
-        {
-            return BadRequest(new { message = ex.Message });
-        }
-    }
-
     // ─── Expense categories ───────────────────────────────────────────────────
 
     [HttpGet("expense-categories")]

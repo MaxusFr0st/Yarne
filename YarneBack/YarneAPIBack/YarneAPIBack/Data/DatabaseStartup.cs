@@ -21,6 +21,7 @@ public static class DatabaseStartup
                 await AccountingSchemaPatches.EnsureTablesAsync(db, logger, cancellationToken);
                 await AccountingV2SchemaPatches.EnsureTablesAsync(db, logger, cancellationToken);
                 await AccountingEnhancementsSchemaPatches.EnsureAsync(db, logger, cancellationToken);
+                await AccountingUnlockImportLocksSchemaPatches.EnsureAsync(db, logger, cancellationToken);
                 await OrderStatusSchemaPatches.EnsureOrderStatusesAsync(db, logger, cancellationToken);
                 return;
             }

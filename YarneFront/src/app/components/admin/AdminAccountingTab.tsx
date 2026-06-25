@@ -8,7 +8,7 @@ import {
 import {
   fetchAccountingDashboard, fetchSoldOrders,
   fetchMaterials, createMaterial, updateMaterial, deleteMaterial,
-  fetchImports, fetchImport, createImport, updateImport, deleteImport, lockImport,
+  fetchImports, fetchImport, createImport, updateImport, deleteImport,
   fetchExpenses, createExpense, updateExpense, deleteExpense,
   fetchExpenseCategoryRecords, createExpenseCategory, updateExpenseCategory, deleteExpenseCategory,
   fetchUsageRecords, createUsage, updateUsage, deleteUsage,
@@ -392,7 +392,7 @@ export function AdminAccountingTab() {
 
   // ── Delete confirm ────────────────────────────────────────────────────────
   const [deleteTarget, setDeleteTarget] = useState<{
-    type: "material" | "import" | "expense" | "usage" | "expcat"; id: number; name: string; locked?: boolean;
+    type: "material" | "import" | "expense" | "usage" | "expcat"; id: number; name: string;
   } | null>(null);
 
   // ── Stock report expansion ────────────────────────────────────────────────
@@ -594,21 +594,6 @@ export function AdminAccountingTab() {
         delete next[id];
         return next;
       });
-    }
-  };
-
-  const handleLockImport = async (id: number) => {
-    setError(null);
-    try {
-      await lockImport(id);
-      const data = await fetchImports();
-      setImports(data);
-      if (id in expandedImports) {
-        const detail = await fetchImport(id);
-        setExpandedImports((prev) => ({ ...prev, [id]: detail }));
-      }
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Lock failed");
     }
   };
 
@@ -1095,7 +1080,7 @@ export function AdminAccountingTab() {
             <div
               className="grid px-6 py-4 text-xs uppercase"
               style={{
-                gridTemplateColumns: "0.9fr 1.2fr 1fr 0.5fr 0.8fr auto 40px",
+                gridTemplateColumns: "0.9fr 1.2fr 1fr 0.5fr 0.8fr 100px 40px",
                 fontFamily: "'DM Sans', sans-serif",
                 letterSpacing: "0.12em",
                 color: "rgba(45,36,30,0.4)",
@@ -1103,7 +1088,7 @@ export function AdminAccountingTab() {
                 borderBottom: "1px solid rgba(45,36,30,0.06)",
               }}
             >
-              {["Date", "Supplier", "Invoice ref", "Items", "Total", "Status", ""].map((c) => <span key={c}>{c}</span>)}
+              {["Date", "Supplier", "Invoice ref", "Items", "Total", "Actions", ""].map((c) => <span key={c}>{c}</span>)}
             </div>
             <div className="divide-y" style={{ borderColor: "rgba(45,36,30,0.06)" }}>
               {imports.length === 0 ? (
@@ -1116,52 +1101,17 @@ export function AdminAccountingTab() {
                     <div key={imp.id}>
                       <div
                         className="grid items-center px-6 py-4 hover:bg-[#2D241E]/[0.02] transition-colors duration-200 text-sm"
-                        style={{ gridTemplateColumns: "0.9fr 1.2fr 1fr 0.5fr 0.8fr auto 40px", fontFamily: "'DM Sans', sans-serif" }}
+                        style={{ gridTemplateColumns: "0.9fr 1.2fr 1fr 0.5fr 0.8fr 100px 40px", fontFamily: "'DM Sans', sans-serif" }}
                       >
                         <span className="text-[#2D241E]/60">{formatDate(imp.transactionDate)}</span>
-                        <div className="flex items-center gap-1.5">
-                          {imp.isLocked && <Lock size={11} style={{ color: "#2D241E", opacity: 0.35 }} />}
-                          <span className="text-[#2D241E]">{imp.supplier || "—"}</span>
-                        </div>
+                        <span className="text-[#2D241E]">{imp.supplier || "—"}</span>
                         <span className="text-[#2D241E]/60">{imp.invoiceRef || "—"}</span>
                         <span className="text-[#2D241E]/60">{imp.lineCount}</span>
                         <span className="text-[#2D241E] font-medium">{formatEuro(imp.totalAmount)}</span>
-                        <div className="flex items-center justify-end gap-1">
-                          {imp.isLocked && (
-                            <span
-                              className="flex items-center gap-1 text-xs px-2 py-0.5 rounded-full"
-                              style={{ backgroundColor: "rgba(45,36,30,0.08)", fontFamily: "'DM Sans', sans-serif", color: "#2D241E", letterSpacing: "0.08em" }}
-                            >
-                              <Lock size={10} /> Locked
-                            </span>
-                          )}
-                          {!imp.isLocked && (
-                            <>
-                              <button
-                                type="button"
-                                onClick={() => void handleLockImport(imp.id)}
-                                title="Lock import"
-                                className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-[#2D241E]/8 transition-colors duration-200 cursor-pointer"
-                              >
-                                <Lock size={13} style={{ color: "#2D241E", opacity: 0.5 }} />
-                              </button>
-                              <ActionButtons
-                                onEdit={() => void openImportModal(imp.id)}
-                                onDelete={() => setDeleteTarget({ type: "import", id: imp.id, name: imp.supplier ?? `Import #${imp.id}` })}
-                              />
-                            </>
-                          )}
-                          {imp.isLocked && (
-                            <button
-                              type="button"
-                              onClick={() => setDeleteTarget({ type: "import", id: imp.id, name: imp.supplier ?? `Import #${imp.id}`, locked: true })}
-                              title="Delete locked import"
-                              className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-[#4A0E0E]/10 transition-colors duration-200 cursor-pointer"
-                            >
-                              <Trash2 size={13} style={{ color: "#4A0E0E", opacity: 0.7 }} />
-                            </button>
-                          )}
-                        </div>
+                        <ActionButtons
+                          onEdit={() => void openImportModal(imp.id)}
+                          onDelete={() => setDeleteTarget({ type: "import", id: imp.id, name: imp.supplier ?? `Import #${imp.id}` })}
+                        />
                         <button
                           type="button"
                           onClick={() => void toggleExpandImport(imp.id)}
@@ -1220,50 +1170,18 @@ export function AdminAccountingTab() {
                 <div key={imp.id} className="rounded-[20px] p-4" style={{ ...cardBorder, backgroundColor: "rgba(255,255,255,0.45)" }}>
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
-                      <div className="flex items-center gap-2 mb-0.5">
-                        {imp.isLocked && <Lock size={11} style={{ color: "#2D241E", opacity: 0.35 }} />}
-                        <p className="text-[#2D241E]" style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "1.15rem" }}>
-                          {imp.supplier ?? `Import #${imp.id}`}
-                        </p>
-                        {imp.isLocked && (
-                          <span className="flex items-center gap-1 text-xs px-2 py-0.5 rounded-full" style={{ backgroundColor: "rgba(45,36,30,0.08)", fontFamily: "'DM Sans', sans-serif", color: "#2D241E" }}>
-                            Locked
-                          </span>
-                        )}
-                      </div>
+                      <p className="text-[#2D241E]" style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "1.15rem" }}>
+                        {imp.supplier ?? `Import #${imp.id}`}
+                      </p>
                       <p className="text-xs text-[#2D241E]/50 mt-0.5" style={{ fontFamily: "'DM Sans', sans-serif" }}>
                         {formatDate(imp.transactionDate)} · {imp.lineCount} items · {formatEuro(imp.totalAmount)}
                       </p>
                       {imp.invoiceRef && <p className="text-xs text-[#2D241E]/45 mt-1" style={{ fontFamily: "'DM Sans', sans-serif" }}>Invoice: {imp.invoiceRef}</p>}
                     </div>
-                    <div className="flex items-center gap-1">
-                      {!imp.isLocked && (
-                        <>
-                          <button
-                            type="button"
-                            onClick={() => void handleLockImport(imp.id)}
-                            title="Lock import"
-                            className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-[#2D241E]/8 transition-colors duration-200 cursor-pointer"
-                          >
-                            <Lock size={13} style={{ color: "#2D241E", opacity: 0.5 }} />
-                          </button>
-                          <ActionButtons
-                            onEdit={() => void openImportModal(imp.id)}
-                            onDelete={() => setDeleteTarget({ type: "import", id: imp.id, name: imp.supplier ?? `Import #${imp.id}` })}
-                          />
-                        </>
-                      )}
-                      {imp.isLocked && (
-                        <button
-                          type="button"
-                          onClick={() => setDeleteTarget({ type: "import", id: imp.id, name: imp.supplier ?? `Import #${imp.id}`, locked: true })}
-                          title="Delete locked import"
-                          className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-[#4A0E0E]/10 transition-colors duration-200 cursor-pointer"
-                        >
-                          <Trash2 size={13} style={{ color: "#4A0E0E", opacity: 0.7 }} />
-                        </button>
-                      )}
-                    </div>
+                    <ActionButtons
+                      onEdit={() => void openImportModal(imp.id)}
+                      onDelete={() => setDeleteTarget({ type: "import", id: imp.id, name: imp.supplier ?? `Import #${imp.id}` })}
+                    />
                   </div>
                 </div>
               ))
@@ -2086,11 +2004,6 @@ export function AdminAccountingTab() {
           <ModalShell title="Confirm delete" onClose={() => setDeleteTarget(null)}>
             <p className="text-[#2D241E]/70 mb-6" style={{ fontFamily: "'DM Sans', sans-serif" }}>
               Delete <strong>{deleteTarget.name}</strong>? This cannot be undone.
-              {deleteTarget.locked && (
-                <span className="block mt-2 text-[#4A0E0E]/80 text-sm">
-                  This import is locked. Deleting it will remove its stock from inventory totals.
-                </span>
-              )}
             </p>
             <div className="flex gap-3 justify-end">
               <GhostButton onClick={() => setDeleteTarget(null)}>Cancel</GhostButton>

@@ -189,8 +189,6 @@ public class AccountingService : IAccountingService
             .Include(t => t.Lines)
             .FirstOrDefaultAsync(t => t.Id == id, ct);
         if (entity == null) return null;
-        if (entity.IsLocked)
-            throw new AccountingBusinessException("This import is locked and cannot be edited.");
 
         entity.Supplier        = string.IsNullOrWhiteSpace(req.Supplier) ? null : req.Supplier.Trim();
         entity.TransactionDate = req.TransactionDate.ToUniversalTime();
@@ -225,19 +223,6 @@ public class AccountingService : IAccountingService
         _context.ImportTransactions.Remove(entity);
         await _context.SaveChangesAsync(ct);
         return true;
-    }
-
-    public async Task<ImportTransactionDto?> LockImportTransactionAsync(int id, CancellationToken ct = default)
-    {
-        var entity = await _context.ImportTransactions
-            .Include(t => t.Lines)
-                .ThenInclude(l => l.Material)
-            .FirstOrDefaultAsync(t => t.Id == id, ct);
-        if (entity == null) return null;
-
-        entity.IsLocked = true;
-        await _context.SaveChangesAsync(ct);
-        return MapImport(entity);
     }
 
     // ─── Expense categories ────────────────────────────────────────────────────

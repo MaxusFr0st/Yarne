@@ -338,10 +338,6 @@ export async function deleteExpense(id: number): Promise<void> {
   await apiRequest(`/api/accounting/expenses/${id}`, { method: "DELETE" });
 }
 
-export async function lockImport(id: number): Promise<ImportTransactionDto> {
-  return apiRequest<ImportTransactionDto>(`/api/accounting/imports/${id}/lock`, { method: "POST" });
-}
-
 export async function fetchExpenseCategoryRecords(): Promise<ExpenseCategoryDto[]> {
   const data = await apiRequest<ExpenseCategoryDto[]>("/api/accounting/expense-categories");
   return Array.isArray(data) ? data : [];

@@ -18,7 +18,6 @@ public interface IAccountingService
     Task<ImportTransactionDto> CreateImportTransactionAsync(CreateImportTransactionRequest req, CancellationToken ct = default);
     Task<ImportTransactionDto?> UpdateImportTransactionAsync(int id, UpdateImportTransactionRequest req, CancellationToken ct = default);
     Task<bool> DeleteImportTransactionAsync(int id, CancellationToken ct = default);
-    Task<ImportTransactionDto?> LockImportTransactionAsync(int id, CancellationToken ct = default);
 
     // Expense categories
     Task<IReadOnlyList<ExpenseCategoryDto>> GetExpenseCategoryRecordsAsync(CancellationToken ct = default);
