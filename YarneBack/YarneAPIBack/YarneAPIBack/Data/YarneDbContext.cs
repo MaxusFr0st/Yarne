@@ -61,6 +61,21 @@ public partial class YarneDbContext : DbContext
 
     public virtual DbSet<MarketingExpenditure> MarketingExpenditures { get; set; }
 
+    // V2 accounting entities
+    public virtual DbSet<Material> Materials { get; set; }
+
+    public virtual DbSet<ImportTransaction> ImportTransactions { get; set; }
+
+    public virtual DbSet<ImportTransactionLine> ImportTransactionLines { get; set; }
+
+    public virtual DbSet<Expense> Expenses { get; set; }
+
+    public virtual DbSet<MaterialUsageRecord> MaterialUsageRecords { get; set; }
+
+    public virtual DbSet<StockReport> StockReports { get; set; }
+
+    public virtual DbSet<StockReportLine> StockReportLines { get; set; }
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<AppSetting>(entity =>
@@ -450,6 +465,111 @@ public partial class YarneDbContext : DbContext
             entity.Property(e => e.Amount).HasColumnType("decimal(18,2)");
             entity.Property(e => e.CreatedAt).HasDefaultValueSql("CURRENT_TIMESTAMP");
             entity.HasIndex(e => e.ExpenseDate);
+        });
+
+        // ── V2 Accounting ────────────────────────────────────────────────────
+
+        modelBuilder.Entity<Material>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.ToTable("Material");
+            entity.Property(e => e.Name).HasMaxLength(255).IsRequired();
+            entity.Property(e => e.Description).HasMaxLength(1000);
+            entity.Property(e => e.Unit).HasMaxLength(50).IsRequired().HasDefaultValue("pcs");
+            entity.Property(e => e.Sku).HasMaxLength(100);
+            entity.Property(e => e.IsActive).HasDefaultValue(true);
+            entity.Property(e => e.CreatedAt).HasDefaultValueSql("CURRENT_TIMESTAMP");
+            entity.HasIndex(e => e.Name).IsUnique();
+            entity.HasIndex(e => e.Sku);
+        });
+
+        modelBuilder.Entity<ImportTransaction>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.ToTable("ImportTransaction");
+            entity.Property(e => e.Supplier).HasMaxLength(255);
+            entity.Property(e => e.Notes).HasMaxLength(1000);
+            entity.Property(e => e.InvoiceRef).HasMaxLength(150);
+            entity.Property(e => e.CreatedAt).HasDefaultValueSql("CURRENT_TIMESTAMP");
+            entity.HasIndex(e => e.TransactionDate);
+        });
+
+        modelBuilder.Entity<ImportTransactionLine>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.ToTable("ImportTransactionLine");
+            entity.Property(e => e.Quantity).HasColumnType("decimal(18,4)");
+            entity.Property(e => e.UnitPrice).HasColumnType("decimal(18,2)");
+            entity.HasOne(e => e.ImportTransaction)
+                .WithMany(t => t.Lines)
+                .HasForeignKey(e => e.ImportTransactionId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(e => e.Material)
+                .WithMany(m => m.ImportLines)
+                .HasForeignKey(e => e.MaterialId)
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.HasIndex(e => e.ImportTransactionId);
+            entity.HasIndex(e => e.MaterialId);
+        });
+
+        modelBuilder.Entity<Expense>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.ToTable("Expense");
+            entity.Property(e => e.Category).HasMaxLength(100).IsRequired();
+            entity.Property(e => e.Name).HasMaxLength(255).IsRequired();
+            entity.Property(e => e.Description).HasMaxLength(1000);
+            entity.Property(e => e.Amount).HasColumnType("decimal(18,2)");
+            entity.Property(e => e.Notes).HasMaxLength(1000);
+            entity.Property(e => e.CreatedAt).HasDefaultValueSql("CURRENT_TIMESTAMP");
+            entity.HasIndex(e => e.Category);
+            entity.HasIndex(e => e.ExpenseDate);
+        });
+
+        modelBuilder.Entity<MaterialUsageRecord>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.ToTable("MaterialUsageRecord");
+            entity.Property(e => e.QuantityUsed).HasColumnType("decimal(18,4)");
+            entity.Property(e => e.Notes).HasMaxLength(1000);
+            entity.Property(e => e.CreatedAt).HasDefaultValueSql("CURRENT_TIMESTAMP");
+            entity.HasOne(e => e.Material)
+                .WithMany(m => m.UsageRecords)
+                .HasForeignKey(e => e.MaterialId)
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.HasIndex(e => e.MaterialId);
+            entity.HasIndex(e => e.OrderId);
+            entity.HasIndex(e => e.UsageDate);
+        });
+
+        modelBuilder.Entity<StockReport>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.ToTable("StockReport");
+            entity.Property(e => e.Label).HasMaxLength(255);
+            entity.Property(e => e.Notes).HasMaxLength(1000);
+            entity.Property(e => e.IsLocked).HasDefaultValue(true);
+            entity.Property(e => e.CreatedAt).HasDefaultValueSql("CURRENT_TIMESTAMP");
+            entity.HasIndex(e => e.SnapshotDate);
+        });
+
+        modelBuilder.Entity<StockReportLine>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.ToTable("StockReportLine");
+            entity.Property(e => e.MaterialName).HasMaxLength(255).IsRequired();
+            entity.Property(e => e.MaterialUnit).HasMaxLength(50).IsRequired();
+            entity.Property(e => e.QtyImported).HasColumnType("decimal(18,4)");
+            entity.Property(e => e.QtyUsed).HasColumnType("decimal(18,4)");
+            entity.Property(e => e.QtyOnHand).HasColumnType("decimal(18,4)");
+            entity.Property(e => e.AvgUnitCost).HasColumnType("decimal(18,2)");
+            entity.Property(e => e.TotalValue).HasColumnType("decimal(18,2)");
+            entity.HasOne(e => e.StockReport)
+                .WithMany(r => r.Lines)
+                .HasForeignKey(e => e.StockReportId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasIndex(e => e.StockReportId);
+            entity.HasIndex(e => e.MaterialId);
         });
 
         OnModelCreatingPartial(modelBuilder);

@@ -26,7 +26,7 @@ import { useProducts } from "../hooks/useProducts";
 
 const easing = [0.25, 0.1, 0.25, 1] as const;
 
-type OrderStatus = "delivered" | "shipped" | "processing" | "pending" | "cancelled";
+type OrderStatus = "pending" | "accepted" | "inproduction" | "made" | "shipped" | "received" | "canceled";
 
 interface Order {
   id: string;
@@ -47,11 +47,13 @@ interface Order {
 const IMAGE_PLACEHOLDER = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='400' viewBox='0 0 400 400'%3E%3Crect fill='%23EDE9E2' width='400' height='400'/%3E%3Cpath fill='%232D241E' fill-opacity='0.3' d='M80 200h240M200 80v240' stroke='%232D241E' stroke-opacity='0.2'/%3E%3C/svg%3E";
 
 function toOrderStatus(value: string): OrderStatus {
-  const normalized = value.trim().toLowerCase();
-  if (normalized === "delivered") return "delivered";
+  const normalized = value.trim().toLowerCase().replace(/\s+/g, "");
+  if (normalized === "accepted" || normalized === "confirmed" || normalized === "processing") return "accepted";
+  if (normalized === "inproduction") return "inproduction";
+  if (normalized === "made") return "made";
   if (normalized === "shipped") return "shipped";
-  if (normalized === "processing") return "processing";
-  if (normalized === "cancelled") return "cancelled";
+  if (normalized === "received" || normalized === "delivered") return "received";
+  if (normalized === "canceled" || normalized === "cancelled") return "canceled";
   return "pending";
 }
 
@@ -80,11 +82,29 @@ function mapOrderDto(order: OrderDto): Order {
 }
 
 const STATUS_CONFIG: Record<OrderStatus, { label: string; color: string; bg: string; icon: React.ReactNode }> = {
-  delivered: {
-    label: "Delivered",
-    color: "#2D6A4F",
-    bg: "rgba(45,106,79,0.08)",
-    icon: <CheckCircle2 size={13} />,
+  pending: {
+    label: "Pending",
+    color: "#6B6B6B",
+    bg: "rgba(107,107,107,0.08)",
+    icon: <AlertCircle size={13} />,
+  },
+  accepted: {
+    label: "Accepted",
+    color: "#9B6B2E",
+    bg: "rgba(155,107,46,0.1)",
+    icon: <Clock size={13} />,
+  },
+  inproduction: {
+    label: "In production",
+    color: "#7C5C2E",
+    bg: "rgba(124,92,46,0.12)",
+    icon: <Clock size={13} />,
+  },
+  made: {
+    label: "Made",
+    color: "#4A5D4A",
+    bg: "rgba(74,93,74,0.1)",
+    icon: <Package size={13} />,
   },
   shipped: {
     label: "Shipped",
@@ -92,20 +112,14 @@ const STATUS_CONFIG: Record<OrderStatus, { label: string; color: string; bg: str
     bg: "rgba(10,17,40,0.08)",
     icon: <Package size={13} />,
   },
-  processing: {
-    label: "Processing",
-    color: "#9B6B2E",
-    bg: "rgba(155,107,46,0.1)",
-    icon: <Clock size={13} />,
+  received: {
+    label: "Received",
+    color: "#2D6A4F",
+    bg: "rgba(45,106,79,0.08)",
+    icon: <CheckCircle2 size={13} />,
   },
-  pending: {
-    label: "Pending",
-    color: "#6B6B6B",
-    bg: "rgba(107,107,107,0.08)",
-    icon: <AlertCircle size={13} />,
-  },
-  cancelled: {
-    label: "Cancelled",
+  canceled: {
+    label: "Canceled",
     color: "#4A0E0E",
     bg: "rgba(74,14,14,0.08)",
     icon: <AlertCircle size={13} />,
@@ -113,11 +127,13 @@ const STATUS_CONFIG: Record<OrderStatus, { label: string; color: string; bg: str
 };
 
 const DELIVERY_PROGRESS_CONFIG: Record<OrderStatus, { progress: number; label: string; color: string }> = {
-  pending: { progress: 12, label: "Order received", color: "#6B6B6B" },
-  processing: { progress: 45, label: "Preparing your order", color: "#9B6B2E" },
-  shipped: { progress: 78, label: "In transit", color: "#0A1128" },
-  delivered: { progress: 100, label: "Delivered", color: "#2D6A4F" },
-  cancelled: { progress: 100, label: "Order cancelled", color: "#4A0E0E" },
+  pending: { progress: 10, label: "Order received", color: "#6B6B6B" },
+  accepted: { progress: 25, label: "Order accepted", color: "#9B6B2E" },
+  inproduction: { progress: 45, label: "In production", color: "#7C5C2E" },
+  made: { progress: 65, label: "Order made", color: "#4A5D4A" },
+  shipped: { progress: 85, label: "In transit", color: "#0A1128" },
+  received: { progress: 100, label: "Received", color: "#2D6A4F" },
+  canceled: { progress: 100, label: "Order canceled", color: "#4A0E0E" },
 };
 
 type Tab = "overview" | "orders" | "profile";
@@ -342,7 +358,7 @@ export function AccountPage() {
   }, [isLoggedIn]);
 
   const totalSpent = useMemo(() => orders.reduce((s, o) => s + o.total, 0), [orders]);
-  const deliveredCount = useMemo(() => orders.filter((o) => o.status === "delivered").length, [orders]);
+  const receivedCount = useMemo(() => orders.filter((o) => o.status === "received").length, [orders]);
 
   const handleSaveProfile = () => {
     setSaveSuccess(true);
@@ -551,7 +567,7 @@ export function AccountPage() {
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-12">
                 {[
                   { icon: <ShoppingBag size={20} />, label: "Total Orders", value: orders.length },
-                  { icon: <CheckCircle2 size={20} />, label: "Delivered", value: deliveredCount },
+                  { icon: <CheckCircle2 size={20} />, label: "Received", value: receivedCount },
                   { icon: <Heart size={20} />, label: "Wishlisted", value: wishlist.length },
                   { icon: <Star size={20} />, label: "Loyalty Points", value: "1,480" },
                 ].map((card, i) => (

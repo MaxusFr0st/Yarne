@@ -118,6 +118,8 @@ export const router = createBrowserRouter([
           { path: "product/:id", Component: ProductDetail },
           { path: "checkout", Component: CheckoutPage },
           { path: "account", Component: AccountPage },
+          // /en/admin → canonical /admin (admin has no locale prefix).
+          { path: "admin", loader: () => redirect("/admin") },
           // Unknown path under a valid locale → 404 (don't redirect-loop).
           { path: "*", Component: NotFound },
         ],

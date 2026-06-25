@@ -488,16 +488,17 @@ export function FeaturedShowcase() {
         {/* Tablet + desktop grid */}
         <div
           className="hidden md:grid gap-4 md:gap-4 lg:gap-5
-                     md:grid-cols-2
+                     md:grid-cols-2 md:grid-rows-[minmax(0,1fr)_minmax(0,1fr)_minmax(180px,0.72fr)]
                      lg:grid-cols-[5fr_4fr_4fr] lg:grid-rows-2
-                     lg:h-[clamp(560px,calc(100svh-var(--main-header-h)-72px),760px)]"
+                     lg:h-[clamp(560px,calc(100svh-var(--main-header-h)-72px),760px)]
+                     md:min-h-[min(92svh,820px)]"
         >
           <motion.div
             initial={motionDisabled ? false : { opacity: 0, y: 30 }}
             whileInView={motionDisabled ? undefined : { opacity: 1, y: 0 }}
             viewport={{ once: true, margin: "-60px" }}
             transition={{ duration: 0.7, ease: easing }}
-            className="aspect-[4/4.6] lg:row-span-2 lg:aspect-auto lg:h-full"
+            className="md:row-span-2 md:min-h-0 md:h-full lg:row-span-2 lg:aspect-auto lg:h-full"
           >
             <ProductTile
               slot={selection.slot1}
@@ -513,7 +514,7 @@ export function FeaturedShowcase() {
             whileInView={motionDisabled ? undefined : { opacity: 1, y: 0 }}
             viewport={{ once: true, margin: "-60px" }}
             transition={{ duration: 0.7, delay: motionDisabled ? 0 : 0.05, ease: easing }}
-            className="aspect-[4/4.4] lg:aspect-auto lg:h-full"
+            className="md:min-h-0 md:h-full lg:aspect-auto lg:h-full"
           >
             <ProductTile
               slot={selection.slot2}
@@ -529,7 +530,7 @@ export function FeaturedShowcase() {
             whileInView={motionDisabled ? undefined : { opacity: 1, y: 0 }}
             viewport={{ once: true, margin: "-60px" }}
             transition={{ duration: 0.7, delay: motionDisabled ? 0 : 0.05, ease: easing }}
-            className="aspect-[4/4.4] lg:aspect-auto lg:h-full"
+            className="md:min-h-0 md:h-full lg:aspect-auto lg:h-full"
           >
             <TextTile slot={selection.slot3} />
           </motion.div>
@@ -539,7 +540,7 @@ export function FeaturedShowcase() {
             whileInView={motionDisabled ? undefined : { opacity: 1, y: 0 }}
             viewport={{ once: true, margin: "-60px" }}
             transition={{ duration: 0.7, delay: motionDisabled ? 0 : 0.05, ease: easing }}
-            className="aspect-[4/4.4] lg:col-span-2 lg:aspect-auto lg:h-full"
+            className="md:col-span-2 md:min-h-0 md:h-full lg:col-span-2 lg:aspect-auto lg:h-full"
           >
             <ProductTile
               slot={selection.slot4}

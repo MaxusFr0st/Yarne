@@ -26,261 +26,396 @@ public class AccountingController : ControllerBase
         _activityLogs = activityLogs;
     }
 
-    // ─── Categories ─────────────────────────────────────────────────────────
+    // ─── Materials ───────────────────────────────────────────────────────────
 
-    [HttpGet("categories")]
-    [ProducesResponseType(typeof(IReadOnlyList<AccountingCategoryDto>), StatusCodes.Status200OK)]
-    public async Task<ActionResult<IReadOnlyList<AccountingCategoryDto>>> GetCategories(CancellationToken ct = default)
+    [HttpGet("materials")]
+    [ProducesResponseType(typeof(IReadOnlyList<MaterialDto>), StatusCodes.Status200OK)]
+    public async Task<ActionResult<IReadOnlyList<MaterialDto>>> GetMaterials(
+        [FromQuery] bool? isActive = null,
+        CancellationToken ct = default)
     {
-        var result = await _accounting.GetCategoriesAsync(ct);
+        var result = await _accounting.GetMaterialsAsync(isActive, ct);
         return Ok(result);
     }
 
-    [HttpGet("categories/{id:int}")]
-    [ProducesResponseType(typeof(AccountingCategoryDto), StatusCodes.Status200OK)]
+    [HttpGet("materials/{id:int}")]
+    [ProducesResponseType(typeof(MaterialDto), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<ActionResult<AccountingCategoryDto>> GetCategory(int id, CancellationToken ct = default)
+    public async Task<ActionResult<MaterialDto>> GetMaterial(int id, CancellationToken ct = default)
     {
-        var result = await _accounting.GetCategoryByIdAsync(id, ct);
+        var result = await _accounting.GetMaterialByIdAsync(id, ct);
         return result == null ? NotFound() : Ok(result);
     }
 
-    [HttpPost("categories")]
-    [ProducesResponseType(typeof(AccountingCategoryDto), StatusCodes.Status201Created)]
+    [HttpPost("materials")]
+    [ProducesResponseType(typeof(MaterialDto), StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
-    public async Task<ActionResult<AccountingCategoryDto>> CreateCategory(
-        [FromBody] CreateAccountingCategoryRequest req,
-        CancellationToken ct = default)
+    public async Task<ActionResult<MaterialDto>> CreateMaterial(
+        [FromBody] CreateMaterialRequest req, CancellationToken ct = default)
     {
         if (string.IsNullOrWhiteSpace(req.Name))
             return BadRequest(new { message = "Name is required." });
 
-        var result = await _accounting.CreateCategoryAsync(req, ct);
+        var result = await _accounting.CreateMaterialAsync(req, ct);
 
         var (actorId, actorEmail) = AdminActivityLogHelper.GetActor(HttpContext);
-        await _activityLogs.LogAsync("accounting", "created", $"Created accounting category '{result.Name}'",
+        await _activityLogs.LogAsync("accounting", "created", $"Created material '{result.Name}'",
             entityId: result.Id.ToString(), entityLabel: result.Name,
             actorUserId: actorId, actorEmail: actorEmail, ct: ct);
 
-        return CreatedAtAction(nameof(GetCategory), new { id = result.Id }, result);
+        return CreatedAtAction(nameof(GetMaterial), new { id = result.Id }, result);
     }
 
-    [HttpPut("categories/{id:int}")]
-    [ProducesResponseType(typeof(AccountingCategoryDto), StatusCodes.Status200OK)]
+    [HttpPut("materials/{id:int}")]
+    [ProducesResponseType(typeof(MaterialDto), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<ActionResult<AccountingCategoryDto>> UpdateCategory(
-        int id,
-        [FromBody] UpdateAccountingCategoryRequest req,
-        CancellationToken ct = default)
+    public async Task<ActionResult<MaterialDto>> UpdateMaterial(
+        int id, [FromBody] UpdateMaterialRequest req, CancellationToken ct = default)
     {
         if (string.IsNullOrWhiteSpace(req.Name))
             return BadRequest(new { message = "Name is required." });
 
-        var result = await _accounting.UpdateCategoryAsync(id, req, ct);
-        if (result == null)
-            return NotFound();
+        var result = await _accounting.UpdateMaterialAsync(id, req, ct);
+        if (result == null) return NotFound();
 
         var (actorId, actorEmail) = AdminActivityLogHelper.GetActor(HttpContext);
-        await _activityLogs.LogAsync("accounting", "updated", $"Updated accounting category '{result.Name}'",
+        await _activityLogs.LogAsync("accounting", "updated", $"Updated material '{result.Name}'",
             entityId: id.ToString(), entityLabel: result.Name,
             actorUserId: actorId, actorEmail: actorEmail, ct: ct);
 
         return Ok(result);
     }
 
-    [HttpDelete("categories/{id:int}")]
+    [HttpDelete("materials/{id:int}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<IActionResult> DeleteCategory(int id, CancellationToken ct = default)
+    public async Task<IActionResult> DeleteMaterial(int id, CancellationToken ct = default)
     {
-        var deleted = await _accounting.DeleteCategoryAsync(id, ct);
-        if (!deleted)
-            return NotFound();
+        var deleted = await _accounting.DeleteMaterialAsync(id, ct);
+        if (!deleted) return NotFound();
 
         var (actorId, actorEmail) = AdminActivityLogHelper.GetActor(HttpContext);
-        await _activityLogs.LogAsync("accounting", "deleted", $"Deleted accounting category #{id}",
-            entityId: id.ToString(),
-            actorUserId: actorId, actorEmail: actorEmail, ct: ct);
+        await _activityLogs.LogAsync("accounting", "deleted", $"Deleted material #{id}",
+            entityId: id.ToString(), actorUserId: actorId, actorEmail: actorEmail, ct: ct);
 
         return NoContent();
     }
 
-    // ─── Purchases ───────────────────────────────────────────────────────────
-
-    [HttpGet("purchases")]
-    [ProducesResponseType(typeof(IReadOnlyList<AccountingPurchaseDto>), StatusCodes.Status200OK)]
-    public async Task<ActionResult<IReadOnlyList<AccountingPurchaseDto>>> GetPurchases(
-        [FromQuery] int? categoryId = null,
-        CancellationToken ct = default)
+    [HttpGet("materials/stock")]
+    [ProducesResponseType(typeof(IReadOnlyList<MaterialStockDto>), StatusCodes.Status200OK)]
+    public async Task<ActionResult<IReadOnlyList<MaterialStockDto>>> GetStock(
+        [FromQuery] int? materialId = null, CancellationToken ct = default)
     {
-        var result = await _accounting.GetPurchasesAsync(categoryId, ct);
+        var result = await _accounting.GetStockAsync(materialId, ct);
         return Ok(result);
     }
 
-    [HttpGet("purchases/{id:int}")]
-    [ProducesResponseType(typeof(AccountingPurchaseDto), StatusCodes.Status200OK)]
-    [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<ActionResult<AccountingPurchaseDto>> GetPurchase(int id, CancellationToken ct = default)
+    // ─── Import Transactions ─────────────────────────────────────────────────
+
+    [HttpGet("imports")]
+    [ProducesResponseType(typeof(IReadOnlyList<ImportTransactionSummaryDto>), StatusCodes.Status200OK)]
+    public async Task<ActionResult<IReadOnlyList<ImportTransactionSummaryDto>>> GetImports(
+        [FromQuery] DateTime? from = null,
+        [FromQuery] DateTime? to   = null,
+        CancellationToken ct = default)
     {
-        var result = await _accounting.GetPurchaseByIdAsync(id, ct);
+        var result = await _accounting.GetImportTransactionsAsync(from, to, ct);
+        return Ok(result);
+    }
+
+    [HttpGet("imports/{id:int}")]
+    [ProducesResponseType(typeof(ImportTransactionDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<ImportTransactionDto>> GetImport(int id, CancellationToken ct = default)
+    {
+        var result = await _accounting.GetImportTransactionByIdAsync(id, ct);
         return result == null ? NotFound() : Ok(result);
     }
 
-    [HttpPost("purchases")]
-    [ProducesResponseType(typeof(AccountingPurchaseDto), StatusCodes.Status201Created)]
+    [HttpPost("imports")]
+    [ProducesResponseType(typeof(ImportTransactionDto), StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
-    public async Task<ActionResult<AccountingPurchaseDto>> CreatePurchase(
-        [FromBody] CreateAccountingPurchaseRequest req,
-        CancellationToken ct = default)
+    public async Task<ActionResult<ImportTransactionDto>> CreateImport(
+        [FromBody] CreateImportTransactionRequest req, CancellationToken ct = default)
     {
-        if (string.IsNullOrWhiteSpace(req.Name))
-            return BadRequest(new { message = "Name is required." });
-        if (req.Quantity < 0 || req.QuantitySold < 0)
-            return BadRequest(new { message = "Quantity values cannot be negative." });
-        if (req.UnitCost < 0)
-            return BadRequest(new { message = "UnitCost cannot be negative." });
+        if (req.Lines.Count == 0)
+            return BadRequest(new { message = "At least one line is required." });
+        if (req.Lines.Any(l => l.Quantity <= 0))
+            return BadRequest(new { message = "Line quantity must be positive." });
+        if (req.Lines.Any(l => l.UnitPrice < 0))
+            return BadRequest(new { message = "Line unit price cannot be negative." });
 
-        var result = await _accounting.CreatePurchaseAsync(req, ct);
+        var result = await _accounting.CreateImportTransactionAsync(req, ct);
 
         var (actorId, actorEmail) = AdminActivityLogHelper.GetActor(HttpContext);
-        await _activityLogs.LogAsync("accounting", "created", $"Created purchase '{result.Name}'",
-            entityId: result.Id.ToString(), entityLabel: result.Name,
-            actorUserId: actorId, actorEmail: actorEmail, ct: ct);
+        await _activityLogs.LogAsync("accounting", "created",
+            $"Created import transaction #{result.Id} ({result.Supplier ?? "no supplier"})",
+            entityId: result.Id.ToString(), actorUserId: actorId, actorEmail: actorEmail, ct: ct);
 
-        return CreatedAtAction(nameof(GetPurchase), new { id = result.Id }, result);
+        return CreatedAtAction(nameof(GetImport), new { id = result.Id }, result);
     }
 
-    [HttpPut("purchases/{id:int}")]
-    [ProducesResponseType(typeof(AccountingPurchaseDto), StatusCodes.Status200OK)]
+    [HttpPut("imports/{id:int}")]
+    [ProducesResponseType(typeof(ImportTransactionDto), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<ActionResult<AccountingPurchaseDto>> UpdatePurchase(
-        int id,
-        [FromBody] UpdateAccountingPurchaseRequest req,
-        CancellationToken ct = default)
+    public async Task<ActionResult<ImportTransactionDto>> UpdateImport(
+        int id, [FromBody] UpdateImportTransactionRequest req, CancellationToken ct = default)
     {
-        if (string.IsNullOrWhiteSpace(req.Name))
-            return BadRequest(new { message = "Name is required." });
-        if (req.Quantity < 0 || req.QuantitySold < 0)
-            return BadRequest(new { message = "Quantity values cannot be negative." });
-        if (req.UnitCost < 0)
-            return BadRequest(new { message = "UnitCost cannot be negative." });
+        if (req.Lines.Count == 0)
+            return BadRequest(new { message = "At least one line is required." });
+        if (req.Lines.Any(l => l.Quantity <= 0))
+            return BadRequest(new { message = "Line quantity must be positive." });
+        if (req.Lines.Any(l => l.UnitPrice < 0))
+            return BadRequest(new { message = "Line unit price cannot be negative." });
 
-        var result = await _accounting.UpdatePurchaseAsync(id, req, ct);
-        if (result == null)
-            return NotFound();
+        var result = await _accounting.UpdateImportTransactionAsync(id, req, ct);
+        if (result == null) return NotFound();
 
         var (actorId, actorEmail) = AdminActivityLogHelper.GetActor(HttpContext);
-        await _activityLogs.LogAsync("accounting", "updated", $"Updated purchase '{result.Name}'",
-            entityId: id.ToString(), entityLabel: result.Name,
-            actorUserId: actorId, actorEmail: actorEmail, ct: ct);
+        await _activityLogs.LogAsync("accounting", "updated",
+            $"Updated import transaction #{id}",
+            entityId: id.ToString(), actorUserId: actorId, actorEmail: actorEmail, ct: ct);
 
         return Ok(result);
     }
 
-    [HttpDelete("purchases/{id:int}")]
+    [HttpDelete("imports/{id:int}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<IActionResult> DeletePurchase(int id, CancellationToken ct = default)
+    public async Task<IActionResult> DeleteImport(int id, CancellationToken ct = default)
     {
-        var deleted = await _accounting.DeletePurchaseAsync(id, ct);
-        if (!deleted)
-            return NotFound();
+        var deleted = await _accounting.DeleteImportTransactionAsync(id, ct);
+        if (!deleted) return NotFound();
 
         var (actorId, actorEmail) = AdminActivityLogHelper.GetActor(HttpContext);
-        await _activityLogs.LogAsync("accounting", "deleted", $"Deleted purchase #{id}",
-            entityId: id.ToString(),
-            actorUserId: actorId, actorEmail: actorEmail, ct: ct);
+        await _activityLogs.LogAsync("accounting", "deleted", $"Deleted import transaction #{id}",
+            entityId: id.ToString(), actorUserId: actorId, actorEmail: actorEmail, ct: ct);
 
         return NoContent();
     }
 
-    // ─── Marketing ───────────────────────────────────────────────────────────
+    // ─── Expenses ─────────────────────────────────────────────────────────────
 
-    [HttpGet("marketing")]
-    [ProducesResponseType(typeof(IReadOnlyList<MarketingExpenditureDto>), StatusCodes.Status200OK)]
-    public async Task<ActionResult<IReadOnlyList<MarketingExpenditureDto>>> GetMarketing(CancellationToken ct = default)
+    [HttpGet("expenses")]
+    [ProducesResponseType(typeof(IReadOnlyList<ExpenseDto>), StatusCodes.Status200OK)]
+    public async Task<ActionResult<IReadOnlyList<ExpenseDto>>> GetExpenses(
+        [FromQuery] string? category = null,
+        [FromQuery] DateTime? from   = null,
+        [FromQuery] DateTime? to     = null,
+        CancellationToken ct = default)
     {
-        var result = await _accounting.GetMarketingAsync(ct);
+        var result = await _accounting.GetExpensesAsync(category, from, to, ct);
         return Ok(result);
     }
 
-    [HttpGet("marketing/{id:int}")]
-    [ProducesResponseType(typeof(MarketingExpenditureDto), StatusCodes.Status200OK)]
-    [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<ActionResult<MarketingExpenditureDto>> GetMarketingItem(int id, CancellationToken ct = default)
+    [HttpGet("expenses/categories")]
+    [ProducesResponseType(typeof(IReadOnlyList<string>), StatusCodes.Status200OK)]
+    public async Task<ActionResult<IReadOnlyList<string>>> GetExpenseCategories(CancellationToken ct = default)
     {
-        var result = await _accounting.GetMarketingByIdAsync(id, ct);
+        var result = await _accounting.GetExpenseCategoriesAsync(ct);
+        return Ok(result);
+    }
+
+    [HttpGet("expenses/{id:int}")]
+    [ProducesResponseType(typeof(ExpenseDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<ExpenseDto>> GetExpense(int id, CancellationToken ct = default)
+    {
+        var result = await _accounting.GetExpenseByIdAsync(id, ct);
         return result == null ? NotFound() : Ok(result);
     }
 
-    [HttpPost("marketing")]
-    [ProducesResponseType(typeof(MarketingExpenditureDto), StatusCodes.Status201Created)]
+    [HttpPost("expenses")]
+    [ProducesResponseType(typeof(ExpenseDto), StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
-    public async Task<ActionResult<MarketingExpenditureDto>> CreateMarketing(
-        [FromBody] CreateMarketingExpenditureRequest req,
-        CancellationToken ct = default)
+    public async Task<ActionResult<ExpenseDto>> CreateExpense(
+        [FromBody] CreateExpenseRequest req, CancellationToken ct = default)
     {
         if (string.IsNullOrWhiteSpace(req.Name))
             return BadRequest(new { message = "Name is required." });
+        if (string.IsNullOrWhiteSpace(req.Category))
+            return BadRequest(new { message = "Category is required." });
         if (req.Amount < 0)
             return BadRequest(new { message = "Amount cannot be negative." });
 
-        var result = await _accounting.CreateMarketingAsync(req, ct);
+        var result = await _accounting.CreateExpenseAsync(req, ct);
 
         var (actorId, actorEmail) = AdminActivityLogHelper.GetActor(HttpContext);
-        await _activityLogs.LogAsync("accounting", "created", $"Created marketing expenditure '{result.Name}' ({result.Amount:N2})",
+        await _activityLogs.LogAsync("accounting", "created",
+            $"Created expense '{result.Name}' [{result.Category}] ({result.Amount:N2})",
             entityId: result.Id.ToString(), entityLabel: result.Name,
             actorUserId: actorId, actorEmail: actorEmail, ct: ct);
 
-        return CreatedAtAction(nameof(GetMarketingItem), new { id = result.Id }, result);
+        return CreatedAtAction(nameof(GetExpense), new { id = result.Id }, result);
     }
 
-    [HttpPut("marketing/{id:int}")]
-    [ProducesResponseType(typeof(MarketingExpenditureDto), StatusCodes.Status200OK)]
+    [HttpPut("expenses/{id:int}")]
+    [ProducesResponseType(typeof(ExpenseDto), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<ActionResult<MarketingExpenditureDto>> UpdateMarketing(
-        int id,
-        [FromBody] UpdateMarketingExpenditureRequest req,
-        CancellationToken ct = default)
+    public async Task<ActionResult<ExpenseDto>> UpdateExpense(
+        int id, [FromBody] UpdateExpenseRequest req, CancellationToken ct = default)
     {
         if (string.IsNullOrWhiteSpace(req.Name))
             return BadRequest(new { message = "Name is required." });
+        if (string.IsNullOrWhiteSpace(req.Category))
+            return BadRequest(new { message = "Category is required." });
         if (req.Amount < 0)
             return BadRequest(new { message = "Amount cannot be negative." });
 
-        var result = await _accounting.UpdateMarketingAsync(id, req, ct);
-        if (result == null)
-            return NotFound();
+        var result = await _accounting.UpdateExpenseAsync(id, req, ct);
+        if (result == null) return NotFound();
 
         var (actorId, actorEmail) = AdminActivityLogHelper.GetActor(HttpContext);
-        await _activityLogs.LogAsync("accounting", "updated", $"Updated marketing expenditure '{result.Name}'",
+        await _activityLogs.LogAsync("accounting", "updated", $"Updated expense '{result.Name}'",
             entityId: id.ToString(), entityLabel: result.Name,
             actorUserId: actorId, actorEmail: actorEmail, ct: ct);
 
         return Ok(result);
     }
 
-    [HttpDelete("marketing/{id:int}")]
+    [HttpDelete("expenses/{id:int}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<IActionResult> DeleteMarketing(int id, CancellationToken ct = default)
+    public async Task<IActionResult> DeleteExpense(int id, CancellationToken ct = default)
     {
-        var deleted = await _accounting.DeleteMarketingAsync(id, ct);
-        if (!deleted)
-            return NotFound();
+        var deleted = await _accounting.DeleteExpenseAsync(id, ct);
+        if (!deleted) return NotFound();
 
         var (actorId, actorEmail) = AdminActivityLogHelper.GetActor(HttpContext);
-        await _activityLogs.LogAsync("accounting", "deleted", $"Deleted marketing expenditure #{id}",
-            entityId: id.ToString(),
-            actorUserId: actorId, actorEmail: actorEmail, ct: ct);
+        await _activityLogs.LogAsync("accounting", "deleted", $"Deleted expense #{id}",
+            entityId: id.ToString(), actorUserId: actorId, actorEmail: actorEmail, ct: ct);
 
         return NoContent();
     }
 
-    // ─── Dashboard & Reports ─────────────────────────────────────────────────
+    // ─── Sold Orders ──────────────────────────────────────────────────────────
+
+    [HttpGet("sold")]
+    [ProducesResponseType(typeof(IReadOnlyList<ReportOrderLineDto>), StatusCodes.Status200OK)]
+    public async Task<ActionResult<IReadOnlyList<ReportOrderLineDto>>> GetSold(
+        [FromQuery] DateTime? from = null,
+        [FromQuery] DateTime? to   = null,
+        CancellationToken ct = default)
+    {
+        var result = await _accounting.GetSoldOrdersAsync(from, to, ct);
+        return Ok(result);
+    }
+
+    // ─── Material Usage ───────────────────────────────────────────────────────
+
+    [HttpGet("usage")]
+    [ProducesResponseType(typeof(IReadOnlyList<MaterialUsageRecordDto>), StatusCodes.Status200OK)]
+    public async Task<ActionResult<IReadOnlyList<MaterialUsageRecordDto>>> GetUsage(
+        [FromQuery] int? materialId = null,
+        [FromQuery] int? orderId    = null,
+        CancellationToken ct = default)
+    {
+        var result = await _accounting.GetUsageRecordsAsync(materialId, orderId, ct);
+        return Ok(result);
+    }
+
+    [HttpGet("usage/{id:int}")]
+    [ProducesResponseType(typeof(MaterialUsageRecordDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<MaterialUsageRecordDto>> GetUsageRecord(int id, CancellationToken ct = default)
+    {
+        var result = await _accounting.GetUsageRecordByIdAsync(id, ct);
+        return result == null ? NotFound() : Ok(result);
+    }
+
+    [HttpPost("usage")]
+    [ProducesResponseType(typeof(MaterialUsageRecordDto), StatusCodes.Status201Created)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<ActionResult<MaterialUsageRecordDto>> CreateUsage(
+        [FromBody] CreateMaterialUsageRequest req, CancellationToken ct = default)
+    {
+        if (req.QuantityUsed <= 0)
+            return BadRequest(new { message = "QuantityUsed must be positive." });
+
+        var result = await _accounting.CreateUsageRecordAsync(req, ct);
+
+        var (actorId, actorEmail) = AdminActivityLogHelper.GetActor(HttpContext);
+        await _activityLogs.LogAsync("accounting", "created",
+            $"Recorded usage of {result.QuantityUsed} {result.MaterialName}",
+            entityId: result.Id.ToString(), actorUserId: actorId, actorEmail: actorEmail, ct: ct);
+
+        return CreatedAtAction(nameof(GetUsageRecord), new { id = result.Id }, result);
+    }
+
+    [HttpPut("usage/{id:int}")]
+    [ProducesResponseType(typeof(MaterialUsageRecordDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<MaterialUsageRecordDto>> UpdateUsage(
+        int id, [FromBody] UpdateMaterialUsageRequest req, CancellationToken ct = default)
+    {
+        if (req.QuantityUsed <= 0)
+            return BadRequest(new { message = "QuantityUsed must be positive." });
+
+        var result = await _accounting.UpdateUsageRecordAsync(id, req, ct);
+        if (result == null) return NotFound();
+
+        var (actorId, actorEmail) = AdminActivityLogHelper.GetActor(HttpContext);
+        await _activityLogs.LogAsync("accounting", "updated", $"Updated usage record #{id}",
+            entityId: id.ToString(), actorUserId: actorId, actorEmail: actorEmail, ct: ct);
+
+        return Ok(result);
+    }
+
+    [HttpDelete("usage/{id:int}")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> DeleteUsage(int id, CancellationToken ct = default)
+    {
+        var deleted = await _accounting.DeleteUsageRecordAsync(id, ct);
+        if (!deleted) return NotFound();
+
+        var (actorId, actorEmail) = AdminActivityLogHelper.GetActor(HttpContext);
+        await _activityLogs.LogAsync("accounting", "deleted", $"Deleted usage record #{id}",
+            entityId: id.ToString(), actorUserId: actorId, actorEmail: actorEmail, ct: ct);
+
+        return NoContent();
+    }
+
+    // ─── Stock Reports ────────────────────────────────────────────────────────
+
+    [HttpGet("stock-reports")]
+    [ProducesResponseType(typeof(IReadOnlyList<StockReportSummaryDto>), StatusCodes.Status200OK)]
+    public async Task<ActionResult<IReadOnlyList<StockReportSummaryDto>>> GetStockReports(
+        CancellationToken ct = default)
+    {
+        var result = await _accounting.GetStockReportsAsync(ct);
+        return Ok(result);
+    }
+
+    [HttpGet("stock-reports/{id:int}")]
+    [ProducesResponseType(typeof(StockReportDetailDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<StockReportDetailDto>> GetStockReport(int id, CancellationToken ct = default)
+    {
+        var result = await _accounting.GetStockReportByIdAsync(id, ct);
+        return result == null ? NotFound() : Ok(result);
+    }
+
+    [HttpPost("stock-reports")]
+    [ProducesResponseType(typeof(StockReportDetailDto), StatusCodes.Status201Created)]
+    public async Task<ActionResult<StockReportDetailDto>> CreateStockReport(
+        [FromBody] CreateStockReportRequest req, CancellationToken ct = default)
+    {
+        var result = await _accounting.CreateStockReportAsync(req, ct);
+
+        var (actorId, actorEmail) = AdminActivityLogHelper.GetActor(HttpContext);
+        await _activityLogs.LogAsync("accounting", "created",
+            $"Created stock report snapshot '{result.Label ?? result.SnapshotDate.ToString("yyyy-MM-dd")}'",
+            entityId: result.Id.ToString(), actorUserId: actorId, actorEmail: actorEmail, ct: ct);
+
+        return CreatedAtAction(nameof(GetStockReport), new { id = result.Id }, result);
+    }
+
+    // ─── Dashboard & Reports ──────────────────────────────────────────────────
 
     [HttpGet("dashboard")]
     [ProducesResponseType(typeof(AccountingDashboardDto), StatusCodes.Status200OK)]
@@ -296,22 +431,22 @@ public class AccountingController : ControllerBase
     [HttpGet("report")]
     [ProducesResponseType(typeof(AccountingReportDto), StatusCodes.Status200OK)]
     public async Task<ActionResult<AccountingReportDto>> GetReport(
-        [FromQuery] DateTime? from               = null,
-        [FromQuery] DateTime? to                 = null,
-        [FromQuery] List<int>? categoryIds       = null,
-        [FromQuery] bool includeOrders           = true,
-        [FromQuery] bool includePurchases        = true,
-        [FromQuery] bool includeMarketing        = true,
+        [FromQuery] DateTime? from        = null,
+        [FromQuery] DateTime? to          = null,
+        [FromQuery] bool includeOrders    = true,
+        [FromQuery] bool includeImports   = true,
+        [FromQuery] bool includeExpenses  = true,
+        [FromQuery] bool includeStock     = true,
         CancellationToken ct = default)
     {
         var req = new AccountingReportRequest
         {
-            From             = from,
-            To               = to,
-            CategoryIds      = categoryIds,
-            IncludeOrders    = includeOrders,
-            IncludePurchases = includePurchases,
-            IncludeMarketing = includeMarketing,
+            From            = from,
+            To              = to,
+            IncludeOrders   = includeOrders,
+            IncludeImports  = includeImports,
+            IncludeExpenses = includeExpenses,
+            IncludeStock    = includeStock,
         };
 
         var result = await _accounting.GetReportAsync(req, ct);
@@ -321,22 +456,22 @@ public class AccountingController : ControllerBase
     [HttpGet("report/pdf")]
     [ProducesResponseType(typeof(FileResult), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetReportPdf(
-        [FromQuery] DateTime? from               = null,
-        [FromQuery] DateTime? to                 = null,
-        [FromQuery] List<int>? categoryIds       = null,
-        [FromQuery] bool includeOrders           = true,
-        [FromQuery] bool includePurchases        = true,
-        [FromQuery] bool includeMarketing        = true,
+        [FromQuery] DateTime? from        = null,
+        [FromQuery] DateTime? to          = null,
+        [FromQuery] bool includeOrders    = true,
+        [FromQuery] bool includeImports   = true,
+        [FromQuery] bool includeExpenses  = true,
+        [FromQuery] bool includeStock     = true,
         CancellationToken ct = default)
     {
         var req = new AccountingReportRequest
         {
-            From             = from,
-            To               = to,
-            CategoryIds      = categoryIds,
-            IncludeOrders    = includeOrders,
-            IncludePurchases = includePurchases,
-            IncludeMarketing = includeMarketing,
+            From            = from,
+            To              = to,
+            IncludeOrders   = includeOrders,
+            IncludeImports  = includeImports,
+            IncludeExpenses = includeExpenses,
+            IncludeStock    = includeStock,
         };
 
         var report   = await _accounting.GetReportAsync(req, ct);

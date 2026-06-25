@@ -33,7 +33,7 @@ import {
   type UserDto,
 } from "../api/admin";
 import { register } from "../api/auth";
-import { fetchAdminOrders, fetchAdminOrdersSummary, updateOrderStatus, type OrderDto, type AdminOrdersSummaryDto } from "../api/orders";
+import { fetchAdminOrders, fetchAdminOrdersSummary, updateOrderStatus, type OrderDto, type AdminOrdersSummaryDto, type OrderStatus } from "../api/orders";
 import type { ProductDto, ColorVariantDto } from "../api/products";
 import type { Product } from "../types/product";
 import { normalizeLaceVariants } from "../utils/variantStock";
@@ -295,7 +295,7 @@ export function useAdminData() {
     return res;
   }, [load]);
 
-  const setOrderStatus = useCallback(async (id: number, status: "Pending" | "Processing" | "Shipped" | "Delivered" | "Cancelled", estimatedDelivery?: string | null) => {
+  const setOrderStatus = useCallback(async (id: number, status: OrderStatus, estimatedDelivery?: string | null) => {
     const updated = await updateOrderStatus(id, { status, estimatedDelivery });
     const mapped = mapOrderDtoToAdminOrder(updated);
     setOrders((prev) => prev.map((o) => (o.id === id ? mapped : o)));

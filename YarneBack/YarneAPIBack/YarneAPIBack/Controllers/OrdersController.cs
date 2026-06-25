@@ -18,10 +18,17 @@ public class OrdersController : ControllerBase
     private static readonly Dictionary<string, string> AllowedStatuses = new(StringComparer.OrdinalIgnoreCase)
     {
         ["pending"] = "Pending",
-        ["processing"] = "Processing",
+        ["accepted"] = "Accepted",
+        ["confirmed"] = "Accepted",
+        ["processing"] = "Accepted",
+        ["inproduction"] = "InProduction",
+        ["in production"] = "InProduction",
+        ["made"] = "Made",
         ["shipped"] = "Shipped",
-        ["delivered"] = "Delivered",
-        ["cancelled"] = "Cancelled",
+        ["received"] = "Received",
+        ["delivered"] = "Received",
+        ["canceled"] = "Canceled",
+        ["cancelled"] = "Canceled",
     };
 
     private readonly YarneDbContext _context;

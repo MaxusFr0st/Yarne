@@ -59,20 +59,20 @@ public class AccountingPdfService : IAccountingPdfService
                             cols.RelativeColumn(2);
                         });
 
-                        KpiRow(table, "Order Revenue",       report.OrderRevenue);
-                        KpiRow(table, "Manual Sale Revenue", report.ManualSaleRevenue);
-                        KpiRow(table, "Total Revenue",       report.TotalRevenue,  bold: true);
-                        KpiRow(table, "Purchase Spend",      report.PurchaseSpend);
-                        KpiRow(table, "Marketing Spend",     report.MarketingSpend);
-                        KpiRow(table, "Total Spent",         report.TotalSpent,    bold: true);
-                        KpiRow(table, "Net",                 report.Net,           bold: true,
+                        KpiRow(table, "Sold Revenue (Received Orders)", report.SoldRevenue, bold: true,
+                            color: Colors.Green.Darken2);
+                        KpiRow(table, "Import Spend",    report.ImportSpend);
+                        KpiRow(table, "Expense Spend",   report.ExpenseSpend);
+                        KpiRow(table, "Total Spent",     report.TotalSpent,  bold: true);
+                        KpiRow(table, "Net",             report.Net,         bold: true,
                             color: report.Net >= 0 ? Colors.Green.Darken2 : Colors.Red.Darken2);
                     });
 
-                    // Orders
+                    // Sold Orders
                     if (report.Orders.Count > 0)
                     {
-                        col.Item().PaddingTop(16).DefaultTextStyle(x => x.FontSize(13).Bold()).Text("Orders");
+                        col.Item().PaddingTop(16).DefaultTextStyle(x => x.FontSize(13).Bold())
+                            .Text($"Sold Orders ({report.Orders.Count})");
 
                         col.Item().PaddingTop(4).Table(table =>
                         {
@@ -102,21 +102,58 @@ public class AccountingPdfService : IAccountingPdfService
                         });
                     }
 
-                    // Purchases by category
-                    if (report.PurchasesByCategory.Count > 0)
+                    // Import Transactions
+                    if (report.ImportTransactions.Count > 0)
                     {
-                        col.Item().PaddingTop(16).DefaultTextStyle(x => x.FontSize(13).Bold()).Text("Purchases by Category");
+                        col.Item().PaddingTop(16).DefaultTextStyle(x => x.FontSize(13).Bold())
+                            .Text($"Import Transactions ({report.ImportTransactions.Count})");
 
-                        foreach (var cat in report.PurchasesByCategory)
+                        col.Item().PaddingTop(4).Table(table =>
+                        {
+                            table.ColumnsDefinition(cols =>
+                            {
+                                cols.ConstantColumn(38);
+                                cols.RelativeColumn(3);
+                                cols.RelativeColumn(2);
+                                cols.RelativeColumn(2);
+                                cols.ConstantColumn(40);
+                                cols.RelativeColumn(2);
+                            });
+
+                            table.Header(header =>
+                            {
+                                foreach (var h in new[] { "ID", "Supplier", "Date", "Invoice", "Lines", "Total" })
+                                    HeaderCell(header, h);
+                            });
+
+                            foreach (var t in report.ImportTransactions)
+                            {
+                                table.Cell().Padding(3).Text(t.Id.ToString());
+                                table.Cell().Padding(3).Text(t.Supplier ?? "—");
+                                table.Cell().Padding(3).Text(t.TransactionDate.ToString("yyyy-MM-dd"));
+                                table.Cell().Padding(3).Text(t.InvoiceRef ?? "—");
+                                table.Cell().Padding(3).AlignCenter().Text(t.LineCount.ToString());
+                                table.Cell().Padding(3).AlignRight().Text(Curr(t.TotalAmount));
+                            }
+                        });
+                    }
+
+                    // Expenses by category
+                    if (report.ExpensesByCategory.Count > 0)
+                    {
+                        col.Item().PaddingTop(16).DefaultTextStyle(x => x.FontSize(13).Bold())
+                            .Text("Expenses by Category");
+
+                        foreach (var cat in report.ExpensesByCategory)
                         {
                             col.Item().PaddingTop(8).Row(row =>
                             {
                                 row.RelativeItem()
                                     .DefaultTextStyle(x => x.FontSize(11).SemiBold())
-                                    .Text(cat.CategoryName);
+                                    .Text(cat.Category);
                                 row.AutoItem()
                                     .DefaultTextStyle(x => x.FontSize(9).FontColor(Colors.Grey.Darken2))
-                                    .Text($"Cost: {Curr(cat.TotalCost)}   Revenue: {Curr(cat.TotalSaleRevenue)}");
+                                    .Text($"Total: {Curr(cat.TotalAmount)}");
                             });
 
                             col.Item().PaddingTop(2).Table(table =>
@@ -124,92 +161,60 @@ public class AccountingPdfService : IAccountingPdfService
                                 table.ColumnsDefinition(cols =>
                                 {
                                     cols.RelativeColumn(3);
-                                    cols.RelativeColumn(2);
-                                    cols.ConstantColumn(40);
-                                    cols.ConstantColumn(40);
+                                    cols.RelativeColumn(3);
                                     cols.RelativeColumn(2);
                                     cols.RelativeColumn(2);
                                 });
 
                                 table.Header(header =>
                                 {
-                                    foreach (var h in new[] { "Name", "Supplier", "Qty", "Sold", "Unit Cost", "Total" })
+                                    foreach (var h in new[] { "Name", "Description", "Date", "Amount" })
                                         HeaderCell(header, h);
                                 });
 
                                 foreach (var item in cat.Items)
                                 {
                                     table.Cell().Padding(3).Text(item.Name);
-                                    table.Cell().Padding(3).Text(item.Supplier ?? "—");
-                                    table.Cell().Padding(3).AlignRight().Text(item.Quantity.ToString());
-                                    table.Cell().Padding(3).AlignRight().Text(item.QuantitySold.ToString());
-                                    table.Cell().Padding(3).AlignRight().Text(Curr(item.UnitCost));
-                                    table.Cell().Padding(3).AlignRight().Text(Curr(item.TotalCost));
+                                    table.Cell().Padding(3).Text(item.Description ?? "—");
+                                    table.Cell().Padding(3).Text(item.ExpenseDate.ToString("yyyy-MM-dd"));
+                                    table.Cell().Padding(3).AlignRight().Text(Curr(item.Amount));
                                 }
                             });
                         }
                     }
 
-                    // Marketing
-                    if (report.MarketingItems.Count > 0)
+                    // Stock Snapshot
+                    if (report.StockSnapshot.Count > 0)
                     {
-                        col.Item().PaddingTop(16).DefaultTextStyle(x => x.FontSize(13).Bold()).Text("Marketing Expenditures");
+                        col.Item().PaddingTop(16).DefaultTextStyle(x => x.FontSize(13).Bold())
+                            .Text("Material Stock Snapshot");
 
                         col.Item().PaddingTop(4).Table(table =>
                         {
                             table.ColumnsDefinition(cols =>
                             {
                                 cols.RelativeColumn(3);
-                                cols.RelativeColumn(3);
+                                cols.ConstantColumn(40);
+                                cols.ConstantColumn(60);
                                 cols.RelativeColumn(2);
-                                cols.RelativeColumn(2);
-                            });
-
-                            table.Header(header =>
-                            {
-                                foreach (var h in new[] { "Name", "Description", "Date", "Amount" })
-                                    HeaderCell(header, h);
-                            });
-
-                            foreach (var m in report.MarketingItems)
-                            {
-                                table.Cell().Padding(3).Text(m.Name);
-                                table.Cell().Padding(3).Text(m.Description ?? "—");
-                                table.Cell().Padding(3).Text(m.ExpenseDate.ToString("yyyy-MM-dd"));
-                                table.Cell().Padding(3).AlignRight().Text(Curr(m.Amount));
-                            }
-                        });
-                    }
-
-                    // Remaining inventory
-                    if (report.RemainingInventory.Count > 0)
-                    {
-                        col.Item().PaddingTop(16).DefaultTextStyle(x => x.FontSize(13).Bold()).Text("Remaining Inventory");
-
-                        col.Item().PaddingTop(4).Table(table =>
-                        {
-                            table.ColumnsDefinition(cols =>
-                            {
-                                cols.RelativeColumn(3);
-                                cols.RelativeColumn(2);
-                                cols.ConstantColumn(55);
                                 cols.RelativeColumn(2);
                                 cols.RelativeColumn(2);
                             });
 
                             table.Header(header =>
                             {
-                                foreach (var h in new[] { "Name", "Category", "Qty Left", "Unit Cost", "Value" })
+                                foreach (var h in new[] { "Material", "Unit", "On Hand", "Avg Cost", "Total Value", "" })
                                     HeaderCell(header, h);
                             });
 
-                            foreach (var inv in report.RemainingInventory)
+                            foreach (var s in report.StockSnapshot)
                             {
-                                table.Cell().Padding(3).Text(inv.Name);
-                                table.Cell().Padding(3).Text(inv.CategoryName);
-                                table.Cell().Padding(3).AlignRight().Text(inv.QuantityRemaining.ToString());
-                                table.Cell().Padding(3).AlignRight().Text(Curr(inv.UnitCost));
-                                table.Cell().Padding(3).AlignRight().Text(Curr(inv.RemainingValue));
+                                table.Cell().Padding(3).Text(s.MaterialName);
+                                table.Cell().Padding(3).AlignCenter().Text(s.MaterialUnit);
+                                table.Cell().Padding(3).AlignRight().Text(s.QtyOnHand.ToString("N2"));
+                                table.Cell().Padding(3).AlignRight().Text(Curr(s.AvgUnitCost));
+                                table.Cell().Padding(3).AlignRight().Text(Curr(s.TotalValue));
+                                table.Cell().Padding(3);
                             }
                         });
                     }

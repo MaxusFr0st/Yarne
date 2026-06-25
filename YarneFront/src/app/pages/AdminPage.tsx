@@ -185,22 +185,40 @@ function AdminImageUrlRow({
   );
 }
 
-const ORDER_STATUSES = ["Pending", "Processing", "Shipped", "Delivered", "Cancelled"] as const;
+const ORDER_STATUSES = ["Pending", "Accepted", "InProduction", "Made", "Shipped", "Received", "Canceled"] as const;
 type OrderStatus = (typeof ORDER_STATUSES)[number];
 
 function toOrderStatus(value: string): OrderStatus {
-  const match = ORDER_STATUSES.find((status) => status.toLowerCase() === value.trim().toLowerCase());
-  return match ?? "Pending";
+  const normalized = value.trim().toLowerCase().replace(/\s+/g, "");
+  const aliases: Record<string, OrderStatus> = {
+    pending: "Pending",
+    accepted: "Accepted",
+    confirmed: "Accepted",
+    processing: "Accepted",
+    inproduction: "InProduction",
+    made: "Made",
+    shipped: "Shipped",
+    received: "Received",
+    delivered: "Received",
+    canceled: "Canceled",
+    cancelled: "Canceled",
+  };
+  return aliases[normalized] ?? "Pending";
 }
 
 function OrderStatusPill({ status }: { status: string }) {
-  const normalized = status.trim().toLowerCase();
+  const normalized = status.trim().toLowerCase().replace(/\s+/g, "");
   const styleByStatus: Record<string, { color: string; bg: string }> = {
     pending: { color: "#6B6B6B", bg: "rgba(107,107,107,0.08)" },
-    processing: { color: "#9B6B2E", bg: "rgba(155,107,46,0.1)" },
+    accepted: { color: "#9B6B2E", bg: "rgba(155,107,46,0.1)" },
+    inproduction: { color: "#7C5C2E", bg: "rgba(124,92,46,0.12)" },
+    made: { color: "#4A5D4A", bg: "rgba(74,93,74,0.1)" },
     shipped: { color: "#0A1128", bg: "rgba(10,17,40,0.08)" },
-    delivered: { color: "#2D6A4F", bg: "rgba(45,106,79,0.1)" },
+    received: { color: "#2D6A4F", bg: "rgba(45,106,79,0.1)" },
+    canceled: { color: "#4A0E0E", bg: "rgba(74,14,14,0.1)" },
     cancelled: { color: "#4A0E0E", bg: "rgba(74,14,14,0.1)" },
+    processing: { color: "#9B6B2E", bg: "rgba(155,107,46,0.1)" },
+    delivered: { color: "#2D6A4F", bg: "rgba(45,106,79,0.1)" },
   };
   const style = styleByStatus[normalized] ?? styleByStatus.pending;
 

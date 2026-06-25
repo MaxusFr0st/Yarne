@@ -46,8 +46,17 @@ export interface CreateOrderRequest {
   shippingAddrId?: number;
 }
 
+export type OrderStatus =
+  | "Pending"
+  | "Accepted"
+  | "InProduction"
+  | "Made"
+  | "Shipped"
+  | "Received"
+  | "Canceled";
+
 export interface UpdateOrderStatusRequest {
-  status: "Pending" | "Processing" | "Shipped" | "Delivered" | "Cancelled";
+  status: OrderStatus;
   estimatedDelivery?: string | null;
 }
 

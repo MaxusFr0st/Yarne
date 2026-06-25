@@ -50,6 +50,11 @@ export function LanguageSwitcher({
       preserveScrollForLocaleSwitch();
     }
     void i18n.changeLanguage(next);
+    // Admin is locale-free — never navigate to /en/admin (no such route).
+    if (location.pathname === "/admin" || location.pathname.startsWith("/admin/")) {
+      navigate("/admin", { replace: true });
+      return;
+    }
     const rest = stripLocaleFromPath(location.pathname);
     const target = `/${next}${rest === "/" ? "" : rest}${location.search}${location.hash}`;
     navigate(target || `/${next}`, { replace: true });

@@ -4,10 +4,10 @@ public class AccountingReportRequest
 {
     public DateTime? From { get; set; }
     public DateTime? To { get; set; }
-    public List<int>? CategoryIds { get; set; }
     public bool IncludeOrders { get; set; } = true;
-    public bool IncludePurchases { get; set; } = true;
-    public bool IncludeMarketing { get; set; } = true;
+    public bool IncludeImports { get; set; } = true;
+    public bool IncludeExpenses { get; set; } = true;
+    public bool IncludeStock { get; set; } = true;
 }
 
 public class AccountingReportDto
@@ -15,20 +15,16 @@ public class AccountingReportDto
     public DateTime? DateFrom { get; set; }
     public DateTime? DateTo { get; set; }
 
-    public decimal OrderRevenue { get; set; }
-    public decimal ManualSaleRevenue { get; set; }
-    public decimal TotalRevenue { get; set; }
-
-    public decimal PurchaseSpend { get; set; }
-    public decimal MarketingSpend { get; set; }
+    public decimal SoldRevenue { get; set; }
+    public decimal ImportSpend { get; set; }
+    public decimal ExpenseSpend { get; set; }
     public decimal TotalSpent { get; set; }
-
     public decimal Net { get; set; }
 
     public List<ReportOrderLineDto> Orders { get; set; } = [];
-    public List<ReportCategoryBreakdownDto> PurchasesByCategory { get; set; } = [];
-    public List<ReportMarketingLineDto> MarketingItems { get; set; } = [];
-    public List<ReportInventoryItemDto> RemainingInventory { get; set; } = [];
+    public List<ReportImportSummaryDto> ImportTransactions { get; set; } = [];
+    public List<ReportExpenseCategoryDto> ExpensesByCategory { get; set; } = [];
+    public List<ReportStockLineDto> StockSnapshot { get; set; } = [];
 }
 
 public class ReportOrderLineDto
@@ -40,30 +36,17 @@ public class ReportOrderLineDto
     public string CustomerName { get; set; } = string.Empty;
 }
 
-public class ReportCategoryBreakdownDto
+public class ReportImportSummaryDto
 {
-    public int CategoryId { get; set; }
-    public string CategoryName { get; set; } = string.Empty;
-    public decimal TotalCost { get; set; }
-    public decimal TotalSaleRevenue { get; set; }
-    public List<ReportPurchaseLineDto> Items { get; set; } = [];
-}
-
-public class ReportPurchaseLineDto
-{
-    public int PurchaseId { get; set; }
-    public string Name { get; set; } = string.Empty;
+    public int Id { get; set; }
     public string? Supplier { get; set; }
-    public DateTime PurchaseDate { get; set; }
-    public int Quantity { get; set; }
-    public int QuantitySold { get; set; }
-    public decimal UnitCost { get; set; }
-    public decimal? SaleUnitPrice { get; set; }
-    public decimal TotalCost { get; set; }
-    public decimal SaleRevenue { get; set; }
+    public DateTime TransactionDate { get; set; }
+    public string? InvoiceRef { get; set; }
+    public decimal TotalAmount { get; set; }
+    public int LineCount { get; set; }
 }
 
-public class ReportMarketingLineDto
+public class ReportExpenseLineDto
 {
     public int Id { get; set; }
     public string Name { get; set; } = string.Empty;
@@ -72,12 +55,19 @@ public class ReportMarketingLineDto
     public string? Description { get; set; }
 }
 
-public class ReportInventoryItemDto
+public class ReportExpenseCategoryDto
 {
-    public int PurchaseId { get; set; }
-    public string Name { get; set; } = string.Empty;
-    public string CategoryName { get; set; } = string.Empty;
-    public int QuantityRemaining { get; set; }
-    public decimal UnitCost { get; set; }
-    public decimal RemainingValue { get; set; }
+    public string Category { get; set; } = string.Empty;
+    public decimal TotalAmount { get; set; }
+    public List<ReportExpenseLineDto> Items { get; set; } = [];
+}
+
+public class ReportStockLineDto
+{
+    public int MaterialId { get; set; }
+    public string MaterialName { get; set; } = string.Empty;
+    public string MaterialUnit { get; set; } = string.Empty;
+    public decimal QtyOnHand { get; set; }
+    public decimal AvgUnitCost { get; set; }
+    public decimal TotalValue { get; set; }
 }

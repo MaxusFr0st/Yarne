@@ -35,6 +35,10 @@ export function Header() {
     try { window.localStorage.setItem(LOCALE_STORAGE_KEY, next); } catch { /* ignore */ }
     preserveScrollForLocaleSwitch();
     void i18n.changeLanguage(next);
+    if (location.pathname === "/admin" || location.pathname.startsWith("/admin/")) {
+      rawNavigate("/admin", { replace: true });
+      return;
+    }
     const rest = stripLocaleFromPath(location.pathname);
     const target = `/${next}${rest === "/" ? "" : rest}${location.search}${location.hash}`;
     rawNavigate(target || `/${next}`, { replace: true });

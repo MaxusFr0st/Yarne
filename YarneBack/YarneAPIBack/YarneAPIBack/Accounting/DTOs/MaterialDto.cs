@@ -1,0 +1,43 @@
+namespace YarneAPIBack.Accounting.DTOs;
+
+public class MaterialDto
+{
+    public int Id { get; set; }
+    public string Name { get; set; } = string.Empty;
+    public string? Description { get; set; }
+    public string Unit { get; set; } = string.Empty;
+    public string? Sku { get; set; }
+    public bool IsActive { get; set; }
+    public DateTime CreatedAt { get; set; }
+}
+
+public class MaterialStockDto
+{
+    public int MaterialId { get; set; }
+    public string Name { get; set; } = string.Empty;
+    public string Unit { get; set; } = string.Empty;
+    public string? Sku { get; set; }
+    public decimal QtyImported { get; set; }
+    public decimal QtyUsed { get; set; }
+    public decimal QtyOnHand { get; set; }
+    public decimal AvgUnitCost { get; set; }
+    public decimal TotalStockValue { get; set; }
+}
+
+public class CreateMaterialRequest
+{
+    public string Name { get; set; } = string.Empty;
+    public string? Description { get; set; }
+    public string Unit { get; set; } = "pcs";
+    public string? Sku { get; set; }
+    public bool IsActive { get; set; } = true;
+}
+
+public class UpdateMaterialRequest
+{
+    public string Name { get; set; } = string.Empty;
+    public string? Description { get; set; }
+    public string Unit { get; set; } = "pcs";
+    public string? Sku { get; set; }
+    public bool IsActive { get; set; } = true;
+}
