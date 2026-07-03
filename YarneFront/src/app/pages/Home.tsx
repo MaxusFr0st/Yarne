@@ -231,17 +231,9 @@ export function Home() {
             </LangLink>
           </ScrollReveal>
 
-          <div className="hidden md:grid md:grid-cols-2 lg:grid-cols-4 gap-5 lg:gap-7">
+          <div className="grid grid-cols-1 min-[600px]:grid-cols-2 lg:grid-cols-4 gap-y-9 gap-x-5 lg:gap-7">
             {featured.map((product, i) => (
               <ScrollReveal key={product.id} delay={i * 0.05} y={18}>
-                <ProductCard product={product} index={i} subtleEntrance />
-              </ScrollReveal>
-            ))}
-          </div>
-
-          <div className="md:hidden grid grid-cols-1 gap-y-9 w-full">
-            {featured.map((product, i) => (
-              <ScrollReveal key={product.id} delay={i * 0.04} y={12}>
                 <ProductCard product={product} index={i} subtleEntrance />
               </ScrollReveal>
             ))}
@@ -393,7 +385,7 @@ export function Home() {
             </SectionTitle>
           </ScrollReveal>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-y-10 gap-x-6 lg:gap-8">
+          <div className="grid grid-cols-1 min-[600px]:grid-cols-2 lg:grid-cols-3 gap-y-10 gap-x-6 lg:gap-8">
             {moreFromCollectionProducts.map((product, i) => (
               <ScrollReveal key={product.id} delay={(i % 3) * 0.06} y={16}>
                 <ProductCard product={product} index={i} size="collection" subtleEntrance />

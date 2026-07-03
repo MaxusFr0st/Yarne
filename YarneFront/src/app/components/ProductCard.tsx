@@ -34,10 +34,10 @@ export function ProductCard({ product, index = 0, size = "medium", inCarousel = 
 
   const isCarouselCard = inCarousel || size === "carousel";
 
-  /** Unified 3:4 portrait — carousel caps height on 600–1023 so cards don't dominate the viewport */
+  /** Carousel: fixed image height on tablet (600–1023) via --carousel-image-h from parent */
   const aspectClass = isCarouselCard
-    ? "aspect-[3/4] w-full min-h-0 min-[600px]:max-h-[clamp(250px,42vw,340px)] min-[600px]:aspect-auto min-[600px]:h-[clamp(250px,42vw,340px)] md:max-h-[360px] md:h-[min(360px,36vw)]"
-    : "aspect-[3/4] w-full min-h-0";
+    ? "w-full min-h-0 aspect-[3/4] min-[600px]:max-[1023px]:aspect-auto min-[600px]:max-[1023px]:h-[var(--carousel-image-h,200px)] min-[600px]:max-[1023px]:max-h-[var(--carousel-image-h,200px)] lg:aspect-[3/4] lg:h-auto lg:max-h-none"
+    : "aspect-[3/4] w-full min-h-0 min-[600px]:max-[1023px]:max-h-[min(42vh,320px)]";
 
   const imageRadiusClass = isCarouselCard
     ? "rounded-[22px] sm:rounded-[28px]"
@@ -207,7 +207,7 @@ export function ProductCard({ product, index = 0, size = "medium", inCarousel = 
           <div className="flex items-start justify-between gap-2">
             <div className="min-w-0">
               <p
-                className="text-[#2D241E] group-hover:text-[#4A0E0E] transition-colors duration-300"
+                className={`text-[#2D241E] group-hover:text-[#4A0E0E] transition-colors duration-300${isCarouselCard ? " min-[600px]:max-[1023px]:text-base" : ""}`}
                 style={{
                   fontFamily: "'Cormorant Garamond', serif",
                   fontSize: isCarouselCard ? "clamp(0.92rem, 3.6vw, 1.05rem)" : "1.05rem",

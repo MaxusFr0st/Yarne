@@ -115,6 +115,7 @@ export function BestSellersCarousel() {
           .bestsellers-carousel {
             --slide-spacing: 0.875rem;
             --slide-size: 84%;
+            --carousel-image-h: auto;
           }
           @media (min-width: 480px) {
             .bestsellers-carousel {
@@ -122,21 +123,24 @@ export function BestSellersCarousel() {
               --slide-size: 76%;
             }
           }
-          /* 600–767: ~2 cards + peek — avoids 72% single massive slide */
+          /* Tablet portrait: fixed card width + image height — ~2.5 cards visible at 717px */
           @media (min-width: 600px) and (max-width: 767px) {
             .bestsellers-carousel {
+              --carousel-image-h: 200px;
               --slide-spacing: 1.25rem;
-              --slide-size: 46%;
+              --slide-size: 220px;
             }
           }
           @media (min-width: 768px) and (max-width: 1023px) {
             .bestsellers-carousel {
+              --carousel-image-h: 228px;
               --slide-spacing: 1.5rem;
-              --slide-size: calc((100% - (var(--slide-spacing) * 2)) / 2.35);
+              --slide-size: 248px;
             }
           }
           @media (min-width: 1024px) {
             .bestsellers-carousel {
+              --carousel-image-h: auto;
               --slide-spacing: 1.75rem;
               --slide-size: calc((100% - (var(--slide-spacing) * 2)) / 3);
             }
@@ -148,13 +152,13 @@ export function BestSellersCarousel() {
             }
           }
         `}</style>
-        <div className="relative -mx-3 min-[600px]:-mx-4 md:-mx-6 lg:-mx-8 pt-1 sm:pt-2 md:pt-8 pb-1 min-h-[280px] min-[600px]:min-h-[320px] md:min-h-[420px]">
+        <div className="relative -mx-3 min-[600px]:-mx-4 md:-mx-6 lg:-mx-8 pt-1 sm:pt-2 md:pt-6 pb-1 min-h-[260px] min-[600px]:min-h-[300px] md:min-h-[340px] lg:min-h-[420px]">
           <motion.div
             ref={(el) => {
               (emblaRef as (el: HTMLDivElement | null) => void)(el);
               (viewportRef as React.MutableRefObject<HTMLDivElement | null>).current = el;
             }}
-            className="bestsellers-carousel relative overflow-x-hidden overflow-y-visible pt-2 pb-3 sm:pt-4 sm:pb-5 md:pt-8 md:pb-10 px-3 min-[600px]:px-5 md:px-6 lg:px-8"
+            className="bestsellers-carousel relative overflow-x-hidden overflow-y-visible pt-2 pb-3 sm:pt-3 sm:pb-4 md:pt-5 md:pb-6 lg:pt-8 lg:pb-10 px-3 min-[600px]:px-5 md:px-6 lg:px-8"
             initial={motionDisabled ? false : opacityOnly ? { opacity: 0 } : { opacity: 0, y: 20 }}
             whileInView={motionDisabled ? undefined : opacityOnly ? { opacity: 1 } : { opacity: 1, y: 0 }}
             viewport={motionDisabled ? undefined : { once: true, margin: "-60px" }}
@@ -174,7 +178,7 @@ export function BestSellersCarousel() {
                   }}
                 >
                   {showSkeleton ? (
-                    <Skeleton className="aspect-[3/4] w-full rounded-[22px] sm:rounded-[28px] bg-[#E5E0D8]" />
+                    <Skeleton className="aspect-[3/4] min-[600px]:max-[1023px]:aspect-auto min-[600px]:max-[1023px]:h-[var(--carousel-image-h,200px)] w-full rounded-[22px] sm:rounded-[28px] bg-[#E5E0D8]" />
                   ) : (
                     <ProductCard product={item as (typeof carouselProducts)[number]} index={i} size="carousel" inCarousel viewportRoot={viewportRef} />
                   )}
