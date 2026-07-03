@@ -91,10 +91,10 @@ function ProductTile({ slot, product, fallbackTitle, variant, showWishlist = fal
         ? "max-md:object-[center_30%]"
         : "max-md:object-[center_26%]"
     : isLarge
-      ? "max-md:scale-[1.16] max-md:object-[center_32%] md:group-hover:scale-[1.04]"
+      ? "max-md:scale-[1.16] max-md:object-[center_32%] md:object-[center_42%] md:group-hover:scale-[1.03] lg:group-hover:scale-[1.04]"
       : variant === "wide"
-        ? "max-md:scale-[1.12] max-md:object-[center_34%] md:group-hover:scale-[1.04]"
-        : "max-md:scale-[1.18] max-md:object-[center_30%] md:group-hover:scale-[1.04]";
+        ? "max-md:scale-[1.12] max-md:object-[center_34%] md:object-[center_40%] md:group-hover:scale-[1.03] lg:group-hover:scale-[1.04]"
+        : "max-md:scale-[1.18] max-md:object-[center_30%] md:object-[center_38%] md:group-hover:scale-[1.03] lg:group-hover:scale-[1.04]";
   const isWishlisted = product ? wishlist.includes(product.id) : false;
   const eyebrow = slot.eyebrow.trim();
   const ctaLabel = slot.ctaLabel.trim();
@@ -485,20 +485,19 @@ export function FeaturedShowcase() {
           </div>
         </div>
 
-        {/* Tablet + desktop grid */}
+        {/* Tablet + desktop grid — same bento from md up; avoids crushed wide row on tablet */}
         <div
-          className="hidden md:grid gap-4 md:gap-4 lg:gap-5
-                     md:grid-cols-2 md:grid-rows-[minmax(0,1fr)_minmax(0,1fr)_minmax(180px,0.72fr)]
-                     lg:grid-cols-[5fr_4fr_4fr] lg:grid-rows-2
-                     lg:h-[clamp(560px,calc(100svh-var(--main-header-h)-72px),760px)]
-                     md:min-h-[min(92svh,820px)]"
+          className="hidden md:grid gap-5 lg:gap-6
+                     md:grid-cols-[5fr_4fr_4fr] md:grid-rows-2
+                     md:h-[clamp(500px,min(68vh,680px),700px)]
+                     lg:h-[clamp(560px,calc(100svh-var(--main-header-h)-96px),760px)]"
         >
           <motion.div
             initial={motionDisabled ? false : { opacity: 0, y: 30 }}
             whileInView={motionDisabled ? undefined : { opacity: 1, y: 0 }}
             viewport={{ once: true, margin: "-60px" }}
             transition={{ duration: 0.7, ease: easing }}
-            className="md:row-span-2 md:min-h-0 md:h-full lg:row-span-2 lg:aspect-auto lg:h-full"
+            className="md:row-span-2 md:min-h-0 md:h-full"
           >
             <ProductTile
               slot={selection.slot1}
@@ -514,7 +513,7 @@ export function FeaturedShowcase() {
             whileInView={motionDisabled ? undefined : { opacity: 1, y: 0 }}
             viewport={{ once: true, margin: "-60px" }}
             transition={{ duration: 0.7, delay: motionDisabled ? 0 : 0.05, ease: easing }}
-            className="md:min-h-0 md:h-full lg:aspect-auto lg:h-full"
+            className="md:min-h-0 md:h-full"
           >
             <ProductTile
               slot={selection.slot2}
@@ -530,7 +529,7 @@ export function FeaturedShowcase() {
             whileInView={motionDisabled ? undefined : { opacity: 1, y: 0 }}
             viewport={{ once: true, margin: "-60px" }}
             transition={{ duration: 0.7, delay: motionDisabled ? 0 : 0.05, ease: easing }}
-            className="md:min-h-0 md:h-full lg:aspect-auto lg:h-full"
+            className="md:min-h-0 md:h-full"
           >
             <TextTile slot={selection.slot3} />
           </motion.div>
@@ -540,7 +539,7 @@ export function FeaturedShowcase() {
             whileInView={motionDisabled ? undefined : { opacity: 1, y: 0 }}
             viewport={{ once: true, margin: "-60px" }}
             transition={{ duration: 0.7, delay: motionDisabled ? 0 : 0.05, ease: easing }}
-            className="md:col-span-2 md:min-h-0 md:h-full lg:col-span-2 lg:aspect-auto lg:h-full"
+            className="md:col-span-2 md:min-h-0 md:h-full"
           >
             <ProductTile
               slot={selection.slot4}

@@ -37,6 +37,7 @@ function resolvePreferredLocaleSync(): Locale {
     typeof navigator !== "undefined" ? navigator.language : ""
   ).toLowerCase();
   if (nav.startsWith("uk")) return "uk";
+  if (nav.startsWith("en")) return "en";
   return DEFAULT_LOCALE;
 }
 

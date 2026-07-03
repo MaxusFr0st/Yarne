@@ -102,7 +102,7 @@ export function ProductCard({ product, index = 0, size = "medium", inCarousel = 
                 alt={`${product.name} in ${color.name}`}
                 className={
                   isCarouselCard
-                    ? "absolute inset-0 h-full w-full object-cover object-[center_20%]"
+                    ? "absolute inset-0 h-full w-full object-cover object-[center_28%] md:object-[center_32%]"
                     : "absolute inset-0 h-full w-full object-cover object-[center_30%]"
                 }
                 style={{

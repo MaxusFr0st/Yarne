@@ -207,7 +207,7 @@ export function Home() {
 
       <FeaturedShowcase />
 
-      <SectionRule label={t("home.bestSellers.eyebrow", { defaultValue: "Bestsellers" })} />
+      <SectionRule />
 
       <BestSellersCarousel />
 

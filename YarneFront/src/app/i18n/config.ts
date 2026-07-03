@@ -3,7 +3,7 @@
 export const SUPPORTED_LOCALES = ["uk", "en"] as const;
 export type Locale = (typeof SUPPORTED_LOCALES)[number];
 
-export const DEFAULT_LOCALE: Locale = "en";
+export const DEFAULT_LOCALE: Locale = "uk";
 export const FALLBACK_LOCALE: Locale = "en";
 
 export const LOCALE_STORAGE_KEY = "yarne.locale.v1";

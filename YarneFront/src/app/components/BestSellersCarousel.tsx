@@ -71,7 +71,7 @@ export function BestSellersCarousel() {
   }, []);
 
   return (
-    <section className="relative py-10 md:py-14 overflow-x-hidden" style={{ backgroundColor: "#EDE9E2" }}>
+    <section className="relative py-6 sm:py-8 md:py-14 overflow-x-hidden" style={{ backgroundColor: "#EDE9E2" }}>
       <div className="max-w-[1400px] mx-auto px-6 md:px-10">
         {/* Sticky section header — pins below the main header while the
             carousel scrolls past, then releases when the section ends. */}
@@ -80,7 +80,7 @@ export function BestSellersCarousel() {
           whileInView={motionDisabled ? undefined : opacityOnly ? { opacity: 1 } : { opacity: 1, y: 0 }}
           viewport={motionDisabled ? undefined : { once: true, margin: "-80px" }}
           transition={{ duration: 0.7, ease: easing }}
-          className="md:sticky z-30 mb-8 md:mb-12 -mx-6 md:-mx-10 px-6 md:px-10 py-3 md:py-4"
+          className="md:sticky z-30 mb-3 sm:mb-4 md:mb-10 -mx-6 md:-mx-10 px-6 md:px-10 py-2 md:py-4"
           style={{
             top: "var(--main-header-h)",
             backgroundColor: "rgba(237,233,226,0.85)",
@@ -119,28 +119,35 @@ export function BestSellersCarousel() {
           @media (min-width: 640px) {
             .bestsellers-carousel {
               --slide-spacing: 1.25rem;
-              --slide-size: 48%;
+              --slide-size: 72%;
             }
           }
-          @media (min-width: 768px) {
+          @media (min-width: 768px) and (max-width: 1023px) {
             .bestsellers-carousel {
-              --slide-spacing: 1.5rem;
-              --slide-size: calc((100% - (var(--slide-spacing) * 2)) / 3);
+              --slide-spacing: 1.75rem;
+              --slide-size: calc((100% - (var(--slide-spacing) * 2)) / 2.15);
             }
           }
           @media (min-width: 1024px) {
             .bestsellers-carousel {
+              --slide-spacing: 1.75rem;
+              --slide-size: calc((100% - (var(--slide-spacing) * 2)) / 3);
+            }
+          }
+          @media (min-width: 1280px) {
+            .bestsellers-carousel {
+              --slide-spacing: 2rem;
               --slide-size: calc((100% - (var(--slide-spacing) * 3)) / 4);
             }
           }
         `}</style>
-        <div className="relative -mx-4 sm:-mx-12 md:-mx-8 pt-8 md:pt-10 pb-2 min-h-[320px] sm:min-h-[360px] md:min-h-[460px]">
+        <div className="relative -mx-4 sm:-mx-12 md:-mx-8 pt-1 sm:pt-2 md:pt-8 pb-1 min-h-[300px] sm:min-h-[340px] md:min-h-[460px]">
           <motion.div
             ref={(el) => {
               (emblaRef as (el: HTMLDivElement | null) => void)(el);
               (viewportRef as React.MutableRefObject<HTMLDivElement | null>).current = el;
             }}
-            className="bestsellers-carousel relative overflow-x-hidden overflow-y-visible pt-4 pb-6 sm:pt-6 sm:pb-8 md:pt-8 md:pb-10 px-3 sm:px-12 md:px-8"
+            className="bestsellers-carousel relative overflow-x-hidden overflow-y-visible pt-2 pb-3 sm:pt-4 sm:pb-5 md:pt-8 md:pb-10 px-3 sm:px-12 md:px-8"
             initial={motionDisabled ? false : opacityOnly ? { opacity: 0 } : { opacity: 0, y: 20 }}
             whileInView={motionDisabled ? undefined : opacityOnly ? { opacity: 1 } : { opacity: 1, y: 0 }}
             viewport={motionDisabled ? undefined : { once: true, margin: "-60px" }}
@@ -172,7 +179,7 @@ export function BestSellersCarousel() {
 
         {/* Dot Indicators */}
         {scrollSnaps.length > 1 && (
-          <div className="flex items-center justify-center gap-3 mt-8 sm:mt-12 md:mt-10">
+          <div className="flex items-center justify-center gap-2.5 mt-4 sm:mt-5 md:mt-10">
             {scrollSnaps.map((_, index) => (
               <button
                 key={index}
