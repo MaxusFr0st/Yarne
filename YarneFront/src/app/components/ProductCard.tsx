@@ -34,8 +34,10 @@ export function ProductCard({ product, index = 0, size = "medium", inCarousel = 
 
   const isCarouselCard = inCarousel || size === "carousel";
 
-  /** Unified 3:4 portrait — consistent ratio on every breakpoint, no min-height fights */
-  const aspectClass = "aspect-[3/4] w-full min-h-0";
+  /** Unified 3:4 portrait — carousel caps height on 600–1023 so cards don't dominate the viewport */
+  const aspectClass = isCarouselCard
+    ? "aspect-[3/4] w-full min-h-0 min-[600px]:max-h-[clamp(250px,42vw,340px)] min-[600px]:aspect-auto min-[600px]:h-[clamp(250px,42vw,340px)] md:max-h-[360px] md:h-[min(360px,36vw)]"
+    : "aspect-[3/4] w-full min-h-0";
 
   const imageRadiusClass = isCarouselCard
     ? "rounded-[22px] sm:rounded-[28px]"

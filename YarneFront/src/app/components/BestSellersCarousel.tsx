@@ -21,7 +21,7 @@ export function BestSellersCarousel() {
     duration: 25,
     dragFree: false,
     breakpoints: {
-      "(min-width: 768px)": { align: "start" },
+      "(min-width: 600px)": { align: "start" },
     },
   });
 
@@ -113,19 +113,26 @@ export function BestSellersCarousel() {
         {/* Carousel – Embla slide-gap pattern (padding-left per slide, not margin-right) */}
         <style>{`
           .bestsellers-carousel {
-            --slide-spacing: 1rem;
-            --slide-size: 78%;
+            --slide-spacing: 0.875rem;
+            --slide-size: 84%;
           }
-          @media (min-width: 640px) {
+          @media (min-width: 480px) {
+            .bestsellers-carousel {
+              --slide-spacing: 1rem;
+              --slide-size: 76%;
+            }
+          }
+          /* 600–767: ~2 cards + peek — avoids 72% single massive slide */
+          @media (min-width: 600px) and (max-width: 767px) {
             .bestsellers-carousel {
               --slide-spacing: 1.25rem;
-              --slide-size: 72%;
+              --slide-size: 46%;
             }
           }
           @media (min-width: 768px) and (max-width: 1023px) {
             .bestsellers-carousel {
-              --slide-spacing: 1.75rem;
-              --slide-size: calc((100% - (var(--slide-spacing) * 2)) / 2.15);
+              --slide-spacing: 1.5rem;
+              --slide-size: calc((100% - (var(--slide-spacing) * 2)) / 2.35);
             }
           }
           @media (min-width: 1024px) {
@@ -141,13 +148,13 @@ export function BestSellersCarousel() {
             }
           }
         `}</style>
-        <div className="relative -mx-4 sm:-mx-12 md:-mx-8 pt-1 sm:pt-2 md:pt-8 pb-1 min-h-[300px] sm:min-h-[340px] md:min-h-[460px]">
+        <div className="relative -mx-3 min-[600px]:-mx-4 md:-mx-6 lg:-mx-8 pt-1 sm:pt-2 md:pt-8 pb-1 min-h-[280px] min-[600px]:min-h-[320px] md:min-h-[420px]">
           <motion.div
             ref={(el) => {
               (emblaRef as (el: HTMLDivElement | null) => void)(el);
               (viewportRef as React.MutableRefObject<HTMLDivElement | null>).current = el;
             }}
-            className="bestsellers-carousel relative overflow-x-hidden overflow-y-visible pt-2 pb-3 sm:pt-4 sm:pb-5 md:pt-8 md:pb-10 px-3 sm:px-12 md:px-8"
+            className="bestsellers-carousel relative overflow-x-hidden overflow-y-visible pt-2 pb-3 sm:pt-4 sm:pb-5 md:pt-8 md:pb-10 px-3 min-[600px]:px-5 md:px-6 lg:px-8"
             initial={motionDisabled ? false : opacityOnly ? { opacity: 0 } : { opacity: 0, y: 20 }}
             whileInView={motionDisabled ? undefined : opacityOnly ? { opacity: 1 } : { opacity: 1, y: 0 }}
             viewport={motionDisabled ? undefined : { once: true, margin: "-60px" }}
@@ -160,7 +167,7 @@ export function BestSellersCarousel() {
               {slides.map((item, i) => (
                 <div
                   key={showSkeleton ? item.id : `${item.id}-${i}`}
-                  className="shrink-0 min-w-0 self-start"
+                  className="shrink-0 min-w-0 self-start carousel-slide"
                   style={{
                     paddingLeft: "var(--slide-spacing)",
                     flex: "0 0 var(--slide-size)",
