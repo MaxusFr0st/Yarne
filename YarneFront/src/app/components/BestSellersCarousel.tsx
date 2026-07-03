@@ -114,33 +114,36 @@ export function BestSellersCarousel() {
         <style>{`
           .bestsellers-carousel {
             --slide-spacing: 0.875rem;
-            --slide-size: 84%;
-            --carousel-image-h: auto;
+            --slide-size: 78%;
           }
           @media (min-width: 480px) {
             .bestsellers-carousel {
               --slide-spacing: 1rem;
-              --slide-size: 76%;
+              --slide-size: 68%;
             }
           }
-          /* Tablet portrait: fixed card width + image height — ~2.5 cards visible at 717px */
+          /* Tablet portrait / Nest Hub: ~2.4 cards visible, width drives 3:4 ratio */
           @media (min-width: 600px) and (max-width: 767px) {
             .bestsellers-carousel {
-              --carousel-image-h: 200px;
               --slide-spacing: 1.25rem;
-              --slide-size: 220px;
+              --slide-size: 42%;
             }
           }
           @media (min-width: 768px) and (max-width: 1023px) {
             .bestsellers-carousel {
-              --carousel-image-h: 228px;
               --slide-spacing: 1.5rem;
-              --slide-size: 248px;
+              --slide-size: 32%;
             }
           }
-          @media (min-width: 1024px) {
+          /* Short landscape (Nest Hub 1024×600): slightly narrower slides */
+          @media (min-width: 1024px) and (max-height: 750px) {
             .bestsellers-carousel {
-              --carousel-image-h: auto;
+              --slide-spacing: 1.25rem;
+              --slide-size: 28%;
+            }
+          }
+          @media (min-width: 1024px) and (min-height: 751px) {
+            .bestsellers-carousel {
               --slide-spacing: 1.75rem;
               --slide-size: calc((100% - (var(--slide-spacing) * 2)) / 3);
             }
@@ -152,7 +155,7 @@ export function BestSellersCarousel() {
             }
           }
         `}</style>
-        <div className="relative -mx-3 min-[600px]:-mx-4 md:-mx-6 lg:-mx-8 pt-1 sm:pt-2 md:pt-6 pb-1 min-h-[260px] min-[600px]:min-h-[300px] md:min-h-[340px] lg:min-h-[420px]">
+        <div className="relative -mx-3 min-[600px]:-mx-4 md:-mx-6 lg:-mx-8 pt-1 sm:pt-2 md:pt-6 pb-1 min-h-[min(72vw,320px)] min-[600px]:min-h-[min(48vw,360px)] lg:min-h-[420px]">
           <motion.div
             ref={(el) => {
               (emblaRef as (el: HTMLDivElement | null) => void)(el);
@@ -178,7 +181,7 @@ export function BestSellersCarousel() {
                   }}
                 >
                   {showSkeleton ? (
-                    <Skeleton className="aspect-[3/4] min-[600px]:max-[1023px]:aspect-auto min-[600px]:max-[1023px]:h-[var(--carousel-image-h,200px)] w-full rounded-[22px] sm:rounded-[28px] bg-[#E5E0D8]" />
+                    <Skeleton className="aspect-[3/4] w-full rounded-[22px] sm:rounded-[28px] bg-[#E5E0D8]" />
                   ) : (
                     <ProductCard product={item as (typeof carouselProducts)[number]} index={i} size="carousel" inCarousel viewportRoot={viewportRef} />
                   )}

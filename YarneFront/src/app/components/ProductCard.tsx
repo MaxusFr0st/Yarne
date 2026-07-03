@@ -34,10 +34,12 @@ export function ProductCard({ product, index = 0, size = "medium", inCarousel = 
 
   const isCarouselCard = inCarousel || size === "carousel";
 
-  /** Carousel: fixed image height on tablet (600–1023) via --carousel-image-h from parent */
+  /** Carousel + grid: lock 3:4 portrait ratio at every breakpoint (no fixed-height squish on tablet). */
   const aspectClass = isCarouselCard
-    ? "w-full min-h-0 aspect-[3/4] min-[600px]:max-[1023px]:aspect-auto min-[600px]:max-[1023px]:h-[var(--carousel-image-h,200px)] min-[600px]:max-[1023px]:max-h-[var(--carousel-image-h,200px)] lg:aspect-[3/4] lg:h-auto lg:max-h-none"
-    : "aspect-[3/4] w-full min-h-0 min-[600px]:max-[1023px]:max-h-[min(42vh,320px)]";
+    ? "w-full min-h-0 aspect-[3/4]"
+    : size === "collection"
+      ? "w-full min-h-0 aspect-[3/4] md:aspect-[4/5]"
+      : "aspect-[3/4] w-full min-h-0";
 
   const imageRadiusClass = isCarouselCard
     ? "rounded-[22px] sm:rounded-[28px]"

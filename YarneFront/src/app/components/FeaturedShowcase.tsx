@@ -20,6 +20,7 @@ import {
   type ShowcaseTextSlot,
 } from "../utils/featuredShowcaseSelection";
 import { useTouchMobileLayout } from "../hooks/useTouchMobileLayout";
+import { useCompactTabletLayout, useShortViewport } from "../hooks/useCompactTabletLayout";
 import { useMotionEntrance } from "../hooks/useMotionEntrance";
 
 const easing = [0.25, 0.1, 0.25, 1] as const;
@@ -128,10 +129,10 @@ function ProductTile({ slot, product, fallbackTitle, variant, showWishlist = fal
       />
 
       <div
-        className={`relative z-10 h-full flex flex-col ${
+        className={`relative z-10 h-full flex flex-col overflow-hidden ${
           isLarge
-            ? "justify-end p-[clamp(10px,2.6vw,18px)] md:p-7"
-            : "justify-end p-[clamp(8px,2.2vw,14px)] md:p-6"
+            ? "justify-end p-[clamp(10px,2.6vw,18px)] lg:p-7"
+            : "justify-end p-[clamp(8px,2.2vw,14px)] lg:p-6"
         }`}
       >
         {!isLarge && eyebrow.length > 0 && (
@@ -190,7 +191,7 @@ function ProductTile({ slot, product, fallbackTitle, variant, showWishlist = fal
 
         {isLarge && ctaLabel.length > 0 && (
           <span
-            className="md:hidden mt-[clamp(6px,1.6vw,10px)] self-start inline-flex items-center justify-center rounded-full uppercase tracking-widest text-[#2D241E]"
+            className="lg:hidden mt-[clamp(6px,1.6vw,10px)] self-start inline-flex items-center justify-center rounded-full uppercase tracking-widest text-[#2D241E]"
             style={{
               fontFamily: "'DM Sans', sans-serif",
               fontSize: "clamp(0.54rem, 2.2vw, 0.68rem)",
@@ -204,7 +205,7 @@ function ProductTile({ slot, product, fallbackTitle, variant, showWishlist = fal
         )}
 
         {isLarge && ctaLabel.length > 0 && (
-          <span className="hidden md:inline-flex mt-4 items-center gap-2 text-white" style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "0.78rem", letterSpacing: "0.12em" }}>
+          <span className="hidden lg:inline-flex mt-4 items-center gap-2 text-white" style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "0.78rem", letterSpacing: "0.12em" }}>
             <span className="uppercase tracking-widest">{ctaLabel}</span>
             <ArrowRight size={14} className="transition-transform duration-300 group-hover:translate-x-1" />
           </span>
@@ -305,6 +306,9 @@ export function FeaturedShowcase() {
   const { t } = useTranslation();
   const { products } = useProducts();
   const touchLayout = useTouchMobileLayout();
+  const compactTablet = useCompactTabletLayout();
+  const shortViewport = useShortViewport();
+  const useBentoLayout = touchLayout || compactTablet;
   const { disabled: motionDisabled } = useMotionEntrance();
   const [selection, setSelection] = useState<FeaturedShowcaseSelection>(
     getFeaturedShowcaseSelection
@@ -393,24 +397,37 @@ export function FeaturedShowcase() {
     </>
   );
 
-  const mobileSectionHeight = touchLayout
+  const lockBentoViewport = touchLayout || (compactTablet && shortViewport);
+  const bentoSectionHeight = lockBentoViewport
     ? "calc(var(--app-vh, 1svh) * 100 - var(--main-header-h))"
     : undefined;
+  const bentoSectionMinHeight =
+    useBentoLayout && !lockBentoViewport
+      ? "calc(100svh - var(--main-header-h) - 2.5rem)"
+      : undefined;
 
   return (
     <section
-      className="relative py-[clamp(10px,2.5vw,40px)] md:py-12 max-md:overflow-hidden max-md:box-border max-md:py-[clamp(6px,1.6vw,10px)]"
-      style={{ backgroundColor: "#F5F2ED", height: mobileSectionHeight }}
+      className={`relative bg-[#F5F2ED] ${
+        useBentoLayout
+          ? "overflow-hidden box-border py-[clamp(6px,1.6vw,12px)]"
+          : "py-[clamp(10px,2.5vw,40px)] lg:py-12"
+      }`}
+      style={{ height: bentoSectionHeight, minHeight: bentoSectionMinHeight }}
     >
-      <div className="max-w-[1400px] mx-auto px-[clamp(12px,3.5vw,40px)] max-md:h-full max-md:flex max-md:flex-col max-md:min-h-0">
-        {/* Mobile: compact inline header */}
+      <div
+        className={`max-w-[1400px] mx-auto px-[clamp(12px,3.5vw,40px)] ${
+          useBentoLayout ? "h-full flex flex-col min-h-0" : ""
+        }`}
+      >
+        {/* Compact (phone + tablet + short landscape): inline header */}
         {touchLayout ? (
           <motion.div
             initial={motionDisabled ? false : { opacity: 0 }}
             whileInView={motionDisabled ? undefined : { opacity: 1 }}
             viewport={{ once: true, amount: 0.2 }}
             transition={{ duration: 0.45, ease: easing }}
-            className="md:hidden shrink-0 mb-[clamp(4px,1vw,8px)]"
+            className={`${useBentoLayout ? "shrink-0" : "hidden"} mb-[clamp(4px,1vw,8px)]`}
           >
             {sectionHeader}
           </motion.div>
@@ -420,7 +437,7 @@ export function FeaturedShowcase() {
             whileInView={motionDisabled ? undefined : { opacity: 1, y: 0 }}
             viewport={{ once: true, margin: "-40px" }}
             transition={{ duration: 0.5, ease: easing }}
-            className="md:hidden shrink-0 mb-[clamp(4px,1vw,8px)]"
+            className={`${useBentoLayout ? "shrink-0" : "hidden"} mb-[clamp(4px,1vw,8px)]`}
           >
             {sectionHeader}
           </motion.div>
@@ -432,7 +449,7 @@ export function FeaturedShowcase() {
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, margin: "-80px" }}
           transition={{ duration: 0.6, ease: easing }}
-          className="hidden md:block sticky z-30 mb-5 md:mb-6 -mx-6 md:-mx-10 px-6 md:px-10 py-3 md:py-4"
+          className={`${useBentoLayout ? "hidden" : "block"} sticky z-30 mb-5 lg:mb-6 -mx-6 lg:-mx-10 px-6 lg:px-10 py-3 lg:py-4`}
           style={{
             top: "var(--main-header-h)",
             backgroundColor: "rgba(245,242,237,0.85)",
@@ -442,10 +459,14 @@ export function FeaturedShowcase() {
           {sectionHeader}
         </motion.div>
 
-        {/* Mobile: hero + bento — one locked viewport (--app-vh set at load, no scroll resize) */}
+        {/* Bento — phones, tablets, Nest Hub, foldables (locked viewport when height-constrained) */}
         <div
-          className="md:hidden flex-1 min-h-0 grid gap-[clamp(5px,1.4vw,8px)]"
-          style={{ gridTemplateRows: "minmax(0, 1.05fr) minmax(0, 1fr)" }}
+          className={`${useBentoLayout ? "grid" : "hidden"} flex-1 min-h-0 gap-[clamp(5px,1.4vw,10px)]`}
+          style={{
+            gridTemplateRows: compactTablet && !touchLayout
+              ? "minmax(0, 1.1fr) minmax(0, 0.95fr)"
+              : "minmax(0, 1.05fr) minmax(0, 1fr)",
+          }}
         >
           <div className="min-h-0 h-full">
             <ProductTile
@@ -485,19 +506,19 @@ export function FeaturedShowcase() {
           </div>
         </div>
 
-        {/* Tablet + desktop grid — same bento from md up; avoids crushed wide row on tablet */}
+        {/* Wide desktop grid — only when viewport is large enough in both dimensions */}
         <div
-          className="hidden md:grid gap-5 lg:gap-6
-                     md:grid-cols-[5fr_4fr_4fr] md:grid-rows-2
-                     md:h-[clamp(500px,min(68vh,680px),700px)]
-                     lg:h-[clamp(560px,calc(100svh-var(--main-header-h)-96px),760px)]"
+          className={`${useBentoLayout ? "hidden" : "grid"} gap-5 xl:gap-6
+                     grid-cols-[5fr_4fr_4fr] grid-rows-2
+                     h-[clamp(520px,min(72vh,700px),760px)]
+                     xl:h-[clamp(560px,calc(100svh-var(--main-header-h)-96px),800px)]`}
         >
           <motion.div
             initial={motionDisabled ? false : { opacity: 0, y: 30 }}
             whileInView={motionDisabled ? undefined : { opacity: 1, y: 0 }}
             viewport={{ once: true, margin: "-60px" }}
             transition={{ duration: 0.7, ease: easing }}
-            className="md:row-span-2 md:min-h-0 md:h-full"
+            className="row-span-2 min-h-0 h-full"
           >
             <ProductTile
               slot={selection.slot1}
@@ -513,7 +534,7 @@ export function FeaturedShowcase() {
             whileInView={motionDisabled ? undefined : { opacity: 1, y: 0 }}
             viewport={{ once: true, margin: "-60px" }}
             transition={{ duration: 0.7, delay: motionDisabled ? 0 : 0.05, ease: easing }}
-            className="md:min-h-0 md:h-full"
+            className="min-h-0 h-full"
           >
             <ProductTile
               slot={selection.slot2}
@@ -529,7 +550,7 @@ export function FeaturedShowcase() {
             whileInView={motionDisabled ? undefined : { opacity: 1, y: 0 }}
             viewport={{ once: true, margin: "-60px" }}
             transition={{ duration: 0.7, delay: motionDisabled ? 0 : 0.05, ease: easing }}
-            className="md:min-h-0 md:h-full"
+            className="min-h-0 h-full"
           >
             <TextTile slot={selection.slot3} />
           </motion.div>
@@ -539,7 +560,7 @@ export function FeaturedShowcase() {
             whileInView={motionDisabled ? undefined : { opacity: 1, y: 0 }}
             viewport={{ once: true, margin: "-60px" }}
             transition={{ duration: 0.7, delay: motionDisabled ? 0 : 0.05, ease: easing }}
-            className="md:col-span-2 md:min-h-0 md:h-full"
+            className="col-span-2 min-h-0 h-full"
           >
             <ProductTile
               slot={selection.slot4}
