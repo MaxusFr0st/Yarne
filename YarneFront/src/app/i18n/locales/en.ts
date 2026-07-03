@@ -88,6 +88,7 @@ const en = {
     defaultEyebrow: "Featured Showcase",
     defaultTitle: "Editorial Picks",
     openProduct: "Open {{title}}",
+    railScrollHint: "Swipe",
   },
   product: {
     badgeNew: "NEW",

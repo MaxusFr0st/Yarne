@@ -10,6 +10,13 @@ export const COMPACT_TABLET_MEDIA =
 /** Viewports too short for a free-flowing bento (Nest Hub, landscape phones). */
 export const SHORT_VIEWPORT_MEDIA = "(max-height: 800px)";
 
+/**
+ * Tablet landscape + short wide viewports — use horizontal lookbook rail
+ * instead of portrait bento (Nest Hub, iPad landscape, Zenbook Fold).
+ */
+export const LANDSCAPE_TABLET_MEDIA =
+  "(min-width: 768px) and (max-width: 1279px) and (orientation: landscape), (min-width: 768px) and (max-height: 800px) and (min-aspect-ratio: 5/4)";
+
 export function useCompactTabletLayout(): boolean {
   const [compact, setCompact] = useState(
     () =>
@@ -42,4 +49,21 @@ export function useShortViewport(): boolean {
   }, []);
 
   return short;
+}
+
+export function useLandscapeTablet(): boolean {
+  const [landscape, setLandscape] = useState(
+    () =>
+      typeof window !== "undefined" &&
+      window.matchMedia(LANDSCAPE_TABLET_MEDIA).matches
+  );
+
+  useEffect(() => {
+    const mql = window.matchMedia(LANDSCAPE_TABLET_MEDIA);
+    const onChange = () => setLandscape(mql.matches);
+    mql.addEventListener("change", onChange);
+    return () => mql.removeEventListener("change", onChange);
+  }, []);
+
+  return landscape;
 }

@@ -90,6 +90,7 @@ const uk: Translations = {
     defaultEyebrow: "Особлива добірка",
     defaultTitle: "Редакторський вибір",
     openProduct: "Відкрити {{title}}",
+    railScrollHint: "Гортайте",
   },
   product: {
     badgeNew: "НОВЕ",
