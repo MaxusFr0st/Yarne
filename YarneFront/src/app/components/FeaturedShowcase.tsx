@@ -320,10 +320,10 @@ function MagazineSpread({
 }: MagazineSpreadProps) {
   return (
     <div
-      className="grid h-[clamp(340px,min(58vh,520px),560px)] gap-3 md:gap-4"
+      className="grid h-[clamp(380px,min(64vh,560px),600px)] gap-3 md:gap-4"
       style={{
         gridTemplateColumns: "2.15fr 1fr 1fr",
-        gridTemplateRows: "1fr 1fr",
+        gridTemplateRows: "minmax(0, 1fr) minmax(0, 1.05fr)",
       }}
     >
       <motion.div
@@ -373,17 +373,15 @@ function MagazineSpread({
         whileInView={motionDisabled ? undefined : { opacity: 1, y: 0 }}
         viewport={{ once: true, margin: "-50px" }}
         transition={{ duration: 0.65, delay: motionDisabled ? 0 : 0.1, ease: easing }}
-        className="col-span-2 min-h-0 h-full flex justify-center items-stretch"
+        className="col-span-2 min-h-0 h-full"
       >
-        <div className="h-full aspect-[3/4] max-w-full min-w-0">
-          <ProductTile
-            slot={selection.slot4}
-            product={slot4Product}
-            fallbackTitle="Dva Shopper"
-            variant="medium"
-            priority
-          />
-        </div>
+        <ProductTile
+          slot={selection.slot4}
+          product={slot4Product}
+          fallbackTitle="Dva Shopper"
+          variant="wide"
+          priority
+        />
       </motion.div>
     </div>
   );
