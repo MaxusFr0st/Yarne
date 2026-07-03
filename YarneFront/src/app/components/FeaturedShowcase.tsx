@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState, type MouseEvent } from "react";
+import React, { useEffect, useMemo, useState, type MouseEvent } from "react";
 import { motion } from "motion/react";
 import { ArrowRight, ArrowUpRight, Heart } from "lucide-react";
 import { useTranslation } from "react-i18next";
@@ -302,190 +302,7 @@ function TextTile({ slot }: TextTileProps) {
   );
 }
 
-type RailProductTileProps = {
-  slot: ShowcaseProductSlot;
-  product: Product | null;
-  fallbackTitle: string;
-  priority?: boolean;
-  index?: number;
-  motionDisabled?: boolean;
-};
-
-/** Landscape rail — split card: portrait image + caption below (no overlay crop). */
-function RailProductTile({
-  slot,
-  product,
-  fallbackTitle,
-  priority = false,
-  index = 0,
-  motionDisabled = false,
-}: RailProductTileProps) {
-  const { t } = useTranslation();
-  const locale = useLocale();
-  const title = product?.name ?? fallbackTitle;
-  const price = product?.price;
-  const imageSrc = useMemo(
-    () =>
-      resolveMediaUrl(slot.imageUrl) ||
-      resolveMediaUrl(product?.colors?.[0]?.image) ||
-      PLACEHOLDER_IMG,
-    [slot.imageUrl, product?.colors],
-  );
-  const href = product ? `/product/${product.id}` : "/collection";
-  const ctaLabel = slot.ctaLabel.trim();
-  const eyebrow = slot.eyebrow.trim();
-
-  return (
-    <motion.div
-      initial={motionDisabled ? false : { opacity: 0, y: 16 }}
-      whileInView={motionDisabled ? undefined : { opacity: 1, y: 0 }}
-      viewport={{ once: true, margin: "-40px" }}
-      transition={{ duration: 0.5, delay: index * 0.06, ease: easing }}
-      className="editorial-rail-slide shrink-0 snap-start min-w-0"
-    >
-      <LangLink
-        to={href}
-        className="group block cursor-pointer transition-transform duration-200 motion-reduce:transition-none hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#4A0E0E]"
-        aria-label={t("showcase.openProduct", { title })}
-      >
-        <div className="aspect-[3/4] overflow-hidden rounded-[28px] bg-[#EDE9E2]">
-          <Img
-            src={imageSrc}
-            alt={title}
-            priority={priority}
-            className="h-full w-full object-cover object-[center_35%] transition-transform duration-300 group-hover:scale-[1.02] motion-reduce:group-hover:scale-100"
-          />
-        </div>
-        <div className="pt-3 px-0.5">
-          {eyebrow.length > 0 && (
-            <p
-              className="text-[#2D241E]/45 uppercase mb-1"
-              style={{
-                fontFamily: "'DM Sans', sans-serif",
-                letterSpacing: "0.18em",
-                fontSize: "0.58rem",
-              }}
-            >
-              {eyebrow}
-            </p>
-          )}
-          <h3
-            className="text-[#2D241E] group-hover:text-[#4A0E0E] transition-colors duration-200"
-            style={{
-              fontFamily: "'Cormorant Garamond', serif",
-              fontSize: "clamp(1.05rem, 2.8vw, 1.35rem)",
-              fontWeight: 500,
-              lineHeight: 1.2,
-            }}
-          >
-            {title}
-          </h3>
-          {typeof price === "number" && (
-            <p
-              className="text-[#2D241E]/55 mt-0.5"
-              style={{
-                fontFamily: "'Cormorant Garamond', serif",
-                fontSize: "0.95rem",
-                fontWeight: 400,
-              }}
-            >
-              {formatPrice(price, locale)}
-            </p>
-          )}
-          {ctaLabel.length > 0 && (
-            <span
-              className="inline-flex items-center gap-1.5 mt-2 text-[#2D241E]/60 group-hover:text-[#4A0E0E] transition-colors duration-200"
-              style={{
-                fontFamily: "'DM Sans', sans-serif",
-                fontSize: "0.68rem",
-                letterSpacing: "0.12em",
-              }}
-            >
-              <span className="uppercase tracking-widest">{ctaLabel}</span>
-              <ArrowRight size={12} className="transition-transform duration-200 group-hover:translate-x-0.5" />
-            </span>
-          )}
-        </div>
-      </LangLink>
-    </motion.div>
-  );
-}
-
-type RailTextTileProps = {
-  slot: ShowcaseTextSlot;
-  index?: number;
-  motionDisabled?: boolean;
-};
-
-function RailTextTile({ slot, index = 0, motionDisabled = false }: RailTextTileProps) {
-  const eyebrow = slot.eyebrow.trim();
-  const heading = slot.heading.trim();
-  const ctaLabel = slot.ctaLabel.trim();
-  const ctaHref = slot.ctaHref.trim() || "/about";
-
-  return (
-    <motion.div
-      initial={motionDisabled ? false : { opacity: 0, y: 16 }}
-      whileInView={motionDisabled ? undefined : { opacity: 1, y: 0 }}
-      viewport={{ once: true, margin: "-40px" }}
-      transition={{ duration: 0.5, delay: index * 0.06, ease: easing }}
-      className="editorial-rail-slide shrink-0 snap-start min-w-0"
-    >
-      <LangLink
-        to={ctaHref}
-        className="group flex aspect-[3/4] flex-col justify-between overflow-hidden rounded-[28px] p-6 cursor-pointer transition-transform duration-200 motion-reduce:transition-none hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#F5F2ED]"
-        style={{ backgroundColor: "#2D241E" }}
-      >
-        <div className="min-h-0">
-          {eyebrow.length > 0 && (
-            <p
-              className="text-white/55 uppercase"
-              style={{
-                fontFamily: "'DM Sans', sans-serif",
-                letterSpacing: "0.18em",
-                fontSize: "0.58rem",
-              }}
-            >
-              {eyebrow}
-            </p>
-          )}
-          {heading.length > 0 && (
-            <h3
-              className="text-white mt-2 line-clamp-4"
-              style={{
-                fontFamily: "'Cormorant Garamond', serif",
-                fontStyle: "italic",
-                fontWeight: 500,
-                fontSize: "clamp(1rem, 2.6vw, 1.45rem)",
-                lineHeight: 1.2,
-              }}
-            >
-              {heading}
-            </h3>
-          )}
-        </div>
-        {ctaLabel.length > 0 && (
-          <span
-            className="inline-flex items-center gap-1 text-white/85 group-hover:text-white transition-colors duration-200 mt-4"
-            style={{
-              fontFamily: "'DM Sans', sans-serif",
-              fontSize: "0.72rem",
-              letterSpacing: "0.04em",
-            }}
-          >
-            <span className="line-clamp-1">{ctaLabel}</span>
-            <ArrowUpRight
-              size={13}
-              className="shrink-0 transition-transform duration-200 group-hover:translate-x-0.5 group-hover:-translate-y-0.5"
-            />
-          </span>
-        )}
-      </LangLink>
-    </motion.div>
-  );
-}
-
-type EditorialRailProps = {
+type MagazineSpreadProps = {
   selection: FeaturedShowcaseSelection;
   slot1Product: Product | null;
   slot2Product: Product | null;
@@ -493,103 +310,82 @@ type EditorialRailProps = {
   motionDisabled: boolean;
 };
 
-function EditorialRail({
+/** Tablet landscape — magazine spread: hero left, 2×2 editorial grid right. */
+function MagazineSpread({
   selection,
   slot1Product,
   slot2Product,
   slot4Product,
   motionDisabled,
-}: EditorialRailProps) {
-  const { t } = useTranslation();
-  const railRef = useRef<HTMLDivElement>(null);
-  const [hintVisible, setHintVisible] = useState(true);
-
-  useEffect(() => {
-    const el = railRef.current;
-    if (!el) return;
-    const onScroll = () => {
-      if (el.scrollLeft > 24) setHintVisible(false);
-    };
-    el.addEventListener("scroll", onScroll, { passive: true });
-    return () => el.removeEventListener("scroll", onScroll);
-  }, []);
-
-  const slides = [
-    { key: "story", type: "text" as const },
-    { key: "slot1", type: "product" as const, slot: selection.slot1, product: slot1Product, fallback: "Grand Bag" },
-    { key: "slot2", type: "product" as const, slot: selection.slot2, product: slot2Product, fallback: "Femmora Mini" },
-    { key: "slot4", type: "product" as const, slot: selection.slot4, product: slot4Product, fallback: "Dva Shopper" },
-  ];
-
+}: MagazineSpreadProps) {
   return (
-    <>
-      <style>{`
-        .editorial-rail {
-          --rail-gap: 1.25rem;
-          --rail-slide: 72%;
-          scrollbar-width: none;
-        }
-        .editorial-rail::-webkit-scrollbar {
-          display: none;
-        }
-        @media (min-width: 600px) {
-          .editorial-rail {
-            --rail-slide: 42%;
-          }
-        }
-        @media (min-width: 900px) {
-          .editorial-rail {
-            --rail-gap: 1.5rem;
-            --rail-slide: 36%;
-          }
-        }
-        @media (min-width: 1024px) {
-          .editorial-rail {
-            --rail-slide: 32%;
-          }
-        }
-        .editorial-rail-slide {
-          flex: 0 0 var(--rail-slide);
-        }
-      `}</style>
-      <div
-        ref={railRef}
-        className="editorial-rail -mx-[clamp(12px,3.5vw,40px)] overflow-x-auto snap-x snap-mandatory scroll-smooth px-[clamp(12px,3.5vw,40px)] pb-2 [touch-action:pan-x_pan-y]"
-        aria-label={t("showcase.defaultTitle", { defaultValue: DEFAULT_SHOWCASE_TITLE })}
+    <div
+      className="grid h-[clamp(340px,min(58vh,520px),560px)] gap-3 md:gap-4"
+      style={{
+        gridTemplateColumns: "2.15fr 1fr 1fr",
+        gridTemplateRows: "1fr 1fr",
+      }}
+    >
+      <motion.div
+        initial={motionDisabled ? false : { opacity: 0, y: 24 }}
+        whileInView={motionDisabled ? undefined : { opacity: 1, y: 0 }}
+        viewport={{ once: true, margin: "-50px" }}
+        transition={{ duration: 0.65, ease: easing }}
+        className="row-span-2 min-h-0 h-full border-r border-[#2D241E]/10 pr-3 md:pr-4"
       >
-        <div className="flex items-start gap-[var(--rail-gap)]">
-          {slides.map((item, i) =>
-            item.type === "text" ? (
-              <RailTextTile key={item.key} slot={selection.slot3} index={i} motionDisabled={motionDisabled} />
-            ) : (
-              <RailProductTile
-                key={item.key}
-                slot={item.slot}
-                product={item.product}
-                fallbackTitle={item.fallback}
-                priority={i <= 2}
-                index={i}
-                motionDisabled={motionDisabled}
-              />
-            )
-          )}
+        <ProductTile
+          slot={selection.slot1}
+          product={slot1Product}
+          fallbackTitle="Grand Bag"
+          variant="large"
+          priority
+        />
+      </motion.div>
+
+      <motion.div
+        initial={motionDisabled ? false : { opacity: 0, y: 24 }}
+        whileInView={motionDisabled ? undefined : { opacity: 1, y: 0 }}
+        viewport={{ once: true, margin: "-50px" }}
+        transition={{ duration: 0.65, delay: motionDisabled ? 0 : 0.06, ease: easing }}
+        className="min-h-0 h-full"
+      >
+        <ProductTile
+          slot={selection.slot2}
+          product={slot2Product}
+          fallbackTitle="Femmora Mini"
+          variant="medium"
+          priority
+        />
+      </motion.div>
+
+      <motion.div
+        initial={motionDisabled ? false : { opacity: 0, y: 24 }}
+        whileInView={motionDisabled ? undefined : { opacity: 1, y: 0 }}
+        viewport={{ once: true, margin: "-50px" }}
+        transition={{ duration: 0.65, delay: motionDisabled ? 0 : 0.06, ease: easing }}
+        className="min-h-0 h-full"
+      >
+        <TextTile slot={selection.slot3} />
+      </motion.div>
+
+      <motion.div
+        initial={motionDisabled ? false : { opacity: 0, y: 24 }}
+        whileInView={motionDisabled ? undefined : { opacity: 1, y: 0 }}
+        viewport={{ once: true, margin: "-50px" }}
+        transition={{ duration: 0.65, delay: motionDisabled ? 0 : 0.1, ease: easing }}
+        className="col-span-2 min-h-0 h-full flex justify-center items-stretch"
+      >
+        <div className="h-full aspect-[3/4] max-w-full min-w-0">
+          <ProductTile
+            slot={selection.slot4}
+            product={slot4Product}
+            fallbackTitle="Dva Shopper"
+            variant="medium"
+            priority
+          />
         </div>
-      </div>
-      {hintVisible && (
-        <p
-          className="flex items-center justify-end gap-1.5 mt-3 text-[#2D241E]/40 uppercase pointer-events-none"
-          style={{
-            fontFamily: "'DM Sans', sans-serif",
-            fontSize: "0.6rem",
-            letterSpacing: "0.2em",
-          }}
-          aria-hidden
-        >
-          <span>{t("showcase.railScrollHint")}</span>
-          <ArrowRight size={12} />
-        </p>
-      )}
-    </>
+      </motion.div>
+    </div>
   );
 }
 
@@ -600,7 +396,7 @@ export function FeaturedShowcase() {
   const compactTablet = useCompactTabletLayout();
   const landscapeTablet = useLandscapeTablet();
   const shortViewport = useShortViewport();
-  const useRailLayout = landscapeTablet;
+  const useSpreadLayout = landscapeTablet;
   const useBentoLayout = !landscapeTablet && (touchLayout || compactTablet);
   const useDesktopLayout = !landscapeTablet && !useBentoLayout;
   const { disabled: motionDisabled } = useMotionEntrance();
@@ -703,7 +499,7 @@ export function FeaturedShowcase() {
   return (
     <section
       className={`relative bg-[#F5F2ED] ${
-        useRailLayout
+        useSpreadLayout
           ? "overflow-x-hidden py-8 md:py-10"
           : useBentoLayout
             ? "overflow-hidden box-border py-[clamp(6px,1.6vw,12px)]"
@@ -716,14 +512,14 @@ export function FeaturedShowcase() {
           useBentoLayout ? "h-full flex flex-col min-h-0" : ""
         }`}
       >
-        {/* Compact header — bento + rail */}
+        {/* Compact header — bento + magazine spread */}
         {touchLayout ? (
           <motion.div
             initial={motionDisabled ? false : { opacity: 0 }}
             whileInView={motionDisabled ? undefined : { opacity: 1 }}
             viewport={{ once: true, amount: 0.2 }}
             transition={{ duration: 0.45, ease: easing }}
-            className={`${useBentoLayout || useRailLayout ? "shrink-0" : "hidden"} mb-[clamp(4px,1vw,8px)] ${useRailLayout ? "md:mb-5" : ""}`}
+            className={`${useBentoLayout || useSpreadLayout ? "shrink-0" : "hidden"} mb-[clamp(4px,1vw,8px)] ${useSpreadLayout ? "md:mb-5" : ""}`}
           >
             {sectionHeader}
           </motion.div>
@@ -733,7 +529,7 @@ export function FeaturedShowcase() {
             whileInView={motionDisabled ? undefined : { opacity: 1, y: 0 }}
             viewport={{ once: true, margin: "-40px" }}
             transition={{ duration: 0.5, ease: easing }}
-            className={`${useBentoLayout || useRailLayout ? "shrink-0" : "hidden"} mb-[clamp(4px,1vw,8px)] ${useRailLayout ? "md:mb-5" : ""}`}
+            className={`${useBentoLayout || useSpreadLayout ? "shrink-0" : "hidden"} mb-[clamp(4px,1vw,8px)] ${useSpreadLayout ? "md:mb-5" : ""}`}
           >
             {sectionHeader}
           </motion.div>
@@ -755,9 +551,9 @@ export function FeaturedShowcase() {
           {sectionHeader}
         </motion.div>
 
-        {/* Mode B — lookbook rail for tablet landscape */}
-        {useRailLayout && (
-          <EditorialRail
+        {/* Magazine spread — tablet landscape */}
+        {useSpreadLayout && (
+          <MagazineSpread
             selection={selection}
             slot1Product={slot1Product}
             slot2Product={slot2Product}

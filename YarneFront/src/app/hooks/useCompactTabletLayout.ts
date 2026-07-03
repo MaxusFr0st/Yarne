@@ -11,7 +11,7 @@ export const COMPACT_TABLET_MEDIA =
 export const SHORT_VIEWPORT_MEDIA = "(max-height: 800px)";
 
 /**
- * Tablet landscape + short wide viewports — use horizontal lookbook rail
+ * Tablet landscape + short wide viewports — use magazine spread
  * instead of portrait bento (Nest Hub, iPad landscape, Zenbook Fold).
  */
 export const LANDSCAPE_TABLET_MEDIA =
