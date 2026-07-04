@@ -541,9 +541,7 @@ export function FeaturedShowcase() {
         <div
           className={`${useBentoLayout ? "grid" : "hidden"} flex-1 min-h-0 gap-[clamp(5px,1.4vw,10px)]`}
           style={{
-            gridTemplateRows: compactTablet && !touchLayout
-              ? "minmax(0, 1.1fr) minmax(0, 0.95fr)"
-              : "minmax(0, 1.05fr) minmax(0, 1fr)",
+            gridTemplateRows: "minmax(0, 1.05fr) minmax(0, 1fr)",
           }}
         >
           <div className="min-h-0 h-full">
