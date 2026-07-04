@@ -130,10 +130,20 @@ public class ProductsController : ControllerBase
     [Authorize(Roles = "Admin")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
     public async Task<ActionResult> DeleteProduct(int id, CancellationToken ct = default)
     {
         var existing = await _productService.GetProductByIdAsync(id, ct);
-        var deleted = await _productService.DeleteProductAsync(id, ct);
+        bool deleted;
+        try
+        {
+            deleted = await _productService.DeleteProductAsync(id, ct);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Conflict(new { message = ex.Message });
+        }
+
         if (!deleted) return NotFound();
 
         var (actorUserId, actorEmail) = AdminActivityLogHelper.GetActor(HttpContext);

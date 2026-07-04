@@ -7,8 +7,6 @@ export const DEFAULT_LOCALE: Locale = "uk";
 export const FALLBACK_LOCALE: Locale = "en";
 
 export const LOCALE_STORAGE_KEY = "yarne.locale.v1";
-// Cached geo-IP country result, so we don't probe on every page load.
-export const GEO_COUNTRY_STORAGE_KEY = "yarne.geo.country.v1";
 
 export function isLocale(value: unknown): value is Locale {
   return (

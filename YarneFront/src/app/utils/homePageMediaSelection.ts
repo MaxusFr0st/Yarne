@@ -24,6 +24,11 @@ export function getDefaultHomePageMediaSelection(): HomePageMediaSelection {
   return normalizeHomePageMediaSelection({});
 }
 
+export function getInitialHomePageMediaSelection(): HomePageMediaSelection {
+  const local = readLocalHomePageMedia();
+  return hasConfiguredMedia(local) ? local : getDefaultHomePageMediaSelection();
+}
+
 function readLocalHomePageMedia(): HomePageMediaSelection {
   if (typeof window === "undefined") return getDefaultHomePageMediaSelection();
   const raw = window.localStorage.getItem(HOME_PAGE_MEDIA_KEY);
@@ -59,7 +64,7 @@ export async function loadHomePageMediaSelection(): Promise<HomePageMediaSelecti
   } catch {
     // API unavailable
   }
-  return getDefaultHomePageMediaSelection();
+  return getInitialHomePageMediaSelection();
 }
 
 export async function loadHomePageMediaSelectionForAdmin(): Promise<HomePageMediaSelection> {

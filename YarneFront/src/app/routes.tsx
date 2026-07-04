@@ -20,11 +20,9 @@ import {
   LOCALE_STORAGE_KEY,
   type Locale,
 } from "./i18n/config";
-import { detectCountry, localeForCountry } from "./i18n/geo";
 
 // Resolve preferred locale synchronously: stored choice > navigator language >
-// default. Geo-IP refines the answer asynchronously after first paint
-// (kicked off below alongside route initialisation).
+// default.
 function resolvePreferredLocaleSync(): Locale {
   if (typeof window === "undefined") return DEFAULT_LOCALE;
   try {
@@ -39,38 +37,6 @@ function resolvePreferredLocaleSync(): Locale {
   if (nav.startsWith("uk")) return "uk";
   if (nav.startsWith("en")) return "en";
   return DEFAULT_LOCALE;
-}
-
-// First-load geo refinement. If the visitor has no stored choice, ping the
-// geo-IP service once and persist the result so the next route loader sees
-// the refined locale immediately. Run as a side-effect at module load.
-if (typeof window !== "undefined") {
-  try {
-    const stored = window.localStorage.getItem(LOCALE_STORAGE_KEY);
-    if (!isLocale(stored)) {
-      void detectCountry().then((country) => {
-        const next = localeForCountry(country);
-        try {
-          // We persist the geo-derived locale so subsequent /-hits resolve
-          // synchronously. The user can override anytime via the switcher.
-          window.localStorage.setItem(LOCALE_STORAGE_KEY, next);
-        } catch {
-          // ignore — storage disabled
-        }
-        // If the visitor is already on `/`, push them onto the resolved tree.
-        const path = window.location.pathname;
-        const firstSeg = path.split("/").filter(Boolean)[0];
-        if (path === "/" || (firstSeg && !isLocale(firstSeg) && firstSeg !== "admin")) {
-          const rest = path === "/" ? "" : path;
-          window.location.replace(
-            `/${next}${rest}${window.location.search}${window.location.hash}`
-          );
-        }
-      });
-    }
-  } catch {
-    // ignore
-  }
 }
 
 /**

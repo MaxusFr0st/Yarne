@@ -278,8 +278,49 @@ public class ProductService : IProductService
 
     public async Task<bool> DeleteProductAsync(int id, CancellationToken ct = default)
     {
-        var product = await _context.Products.FindAsync(new object[] { id }, ct);
+        var product = await _context.Products
+            .Include(p => p.Countries)
+            .FirstOrDefaultAsync(p => p.Id == id, ct);
         if (product == null) return false;
+
+        var hasOrderItems = await _context.OrderItems.AnyAsync(oi => oi.ProductId == id, ct);
+        if (hasOrderItems)
+            throw new InvalidOperationException("Cannot delete this product because it is referenced by existing orders.");
+
+        // Be defensive here: some deployed databases still have NO ACTION on
+        // composite product variant FKs, so explicit cleanup avoids delete
+        // failures for newly created products with variant/image records.
+        var colorSizeImages = await _context.ProductColorSizeImages
+            .Where(v => v.ProductId == id)
+            .ToListAsync(ct);
+        _context.ProductColorSizeImages.RemoveRange(colorSizeImages);
+
+        var variantStocks = await _context.ProductVariantStocks
+            .Where(v => v.ProductId == id)
+            .ToListAsync(ct);
+        _context.ProductVariantStocks.RemoveRange(variantStocks);
+
+        var colorImages = await _context.ProductColorImages
+            .Where(v => v.ProductId == id)
+            .ToListAsync(ct);
+        _context.ProductColorImages.RemoveRange(colorImages);
+
+        var productImages = await _context.ProductImages
+            .Where(v => v.ProductId == id)
+            .ToListAsync(ct);
+        _context.ProductImages.RemoveRange(productImages);
+
+        var productColors = await _context.ProductColors
+            .Where(v => v.ProductId == id)
+            .ToListAsync(ct);
+        _context.ProductColors.RemoveRange(productColors);
+
+        var productSizes = await _context.ProductSizes
+            .Where(v => v.ProductId == id)
+            .ToListAsync(ct);
+        _context.ProductSizes.RemoveRange(productSizes);
+
+        product.Countries.Clear();
         _context.Products.Remove(product);
         await _context.SaveChangesAsync(ct);
         return true;

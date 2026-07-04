@@ -20,7 +20,7 @@ import {
   type ShowcaseTextSlot,
 } from "../utils/featuredShowcaseSelection";
 import { useTouchMobileLayout } from "../hooks/useTouchMobileLayout";
-import { useCompactTabletLayout, useLandscapeTablet, useShortViewport } from "../hooks/useCompactTabletLayout";
+import { useShowcaseSpreadLayout } from "../hooks/useCompactTabletLayout";
 import { useMotionEntrance } from "../hooks/useMotionEntrance";
 
 const easing = [0.25, 0.1, 0.25, 1] as const;
@@ -391,12 +391,8 @@ export function FeaturedShowcase() {
   const { t } = useTranslation();
   const { products } = useProducts();
   const touchLayout = useTouchMobileLayout();
-  const compactTablet = useCompactTabletLayout();
-  const landscapeTablet = useLandscapeTablet();
-  const shortViewport = useShortViewport();
-  const useSpreadLayout = landscapeTablet;
-  const useBentoLayout = !landscapeTablet && (touchLayout || compactTablet);
-  const useDesktopLayout = !landscapeTablet && !useBentoLayout;
+  const useSpreadLayout = useShowcaseSpreadLayout();
+  const useBentoLayout = !useSpreadLayout;
   const { disabled: motionDisabled } = useMotionEntrance();
   const [selection, setSelection] = useState<FeaturedShowcaseSelection>(
     getFeaturedShowcaseSelection
@@ -485,14 +481,11 @@ export function FeaturedShowcase() {
     </>
   );
 
-  const lockBentoViewport = useBentoLayout && (touchLayout || (compactTablet && shortViewport));
+  const lockBentoViewport = useBentoLayout && touchLayout;
   const bentoSectionHeight = lockBentoViewport
     ? "calc(var(--app-vh, 1svh) * 100 - var(--main-header-h))"
     : undefined;
-  const bentoSectionMinHeight =
-    useBentoLayout && !lockBentoViewport
-      ? "calc(100svh - var(--main-header-h) - 2.5rem)"
-      : undefined;
+  const bentoSectionMinHeight = undefined;
 
   return (
     <section
@@ -533,23 +526,7 @@ export function FeaturedShowcase() {
           </motion.div>
         )}
 
-        {/* Desktop: sticky section header */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true, margin: "-80px" }}
-          transition={{ duration: 0.6, ease: easing }}
-          className={`${useDesktopLayout ? "block" : "hidden"} sticky z-30 mb-5 lg:mb-6 -mx-6 lg:-mx-10 px-6 lg:px-10 py-3 lg:py-4`}
-          style={{
-            top: "var(--main-header-h)",
-            backgroundColor: "rgba(245,242,237,0.85)",
-            backdropFilter: "blur(10px)",
-          }}
-        >
-          {sectionHeader}
-        </motion.div>
-
-        {/* Magazine spread — tablet landscape */}
+        {/* Magazine spread — all non-phone widths */}
         {useSpreadLayout && (
           <MagazineSpread
             selection={selection}
@@ -607,71 +584,6 @@ export function FeaturedShowcase() {
           </div>
         </div>
 
-        {/* Wide desktop grid */}
-        <div
-          className={`${useDesktopLayout ? "grid" : "hidden"} gap-5 xl:gap-6
-                     grid-cols-[5fr_4fr_4fr] grid-rows-2
-                     h-[clamp(520px,min(72vh,700px),760px)]
-                     xl:h-[clamp(560px,calc(100svh-var(--main-header-h)-96px),800px)]`}
-        >
-          <motion.div
-            initial={motionDisabled ? false : { opacity: 0, y: 30 }}
-            whileInView={motionDisabled ? undefined : { opacity: 1, y: 0 }}
-            viewport={{ once: true, margin: "-60px" }}
-            transition={{ duration: 0.7, ease: easing }}
-            className="row-span-2 min-h-0 h-full"
-          >
-            <ProductTile
-              slot={selection.slot1}
-              product={slot1Product}
-              fallbackTitle="Grand Bag"
-              variant="large"
-              priority
-            />
-          </motion.div>
-
-          <motion.div
-            initial={motionDisabled ? false : { opacity: 0, y: 30 }}
-            whileInView={motionDisabled ? undefined : { opacity: 1, y: 0 }}
-            viewport={{ once: true, margin: "-60px" }}
-            transition={{ duration: 0.7, delay: motionDisabled ? 0 : 0.05, ease: easing }}
-            className="min-h-0 h-full"
-          >
-            <ProductTile
-              slot={selection.slot2}
-              product={slot2Product}
-              fallbackTitle="Femmora Mini"
-              variant="medium"
-              priority
-            />
-          </motion.div>
-
-          <motion.div
-            initial={motionDisabled ? false : { opacity: 0, y: 30 }}
-            whileInView={motionDisabled ? undefined : { opacity: 1, y: 0 }}
-            viewport={{ once: true, margin: "-60px" }}
-            transition={{ duration: 0.7, delay: motionDisabled ? 0 : 0.05, ease: easing }}
-            className="min-h-0 h-full"
-          >
-            <TextTile slot={selection.slot3} />
-          </motion.div>
-
-          <motion.div
-            initial={motionDisabled ? false : { opacity: 0, y: 30 }}
-            whileInView={motionDisabled ? undefined : { opacity: 1, y: 0 }}
-            viewport={{ once: true, margin: "-60px" }}
-            transition={{ duration: 0.7, delay: motionDisabled ? 0 : 0.05, ease: easing }}
-            className="col-span-2 min-h-0 h-full"
-          >
-            <ProductTile
-              slot={selection.slot4}
-              product={slot4Product}
-              fallbackTitle="Dva Shopper"
-              variant="wide"
-              priority
-            />
-          </motion.div>
-        </div>
       </div>
     </section>
   );

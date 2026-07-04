@@ -2088,8 +2088,8 @@ export function AdminPage() {
       await removeProduct(id);
       setDeleteModal(null);
       refetch();
-    } catch {
-      setSaveError("Failed to delete product");
+    } catch (e) {
+      setSaveError(e instanceof Error ? e.message : "Failed to delete product");
     }
   };
 

@@ -16,10 +16,12 @@ import {
 } from "../utils/homeSectionsSelection";
 import {
   getDefaultHomePageMediaSelection,
+  getInitialHomePageMediaSelection,
   loadHomePageMediaSelection,
 } from "../utils/homePageMediaSelection";
 import { useTouchMobileLayout } from "../hooks/useTouchMobileLayout";
 import { ScrollReveal, SectionEyebrow, SectionRule, SectionTitle } from "../components/ScrollReveal";
+import { resolveMediaUrl } from "../utils/storefrontMedia";
 
 const ease = [0.22, 1, 0.36, 1] as const;
 
@@ -45,7 +47,7 @@ export function Home() {
 
   const { products } = useProducts();
   const [homeSectionsSelection, setHomeSectionsSelection] = useState(getDefaultHomeSectionsSelection);
-  const [homePageMedia, setHomePageMedia] = useState(getDefaultHomePageMediaSelection);
+  const [homePageMedia, setHomePageMedia] = useState(getInitialHomePageMediaSelection);
 
   useEffect(() => {
     let cancelled = false;
@@ -64,6 +66,15 @@ export function Home() {
   const heroImageSrc = homePageMedia.heroImageUrl.trim();
   const editorialImageSrc = homePageMedia.editorialImageUrl.trim();
   const lookbookImageSrc = homePageMedia.lookbookImageUrl.trim();
+
+  useEffect(() => {
+    const resolvedHero = resolveMediaUrl(heroImageSrc);
+    if (!resolvedHero) return;
+    const img = new Image();
+    img.decoding = "async";
+    img.fetchPriority = "high";
+    img.src = resolvedHero;
+  }, [heroImageSrc]);
 
   const featured = useMemo(() => {
     const selected = homeSectionsSelection.featuredProductCodes
