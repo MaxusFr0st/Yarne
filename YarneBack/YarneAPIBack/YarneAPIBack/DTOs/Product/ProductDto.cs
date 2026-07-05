@@ -26,6 +26,8 @@ public class ProductDto
 
     public string? DefaultSize { get; set; }
 
+    public string? DefaultColor { get; set; }
+
     public string CategoryName { get; set; } = null!;
 
     public string? CollectionName { get; set; }

@@ -38,6 +38,11 @@ public class UpdateProductRequest
     public int? DefaultSizeId { get; set; }
 
     /// <summary>
+    /// Optional on update. Null = keep current default display color.
+    /// </summary>
+    public int? DefaultColorId { get; set; }
+
+    /// <summary>
     /// Optional on update. Null = keep existing size assignments.
     /// </summary>
     public List<int>? SizeIds { get; set; }

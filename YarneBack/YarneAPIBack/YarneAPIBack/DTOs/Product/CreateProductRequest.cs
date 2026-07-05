@@ -34,6 +34,8 @@ public class CreateProductRequest
 
     public int? DefaultSizeId { get; set; }
 
+    public int? DefaultColorId { get; set; }
+
     public bool IsNew { get; set; }
 
     public bool IsBestseller { get; set; }

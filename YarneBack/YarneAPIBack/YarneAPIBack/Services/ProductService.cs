@@ -21,6 +21,7 @@ public class ProductService : IProductService
             .Include(p => p.Category)
             .Include(p => p.Collection)
             .Include(p => p.DefaultSize)
+            .Include(p => p.DefaultColor)
             .Include(p => p.ProductSizes)
                 .ThenInclude(ps => ps.Size)
             .Include(p => p.ProductImages)
@@ -58,6 +59,7 @@ public class ProductService : IProductService
             .Include(p => p.Category)
             .Include(p => p.Collection)
             .Include(p => p.DefaultSize)
+            .Include(p => p.DefaultColor)
             .Include(p => p.ProductSizes)
                 .ThenInclude(ps => ps.Size)
             .Include(p => p.ProductImages)
@@ -84,6 +86,7 @@ public class ProductService : IProductService
             .Include(p => p.Category)
             .Include(p => p.Collection)
             .Include(p => p.DefaultSize)
+            .Include(p => p.DefaultColor)
             .Include(p => p.ProductSizes)
                 .ThenInclude(ps => ps.Size)
             .Include(p => p.ProductImages)
@@ -134,7 +137,9 @@ public class ProductService : IProductService
         await ReplaceProductSizesAsync(product.Id, validSizeIds, ct);
 
         var colorIds = ResolveColorIds(request.ColorIds, request.ColorVariants, request.ColorSizeVariants);
-        await ReplaceProductColorsAsync(product.Id, colorIds, ct);
+        var defaultColorId = ResolveDefaultColorId(colorIds, request.DefaultColorId);
+        await ReplaceProductColorsAsync(product.Id, OrderColorIdsWithDefault(colorIds, defaultColorId), ct);
+        product.DefaultColorId = defaultColorId;
 
         var fallbackImages = NormalizeUrls(request.ImageUrls);
         var colorSizeVariants = BuildColorSizeVariantsForWrite(
@@ -153,6 +158,7 @@ public class ProductService : IProductService
             .Include(p => p.Category)
             .Include(p => p.Collection)
             .Include(p => p.DefaultSize)
+            .Include(p => p.DefaultColor)
             .Include(p => p.ProductSizes)
                 .ThenInclude(ps => ps.Size)
             .Include(p => p.ProductImages)
@@ -184,6 +190,7 @@ public class ProductService : IProductService
                 .ThenInclude(pc => pc.VariantStocks)
             .Include(p => p.ProductSizes)
             .Include(p => p.DefaultSize)
+            .Include(p => p.DefaultColor)
             .FirstOrDefaultAsync(p => p.Id == id, ct);
         if (product == null) return null;
 
@@ -224,10 +231,14 @@ public class ProductService : IProductService
         }
 
         var shouldUpdateColors = request.ColorIds is not null || request.ColorVariants is not null || request.ColorSizeVariants is not null;
-        if (shouldUpdateColors)
+        if (shouldUpdateColors || request.DefaultColorId is not null)
         {
-            var colorIds = ResolveColorIds(request.ColorIds, request.ColorVariants, request.ColorSizeVariants);
-            await ReplaceProductColorsAsync(product.Id, colorIds, ct);
+            var colorIds = shouldUpdateColors
+                ? ResolveColorIds(request.ColorIds, request.ColorVariants, request.ColorSizeVariants)
+                : product.ProductColors.OrderBy(pc => pc.SortOrder).Select(pc => pc.ColorId).ToList();
+            var defaultColorId = ResolveDefaultColorId(colorIds, request.DefaultColorId ?? product.DefaultColorId);
+            product.DefaultColorId = defaultColorId;
+            await ReplaceProductColorsAsync(product.Id, OrderColorIdsWithDefault(colorIds, defaultColorId), ct);
         }
 
         var shouldUpdateColorSizeImages = request.ColorSizeVariants is not null || request.ColorVariants is not null || request.ColorIds is not null;
@@ -257,6 +268,7 @@ public class ProductService : IProductService
             .Include(p => p.Category)
             .Include(p => p.Collection)
             .Include(p => p.DefaultSize)
+            .Include(p => p.DefaultColor)
             .Include(p => p.ProductSizes)
                 .ThenInclude(ps => ps.Size)
             .Include(p => p.ProductImages)
@@ -427,6 +439,7 @@ public class ProductService : IProductService
             Colors = colors,
             Sizes = sizes,
             DefaultSize = defaultSize,
+            DefaultColor = p.DefaultColor?.Name ?? colors.FirstOrDefault()?.Name,
             CategoryName = p.Category.Name,
             CollectionName = p.Collection?.Name,
             ProducerName = p.ProducerName,
@@ -460,6 +473,7 @@ public class ProductService : IProductService
             CreatedAt = baseDto.CreatedAt,
             Sizes = baseDto.Sizes,
             DefaultSize = baseDto.DefaultSize,
+            DefaultColor = baseDto.DefaultColor,
             Subtitle = p.Material ?? p.ProducerName,
             IsNew = p.IsNew,
             IsBestseller = p.IsBestseller,
@@ -681,6 +695,24 @@ public class ProductService : IProductService
         var preferred = sizeOrder.FirstOrDefault(s => s.Name == "M")?.Id
             ?? sizeOrder.FirstOrDefault()?.Id;
         return preferred;
+    }
+
+    private static int? ResolveDefaultColorId(List<int> validColorIds, int? requestedDefaultColorId)
+    {
+        if (requestedDefaultColorId is int defaultId && validColorIds.Contains(defaultId))
+            return defaultId;
+
+        return validColorIds.FirstOrDefault() is int first && first > 0 ? first : null;
+    }
+
+    private static List<int> OrderColorIdsWithDefault(List<int> colorIds, int? defaultColorId)
+    {
+        if (defaultColorId is not int defaultId || !colorIds.Contains(defaultId))
+            return colorIds;
+
+        return new[] { defaultId }
+            .Concat(colorIds.Where(id => id != defaultId))
+            .ToList();
     }
 
     private async Task ReplaceProductImagesAsync(int productId, IEnumerable<string> urls, CancellationToken ct)

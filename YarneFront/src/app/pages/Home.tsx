@@ -186,7 +186,7 @@ export function Home() {
       </section>
 
       {/* ─── BRAND STRIP ─── */}
-      <section className="border-y border-[#2D241E]/8 bg-[#F5F2ED]">
+      <section className="border-y border-[#2D241E]/8 bg-[#F5F2ED]" aria-label={t("home.brandStrip.aria", { defaultValue: "Brand highlights" })}>
         <div className="max-w-[1400px] mx-auto px-6 md:px-10 py-12 md:py-14">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-px bg-[#2D241E]/8 rounded-2xl overflow-hidden">
             {brandStripItems.map((item, i) => (
@@ -223,9 +223,9 @@ export function Home() {
       <BestSellersCarousel />
 
       {/* ─── FEATURED GRID ─── */}
-      <section className="relative py-12 md:py-16 bg-[#EDE9E2]/60">
+      <section className="relative py-12 md:py-16 bg-gradient-to-b from-[#EDE9E2]/70 via-[#EDE9E2]/45 to-[#F5F2ED]">
         <div className="max-w-[1400px] mx-auto px-6 md:px-10">
-          <ScrollReveal className="md:sticky z-30 mb-10 md:mb-12 -mx-6 md:-mx-10 px-6 md:px-10 py-4 flex items-end justify-between gap-4" style={{ top: "var(--main-header-h)", backgroundColor: "rgba(237,233,226,0.88)", backdropFilter: "blur(10px)" }}>
+          <ScrollReveal className="md:sticky z-30 mb-10 md:mb-12 -mx-6 md:-mx-10 px-6 md:px-10 py-4 flex items-end justify-between gap-4 border-b border-[#2D241E]/6 md:border-0" style={{ top: "var(--main-header-h)", backgroundColor: "rgba(237,233,226,0.9)", backdropFilter: "blur(8px)" }}>
             <div>
               <SectionEyebrow>{t("home.featured.eyebrow")}</SectionEyebrow>
               <SectionTitle>

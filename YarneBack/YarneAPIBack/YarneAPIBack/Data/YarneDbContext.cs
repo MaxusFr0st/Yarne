@@ -396,6 +396,10 @@ public partial class YarneDbContext : DbContext
                 .WithMany(s => s.ProductsAsDefaultSize)
                 .HasForeignKey(d => d.DefaultSizeId);
 
+            entity.HasOne(d => d.DefaultColor)
+                .WithMany(c => c.ProductsAsDefaultColor)
+                .HasForeignKey(d => d.DefaultColorId);
+
             entity.HasMany(d => d.Countries).WithMany(p => p.Products)
                 .UsingEntity<Dictionary<string, object>>(
                     "ProductCountry",

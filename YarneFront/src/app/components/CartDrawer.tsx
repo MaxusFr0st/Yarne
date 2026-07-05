@@ -1,12 +1,13 @@
 import { motion, AnimatePresence } from "motion/react";
 import { X, Minus, Plus, ShoppingBag, ArrowRight } from "lucide-react";
-import { useApp } from "../context/AppContext";
+import { useOverlay, useCart } from "../context/AppContext";
 import { ImageWithFallback } from "./figma/ImageWithFallback";
 import { useLangNavigate } from "../i18n/useLangNavigate";
 
 export function CartDrawer() {
   const navigate = useLangNavigate();
-  const { cartItems, cartOpen, closeCart, removeFromCart, updateQuantity, cartTotal } = useApp();
+  const { cartOpen, closeCart } = useOverlay();
+  const { cartItems, removeFromCart, updateQuantity, cartTotal } = useCart();
 
   return (
     <AnimatePresence>

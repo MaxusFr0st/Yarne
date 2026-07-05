@@ -1,4 +1,12 @@
-import React, { createContext, useContext, useState, useCallback, useEffect } from "react";
+import React, {
+  createContext,
+  useContext,
+  useState,
+  useCallback,
+  useEffect,
+  useMemo,
+  startTransition,
+} from "react";
 import { login as apiLogin, register as apiRegister, loginWithGoogle as apiLoginWithGoogle, loginWithApple as apiLoginWithApple } from "../api/auth";
 
 export interface CartItem {
@@ -14,23 +22,31 @@ export interface CartItem {
   maxQuantity: number;
 }
 
-interface AppContextType {
-  // Cart
+interface WishlistContextType {
+  wishlist: string[];
+  toggleWishlist: (productId: string) => void;
+}
+
+interface CartContextType {
   cartItems: CartItem[];
-  cartOpen: boolean;
-  openCart: () => void;
-  closeCart: () => void;
   addToCart: (item: Omit<CartItem, "cartId">) => void;
   removeFromCart: (cartId: string) => void;
   updateQuantity: (cartId: string, qty: number) => void;
   clearCart: () => void;
   cartTotal: number;
   cartCount: number;
+}
 
-  // Auth
+interface OverlayContextType {
+  cartOpen: boolean;
   loginOpen: boolean;
+  openCart: () => void;
+  closeCart: () => void;
   openLogin: () => void;
   closeLogin: () => void;
+}
+
+interface AuthContextType {
   isLoggedIn: boolean;
   user: { name: string; email: string; role: string } | null;
   isAdmin: boolean;
@@ -38,12 +54,14 @@ interface AppContextType {
   loginWithOAuth: (idToken: string, provider: "google" | "apple") => Promise<{ ok: boolean; error?: string }>;
   register: (data: { firstName: string; lastName: string; userName: string; email: string; password: string }) => Promise<{ ok: boolean; error?: string }>;
   logout: () => void;
-
-  // Wishlist
-  wishlist: string[];
-  toggleWishlist: (productId: string) => void;
 }
 
+type AppContextType = CartContextType & OverlayContextType & AuthContextType & WishlistContextType;
+
+const WishlistContext = createContext<WishlistContextType | null>(null);
+const CartContext = createContext<CartContextType | null>(null);
+const OverlayContext = createContext<OverlayContextType | null>(null);
+const AuthContext = createContext<AuthContextType | null>(null);
 const AppContext = createContext<AppContextType | null>(null);
 
 const AUTH_TOKEN_KEY = "auth_token";
@@ -74,7 +92,6 @@ function migrateLegacyLocalAuthIfNeeded() {
 function writeSessionAuth(token: string, user: string) {
   sessionStorage.setItem(AUTH_TOKEN_KEY, token);
   sessionStorage.setItem(AUTH_USER_KEY, user);
-  // Keep auth tab-scoped so different tabs can use different accounts.
   localStorage.removeItem(AUTH_TOKEN_KEY);
   localStorage.removeItem(AUTH_USER_KEY);
 }
@@ -120,7 +137,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     return () => window.removeEventListener("auth-expired", onAuthExpired);
   }, [logout]);
 
-  // Check token expiry every 60s (admin ~120 min, customer ~45 min) — re-login when expired
   useEffect(() => {
     const checkExpiry = () => {
       const userData = sessionStorage.getItem(AUTH_USER_KEY);
@@ -134,7 +150,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         logout();
       }
     };
-    checkExpiry(); // Run immediately on mount
+    checkExpiry();
     const id = setInterval(checkExpiry, 60000);
     return () => clearInterval(id);
   }, [logout]);
@@ -142,9 +158,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const cartTotal = cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
   const cartCount = cartItems.reduce((sum, item) => sum + item.quantity, 0);
 
-  const openCart = useCallback(() => setCartOpen(true), []);
+  const openCart = useCallback(() => {
+    startTransition(() => setCartOpen(true));
+  }, []);
+
   const closeCart = useCallback(() => setCartOpen(false), []);
-  const openLogin = useCallback(() => setLoginOpen(true), []);
+  const openLogin = useCallback(() => {
+    startTransition(() => setLoginOpen(true));
+  }, []);
   const closeLogin = useCallback(() => setLoginOpen(false), []);
 
   const addToCart = useCallback((item: Omit<CartItem, "cartId">) => {
@@ -173,7 +194,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         },
       ];
     });
-    setCartOpen(true);
+    startTransition(() => setCartOpen(true));
   }, []);
 
   const removeFromCart = useCallback((cartId: string) => {
@@ -252,40 +273,88 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     );
   }, []);
 
+  const wishlistValue = useMemo(() => ({ wishlist, toggleWishlist }), [wishlist, toggleWishlist]);
+
+  const cartValue = useMemo(
+    () => ({
+      cartItems,
+      addToCart,
+      removeFromCart,
+      updateQuantity,
+      clearCart,
+      cartTotal,
+      cartCount,
+    }),
+    [cartItems, addToCart, removeFromCart, updateQuantity, clearCart, cartTotal, cartCount]
+  );
+
+  const overlayValue = useMemo(
+    () => ({ cartOpen, loginOpen, openCart, closeCart, openLogin, closeLogin }),
+    [cartOpen, loginOpen, openCart, closeCart, openLogin, closeLogin]
+  );
+
+  const authValue = useMemo(
+    () => ({
+      isLoggedIn,
+      user,
+      isAdmin: user?.role === "Admin",
+      login,
+      loginWithOAuth,
+      register,
+      logout,
+    }),
+    [isLoggedIn, user, login, loginWithOAuth, register, logout]
+  );
+
+  const appValue = useMemo<AppContextType>(
+    () => ({
+      ...wishlistValue,
+      ...cartValue,
+      ...overlayValue,
+      ...authValue,
+    }),
+    [wishlistValue, cartValue, overlayValue, authValue]
+  );
+
   return (
-    <AppContext.Provider
-      value={{
-        cartItems,
-        cartOpen,
-        openCart,
-        closeCart,
-        addToCart,
-        removeFromCart,
-        updateQuantity,
-        clearCart,
-        cartTotal,
-        cartCount,
-        loginOpen,
-        openLogin,
-        closeLogin,
-        isLoggedIn,
-        user,
-        isAdmin: user?.role === "Admin",
-        login,
-        loginWithOAuth,
-        register,
-        logout,
-        wishlist,
-        toggleWishlist,
-      }}
-    >
-      {children}
-    </AppContext.Provider>
+    <WishlistContext.Provider value={wishlistValue}>
+      <CartContext.Provider value={cartValue}>
+        <OverlayContext.Provider value={overlayValue}>
+          <AuthContext.Provider value={authValue}>
+            <AppContext.Provider value={appValue}>{children}</AppContext.Provider>
+          </AuthContext.Provider>
+        </OverlayContext.Provider>
+      </CartContext.Provider>
+    </WishlistContext.Provider>
   );
 }
 
 export function useApp() {
   const ctx = useContext(AppContext);
   if (!ctx) throw new Error("useApp must be used within AppProvider");
+  return ctx;
+}
+
+export function useWishlist() {
+  const ctx = useContext(WishlistContext);
+  if (!ctx) throw new Error("useWishlist must be used within AppProvider");
+  return ctx;
+}
+
+export function useCart() {
+  const ctx = useContext(CartContext);
+  if (!ctx) throw new Error("useCart must be used within AppProvider");
+  return ctx;
+}
+
+export function useOverlay() {
+  const ctx = useContext(OverlayContext);
+  if (!ctx) throw new Error("useOverlay must be used within AppProvider");
+  return ctx;
+}
+
+export function useAuth() {
+  const ctx = useContext(AuthContext);
+  if (!ctx) throw new Error("useAuth must be used within AppProvider");
   return ctx;
 }

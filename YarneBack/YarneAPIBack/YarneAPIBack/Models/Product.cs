@@ -29,6 +29,8 @@ public partial class Product
 
     public int? DefaultSizeId { get; set; }
 
+    public int? DefaultColorId { get; set; }
+
     public bool IsActive { get; set; }
 
     public bool IsNew { get; set; }
@@ -44,6 +46,8 @@ public partial class Product
     public virtual Collection? Collection { get; set; }
 
     public virtual Size? DefaultSize { get; set; }
+
+    public virtual Color? DefaultColor { get; set; }
 
     public virtual ICollection<OrderItem> OrderItems { get; set; } = new List<OrderItem>();
 

@@ -124,6 +124,9 @@ public static class PostgresConnection
 
         var host = builder.Host ?? "";
         var isInternal = host.Contains("railway.internal", StringComparison.OrdinalIgnoreCase);
-        builder.SslMode = isInternal ? SslMode.Prefer : SslMode.Require;
+        var isLocal = host.Equals("localhost", StringComparison.OrdinalIgnoreCase)
+            || host == "127.0.0.1"
+            || host.Equals("::1", StringComparison.OrdinalIgnoreCase);
+        builder.SslMode = isInternal || isLocal ? SslMode.Prefer : SslMode.Require;
     }
 }

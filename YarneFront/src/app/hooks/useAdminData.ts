@@ -81,6 +81,7 @@ function mapProductDtoToProduct(d: ProductDto): Product & { idNum: number; sku: 
     lace: d.lace ?? false,
     sizes: d.sizes?.length ? d.sizes : ["XS", "S", "M", "L", "XL"],
     defaultSize: d.defaultSize ?? undefined,
+    defaultColor: d.defaultColor ?? undefined,
     description: d.description ?? "",
     details: [],
     colors,

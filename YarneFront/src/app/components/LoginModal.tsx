@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useId, useRef, useState, type Ref } from "react";
 import { motion, AnimatePresence, useReducedMotion, LayoutGroup } from "motion/react";
 import { X, Eye, EyeOff } from "lucide-react";
-import { useApp } from "../context/AppContext";
+import { useOverlay, useAuth } from "../context/AppContext";
 import { appleClientId, appleRedirectUri, isAppleOAuthEnabled, isGoogleOAuthEnabled, isOAuthEnabled } from "../config/oauth";
 import { LoginGoogleButton } from "./LoginGoogleButton";
 
@@ -75,7 +75,8 @@ function AuthField({
 }
 
 export function LoginModal() {
-  const { loginOpen, closeLogin, login, loginWithOAuth, register } = useApp();
+  const { loginOpen, closeLogin } = useOverlay();
+  const { login, loginWithOAuth, register } = useAuth();
   const reduceMotion = useReducedMotion();
   const titleId = useId();
   const panelRef = useRef<HTMLDivElement>(null);

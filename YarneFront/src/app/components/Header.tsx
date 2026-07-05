@@ -3,7 +3,7 @@ import { useLocation, useNavigate } from "react-router";
 import { Search, ShoppingBag, User, Menu, X, ChevronDown } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { useTranslation } from "react-i18next";
-import { useApp } from "../context/AppContext";
+import { useCart, useOverlay, useAuth } from "../context/AppContext";
 import { Logo } from "./Logo";
 import { LangLink } from "../i18n/LangLink";
 import { useLangNavigate } from "../i18n/useLangNavigate";
@@ -15,7 +15,9 @@ import { preserveScrollForLocaleSwitch } from "../i18n/localeNavigation";
 
 export function Header() {
   const { t, i18n } = useTranslation();
-  const { cartCount, openCart, openLogin, isLoggedIn, user, isAdmin } = useApp();
+  const { cartCount } = useCart();
+  const { openCart, openLogin } = useOverlay();
+  const { isLoggedIn, user, isAdmin } = useAuth();
   const [scrolled, setScrolled] = useState(false);
   const skipScrollStyle = useTouchMobileLayout();
   const [mobileOpen, setMobileOpen] = useState(false);

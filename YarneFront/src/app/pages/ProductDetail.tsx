@@ -6,7 +6,8 @@ import { useTranslation } from "react-i18next";
 import { useLocale } from "../i18n/useLocale";
 import { formatPrice } from "../i18n/format";
 import { useProduct, useProducts } from "../hooks/useProducts";
-import { useApp } from "../context/AppContext";
+import { useCart, useWishlist } from "../context/AppContext";
+import { getDefaultColorIndex } from "../utils/productColorIndex";
 import { ImageWithFallback } from "../components/figma/ImageWithFallback";
 import { CrossfadeImage } from "../components/figma/CrossfadeImage";
 import { ProductCard } from "../components/ProductCard";
@@ -28,7 +29,8 @@ export function ProductDetail() {
   const locale = useLocale();
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { addToCart, wishlist, toggleWishlist } = useApp();
+  const { addToCart } = useCart();
+  const { wishlist, toggleWishlist } = useWishlist();
   const { product, loading } = useProduct(id);
   const { products } = useProducts();
   const related = products.filter((p) => p.id !== id).slice(0, 3);
@@ -50,6 +52,12 @@ export function ProductDetail() {
       )
     : [];
   const displaySizes = colorScopedSizes.length > 0 ? colorScopedSizes : (product?.sizes ?? []);
+
+  useEffect(() => {
+    if (!product) return;
+    setActiveColor(getDefaultColorIndex(product));
+    setActiveImage(0);
+  }, [product?.id]);
 
   useEffect(() => {
     if (!product) return;

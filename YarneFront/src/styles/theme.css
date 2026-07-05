@@ -205,3 +205,27 @@
     line-height: 1.5;
   }
 }
+
+/* Product card — GPU-friendly hover (no React hover state) */
+.product-card-image {
+  transition:
+    opacity 0.55s cubic-bezier(0.25, 0.1, 0.25, 1),
+    transform 0.7s cubic-bezier(0.25, 0.1, 0.25, 1);
+  transform: scale(1);
+  will-change: transform, opacity;
+}
+
+.group\/card:hover .product-card-image {
+  transform: scale(1.025);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .product-card-image {
+    transition: opacity 0.2s ease;
+    will-change: auto;
+  }
+
+  .group\/card:hover .product-card-image {
+    transform: none;
+  }
+}

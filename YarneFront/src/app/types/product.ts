@@ -27,6 +27,7 @@ export interface Product {
   lace?: boolean;
   sizes: string[];
   defaultSize?: string;
+  defaultColor?: string;
   description: string;
   details: string[];
   colors: ColorVariant[];

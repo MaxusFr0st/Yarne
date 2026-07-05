@@ -54,6 +54,7 @@ import {
   Palette,
   Info,
   ScrollText,
+  Star,
 } from "lucide-react";
 import { fetchActivityLogs, type AdminActivityLogDto } from "../api/admin";
 import { AdminAccountingTab } from "../components/admin/AdminAccountingTab";
@@ -136,6 +137,9 @@ function AdminImageUrlRow({
   url,
   onChange,
   onRemove,
+  onSetDefault,
+  isDefault = false,
+  canSetDefault = false,
   readOnly = false,
   disabled = false,
   placeholder,
@@ -143,6 +147,9 @@ function AdminImageUrlRow({
   url: string;
   onChange: (value: string) => void;
   onRemove: () => void;
+  onSetDefault?: () => void;
+  isDefault?: boolean;
+  canSetDefault?: boolean;
   readOnly?: boolean;
   disabled?: boolean;
   placeholder?: string;
@@ -151,16 +158,24 @@ function AdminImageUrlRow({
   return (
     <div className="flex gap-2.5 items-center min-w-0">
       <div
-        className="w-11 h-11 rounded-[10px] overflow-hidden shrink-0 flex items-center justify-center"
+        className="relative w-11 h-11 rounded-[10px] overflow-hidden shrink-0 flex items-center justify-center"
         style={{
           backgroundColor: "#EDE9E2",
-          border: "1px solid rgba(45,36,30,0.1)",
+          border: isDefault ? "2px solid #4A0E0E" : "1px solid rgba(45,36,30,0.1)",
         }}
       >
         {previewSrc ? (
           <img src={previewSrc} alt="" className="w-full h-full object-cover" />
         ) : (
           <ImagePlus size={14} style={{ color: "rgba(45,36,30,0.25)" }} />
+        )}
+        {isDefault && (
+          <span
+            className="absolute bottom-0 inset-x-0 text-center text-[0.5rem] uppercase tracking-wider text-white py-0.5"
+            style={{ backgroundColor: "rgba(74,14,14,0.88)", fontFamily: "'DM Sans', sans-serif" }}
+          >
+            Main
+          </span>
         )}
       </div>
       <input
@@ -173,11 +188,23 @@ function AdminImageUrlRow({
         className="flex-1 min-w-0 bg-transparent border rounded-[14px] px-3 py-2.5 text-[#2D241E] focus:outline-none text-sm placeholder:text-[#2D241E]/20 disabled:opacity-60"
         style={{ fontFamily: "'DM Sans', sans-serif", borderColor: "rgba(45,36,30,0.15)" }}
       />
+      {canSetDefault && onSetDefault && (
+        <button
+          type="button"
+          disabled={disabled || readOnly}
+          onClick={onSetDefault}
+          title="Set as default photo"
+          className="w-9 h-9 rounded-full flex items-center justify-center hover:bg-[#2D241E]/8 text-[#2D241E] disabled:opacity-40 shrink-0 transition-colors"
+        >
+          <Star size={14} />
+        </button>
+      )}
       <button
         type="button"
         disabled={disabled || readOnly}
         onClick={onRemove}
         className="w-9 h-9 rounded-full flex items-center justify-center hover:bg-[#4A0E0E]/10 text-[#4A0E0E] disabled:opacity-40 shrink-0 transition-colors"
+        aria-label="Remove photo"
       >
         <Trash2 size={14} />
       </button>
@@ -253,6 +280,7 @@ interface ProductFormData {
   sku: string;
   imageUrls: string[];
   defaultSizeId: number | null;
+  defaultColorId: number | null;
   colorIds: number[];
   /** Per-color available sizes: colorId -> sizeIds */
   colorSizeIds: Record<number, number[]>;
@@ -295,6 +323,9 @@ function ProductModal({
           defaultSizeId: product.defaultSize
             ? sizes.find((s) => s.name === product.defaultSize)?.id ?? null
             : null,
+          defaultColorId: product.defaultColor
+            ? colors.find((c) => c.name === product.defaultColor)?.id ?? null
+            : null,
         }
       : {
           name: "",
@@ -309,6 +340,7 @@ function ProductModal({
           sku: "",
           imageUrls: [""],
           defaultSizeId: null,
+          defaultColorId: null,
         };
     const preferredSizeId = sizes.find((s) => s.name === "M")?.id ?? sizes[0]?.id ?? null;
     const productLace = product?.lace ?? false;
@@ -369,7 +401,7 @@ function ProductModal({
         colorSizeIds[colorId] = Array.from(new Set(collectedSizeIds));
       }
     });
-    return { ...base, colorIds, colorSizeIds, colorSizeVariants, variantStocks };
+    return { ...base, colorIds, colorSizeIds, colorSizeVariants, variantStocks, defaultColorId: base.defaultColorId ?? colorIds[0] ?? null };
   });
 
   const handleChange = (key: keyof ProductFormData, value: string | number | boolean) => {
@@ -480,6 +512,17 @@ function ProductModal({
       setForm((p) => ({ ...p, defaultSizeId: selectedSizeIds[0] ?? preferredSizeId ?? null }));
     }
   }, [selectedSizeIds, form.defaultSizeId, sizes]);
+
+  useEffect(() => {
+    if (form.colorIds.length === 0) {
+      if (form.defaultColorId != null) {
+        setForm((p) => ({ ...p, defaultColorId: null }));
+      }
+      return;
+    }
+    if (form.defaultColorId != null && form.colorIds.includes(form.defaultColorId)) return;
+    setForm((p) => ({ ...p, defaultColorId: p.colorIds[0] ?? null }));
+  }, [form.colorIds, form.defaultColorId]);
 
   const validateAndSubmit = () => {
     const errors: typeof formErrors = {};
@@ -833,6 +876,42 @@ function ProductModal({
               </div>
 
               {form.colorIds.length > 0 && (
+                <div>
+                  <label className="block text-xs mb-2 tracking-widest uppercase" style={{ fontFamily: "'DM Sans', sans-serif", color: "rgba(45,36,30,0.4)", letterSpacing: "0.14em" }}>
+                    Card display color
+                  </label>
+                  <p className="text-xs text-[#2D241E]/45 mb-2" style={{ fontFamily: "'DM Sans', sans-serif" }}>
+                    Shown first on product cards and in the shop grid.
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    {form.colorIds.map((colorId) => {
+                      const color = colors.find((c) => c.id === colorId);
+                      const isDefault = form.defaultColorId === colorId;
+                      return (
+                        <button
+                          key={`default-color-${colorId}`}
+                          type="button"
+                          onClick={() => setForm((p) => ({ ...p, defaultColorId: colorId }))}
+                          className="flex items-center gap-2 px-3 py-2 rounded-full border transition-all cursor-pointer"
+                          style={{
+                            fontFamily: "'DM Sans', sans-serif",
+                            fontSize: "0.85rem",
+                            borderColor: isDefault ? "#4A0E0E" : "rgba(45,36,30,0.2)",
+                            backgroundColor: isDefault ? "rgba(74,14,14,0.08)" : "transparent",
+                            color: "#2D241E",
+                          }}
+                        >
+                          <span className="w-4 h-4 rounded-full border border-[#2D241E]/30" style={{ backgroundColor: color?.hexCode ?? "#2D241E" }} />
+                          {color?.name ?? colorId}
+                          {isDefault && <Star size={12} className="text-[#4A0E0E]" fill="currentColor" />}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {form.colorIds.length > 0 && (
                 <div className="space-y-3">
                   <label className="block text-xs mb-1 tracking-widest uppercase" style={{ fontFamily: "'DM Sans', sans-serif", color: "rgba(45,36,30,0.4)", letterSpacing: "0.14em" }}>
                     Sizes per color
@@ -973,6 +1052,18 @@ function ProductModal({
                               <AdminImageUrlRow
                                 key={i}
                                 url={url}
+                                isDefault={i === 0}
+                                canSetDefault={i > 0 && Boolean(url.trim())}
+                                onSetDefault={() => {
+                                  setForm((p) => {
+                                    const next = { ...p.colorSizeVariants };
+                                    const arr = [...(next[key] ?? [])];
+                                    const [picked] = arr.splice(i, 1);
+                                    arr.unshift(picked);
+                                    next[key] = arr;
+                                    return { ...p, colorSizeVariants: next };
+                                  });
+                                }}
                                 onChange={(value) => {
                                   setForm((p) => {
                                     const next = { ...p.colorSizeVariants };
@@ -2058,6 +2149,9 @@ export function AdminPage() {
         material: data.subtitle,
         categoryId: data.categoryId,
         defaultSizeId: normalizedDefaultSizeId ?? undefined,
+        defaultColorId: data.defaultColorId && colorIds.includes(data.defaultColorId)
+          ? data.defaultColorId
+          : colorIds[0] ?? undefined,
         sizeIds,
         imageUrls: nextPrimaryImageUrls,
         colorIds,

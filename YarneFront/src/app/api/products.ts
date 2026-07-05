@@ -30,6 +30,7 @@ export interface ProductDto {
   colors?: ColorVariantDto[];
   sizes?: string[];
   defaultSize?: string | null;
+  defaultColor?: string | null;
   categoryName: string;
   collectionName: string | null;
   producerName: string | null;
@@ -96,6 +97,7 @@ export interface CreateProductRequest {
   collectionId?: number;
   producerName?: string;
   defaultSizeId?: number;
+  defaultColorId?: number;
   sizeIds?: number[];
   imageUrls?: string[];
   colorIds?: number[];
