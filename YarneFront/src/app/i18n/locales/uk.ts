@@ -166,6 +166,7 @@ const uk: Translations = {
     color: "Колір",
     size: "Розмір",
     lace: "Мереживо",
+    laceNotApplicable: "—",
     quantity: "Кількість",
     unitPrice: "Ціна",
     lineTotal: "Разом",

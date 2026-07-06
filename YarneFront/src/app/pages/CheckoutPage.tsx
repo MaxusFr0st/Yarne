@@ -8,7 +8,8 @@ import { ImageWithFallback } from "../components/figma/ImageWithFallback";
 import { LangLink } from "../i18n/LangLink";
 import { useLocale } from "../i18n/useLocale";
 import { PriceTag } from "../components/PriceTag";
-import { CheckoutOrderLine } from "../components/CheckoutOrderLine";
+import { OrderLineDetails, cartItemToLineDetails } from "../components/OrderLineDetails";
+import { cartItemsTotal, mergePlacedOrderDisplay } from "../utils/mergePlacedOrderItems";
 
 const easing = [0.25, 0.1, 0.25, 1] as const;
 const ORDER_ITEM_PLACEHOLDER =
@@ -35,9 +36,14 @@ export function CheckoutPage() {
   const [error, setError] = useState<string | null>(null);
   const [placedOrder, setPlacedOrder] = useState<OrderDto | null>(null);
   const [orderSnapshot, setOrderSnapshot] = useState<CartItem[]>([]);
+  const [snapshotTotal, setSnapshotTotal] = useState(0);
 
-  const grandTotal = cartTotal;
-  const activeItems = placedOrder ? orderSnapshot : cartItems;
+  const activeItems = placedOrder
+    ? mergePlacedOrderDisplay(placedOrder, orderSnapshot)
+    : cartItems;
+
+  const displaySubtotal = placedOrder ? Number(placedOrder.total) || snapshotTotal : cartTotal;
+  const displayTotal = displaySubtotal;
 
   const placeOrder = async () => {
     if (!isLoggedIn || cartItems.length === 0 || placingOrder) return;
@@ -45,6 +51,7 @@ export function CheckoutPage() {
     setError(null);
     const snapshot = [...cartItems];
     setOrderSnapshot(snapshot);
+    setSnapshotTotal(cartItemsTotal(snapshot));
 
     try {
       const order = await createOrder({
@@ -194,7 +201,11 @@ export function CheckoutPage() {
                           {item.name}
                         </p>
                       </div>
-                      <CheckoutOrderLine item={item} locale={locale} />
+                      <OrderLineDetails
+                        line={cartItemToLineDetails(item)}
+                        locale={locale}
+                        className="mt-3 pt-3 border-t border-[#2D241E]/8"
+                      />
                     </div>
                   </div>
                 </LangLink>
@@ -223,13 +234,13 @@ export function CheckoutPage() {
           <div className="space-y-3 pb-5 border-b border-[#2D241E]/10">
             <div className="flex items-center justify-between text-sm" style={{ fontFamily: "'DM Sans', sans-serif" }}>
               <span className="text-[#2D241E]/60">{t("checkout.subtotal")}</span>
-              <PriceTag amount={cartTotal} locale={locale} variant="line" withUnit />
+              <PriceTag amount={displaySubtotal} locale={locale} variant="line" withUnit />
             </div>
             <div className="flex items-center justify-between mt-2">
               <span className="text-[#2D241E]/70 uppercase tracking-widest text-xs" style={{ fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.1em" }}>
                 {t("checkout.total")}
               </span>
-              <PriceTag amount={grandTotal} locale={locale} variant="emphasis" withUnit />
+              <PriceTag amount={displayTotal} locale={locale} variant="emphasis" withUnit />
             </div>
           </div>
 

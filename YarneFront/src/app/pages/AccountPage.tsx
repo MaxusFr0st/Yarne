@@ -23,6 +23,7 @@ import { useApp } from "../context/AppContext";
 import { LangLink } from "../i18n/LangLink";
 import { useLocale } from "../i18n/useLocale";
 import { PriceTag } from "../components/PriceTag";
+import { OrderLineDetails, accountOrderItemToLineDetails } from "../components/OrderLineDetails";
 import { useProducts } from "../hooks/useProducts";
 
 const easing = [0.25, 0.1, 0.25, 1] as const;
@@ -41,7 +42,12 @@ interface Order {
     id: number;
     productCode: string;
     name: string;
+    subtitle?: string | null;
+    colorName?: string | null;
+    sizeName?: string | null;
+    withLace?: boolean | null;
     quantity: number;
+    unitPrice: number;
     lineTotal: number;
     image: string;
   }[];
@@ -81,7 +87,12 @@ function mapOrderDto(order: OrderDto): Order {
       id: item.id,
       productCode: item.productCode,
       name: item.productName,
+      subtitle: item.productSubtitle,
+      colorName: item.colorName,
+      sizeName: item.sizeName,
+      withLace: item.withLace,
       quantity: item.quantity,
+      unitPrice: Number(item.unitPrice),
       lineTotal: Number(item.lineTotal),
       image: item.productImageUrl || IMAGE_PLACEHOLDER,
     })),
@@ -193,30 +204,26 @@ function OrderRow({ order, productImageByCode }: { order: Order; productImageByC
                 {order.items.map((item) => {
                   const productHref = item.productCode ? `/product/${item.productCode}` : "/collection";
                   const imageSrc = productImageByCode.get(item.productCode) || item.image;
+                  const line = accountOrderItemToLineDetails(item);
                   return (
                     <LangLink
                       key={item.id}
                       to={productHref}
-                      className="flex items-center justify-between py-3 px-4 rounded-[16px] gap-3 transition-colors hover:bg-[#2D241E]/[0.05]"
+                      className="block py-3 px-4 rounded-[16px] transition-colors hover:bg-[#2D241E]/[0.05]"
                       style={{ backgroundColor: "rgba(45,36,30,0.03)" }}
                       aria-label={t("account.orderRow.openProduct", { name: item.name })}
                     >
-                      <div className="flex items-center gap-3 min-w-0">
+                      <div className="flex gap-3">
                         <div className="w-12 h-14 rounded-[10px] overflow-hidden bg-[#EDE9E2] flex-shrink-0">
                           <ImageWithFallback src={imageSrc} alt={item.name} className="w-full h-full object-contain" />
                         </div>
-                        <div className="min-w-0">
-                          <p className="text-[#2D241E] truncate" style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "0.98rem", fontWeight: 500 }}>
+                        <div className="min-w-0 flex-1">
+                          <p className="text-[#2D241E]" style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "0.98rem", fontWeight: 500 }}>
                             {item.name}
                           </p>
-                          <p className="text-[#2D241E]/50 text-xs mt-0.5" style={{ fontFamily: "'DM Sans', sans-serif" }}>
-                            {t("account.orderRow.qty", { count: item.quantity })}
-                          </p>
+                          <OrderLineDetails line={line} locale={locale} className="mt-2 pt-2 border-t border-[#2D241E]/8" />
                         </div>
                       </div>
-                      <span className="text-[#2D241E] truncate" style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "1rem" }}>
-                        <PriceTag amount={item.lineTotal} locale={locale} variant="line" />
-                      </span>
                     </LangLink>
                   );
                 })}

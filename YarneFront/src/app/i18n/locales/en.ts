@@ -160,6 +160,7 @@ const en = {
     color: "Color",
     size: "Size",
     lace: "Lace",
+    laceNotApplicable: "—",
     quantity: "Quantity",
     unitPrice: "Price",
     lineTotal: "Line total",
