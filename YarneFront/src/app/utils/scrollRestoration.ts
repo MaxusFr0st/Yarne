@@ -46,6 +46,28 @@ export function writeScrollPositions(positions: ScrollPositions): void {
   window.sessionStorage.setItem(STORAGE_KEY, JSON.stringify(positions));
 }
 
+export function clearScrollForRoute(pathname: string, search: string): void {
+  if (typeof window === "undefined") return;
+  const positions = readScrollPositions();
+  const routeKey = routeStorageKey(pathname, search);
+  if (!(routeKey in positions)) return;
+  const next = { ...positions };
+  delete next[routeKey];
+  writeScrollPositions(next);
+}
+
+export function clearAllScrollPositions(): void {
+  if (typeof window === "undefined") return;
+  writeScrollPositions({});
+  window.sessionStorage.removeItem(RETURN_SCROLL_KEY);
+}
+
+/** Only list-style pages restore scroll on browser back; detail pages always open at top. */
+export function shouldRestoreScrollOnPop(barePath: string): boolean {
+  if (barePath === "/" || barePath === "") return true;
+  return barePath === "/collection" || barePath.startsWith("/collection/");
+}
+
 export function saveScrollPosition(
   positions: ScrollPositions,
   pathname: string,

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router";
 import { motion, AnimatePresence, LayoutGroup, useReducedMotion } from "motion/react";
 import { ArrowLeft, Heart, ChevronDown, ShoppingBag, Check } from "lucide-react";
@@ -17,6 +17,7 @@ import { MobileRelatedProducts } from "../components/MobileRelatedProducts";
 import { resolveDisplayImages } from "../utils/variantImages";
 import { resolveDisplayStock } from "../utils/variantStock";
 import { resolveMediaUrl } from "../utils/storefrontMedia";
+import { scrollToPageTop } from "../utils/scrollToTop";
 import React from "react";
 
 const easing = [0.25, 0.1, 0.25, 1] as const;
@@ -42,6 +43,10 @@ export function ProductDetail() {
   const [addedToBag, setAddedToBag] = useState(false);
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [sizeError, setSizeError] = useState(false);
+
+  useLayoutEffect(() => {
+    scrollToPageTop();
+  }, [id]);
 
   const colorScopedSizes = product
     ? Array.from(

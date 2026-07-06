@@ -12,6 +12,7 @@ import { useTouchMobileLayout } from "../hooks/useTouchMobileLayout";
 import { LOCALE_DISPLAY, LOCALE_STORAGE_KEY, SUPPORTED_LOCALES, type Locale } from "../i18n/config";
 import { stripLocaleFromPath, useLocale } from "../i18n/useLocale";
 import { preserveScrollForLocaleSwitch } from "../i18n/localeNavigation";
+import { clearAllScrollPositions } from "../utils/scrollRestoration";
 import { scrollToPageTop } from "../utils/scrollToTop";
 
 export function Header() {
@@ -31,6 +32,7 @@ export function Header() {
   const locale = useLocale();
 
   const handleLogoClick = (event: React.MouseEvent<HTMLAnchorElement>) => {
+    clearAllScrollPositions();
     scrollToPageTop();
     if (stripLocaleFromPath(location.pathname) === "/") {
       event.preventDefault();

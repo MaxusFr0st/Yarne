@@ -125,6 +125,19 @@ public class OrdersController : ControllerBase
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     public async Task<ActionResult<OrderDto>> CreateOrder([FromBody] CreateOrderRequest request, CancellationToken ct = default)
     {
+        try
+        {
+            return await CreateOrderCore(request, ct);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to create order for customer.");
+            return StatusCode(StatusCodes.Status500InternalServerError, new { message = "Unable to place order. Please try again." });
+        }
+    }
+
+    private async Task<ActionResult<OrderDto>> CreateOrderCore(CreateOrderRequest request, CancellationToken ct)
+    {
         if (request.Items.Count == 0)
             return BadRequest(new { message = "Order must include at least one item." });
 
@@ -267,13 +280,7 @@ public class OrdersController : ControllerBase
                 return BadRequest(new { message = "One or more products in the order were not found." });
             }
 
-            var rowsAffected = await _context.Products
-                .Where(p => p.Id == productId && p.QuantityInStock >= requestedQty)
-                .ExecuteUpdateAsync(
-                    setters => setters.SetProperty(p => p.QuantityInStock, p => p.QuantityInStock - requestedQty),
-                    ct);
-
-            if (rowsAffected == 0)
+            if (product.QuantityInStock < requestedQty)
             {
                 await transaction.RollbackAsync(ct);
                 return BadRequest(new
@@ -281,6 +288,8 @@ public class OrdersController : ControllerBase
                     message = $"Not enough stock for '{product.ProductCode}'. Please refresh and try again.",
                 });
             }
+
+            product.QuantityInStock -= requestedQty;
         }
 
         _context.Orders.Add(order);
@@ -289,7 +298,10 @@ public class OrdersController : ControllerBase
 
         var createdOrder = await BuildOrderQuery().FirstOrDefaultAsync(o => o.Id == order.Id, ct);
         if (createdOrder == null)
-            return StatusCode(StatusCodes.Status500InternalServerError, new { message = "Order was created but could not be loaded." });
+        {
+            _logger.LogWarning("Order #{OrderId} was saved but could not be reloaded.", order.Id);
+            return StatusCode(StatusCodes.Status201Created, MapOrder(order));
+        }
 
         try
         {
@@ -300,7 +312,7 @@ public class OrdersController : ControllerBase
             _logger.LogError(ex, "Order #{OrderId} was created but confirmation email could not be queued.", order.Id);
         }
 
-        return Created($"/api/orders/{order.Id}", MapOrder(createdOrder));
+        return StatusCode(StatusCodes.Status201Created, MapOrder(createdOrder));
     }
 
     [HttpPatch("{id:int}/status")]

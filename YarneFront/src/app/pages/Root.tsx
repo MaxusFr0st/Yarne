@@ -6,10 +6,12 @@ import { CartDrawer } from "../components/CartDrawer";
 import { LoginModal } from "../components/LoginModal";
 import { Footer } from "../components/Footer";
 import { PageTransition } from "../components/PageTransition";
-import { getLocaleFromPath } from "../i18n/useLocale";
+import { getLocaleFromPath, stripLocaleFromPath } from "../i18n/useLocale";
 import { consumePreservedScroll } from "../i18n/localeNavigation";
 import {
   captureScrollPosition,
+  clearAllScrollPositions,
+  clearScrollForRoute,
   consumeReturnScroll,
   entryStorageKey,
   markReturnScroll,
@@ -18,6 +20,7 @@ import {
   resolveScrollPosition,
   restoreScrollPosition,
   routeStorageKey,
+  shouldRestoreScrollOnPop,
   type ScrollPositions,
 } from "../utils/scrollRestoration";
 
@@ -42,9 +45,15 @@ export function Root() {
     }
   }, [location.pathname, i18n]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (typeof window === "undefined") return;
     window.history.scrollRestoration = "manual";
+
+    const nav = performance.getEntriesByType("navigation")[0] as PerformanceNavigationTiming | undefined;
+    if (nav?.type === "reload") {
+      clearAllScrollPositions();
+      window.scrollTo(0, 0);
+    }
   }, []);
 
   // Capture scroll at click — runs before route change / snap-to-top.
@@ -116,7 +125,10 @@ export function Root() {
       return;
     }
 
-    if (navigationType === "POP") {
+    const barePath = stripLocaleFromPath(location.pathname);
+    const restoreOnPop = navigationType === "POP" && shouldRestoreScrollOnPop(barePath);
+
+    if (restoreOnPop) {
       positionsRef.current = readScrollPositions();
       const returnY = consumeReturnScroll(location.pathname, location.search, location.key);
       const nextTop =
@@ -134,6 +146,7 @@ export function Root() {
     }
 
     snapScroll(0);
+    clearScrollForRoute(location.pathname, location.search);
 
     return () => {
       restoreCleanupRef.current?.();

@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useState } from "react";
 import { motion } from "motion/react";
 import { ArrowRight, CheckCircle2, Package, ShoppingBag } from "lucide-react";
 import { useTranslation } from "react-i18next";
@@ -35,8 +35,7 @@ export function CheckoutPage() {
   const [placedOrder, setPlacedOrder] = useState<OrderDto | null>(null);
   const [orderSnapshot, setOrderSnapshot] = useState<CartItem[]>([]);
 
-  const shipping = useMemo(() => (cartTotal >= 200 ? 0 : 15), [cartTotal]);
-  const grandTotal = useMemo(() => cartTotal + shipping, [cartTotal, shipping]);
+  const grandTotal = cartTotal;
   const activeItems = placedOrder ? orderSnapshot : cartItems;
 
   const placeOrder = async () => {
@@ -223,10 +222,6 @@ export function CheckoutPage() {
             <div className="flex items-center justify-between text-sm" style={{ fontFamily: "'DM Sans', sans-serif" }}>
               <span className="text-[#2D241E]/60">{t("checkout.subtotal")}</span>
               <PriceTag amount={cartTotal} locale={locale} variant="line" withUnit />
-            </div>
-            <div className="flex items-center justify-between text-sm" style={{ fontFamily: "'DM Sans', sans-serif" }}>
-              <span className="text-[#2D241E]/60">{t("checkout.shipping")}</span>
-              <span className="text-[#2D241E]">{shipping === 0 ? t("checkout.shippingFree") : <PriceTag amount={shipping} locale={locale} variant="line" withUnit />}</span>
             </div>
             <div className="flex items-center justify-between mt-2">
               <span className="text-[#2D241E]/70 uppercase tracking-widest text-xs" style={{ fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.1em" }}>

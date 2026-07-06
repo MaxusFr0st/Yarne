@@ -1,4 +1,4 @@
-import React, { memo, useState, type MouseEvent } from "react";
+import React, { memo, useEffect, useState, type MouseEvent } from "react";
 import { motion } from "motion/react";
 import { Heart, ShoppingBag } from "lucide-react";
 import { useTranslation } from "react-i18next";
@@ -10,6 +10,7 @@ import { LangLink } from "../i18n/LangLink";
 import { useLocale } from "../i18n/useLocale";
 import { PriceTag } from "./PriceTag";
 import { useMotionEntrance } from "../hooks/useMotionEntrance";
+import { useTouchMobileLayout } from "../hooks/useTouchMobileLayout";
 import { getDefaultColorIndex } from "../utils/productColorIndex";
 
 interface ProductCardProps {
@@ -28,6 +29,8 @@ function ProductCardInner({ product, index = 0, size = "medium", inCarousel = fa
   const { addToCart } = useCart();
   const { wishlist, toggleWishlist } = useWishlist();
   const { disabled: motionDisabled, opacityOnly } = useMotionEntrance();
+  const touchMobile = useTouchMobileLayout();
+  const [mobilePeek, setMobilePeek] = useState(false);
 
   const isWishlisted = wishlist.includes(product.id);
   const isCarouselCard = inCarousel || size === "carousel";
@@ -66,6 +69,35 @@ function ProductCardInner({ product, index = 0, size = "medium", inCarousel = fa
     toggleWishlist(product.id);
   };
 
+  const handleCardClick = (e: MouseEvent<HTMLAnchorElement>) => {
+    if (!touchMobile) return;
+    if ((e.target as HTMLElement).closest("button")) return;
+    if (!mobilePeek) {
+      e.preventDefault();
+      setMobilePeek(true);
+    }
+  };
+
+  useEffect(() => {
+    if (!mobilePeek) return;
+    const resetPeek = (event: Event) => {
+      const target = event.target;
+      if (!(target instanceof Element)) return;
+      if (target.closest(`[data-product-card="${product.id}"]`)) return;
+      setMobilePeek(false);
+    };
+    document.addEventListener("click", resetPeek, true);
+    return () => document.removeEventListener("click", resetPeek, true);
+  }, [mobilePeek, product.id]);
+
+  const showQuickAdd = touchMobile ? mobilePeek : false;
+  const overlayVisibleClass = showQuickAdd
+    ? "opacity-100"
+    : "opacity-0 group-hover/card:opacity-100";
+  const quickAddVisibleClass = showQuickAdd
+    ? "opacity-100 translate-y-0 scale-100"
+    : "opacity-0 translate-y-2 scale-[0.97] group-hover/card:opacity-100 group-hover/card:translate-y-0 group-hover/card:scale-100";
+
   const useCarouselViewport = inCarousel && viewportRoot;
   const viewport = useCarouselViewport
     ? { root: viewportRoot, margin: "0px 80px", amount: 0.2, once: true }
@@ -88,8 +120,13 @@ function ProductCardInner({ product, index = 0, size = "medium", inCarousel = fa
       viewport={motionDisabled ? undefined : (useCarouselViewport || !inCarousel ? viewport : undefined)}
       transition={{ duration: 0.5, delay: inCarousel ? 0 : index * 0.08, ease: [0.25, 0.1, 0.25, 1] }}
       className={`group/card ${isCarouselCard ? "overflow-visible" : ""}`}
+      data-product-card={product.id}
     >
-      <LangLink to={`/product/${product.id}`} className={`block ${isCarouselCard ? "overflow-visible" : ""}`}>
+      <LangLink
+        to={`/product/${product.id}`}
+        className={`block ${isCarouselCard ? "overflow-visible" : ""}`}
+        onClick={handleCardClick}
+      >
         <div
           className={`relative ${aspectClass} overflow-hidden ${imageRadiusClass} bg-[#EDE9E2] cursor-pointer`}
         >
@@ -107,7 +144,7 @@ function ProductCardInner({ product, index = 0, size = "medium", inCarousel = fa
           </div>
 
           <div
-            className={`absolute inset-0 ${imageRadiusClass} opacity-0 transition-opacity duration-[450ms] ease-[cubic-bezier(0.25,0.1,0.25,1)] group-hover/card:opacity-100 pointer-events-none`}
+            className={`absolute inset-0 ${imageRadiusClass} transition-opacity duration-[450ms] ease-[cubic-bezier(0.25,0.1,0.25,1)] ${overlayVisibleClass} pointer-events-none`}
             style={{
               background: "linear-gradient(to top, rgba(45,36,30,0.48) 0%, transparent 58%)",
             }}
@@ -163,7 +200,7 @@ function ProductCardInner({ product, index = 0, size = "medium", inCarousel = fa
 
           <button
             onClick={handleQuickAdd}
-            className={`absolute bottom-4 left-1/2 -translate-x-1/2 whitespace-nowrap px-6 py-2.5 rounded-full text-white flex items-center gap-2 cursor-pointer transition-[opacity,transform] duration-[380ms] ease-[cubic-bezier(0.25,0.1,0.25,1)] opacity-0 translate-y-2 scale-[0.97] group-hover/card:opacity-100 group-hover/card:translate-y-0 group-hover/card:scale-100 motion-reduce:transition-none motion-reduce:opacity-100 motion-reduce:translate-y-0 motion-reduce:scale-100`}
+            className={`absolute bottom-4 left-1/2 -translate-x-1/2 whitespace-nowrap px-6 py-2.5 rounded-full text-white flex items-center gap-2 cursor-pointer transition-[opacity,transform] duration-[380ms] ease-[cubic-bezier(0.25,0.1,0.25,1)] ${quickAddVisibleClass} motion-reduce:transition-none motion-reduce:opacity-100 motion-reduce:translate-y-0 motion-reduce:scale-100`}
             style={{
               backgroundColor: "#2D241E",
               fontFamily: "'DM Sans', sans-serif",
