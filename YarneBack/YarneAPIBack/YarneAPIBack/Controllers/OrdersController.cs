@@ -138,7 +138,7 @@ public class OrdersController : ControllerBase
 
     private async Task<ActionResult<OrderDto>> CreateOrderCore(CreateOrderRequest request, CancellationToken ct)
     {
-        if (request.Items.Count == 0)
+        if (request.Items == null || request.Items.Count == 0)
             return BadRequest(new { message = "Order must include at least one item." });
 
         var customerId = GetCurrentCustomerId();
@@ -271,18 +271,14 @@ public class OrdersController : ControllerBase
             OrderItems = orderItems,
         };
 
-        await using var transaction = await _context.Database.BeginTransactionAsync(ct);
+        // Single SaveChanges is atomic; explicit transactions break Npgsql retry strategy on Railway.
         foreach (var (productId, requestedQty) in quantityByProductId)
         {
             if (!productById.TryGetValue(productId, out var product))
-            {
-                await transaction.RollbackAsync(ct);
                 return BadRequest(new { message = "One or more products in the order were not found." });
-            }
 
             if (product.QuantityInStock < requestedQty)
             {
-                await transaction.RollbackAsync(ct);
                 return BadRequest(new
                 {
                     message = $"Not enough stock for '{product.ProductCode}'. Please refresh and try again.",
@@ -293,8 +289,15 @@ public class OrdersController : ControllerBase
         }
 
         _context.Orders.Add(order);
-        await _context.SaveChangesAsync(ct);
-        await transaction.CommitAsync(ct);
+        try
+        {
+            await _context.SaveChangesAsync(ct);
+        }
+        catch (DbUpdateException ex)
+        {
+            _logger.LogWarning(ex, "Order save failed — likely stock or constraint conflict.");
+            return BadRequest(new { message = "Unable to place order. Please refresh and try again." });
+        }
 
         var createdOrder = await BuildOrderQuery().FirstOrDefaultAsync(o => o.Id == order.Id, ct);
         if (createdOrder == null)
