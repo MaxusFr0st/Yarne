@@ -215,6 +215,8 @@ const uk: Translations = {
       appleCancelled: "Вхід через Apple скасовано або не виконано.",
       googleNotConfigured: "Вхід через Google не налаштовано.",
       googleFailed: "Не вдалося виконати вхід через Google. Спробуйте ще раз.",
+      googleOriginMismatch:
+        "Google заблокував вхід для цієї адреси сайту. Додайте {{origin}} у Authorized JavaScript origins у Google Cloud Console.",
       googleCancelled: "Вхід через Google скасовано або не виконано.",
       googleBackend: "Не вдалося виконати вхід через Google. Перевірте, чи запущено бекенд.",
     },

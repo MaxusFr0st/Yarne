@@ -20,6 +20,9 @@ export function LoginGoogleButton({ loading, setLoading, setError, onToken }: Pr
     } catch (err) {
       if (err instanceof Error && err.message === "Google Sign In is not configured.") {
         setError(t("auth.errors.googleNotConfigured"));
+      } else if (err instanceof Error && err.message.startsWith("origin_mismatch:")) {
+        const origin = err.message.slice("origin_mismatch:".length);
+        setError(t("auth.errors.googleOriginMismatch", { origin }));
       } else if (err instanceof Error && err.message.includes("cancelled")) {
         setError(t("auth.errors.googleCancelled"));
       } else {

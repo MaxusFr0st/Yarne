@@ -8,7 +8,7 @@ import { useCart } from "../context/AppContext";
 import { ImageWithFallback } from "./figma/ImageWithFallback";
 import { LangLink } from "../i18n/LangLink";
 import { useLocale } from "../i18n/useLocale";
-import { formatPriceCompact } from "../i18n/format";
+import { formatPriceCompact, splitPriceCompact } from "../i18n/format";
 import { useMotionEntrance } from "../hooks/useMotionEntrance";
 import { getDefaultColorIndex } from "../utils/productColorIndex";
 
@@ -31,6 +31,7 @@ function ProductCardInner({ product, index = 0, size = "medium", inCarousel = fa
 
   const isWishlisted = wishlist.includes(product.id);
   const isCarouselCard = inCarousel || size === "carousel";
+  const priceParts = splitPriceCompact(product.price, locale);
 
   const aspectClass = isCarouselCard
     ? "w-full min-h-0 aspect-[3/4]"
@@ -199,14 +200,20 @@ function ProductCardInner({ product, index = 0, size = "medium", inCarousel = fa
               </p>
             </div>
             <p
-              className="text-[#2D241E] flex-shrink-0"
+              className="text-[#2D241E] flex-shrink-0 inline-flex items-baseline gap-1 tabular-nums"
               style={{
-                fontFamily: "'Cormorant Garamond', serif",
-                fontSize: isCarouselCard ? "clamp(0.88rem, 3.4vw, 1rem)" : "1.05rem",
-                fontWeight: 400,
+                fontFamily: "'DM Sans', sans-serif",
+                fontSize: isCarouselCard ? "clamp(0.84rem, 3.2vw, 0.96rem)" : "0.96rem",
+                fontWeight: 500,
+                letterSpacing: "0.03em",
+                fontFeatureSettings: '"tnum", "lnum"',
+                lineHeight: 1.15,
               }}
             >
-              {formatPriceCompact(product.price, locale)}
+              <span style={{ fontWeight: 600, letterSpacing: "0.01em" }} aria-hidden>
+                {priceParts.symbol}
+              </span>
+              <span>{priceParts.value}</span>
             </p>
           </div>
 

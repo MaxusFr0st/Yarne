@@ -62,6 +62,15 @@ export function requestGoogleAccessToken(): Promise<string> {
           scope: "openid email profile",
           callback: (response) => {
             if (response.error || !response.access_token) {
+              const code = response.error ?? "unknown";
+              if (code.includes("origin_mismatch")) {
+                reject(
+                  new Error(
+                    `origin_mismatch:${window.location.origin}`,
+                  ),
+                );
+                return;
+              }
               reject(new Error(response.error ?? "Google sign-in was cancelled or failed."));
               return;
             }

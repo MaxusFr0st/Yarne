@@ -32,6 +32,14 @@ export function formatPriceCompact(amount: number, locale: Locale): string {
   return `${HRYVNIA_SIGN} ${formatAmountNumber(safe, locale)}`;
 }
 
+export function splitPriceCompact(amount: number, locale: Locale): { symbol: string; value: string } {
+  const safe = Number.isFinite(amount) ? amount : 0;
+  return {
+    symbol: HRYVNIA_SIGN,
+    value: formatAmountNumber(safe, locale),
+  };
+}
+
 export function formatPrice(amount: number, locale: Locale): string {
   const safe = Number.isFinite(amount) ? amount : 0;
   const amountStr = formatAmountNumber(safe, locale);

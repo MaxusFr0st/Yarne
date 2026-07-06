@@ -209,6 +209,8 @@ const en = {
       appleCancelled: "Apple sign-in was cancelled or failed.",
       googleNotConfigured: "Google Sign In is not configured.",
       googleFailed: "Google sign-in failed. Please try again.",
+      googleOriginMismatch:
+        "Google blocked sign-in for this site URL. Add {{origin}} under Authorized JavaScript origins in Google Cloud Console.",
       googleCancelled: "Google sign-in was cancelled or failed.",
       googleBackend: "Google sign-in failed. Check that the backend is running.",
     },
