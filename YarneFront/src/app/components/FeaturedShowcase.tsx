@@ -175,16 +175,9 @@ function ProductTile({ slot, product, fallbackTitle, variant, showWishlist = fal
             )}
           </h3>
 
-          {!isLarge && typeof price === "number" && (
-            <p
-              className="text-white/90 mt-0.5"
-              style={{
-                fontFamily: "'Cormorant Garamond', serif",
-                fontSize: "clamp(0.78rem, 3vw, 0.95rem)",
-                fontWeight: 400,
-              }}
-            >
-              <PriceTag amount={price} locale={locale} variant="card" />
+          {typeof price === "number" && (
+            <p className="mt-0.5">
+              <PriceTag amount={price} locale={locale} variant={isLarge ? "display" : "card"} tone="light" />
             </p>
           )}
         </div>

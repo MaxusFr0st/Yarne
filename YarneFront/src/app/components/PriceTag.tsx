@@ -4,11 +4,14 @@ import { getHryvniaUnit, splitPriceCompact } from "../i18n/format";
 import { useLocale } from "../i18n/useLocale";
 
 export type PriceTagVariant = "card" | "display" | "line" | "emphasis";
+export type PriceTagTone = "dark" | "light";
 
 type PriceTagProps = {
   amount: number;
   locale?: Locale;
   variant?: PriceTagVariant;
+  /** On photo overlays use `light` (white type). Default `dark` for cream/white UI. */
+  tone?: PriceTagTone;
   /** Ukrainian declension (гривня/гривні/гривень) — cart totals, checkout. */
   withUnit?: boolean;
   className?: string;
@@ -24,6 +27,7 @@ const VARIANT_STYLES: Record<
     amountWeight: number;
     amountOpacity: number;
     symbolScale: number;
+    symbolWeight: number;
     symbolOpacity: number;
     gap: string;
     unitSize?: string;
@@ -32,42 +36,53 @@ const VARIANT_STYLES: Record<
   card: {
     fontSize: "clamp(0.94rem, 3.5vw, 1.05rem)",
     amountWeight: 500,
-    amountOpacity: 0.84,
-    symbolScale: 0.76,
-    symbolOpacity: 0.42,
-    gap: "0.22em",
+    amountOpacity: 0.9,
+    symbolScale: 0.92,
+    symbolWeight: 700,
+    symbolOpacity: 0.88,
+    gap: "0.18em",
   },
   display: {
     fontSize: "clamp(1.38rem, 4.2vw, 1.72rem)",
     amountWeight: 500,
-    amountOpacity: 0.92,
-    symbolScale: 0.72,
-    symbolOpacity: 0.38,
-    gap: "0.26em",
+    amountOpacity: 0.94,
+    symbolScale: 0.9,
+    symbolWeight: 700,
+    symbolOpacity: 0.9,
+    gap: "0.22em",
   },
   line: {
     fontSize: "1.02rem",
     amountWeight: 500,
-    amountOpacity: 0.88,
-    symbolScale: 0.74,
-    symbolOpacity: 0.4,
-    gap: "0.2em",
+    amountOpacity: 0.92,
+    symbolScale: 0.9,
+    symbolWeight: 700,
+    symbolOpacity: 0.86,
+    gap: "0.18em",
   },
   emphasis: {
     fontSize: "clamp(1.12rem, 3vw, 1.48rem)",
     amountWeight: 500,
-    amountOpacity: 0.94,
-    symbolScale: 0.7,
-    symbolOpacity: 0.36,
-    gap: "0.24em",
+    amountOpacity: 0.96,
+    symbolScale: 0.88,
+    symbolWeight: 700,
+    symbolOpacity: 0.9,
+    gap: "0.2em",
     unitSize: "0.72rem",
   },
 };
+
+function ink(opacity: number, tone: PriceTagTone): string {
+  return tone === "light"
+    ? `rgba(255, 255, 255, ${opacity})`
+    : `rgba(45, 36, 30, ${opacity})`;
+}
 
 export function PriceTag({
   amount,
   locale: localeProp,
   variant = "card",
+  tone = "dark",
   withUnit = false,
   className = "",
 }: PriceTagProps) {
@@ -87,22 +102,22 @@ export function PriceTag({
 
   const symbolStyle: CSSProperties = {
     fontSize: `${v.symbolScale}em`,
-    fontWeight: 400,
-    color: `rgba(45, 36, 30, ${v.symbolOpacity})`,
+    fontWeight: v.symbolWeight,
+    color: ink(v.symbolOpacity, tone),
     marginRight: v.gap,
-    transform: "translateY(-0.05em)",
+    transform: "translateY(-0.04em)",
   };
 
   const amountStyle: CSSProperties = {
     fontWeight: v.amountWeight,
-    color: `rgba(45, 36, 30, ${v.amountOpacity})`,
+    color: ink(v.amountOpacity, tone),
   };
 
   const unitStyle: CSSProperties = {
     fontFamily: SANS,
     fontSize: v.unitSize ?? "0.68rem",
     fontWeight: 400,
-    color: "rgba(45, 36, 30, 0.38)",
+    color: tone === "light" ? "rgba(255, 255, 255, 0.55)" : "rgba(45, 36, 30, 0.42)",
     letterSpacing: "0.04em",
     marginLeft: "0.35em",
   };

@@ -261,7 +261,12 @@ public class OrdersController : ControllerBase
         await using var transaction = await _context.Database.BeginTransactionAsync(ct);
         foreach (var (productId, requestedQty) in quantityByProductId)
         {
-            var product = productById[productId];
+            if (!productById.TryGetValue(productId, out var product))
+            {
+                await transaction.RollbackAsync(ct);
+                return BadRequest(new { message = "One or more products in the order were not found." });
+            }
+
             var rowsAffected = await _context.Products
                 .Where(p => p.Id == productId && p.QuantityInStock >= requestedQty)
                 .ExecuteUpdateAsync(
@@ -286,9 +291,16 @@ public class OrdersController : ControllerBase
         if (createdOrder == null)
             return StatusCode(StatusCodes.Status500InternalServerError, new { message = "Order was created but could not be loaded." });
 
-        QueueOrderConfirmationEmail(createdOrder);
+        try
+        {
+            QueueOrderConfirmationEmail(createdOrder);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Order #{OrderId} was created but confirmation email could not be queued.", order.Id);
+        }
 
-        return CreatedAtAction(nameof(GetOrderById), new { id = order.Id }, MapOrder(createdOrder));
+        return Created($"/api/orders/{order.Id}", MapOrder(createdOrder));
     }
 
     [HttpPatch("{id:int}/status")]
@@ -361,22 +373,25 @@ public class OrdersController : ControllerBase
 
     private static OrderDto MapOrder(Order order)
     {
-        var customerName = $"{order.Customer.FirstName} {order.Customer.LastName}".Trim();
-        if (string.IsNullOrWhiteSpace(customerName))
-            customerName = order.Customer.UserName;
+        var customer = order.Customer;
+        var customerName = customer == null
+            ? "Customer"
+            : $"{customer.FirstName} {customer.LastName}".Trim();
+        if (customer != null && string.IsNullOrWhiteSpace(customerName))
+            customerName = customer.UserName ?? customer.Email ?? "Customer";
 
         return new OrderDto
         {
             Id = order.Id,
             CustomerId = order.CustomerId,
             CustomerName = customerName,
-            CustomerEmail = order.Customer.Email,
+            CustomerEmail = customer?.Email ?? string.Empty,
             Total = order.Total,
             Status = order.Status,
             OrderDate = order.OrderDate,
             EstimatedDelivery = order.EstimatedDelivery,
             PaymentMethodId = order.PaymentMethodId,
-            PaymentMethodName = order.PaymentMethod.Name,
+            PaymentMethodName = order.PaymentMethod?.Name ?? "Card",
             ShippingAddrId = order.ShippingAddrId,
             Items = order.OrderItems
                 .OrderBy(i => i.Id)
@@ -384,9 +399,9 @@ public class OrdersController : ControllerBase
                 {
                     Id = i.Id,
                     ProductId = i.ProductId,
-                    ProductCode = i.Product.ProductCode,
-                    ProductName = i.Product.Name,
-                    ProductImageUrl = i.Product.ImageUrl,
+                    ProductCode = i.Product?.ProductCode ?? string.Empty,
+                    ProductName = i.Product?.Name ?? "Product",
+                    ProductImageUrl = i.Product?.ImageUrl,
                     Quantity = i.Quantity,
                     UnitPrice = i.UnitPrice,
                     LineTotal = i.UnitPrice * i.Quantity,
@@ -399,10 +414,20 @@ public class OrdersController : ControllerBase
 
     private void QueueOrderConfirmationEmail(Order order)
     {
-        if (string.IsNullOrWhiteSpace(order.Customer.Email))
+        if (order.Customer == null || string.IsNullOrWhiteSpace(order.Customer.Email))
             return;
 
-        var message = BuildOrderConfirmationMessage(order);
+        OrderConfirmationEmailMessage message;
+        try
+        {
+            message = BuildOrderConfirmationMessage(order);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to build order confirmation email for order #{OrderId}.", order.Id);
+            return;
+        }
+
         _ = Task.Run(async () =>
         {
             try
@@ -421,23 +446,24 @@ public class OrdersController : ControllerBase
 
     private static OrderConfirmationEmailMessage BuildOrderConfirmationMessage(Order order)
     {
-        var customerName = $"{order.Customer.FirstName} {order.Customer.LastName}".Trim();
+        var customer = order.Customer ?? throw new InvalidOperationException("Order customer is not loaded.");
+        var customerName = $"{customer.FirstName} {customer.LastName}".Trim();
         if (string.IsNullOrWhiteSpace(customerName))
-            customerName = order.Customer.UserName;
+            customerName = customer.UserName ?? customer.Email ?? "Customer";
 
         return new OrderConfirmationEmailMessage
         {
             OrderId = order.Id,
             CustomerName = customerName,
-            ToEmail = order.Customer.Email,
+            ToEmail = customer.Email ?? string.Empty,
             OrderDateUtc = order.OrderDate,
             Total = order.Total,
             Items = order.OrderItems
                 .OrderBy(i => i.Id)
                 .Select(i => new OrderConfirmationEmailItem
                 {
-                    ProductCode = i.Product.ProductCode,
-                    ProductName = i.Product.Name,
+                    ProductCode = i.Product?.ProductCode ?? string.Empty,
+                    ProductName = i.Product?.Name ?? "Product",
                     Quantity = i.Quantity,
                     UnitPrice = i.UnitPrice,
                 })

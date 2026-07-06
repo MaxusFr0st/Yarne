@@ -176,6 +176,11 @@ else
     {
         errorApp.Run(async context =>
         {
+            var feature = context.Features.Get<Microsoft.AspNetCore.Diagnostics.IExceptionHandlerFeature>();
+            var logger = context.RequestServices.GetRequiredService<ILogger<Program>>();
+            if (feature?.Error != null)
+                logger.LogError(feature.Error, "Unhandled API exception on {Method} {Path}", context.Request.Method, context.Request.Path);
+
             context.Response.StatusCode = StatusCodes.Status500InternalServerError;
             context.Response.ContentType = "application/json";
             await context.Response.WriteAsJsonAsync(new { message = "An unexpected error occurred." });
