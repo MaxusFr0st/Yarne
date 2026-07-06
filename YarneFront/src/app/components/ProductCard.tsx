@@ -53,10 +53,12 @@ function ProductCardInner({ product, index = 0, size = "medium", inCarousel = fa
     addToCart({
       productId: product.id,
       name: product.name,
+      subtitle: product.subtitle,
       price: product.price,
       color: product.colors[activeColor].name,
       colorHex: product.colors[activeColor].hex,
       size: "S",
+      withLace: null,
       quantity: 1,
       maxQuantity,
       image: product.colors[activeColor].image,

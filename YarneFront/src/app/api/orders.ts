@@ -6,6 +6,10 @@ export interface OrderItemDto {
   productCode: string;
   productName: string;
   productImageUrl: string | null;
+  productSubtitle: string | null;
+  colorName: string | null;
+  sizeName: string | null;
+  withLace: boolean | null;
   quantity: number;
   unitPrice: number;
   lineTotal: number;
@@ -38,6 +42,10 @@ export interface CreateOrderItemRequest {
   productIdOrCode: string;
   quantity: number;
   countryId?: number;
+  productSubtitle?: string;
+  colorName?: string;
+  sizeName?: string;
+  withLace?: boolean | null;
 }
 
 export interface CreateOrderRequest {

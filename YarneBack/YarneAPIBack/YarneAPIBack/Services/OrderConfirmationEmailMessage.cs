@@ -21,6 +21,14 @@ public class OrderConfirmationEmailItem
 
     public string ProductName { get; set; } = string.Empty;
 
+    public string? ProductSubtitle { get; set; }
+
+    public string? ColorName { get; set; }
+
+    public string? SizeName { get; set; }
+
+    public bool? WithLace { get; set; }
+
     public int Quantity { get; set; }
 
     public decimal UnitPrice { get; set; }

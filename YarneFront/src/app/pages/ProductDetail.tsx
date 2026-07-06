@@ -146,10 +146,12 @@ export function ProductDetail() {
     addToCart({
       productId: product.id,
       name: product.name,
+      subtitle: product.subtitle,
       price: product.price,
       color: selectedColor.name,
       colorHex: selectedColor.hex,
       size: activeSize,
+      withLace: product.lace ? activeLace : null,
       quantity: 1,
       maxQuantity: displayStock,
       image: images[0] ?? selectedColor.image,

@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using YarneAPIBack.Data;
@@ -11,9 +12,11 @@ using YarneAPIBack.Data;
 namespace YarneAPIBack.Data.Migrations
 {
     [DbContext(typeof(YarneDbContext))]
-    partial class YarneDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260706215250_AddOrderItemVariantDetails")]
+    partial class AddOrderItemVariantDetails
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -893,32 +896,17 @@ namespace YarneAPIBack.Data.Migrations
                     b.Property<int?>("CountryId")
                         .HasColumnType("integer");
 
-                    b.Property<string>("ColorName")
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)");
-
                     b.Property<int>("OrderId")
                         .HasColumnType("integer");
 
                     b.Property<int>("ProductId")
                         .HasColumnType("integer");
 
-                    b.Property<string>("ProductSubtitle")
-                        .HasMaxLength(200)
-                        .HasColumnType("character varying(200)");
-
                     b.Property<int>("Quantity")
                         .HasColumnType("integer");
 
-                    b.Property<string>("SizeName")
-                        .HasMaxLength(20)
-                        .HasColumnType("character varying(20)");
-
                     b.Property<decimal>("UnitPrice")
                         .HasColumnType("decimal(18, 2)");
-
-                    b.Property<bool?>("WithLace")
-                        .HasColumnType("boolean");
 
                     b.HasKey("Id")
                         .HasName("PK__OrderIte__3214EC0700F58744");

@@ -12,4 +12,15 @@ public class CreateOrderItemRequest
     public int Quantity { get; set; }
 
     public int? CountryId { get; set; }
+
+    [StringLength(200)]
+    public string? ProductSubtitle { get; set; }
+
+    [StringLength(100)]
+    public string? ColorName { get; set; }
+
+    [StringLength(20)]
+    public string? SizeName { get; set; }
+
+    public bool? WithLace { get; set; }
 }

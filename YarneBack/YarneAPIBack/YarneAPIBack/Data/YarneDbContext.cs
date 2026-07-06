@@ -323,6 +323,9 @@ public partial class YarneDbContext : DbContext
             entity.ToTable("OrderItem");
 
             entity.Property(e => e.UnitPrice).HasColumnType("decimal(18, 2)");
+            entity.Property(e => e.ProductSubtitle).HasMaxLength(200);
+            entity.Property(e => e.ColorName).HasMaxLength(100);
+            entity.Property(e => e.SizeName).HasMaxLength(20);
 
             entity.HasOne(d => d.Country).WithMany(p => p.OrderItems)
                 .HasForeignKey(d => d.CountryId)

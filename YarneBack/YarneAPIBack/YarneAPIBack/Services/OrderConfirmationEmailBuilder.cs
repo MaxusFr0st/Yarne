@@ -22,6 +22,10 @@ public static class OrderConfirmationEmailBuilder
         {
             var safeCode = WebUtility.HtmlEncode(item.ProductCode);
             var safeProductName = WebUtility.HtmlEncode(item.ProductName);
+            var safeSubtitle = WebUtility.HtmlEncode(item.ProductSubtitle ?? "—");
+            var safeColor = WebUtility.HtmlEncode(item.ColorName ?? "—");
+            var safeSize = WebUtility.HtmlEncode(item.SizeName ?? "—");
+            var laceLabel = FormatLaceLabel(item.WithLace);
             var lineTotal = FormatPrice(item.UnitPrice * item.Quantity);
             var unitPrice = FormatPrice(item.UnitPrice);
 
@@ -29,6 +33,10 @@ public static class OrderConfirmationEmailBuilder
                     <tr>
                       <td style="padding:8px;border:1px solid #e5e7eb;">{safeCode}</td>
                       <td style="padding:8px;border:1px solid #e5e7eb;">{safeProductName}</td>
+                      <td style="padding:8px;border:1px solid #e5e7eb;">{safeSubtitle}</td>
+                      <td style="padding:8px;border:1px solid #e5e7eb;">{safeColor}</td>
+                      <td style="padding:8px;border:1px solid #e5e7eb;text-align:center;">{safeSize}</td>
+                      <td style="padding:8px;border:1px solid #e5e7eb;">{laceLabel}</td>
                       <td style="padding:8px;border:1px solid #e5e7eb;text-align:center;">{item.Quantity}</td>
                       <td style="padding:8px;border:1px solid #e5e7eb;text-align:right;">{unitPrice}</td>
                       <td style="padding:8px;border:1px solid #e5e7eb;text-align:right;">{lineTotal}</td>
@@ -43,10 +51,10 @@ public static class OrderConfirmationEmailBuilder
                 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="padding:24px;">
                   <tr>
                     <td align="center">
-                      <table role="presentation" width="680" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:10px;overflow:hidden;">
+                      <table role="presentation" width="900" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:10px;overflow:hidden;">
                         <tr>
                           <td style="padding:24px;border-bottom:1px solid #e5e7eb;">
-                            <h1 style="margin:0;font-size:22px;line-height:1.3;">Дякуємо за замовлення в Yarne</h1>
+                            <h1 style="margin:0;font-size:22px;line-height:1.3;">Дякуємо за замовлення в Yarné</h1>
                             <p style="margin:12px 0 0;font-size:14px;color:#4b5563;">
                               Вітаємо, {{safeName}}! Ми отримали ваше замовлення та вже передали його в обробку.
                             </p>
@@ -56,14 +64,18 @@ public static class OrderConfirmationEmailBuilder
                           <td style="padding:24px;">
                             <p style="margin:0 0 8px;font-size:14px;"><strong>Номер замовлення:</strong> #{{message.OrderId}}</p>
                             <p style="margin:0 0 8px;font-size:14px;"><strong>Дата:</strong> {{orderDate}}</p>
-                            <p style="margin:0 0 16px;font-size:14px;"><strong>Сума:</strong> {{total}}</p>
+                            <p style="margin:0 0 16px;font-size:14px;"><strong>Разом:</strong> {{total}}</p>
 
-                            <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;font-size:14px;">
+                            <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;font-size:13px;">
                               <thead>
                                 <tr style="background:#f3f4f6;">
                                   <th align="left" style="padding:8px;border:1px solid #e5e7eb;">Код</th>
-                                  <th align="left" style="padding:8px;border:1px solid #e5e7eb;">Товар</th>
-                                  <th align="center" style="padding:8px;border:1px solid #e5e7eb;">К-сть</th>
+                                  <th align="left" style="padding:8px;border:1px solid #e5e7eb;">Модель</th>
+                                  <th align="left" style="padding:8px;border:1px solid #e5e7eb;">Опис</th>
+                                  <th align="left" style="padding:8px;border:1px solid #e5e7eb;">Колір</th>
+                                  <th align="center" style="padding:8px;border:1px solid #e5e7eb;">Розмір</th>
+                                  <th align="left" style="padding:8px;border:1px solid #e5e7eb;">Мереживо</th>
+                                  <th align="center" style="padding:8px;border:1px solid #e5e7eb;">Кількість</th>
                                   <th align="right" style="padding:8px;border:1px solid #e5e7eb;">Ціна</th>
                                   <th align="right" style="padding:8px;border:1px solid #e5e7eb;">Разом</th>
                                 </tr>
@@ -86,6 +98,14 @@ public static class OrderConfirmationEmailBuilder
             </html>
             """;
     }
+
+    private static string FormatLaceLabel(bool? withLace)
+        => withLace switch
+        {
+            true => "З мереживом",
+            false => "Без мережива",
+            _ => "—",
+        };
 
     private static string FormatPrice(decimal price)
         => HryvniaPriceFormatter.Format(price);

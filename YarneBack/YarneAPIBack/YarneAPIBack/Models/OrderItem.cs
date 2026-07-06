@@ -17,6 +17,14 @@ public partial class OrderItem
 
     public decimal UnitPrice { get; set; }
 
+    public string? ProductSubtitle { get; set; }
+
+    public string? ColorName { get; set; }
+
+    public string? SizeName { get; set; }
+
+    public bool? WithLace { get; set; }
+
     public virtual Country? Country { get; set; }
 
     public virtual Order Order { get; set; } = null!;

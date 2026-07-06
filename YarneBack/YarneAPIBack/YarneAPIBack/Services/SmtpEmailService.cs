@@ -1,6 +1,7 @@
-using System.Net;
-using System.Net.Mail;
+using MailKit.Net.Smtp;
+using MailKit.Security;
 using Microsoft.Extensions.Logging;
+using MimeKit;
 using YarneAPIBack.Services.Contracts;
 
 namespace YarneAPIBack.Services;
@@ -39,7 +40,7 @@ public class SmtpEmailService : IEmailService
 
         var subject = OrderConfirmationEmailBuilder.BuildSubject(message);
         var htmlBody = OrderConfirmationEmailBuilder.BuildHtml(message);
-        await SendHtmlEmailAsync(message.ToEmail, subject, htmlBody);
+        await SendHtmlEmailAsync(message.ToEmail, subject, htmlBody, ct);
     }
 
     public Task SendOrderReceiptAsync(OrderConfirmationEmailMessage message, CancellationToken ct = default)
@@ -74,33 +75,31 @@ public class SmtpEmailService : IEmailService
         return false;
     }
 
-    private async Task SendHtmlEmailAsync(string toEmail, string subject, string htmlBody)
+    private async Task SendHtmlEmailAsync(string toEmail, string subject, string htmlBody, CancellationToken ct)
     {
         try
         {
-            using var mailMessage = new MailMessage
-            {
-                From = new MailAddress(_emailFrom!),
-                Subject = subject,
-                Body = htmlBody,
-                IsBodyHtml = true,
-            };
-            mailMessage.To.Add(toEmail);
+            var mailMessage = new MimeMessage();
+            mailMessage.From.Add(MailboxAddress.Parse(_emailFrom!));
+            mailMessage.To.Add(MailboxAddress.Parse(toEmail));
+            mailMessage.Subject = subject;
+            mailMessage.Body = new TextPart("html") { Text = htmlBody };
 
-            using var smtpClient = new SmtpClient(_smtpHost!, _smtpPort)
-            {
-                EnableSsl = true,
-                DeliveryMethod = SmtpDeliveryMethod.Network,
-                UseDefaultCredentials = false,
-                Credentials = new NetworkCredential(_smtpUser!, _smtpPassword!),
-            };
+            using var client = new SmtpClient();
+            var socketOptions = _smtpPort == 465
+                ? SecureSocketOptions.SslOnConnect
+                : SecureSocketOptions.StartTls;
 
-            await smtpClient.SendMailAsync(mailMessage);
+            await client.ConnectAsync(_smtpHost!, _smtpPort, socketOptions, ct);
+            await client.AuthenticateAsync(_smtpUser!, _smtpPassword!, ct);
+            await client.SendAsync(mailMessage, ct);
+            await client.DisconnectAsync(true, ct);
+
             _logger.LogInformation("Order confirmation email sent to {Email}.", toEmail);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to send email to {Email}.", toEmail);
+            _logger.LogError(ex, "Failed to send email to {Email} via {Host}:{Port}.", toEmail, _smtpHost, _smtpPort);
         }
     }
 }

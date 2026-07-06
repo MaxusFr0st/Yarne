@@ -13,10 +13,12 @@ export interface CartItem {
   cartId: string;
   productId: string;
   name: string;
+  subtitle?: string;
   price: number;
   color: string;
   colorHex: string;
   size: string;
+  withLace?: boolean | null;
   quantity: number;
   image: string;
   maxQuantity: number;
@@ -174,7 +176,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
     setCartItems((prev) => {
       const existing = prev.find(
-        (i) => i.productId === item.productId && i.color === item.color && i.size === item.size
+        (i) =>
+          i.productId === item.productId &&
+          i.color === item.color &&
+          i.size === item.size &&
+          i.withLace === item.withLace
       );
       if (existing) {
         const nextQty = Math.min(existing.quantity + item.quantity, maxQty);
@@ -190,7 +196,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           ...item,
           quantity,
           maxQuantity: maxQty,
-          cartId: `${item.productId}-${item.color}-${item.size}-${Date.now()}`,
+          cartId: `${item.productId}-${item.color}-${item.size}-${item.withLace ?? "na"}-${Date.now()}`,
         },
       ];
     });

@@ -8,6 +8,7 @@ import { ImageWithFallback } from "../components/figma/ImageWithFallback";
 import { LangLink } from "../i18n/LangLink";
 import { useLocale } from "../i18n/useLocale";
 import { PriceTag } from "../components/PriceTag";
+import { CheckoutOrderLine } from "../components/CheckoutOrderLine";
 
 const easing = [0.25, 0.1, 0.25, 1] as const;
 const ORDER_ITEM_PLACEHOLDER =
@@ -50,6 +51,10 @@ export function CheckoutPage() {
         items: snapshot.map((item) => ({
           productIdOrCode: item.productId,
           quantity: item.quantity,
+          productSubtitle: item.subtitle,
+          colorName: item.color,
+          sizeName: item.size,
+          withLace: item.withLace ?? undefined,
         })),
       });
       setPlacedOrder(order);
@@ -183,16 +188,13 @@ export function CheckoutPage() {
                     <div className="w-20 h-24 rounded-[16px] overflow-hidden bg-[#EDE9E2] flex-shrink-0">
                       <ImageWithFallback src={imageSrc} alt={item.name} className="w-full h-full object-contain" />
                     </div>
-                    <div className="flex-1 flex flex-col justify-between min-w-0">
+                    <div className="flex-1 flex flex-col min-w-0">
                       <div>
                         <p className="text-[#2D241E]" style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "1.08rem", fontWeight: 500 }}>
                           {item.name}
                         </p>
-                        <p className="text-[#2D241E]/55 text-xs mt-1" style={{ fontFamily: "'DM Sans', sans-serif" }}>
-                          {item.color} · {t("checkout.size")} {item.size} · {t("checkout.qty")} {item.quantity}
-                        </p>
                       </div>
-                      <PriceTag amount={item.price * item.quantity} locale={locale} variant="line" />
+                      <CheckoutOrderLine item={item} locale={locale} />
                     </div>
                   </div>
                 </LangLink>

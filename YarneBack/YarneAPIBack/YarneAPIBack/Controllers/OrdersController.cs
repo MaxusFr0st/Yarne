@@ -254,6 +254,10 @@ public class OrdersController : ControllerBase
                 CountryId = item.CountryId,
                 Quantity = item.Quantity,
                 UnitPrice = product.Price,
+                ProductSubtitle = NormalizeOptional(item.ProductSubtitle),
+                ColorName = NormalizeOptional(item.ColorName),
+                SizeName = NormalizeOptional(item.SizeName),
+                WithLace = item.WithLace,
             });
 
             quantityByProductId[product.Id] = quantityByProductId.GetValueOrDefault(product.Id) + item.Quantity;
@@ -417,6 +421,10 @@ public class OrdersController : ControllerBase
                     ProductCode = i.Product?.ProductCode ?? string.Empty,
                     ProductName = i.Product?.Name ?? "Product",
                     ProductImageUrl = i.Product?.ImageUrl,
+                    ProductSubtitle = i.ProductSubtitle,
+                    ColorName = i.ColorName,
+                    SizeName = i.SizeName,
+                    WithLace = i.WithLace,
                     Quantity = i.Quantity,
                     UnitPrice = i.UnitPrice,
                     LineTotal = i.UnitPrice * i.Quantity,
@@ -430,7 +438,12 @@ public class OrdersController : ControllerBase
     private void QueueOrderConfirmationEmail(Order order)
     {
         if (order.Customer == null || string.IsNullOrWhiteSpace(order.Customer.Email))
+        {
+            _logger.LogWarning(
+                "Skipping order confirmation email for order #{OrderId}: customer email is missing.",
+                order.Id);
             return;
+        }
 
         OrderConfirmationEmailMessage message;
         try
@@ -447,7 +460,11 @@ public class OrdersController : ControllerBase
         {
             try
             {
-                await _emailService.SendOrderConfirmationAsync(message);
+                _logger.LogInformation(
+                    "Sending order confirmation email for order #{OrderId} to {Email}.",
+                    order.Id,
+                    message.ToEmail);
+                await _emailService.SendOrderConfirmationAsync(message, CancellationToken.None);
             }
             catch (Exception ex)
             {
@@ -457,6 +474,12 @@ public class OrdersController : ControllerBase
                     order.Id);
             }
         });
+    }
+
+    private static string? NormalizeOptional(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value)) return null;
+        return value.Trim();
     }
 
     private static OrderConfirmationEmailMessage BuildOrderConfirmationMessage(Order order)
@@ -479,6 +502,10 @@ public class OrdersController : ControllerBase
                 {
                     ProductCode = i.Product?.ProductCode ?? string.Empty,
                     ProductName = i.Product?.Name ?? "Product",
+                    ProductSubtitle = i.ProductSubtitle,
+                    ColorName = i.ColorName,
+                    SizeName = i.SizeName,
+                    WithLace = i.WithLace,
                     Quantity = i.Quantity,
                     UnitPrice = i.UnitPrice,
                 })
