@@ -40,18 +40,7 @@ export function formatPrice(amount: number, locale: Locale): string {
     return `${HRYVNIA_SIGN}\u00a0${amountStr} ${getHryvniaUnit(safe)}`;
   }
 
-  try {
-    const formatted = new Intl.NumberFormat(LOCALE_BCP47[locale], {
-      style: "currency",
-      currency: "UAH",
-      currencyDisplay: "narrowSymbol",
-      minimumFractionDigits: Number.isInteger(safe) ? 0 : 2,
-      maximumFractionDigits: Number.isInteger(safe) ? 0 : 2,
-    }).format(safe);
-    return formatted.replace(/[\u00A0\u202F]/g, " ");
-  } catch {
-    return `${HRYVNIA_SIGN}${amountStr}`;
-  }
+  return formatPriceCompact(safe, locale);
 }
 
 export function formatPriceFromPrefix(

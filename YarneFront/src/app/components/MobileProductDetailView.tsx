@@ -5,7 +5,7 @@ import { ArrowLeft, Heart, ShoppingBag, Check, ChevronDown } from "lucide-react"
 import { useTranslation } from "react-i18next";
 import type { Product } from "../types/product";
 import type { Locale } from "../i18n/config";
-import { formatPrice } from "../i18n/format";
+import { formatPriceCompact } from "../i18n/format";
 import { ImageWithFallback } from "./figma/ImageWithFallback";
 import { CrossfadeImage } from "./figma/CrossfadeImage";
 
@@ -211,7 +211,7 @@ export function MobileProductDetailView({
                 fontWeight: 500,
               }}
             >
-              {formatPrice(product.price, locale)}
+              {formatPriceCompact(product.price, locale)}
             </p>
           </div>
 

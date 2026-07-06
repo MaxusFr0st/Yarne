@@ -6,6 +6,15 @@ import { Logo } from "./Logo";
 const INSTAGRAM_URL = "https://www.instagram.com/yarne.acc/";
 const TIKTOK_URL = "https://www.tiktok.com/@yarne.acc";
 
+const CONNECT_LINKS = [
+  { key: "instagram", href: INSTAGRAM_URL },
+  { key: "tiktok", href: TIKTOK_URL },
+] as const;
+
+type FooterColumn =
+  | { id: "shop" | "brand" | "help"; title: string; links: string[] }
+  | { id: "connect"; title: string };
+
 function TikTokIcon({ size = 18 }: { size?: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" aria-hidden>
@@ -14,24 +23,31 @@ function TikTokIcon({ size = 18 }: { size?: number }) {
   );
 }
 
+const linkClassName =
+  "text-[#2D241E]/55 hover:text-[#4A0E0E] transition-colors duration-300 text-sm";
+
 export function Footer() {
   const { t } = useTranslation();
-  const columns = [
+
+  const columns: FooterColumn[] = [
     {
+      id: "shop",
       title: t("footer.columns.shop.title"),
       links: t("footer.columns.shop.items", { returnObjects: true }) as string[],
     },
     {
+      id: "brand",
       title: t("footer.columns.brand.title"),
       links: t("footer.columns.brand.items", { returnObjects: true }) as string[],
     },
     {
+      id: "help",
       title: t("footer.columns.help.title"),
       links: t("footer.columns.help.items", { returnObjects: true }) as string[],
     },
     {
+      id: "connect",
       title: t("footer.columns.connect.title"),
-      links: t("footer.columns.connect.items", { returnObjects: true }) as string[],
     },
   ];
 
@@ -55,7 +71,7 @@ export function Footer() {
         {/* Links Grid */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-10 mb-16">
           {columns.map((col) => (
-            <div key={col.title}>
+            <div key={col.id}>
               <p
                 className="text-[#2D241E] mb-5 tracking-widest uppercase text-xs"
                 style={{ fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.18em" }}
@@ -63,17 +79,31 @@ export function Footer() {
                 {col.title}
               </p>
               <ul className="space-y-3">
-                {col.links.map((link) => (
-                  <li key={link}>
-                    <Link
-                      to="#"
-                      className="text-[#2D241E]/55 hover:text-[#4A0E0E] transition-colors duration-300 text-sm"
-                      style={{ fontFamily: "'DM Sans', sans-serif" }}
-                    >
-                      {link}
-                    </Link>
-                  </li>
-                ))}
+                {col.id === "connect"
+                  ? CONNECT_LINKS.map((link) => (
+                      <li key={link.key}>
+                        <a
+                          href={link.href}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className={linkClassName}
+                          style={{ fontFamily: "'DM Sans', sans-serif" }}
+                        >
+                          {t(`footer.columns.connect.${link.key}`)}
+                        </a>
+                      </li>
+                    ))
+                  : col.links.map((link) => (
+                      <li key={link}>
+                        <Link
+                          to="#"
+                          className={linkClassName}
+                          style={{ fontFamily: "'DM Sans', sans-serif" }}
+                        >
+                          {link}
+                        </Link>
+                      </li>
+                    ))}
               </ul>
             </div>
           ))}

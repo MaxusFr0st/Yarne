@@ -4,7 +4,7 @@ import { motion, AnimatePresence, LayoutGroup, useReducedMotion } from "motion/r
 import { ArrowLeft, Heart, ChevronDown, ShoppingBag, Check } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useLocale } from "../i18n/useLocale";
-import { formatPrice } from "../i18n/format";
+import { formatPriceCompact } from "../i18n/format";
 import { useProduct, useProducts } from "../hooks/useProducts";
 import { useCart, useWishlist } from "../context/AppContext";
 import { getDefaultColorIndex } from "../utils/productColorIndex";
@@ -289,7 +289,7 @@ export function ProductDetail() {
                 className="text-[#2D241E] mt-3"
                 style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "1.6rem", fontWeight: 400 }}
               >
-                {formatPrice(product.price, locale)}
+                {formatPriceCompact(product.price, locale)}
               </p>
             </div>
 

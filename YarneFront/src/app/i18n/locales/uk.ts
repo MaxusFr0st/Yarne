@@ -377,7 +377,10 @@ const uk: Translations = {
       },
       connect: {
         title: "Зв’язок",
-        items: ["Instagram", "TikTok", "Pinterest", "Магазини-партнери"],
+        instagram: "Instagram",
+        tiktok: "TikTok",
+        pinterest: "Pinterest",
+        stockists: "Магазини-партнери",
       },
     },
     rights: "© {{year}} Yarné — The Knit Gallery. Усі права захищено.",

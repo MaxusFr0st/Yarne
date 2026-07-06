@@ -365,7 +365,10 @@ const en = {
       },
       connect: {
         title: "Connect",
-        items: ["Instagram", "TikTok", "Pinterest", "Stockists"],
+        instagram: "Instagram",
+        tiktok: "TikTok",
+        pinterest: "Pinterest",
+        stockists: "Stockists",
       },
     },
     rights: "© {{year}} Yarné — The Knit Gallery. All rights reserved.",
