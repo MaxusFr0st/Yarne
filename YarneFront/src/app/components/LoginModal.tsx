@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useId, useRef, useState, type Ref } from "react";
 import { motion, AnimatePresence, useReducedMotion, LayoutGroup } from "motion/react";
 import { X, Eye, EyeOff } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { useOverlay, useAuth } from "../context/AppContext";
 import { appleClientId, appleRedirectUri, isAppleOAuthEnabled, isGoogleOAuthEnabled, isOAuthEnabled } from "../config/oauth";
 import { LoginGoogleButton } from "./LoginGoogleButton";
@@ -75,6 +76,7 @@ function AuthField({
 }
 
 export function LoginModal() {
+  const { t } = useTranslation();
   const { loginOpen, closeLogin } = useOverlay();
   const { login, loginWithOAuth, register } = useAuth();
   const reduceMotion = useReducedMotion();
@@ -151,7 +153,7 @@ export function LoginModal() {
     try {
       if (mode === "login") {
         const result = await login(email.trim(), password);
-        if (!result.ok) setError(result.error ?? "Invalid email or password. Please try again.");
+        if (!result.ok) setError(result.error ?? t("auth.errors.invalidCredentials"));
       } else {
         const result = await register({
           firstName: firstName.trim(),
@@ -160,10 +162,10 @@ export function LoginModal() {
           email: email.trim(),
           password,
         });
-        if (!result.ok) setError(result.error ?? "Could not create account. Please try again.");
+        if (!result.ok) setError(result.error ?? t("auth.errors.createAccountFailed"));
       }
     } catch {
-      setError("Something went wrong. Please try again.");
+      setError(t("auth.errors.generic"));
     } finally {
       setLoading(false);
     }
@@ -171,11 +173,11 @@ export function LoginModal() {
 
   const handleAppleLogin = async () => {
     if (!isAppleOAuthEnabled) {
-      setError("Apple Sign In is not configured.");
+      setError(t("auth.errors.appleNotConfigured"));
       return;
     }
     if (!window.AppleID) {
-      setError("Apple Sign In is not available. Please try again later.");
+      setError(t("auth.errors.appleNotAvailable"));
       return;
     }
     try {
@@ -189,9 +191,9 @@ export function LoginModal() {
       });
       const data = await window.AppleID.auth.signIn();
       const result = await loginWithOAuth(data.authorization.id_token, "apple");
-      if (!result.ok) setError(result.error ?? "Apple sign-in failed. Please try again.");
+      if (!result.ok) setError(result.error ?? t("auth.errors.appleFailed"));
     } catch {
-      setError("Apple sign-in was cancelled or failed.");
+      setError(t("auth.errors.appleCancelled"));
     } finally {
       setLoading(false);
     }
@@ -235,7 +237,7 @@ export function LoginModal() {
         <>
           <motion.button
             type="button"
-            aria-label="Close sign in dialog"
+            aria-label={t("auth.closeSignInDialog")}
             className="fixed inset-0 z-50 cursor-default"
             style={{ backgroundColor: "rgba(45,36,30,0.38)", backdropFilter: "blur(10px)" }}
             initial={{ opacity: 0 }}
@@ -270,7 +272,7 @@ export function LoginModal() {
               <button
                 type="button"
                 onClick={closeLogin}
-                aria-label="Close"
+                aria-label={t("auth.close")}
                 className="absolute top-5 right-5 w-9 h-9 rounded-full flex items-center justify-center text-[#2D241E]/40 hover:text-[#2D241E] hover:bg-[#2D241E]/8 transition-colors cursor-pointer"
               >
                 <X size={16} />
@@ -282,7 +284,7 @@ export function LoginModal() {
                   className="text-[#2D241E]/40 tracking-widest uppercase text-xs mb-2"
                   style={{ fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.2em" }}
                 >
-                  The Knit Gallery
+                  {t("auth.brandTagline")}
                 </p>
                 <AnimatePresence mode="wait" initial={false}>
                   <motion.h2
@@ -295,7 +297,7 @@ export function LoginModal() {
                     exit={reduceMotion ? undefined : { opacity: 0, y: -8 }}
                     transition={expandTransition}
                   >
-                    {mode === "login" ? "Welcome back" : "Create account"}
+                    {mode === "login" ? t("auth.welcomeBack") : t("auth.createAccount")}
                   </motion.h2>
                 </AnimatePresence>
               </div>
@@ -328,7 +330,7 @@ export function LoginModal() {
                     }}
                     aria-pressed={mode === tab}
                   >
-                    {tab === "login" ? "Sign In" : "Register"}
+                    {tab === "login" ? t("auth.signInTab") : t("auth.registerTab")}
                   </button>
                 ))}
               </div>
@@ -371,13 +373,13 @@ export function LoginModal() {
                               <svg width="16" height="19" viewBox="0 0 814 1000" aria-hidden="true" fill="currentColor">
                                 <path d="M788.1 340.9c-5.8 4.5-108.2 62.2-108.2 190.5 0 148.4 130.3 200.9 134.2 202.2-.6 3.2-20.7 71.9-68.7 141.9-42.8 61.6-87.5 123.1-155.5 123.1s-85.5-39.5-164-39.5c-76 0-103.7 40.8-165.9 40.8s-105-43.4-150.3-109.2c-52.5-73.5-96-191.9-96-304.5 0-151 103.7-230.3 205.3-230.3 64.1 0 117.6 42.5 157.9 42.5 38.1 0 97.5-44.9 164-44.9 26.5 0 108.2 2.6 168.6 81.3zm-201.8-176.8c31.1-36.9 53.1-88.1 53.1-139.3 0-7.1-.6-14.3-1.9-20.1-50.6 1.9-110.8 33.7-147.1 75.8-28.5 32.4-55.1 83.6-55.1 135.5 0 7.8 1.3 15.6 1.9 18.1 3.2.6 8.4 1.3 13.6 1.3 45.4 0 102.5-30.4 135.5-71.3z" />
                               </svg>
-                              Continue with Apple
+                              {t("auth.continueWithApple")}
                             </button>
                           )}
 
                           <div className="flex items-center gap-3 pt-1">
                             <div className="flex-1 h-px bg-[#2D241E]/10" />
-                            <span className="text-xs text-[#2D241E]/35" style={{ fontFamily: "'DM Sans', sans-serif" }}>or</span>
+                            <span className="text-xs text-[#2D241E]/35" style={{ fontFamily: "'DM Sans', sans-serif" }}>{t("auth.or")}</span>
                             <div className="flex-1 h-px bg-[#2D241E]/10" />
                           </div>
                         </div>
@@ -420,7 +422,7 @@ export function LoginModal() {
                               <motion.div variants={registerFieldVariants} custom={0}>
                                 <AuthField
                                   id="auth-first-name"
-                                  label="First name"
+                                  label={t("auth.firstName")}
                                   value={firstName}
                                   onChange={setFirstName}
                                   autoComplete="given-name"
@@ -432,7 +434,7 @@ export function LoginModal() {
                               <motion.div variants={registerFieldVariants} custom={1}>
                                 <AuthField
                                   id="auth-last-name"
-                                  label="Last name"
+                                  label={t("auth.lastName")}
                                   value={lastName}
                                   onChange={setLastName}
                                   autoComplete="family-name"
@@ -444,7 +446,7 @@ export function LoginModal() {
                             <motion.div variants={registerFieldVariants} custom={2}>
                               <AuthField
                                 id="auth-username"
-                                label="Username"
+                                label={t("auth.username")}
                                 value={userName}
                                 onChange={setUserName}
                                 autoComplete="username"
@@ -460,7 +462,7 @@ export function LoginModal() {
                     <motion.div layout="position" transition={layoutTransition}>
                       <AuthField
                         id="auth-email"
-                        label="Email"
+                        label={t("auth.email")}
                         type="email"
                         value={email}
                         onChange={setEmail}
@@ -483,7 +485,7 @@ export function LoginModal() {
                     <motion.div layout="position" transition={layoutTransition}>
                       <AuthField
                         id="auth-password"
-                        label="Password"
+                        label={t("auth.password")}
                         type={showPass ? "text" : "password"}
                         value={password}
                         onChange={setPassword}
@@ -494,7 +496,7 @@ export function LoginModal() {
                         <button
                           type="button"
                           onClick={() => setShowPass((v) => !v)}
-                          aria-label={showPass ? "Hide password" : "Show password"}
+                          aria-label={showPass ? t("auth.hidePassword") : t("auth.showPassword")}
                           className="absolute right-3 top-1/2 -translate-y-1/2 w-8 h-8 flex items-center justify-center rounded-full text-[#2D241E]/40 hover:text-[#2D241E]/70 hover:bg-[#2D241E]/5 transition-colors cursor-pointer"
                         >
                           {showPass ? <EyeOff size={16} /> : <Eye size={16} />}
@@ -545,7 +547,7 @@ export function LoginModal() {
                               exit={reduceMotion ? undefined : { opacity: 0, y: -4 }}
                               transition={{ duration: 0.18 }}
                             >
-                              {mode === "login" ? "Signing in…" : "Creating account…"}
+                              {mode === "login" ? t("auth.signingIn") : t("auth.creatingAccount")}
                             </motion.span>
                           </AnimatePresence>
                         </span>
@@ -559,7 +561,7 @@ export function LoginModal() {
                             exit={reduceMotion ? undefined : { opacity: 0, y: -5 }}
                             transition={{ duration: 0.22, ease: easing }}
                           >
-                            {mode === "login" ? "Sign In" : "Create Account"}
+                            {mode === "login" ? t("auth.signInAction") : t("auth.createAccountAction")}
                           </motion.span>
                         </AnimatePresence>
                       )}
@@ -572,7 +574,7 @@ export function LoginModal() {
                 className="text-center text-[#2D241E]/40 text-xs mt-6 leading-relaxed"
                 style={{ fontFamily: "'DM Sans', sans-serif" }}
               >
-                By continuing, you agree to our Terms & Privacy Policy.
+                {t("auth.agreePrefix")} {t("auth.terms")} {t("auth.and")} {t("auth.privacyPolicy")}.
               </p>
             </motion.div>
           </div>

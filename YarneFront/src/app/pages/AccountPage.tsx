@@ -1,32 +1,37 @@
 import { useEffect, useMemo, useState } from "react";
-import { motion, AnimatePresence } from "motion/react";
-import { LangLink } from "../i18n/LangLink";
+import { AnimatePresence, motion } from "motion/react";
+import { useTranslation } from "react-i18next";
 import {
-  User,
-  Package,
+  AlertCircle,
+  Calendar,
+  CheckCircle2,
   ChevronDown,
   ChevronRight,
-  MapPin,
-  Phone,
-  Mail,
-  Calendar,
-  Heart,
-  ShoppingBag,
-  Star,
-  CheckCircle2,
   Clock,
-  AlertCircle,
-  Edit3,
+  Heart,
   LogOut,
+  Mail,
+  MapPin,
+  Package,
+  Phone,
+  ShoppingBag,
+  User,
 } from "lucide-react";
-import { useApp } from "../context/AppContext";
 import { fetchMyOrders, type OrderDto } from "../api/orders";
 import { ImageWithFallback } from "../components/figma/ImageWithFallback";
+import { useApp } from "../context/AppContext";
+import { LangLink } from "../i18n/LangLink";
+import { useLocale } from "../i18n/useLocale";
+import { formatPrice } from "../i18n/format";
 import { useProducts } from "../hooks/useProducts";
 
 const easing = [0.25, 0.1, 0.25, 1] as const;
+const IMAGE_PLACEHOLDER =
+  "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='400' viewBox='0 0 400 400'%3E%3Crect fill='%23EDE9E2' width='400' height='400'/%3E%3Cpath fill='%232D241E' fill-opacity='0.3' d='M80 200h240M200 80v240' stroke='%232D241E' stroke-opacity='0.2'/%3E%3C/svg%3E";
 
 type OrderStatus = "pending" | "accepted" | "inproduction" | "made" | "shipped" | "received" | "canceled";
+type Tab = "overview" | "orders" | "profile";
+type LocaleCode = "uk" | "en";
 
 interface Order {
   id: string;
@@ -44,8 +49,6 @@ interface Order {
   estimatedDelivery?: string;
 }
 
-const IMAGE_PLACEHOLDER = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='400' viewBox='0 0 400 400'%3E%3Crect fill='%23EDE9E2' width='400' height='400'/%3E%3Cpath fill='%232D241E' fill-opacity='0.3' d='M80 200h240M200 80v240' stroke='%232D241E' stroke-opacity='0.2'/%3E%3C/svg%3E";
-
 function toOrderStatus(value: string): OrderStatus {
   const normalized = value.trim().toLowerCase().replace(/\s+/g, "");
   if (normalized === "accepted" || normalized === "confirmed" || normalized === "processing") return "accepted";
@@ -57,18 +60,22 @@ function toOrderStatus(value: string): OrderStatus {
   return "pending";
 }
 
-function toDisplayDate(value: string): string {
+function toDisplayDate(value: string, locale: LocaleCode): string {
   const parsed = new Date(value);
   if (Number.isNaN(parsed.getTime())) return value;
-  return parsed.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
+  return parsed.toLocaleDateString(locale === "uk" ? "uk-UA" : "en-US", {
+    month: "long",
+    day: "numeric",
+    year: "numeric",
+  });
 }
 
 function mapOrderDto(order: OrderDto): Order {
   return {
     id: `#KG-${String(order.id).padStart(5, "0")}`,
-    date: toDisplayDate(order.orderDate),
+    date: order.orderDate,
     status: toOrderStatus(order.status),
-    estimatedDelivery: order.estimatedDelivery ? toDisplayDate(order.estimatedDelivery) : undefined,
+    estimatedDelivery: order.estimatedDelivery || undefined,
     total: Number(order.total),
     items: order.items.map((item) => ({
       id: item.id,
@@ -81,65 +88,29 @@ function mapOrderDto(order: OrderDto): Order {
   };
 }
 
-const STATUS_CONFIG: Record<OrderStatus, { label: string; color: string; bg: string; icon: React.ReactNode }> = {
-  pending: {
-    label: "Pending",
-    color: "#6B6B6B",
-    bg: "rgba(107,107,107,0.08)",
-    icon: <AlertCircle size={13} />,
-  },
-  accepted: {
-    label: "Accepted",
-    color: "#9B6B2E",
-    bg: "rgba(155,107,46,0.1)",
-    icon: <Clock size={13} />,
-  },
-  inproduction: {
-    label: "In production",
-    color: "#7C5C2E",
-    bg: "rgba(124,92,46,0.12)",
-    icon: <Clock size={13} />,
-  },
-  made: {
-    label: "Made",
-    color: "#4A5D4A",
-    bg: "rgba(74,93,74,0.1)",
-    icon: <Package size={13} />,
-  },
-  shipped: {
-    label: "Shipped",
-    color: "#0A1128",
-    bg: "rgba(10,17,40,0.08)",
-    icon: <Package size={13} />,
-  },
-  received: {
-    label: "Received",
-    color: "#2D6A4F",
-    bg: "rgba(45,106,79,0.08)",
-    icon: <CheckCircle2 size={13} />,
-  },
-  canceled: {
-    label: "Canceled",
-    color: "#4A0E0E",
-    bg: "rgba(74,14,14,0.08)",
-    icon: <AlertCircle size={13} />,
-  },
+const STATUS_STYLE: Record<OrderStatus, { color: string; bg: string; icon: React.ReactNode }> = {
+  pending: { color: "#6B6B6B", bg: "rgba(107,107,107,0.08)", icon: <AlertCircle size={13} /> },
+  accepted: { color: "#9B6B2E", bg: "rgba(155,107,46,0.1)", icon: <Clock size={13} /> },
+  inproduction: { color: "#7C5C2E", bg: "rgba(124,92,46,0.12)", icon: <Clock size={13} /> },
+  made: { color: "#4A5D4A", bg: "rgba(74,93,74,0.1)", icon: <Package size={13} /> },
+  shipped: { color: "#0A1128", bg: "rgba(10,17,40,0.08)", icon: <Package size={13} /> },
+  received: { color: "#2D6A4F", bg: "rgba(45,106,79,0.08)", icon: <CheckCircle2 size={13} /> },
+  canceled: { color: "#4A0E0E", bg: "rgba(74,14,14,0.08)", icon: <AlertCircle size={13} /> },
 };
 
-const DELIVERY_PROGRESS_CONFIG: Record<OrderStatus, { progress: number; label: string; color: string }> = {
-  pending: { progress: 10, label: "Order received", color: "#6B6B6B" },
-  accepted: { progress: 25, label: "Order accepted", color: "#9B6B2E" },
-  inproduction: { progress: 45, label: "In production", color: "#7C5C2E" },
-  made: { progress: 65, label: "Order made", color: "#4A5D4A" },
-  shipped: { progress: 85, label: "In transit", color: "#0A1128" },
-  received: { progress: 100, label: "Received", color: "#2D6A4F" },
-  canceled: { progress: 100, label: "Order canceled", color: "#4A0E0E" },
+const DELIVERY_PROGRESS_CONFIG: Record<OrderStatus, { progress: number; color: string }> = {
+  pending: { progress: 10, color: "#6B6B6B" },
+  accepted: { progress: 25, color: "#9B6B2E" },
+  inproduction: { progress: 45, color: "#7C5C2E" },
+  made: { progress: 65, color: "#4A5D4A" },
+  shipped: { progress: 85, color: "#0A1128" },
+  received: { progress: 100, color: "#2D6A4F" },
+  canceled: { progress: 100, color: "#4A0E0E" },
 };
-
-type Tab = "overview" | "orders" | "profile";
 
 function StatusBadge({ status }: { status: OrderStatus }) {
-  const cfg = STATUS_CONFIG[status];
+  const { t } = useTranslation();
+  const cfg = STATUS_STYLE[status];
   return (
     <span
       className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs"
@@ -151,68 +122,52 @@ function StatusBadge({ status }: { status: OrderStatus }) {
       }}
     >
       {cfg.icon}
-      {cfg.label}
+      {t(`account.status.${status}`)}
     </span>
   );
 }
 
 function DeliveryProgressPreview({ status }: { status: OrderStatus }) {
+  const { t } = useTranslation();
   const cfg = DELIVERY_PROGRESS_CONFIG[status];
   return (
     <div className="mt-3">
       <div className="flex items-center justify-between mb-1.5">
         <span className="text-[11px] text-[#2D241E]/55" style={{ fontFamily: "'DM Sans', sans-serif" }}>
-          {cfg.label}
+          {t(`account.deliveryProgress.${status}`)}
         </span>
         <span className="text-[11px] text-[#2D241E]/45" style={{ fontFamily: "'DM Sans', sans-serif" }}>
           {cfg.progress}%
         </span>
       </div>
       <div className="relative h-2 rounded-full overflow-hidden" style={{ backgroundColor: "rgba(45,36,30,0.08)" }}>
-        <div
-          className="h-full rounded-full transition-all duration-500"
-          style={{ width: `${cfg.progress}%`, backgroundColor: cfg.color }}
-        />
+        <div className="h-full rounded-full transition-all duration-500" style={{ width: `${cfg.progress}%`, backgroundColor: cfg.color }} />
       </div>
     </div>
   );
 }
 
 function OrderRow({ order, productImageByCode }: { order: Order; productImageByCode: Map<string, string> }) {
+  const { t } = useTranslation();
+  const locale = useLocale();
   const [expanded, setExpanded] = useState(false);
 
   return (
-    <div
-      className="rounded-[20px] overflow-hidden transition-all duration-300"
-      style={{ backgroundColor: "#F5F2ED", border: "1px solid rgba(45,36,30,0.08)" }}
-    >
-      {/* Row Header */}
-      <button
-        onClick={() => setExpanded(!expanded)}
-        className="w-full flex items-center justify-between p-5 md:p-6 text-left group"
-      >
-        <div className="flex items-center gap-6 flex-1 min-w-0">
-          <div
-            className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0"
-            style={{ backgroundColor: "rgba(45,36,30,0.06)" }}
-          >
+    <div className="rounded-[24px] overflow-hidden transition-all duration-300" style={{ backgroundColor: "#F5F2ED", border: "1px solid rgba(45,36,30,0.1)" }}>
+      <button onClick={() => setExpanded((prev) => !prev)} className="w-full flex items-center justify-between p-5 md:p-6 text-left group">
+        <div className="flex items-start gap-5 flex-1 min-w-0">
+          <div className="w-11 h-11 rounded-full flex items-center justify-center flex-shrink-0" style={{ backgroundColor: "rgba(45,36,30,0.06)" }}>
             <Package size={16} style={{ color: "#2D241E" }} />
           </div>
-          <div className="min-w-0">
+          <div className="min-w-0 w-full">
             <div className="flex items-center gap-3 flex-wrap">
-              <span
-                className="text-[#2D241E]"
-                style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "1rem", fontWeight: 500 }}
-              >
+              <span className="text-[#2D241E]" style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "1.05rem", fontWeight: 500 }}>
                 {order.id}
               </span>
               <StatusBadge status={order.status} />
             </div>
-            <p
-              className="text-[#2D241E]/50 text-xs mt-0.5"
-              style={{ fontFamily: "'DM Sans', sans-serif" }}
-            >
-              {order.date} · {order.items.length} {order.items.length === 1 ? "item" : "items"} · €{order.total}
+            <p className="text-[#2D241E]/50 text-xs mt-1" style={{ fontFamily: "'DM Sans', sans-serif" }}>
+              {toDisplayDate(order.date, locale)} · {t("account.orderRow.itemCount", { count: order.items.length })} · {formatPrice(order.total, locale)}
             </p>
             <DeliveryProgressPreview status={order.status} />
           </div>
@@ -220,15 +175,10 @@ function OrderRow({ order, productImageByCode }: { order: Order; productImageByC
         <ChevronDown
           size={18}
           className="flex-shrink-0 ml-4 transition-transform duration-300"
-          style={{
-            color: "#2D241E",
-            opacity: 0.4,
-            transform: expanded ? "rotate(180deg)" : "rotate(0deg)",
-          }}
+          style={{ color: "#2D241E", opacity: 0.45, transform: expanded ? "rotate(180deg)" : "rotate(0deg)" }}
         />
       </button>
 
-      {/* Expanded Content */}
       <AnimatePresence>
         {expanded && (
           <motion.div
@@ -238,79 +188,55 @@ function OrderRow({ order, productImageByCode }: { order: Order; productImageByC
             transition={{ duration: 0.3, ease: easing }}
             className="overflow-hidden"
           >
-            <div
-              className="px-5 md:px-6 pb-5 md:pb-6 pt-0 border-t"
-              style={{ borderColor: "rgba(45,36,30,0.06)" }}
-            >
-              {/* Items */}
+            <div className="px-5 md:px-6 pb-5 md:pb-6 pt-0 border-t" style={{ borderColor: "rgba(45,36,30,0.06)" }}>
               <div className="space-y-3 mt-5">
                 {order.items.map((item) => {
                   const productHref = item.productCode ? `/product/${item.productCode}` : "/collection";
                   const imageSrc = productImageByCode.get(item.productCode) || item.image;
-
                   return (
                     <LangLink
                       key={item.id}
                       to={productHref}
-                      className="flex items-center justify-between py-3 px-4 rounded-[14px] gap-3 transition-colors hover:bg-[#2D241E]/[0.05]"
+                      className="flex items-center justify-between py-3 px-4 rounded-[16px] gap-3 transition-colors hover:bg-[#2D241E]/[0.05]"
                       style={{ backgroundColor: "rgba(45,36,30,0.03)" }}
-                      aria-label={`Open ${item.name}`}
+                      aria-label={t("account.orderRow.openProduct", { name: item.name })}
                     >
                       <div className="flex items-center gap-3 min-w-0">
                         <div className="w-12 h-14 rounded-[10px] overflow-hidden bg-[#EDE9E2] flex-shrink-0">
                           <ImageWithFallback src={imageSrc} alt={item.name} className="w-full h-full object-contain" />
                         </div>
                         <div className="min-w-0">
-                          <p
-                            className="text-[#2D241E] truncate"
-                            style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "0.95rem", fontWeight: 500 }}
-                          >
+                          <p className="text-[#2D241E] truncate" style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "0.98rem", fontWeight: 500 }}>
                             {item.name}
                           </p>
-                          <p
-                            className="text-[#2D241E]/50 text-xs mt-0.5"
-                            style={{ fontFamily: "'DM Sans', sans-serif" }}
-                          >
-                            Qty {item.quantity}
+                          <p className="text-[#2D241E]/50 text-xs mt-0.5" style={{ fontFamily: "'DM Sans', sans-serif" }}>
+                            {t("account.orderRow.qty", { count: item.quantity })}
                           </p>
                         </div>
                       </div>
-                      <span
-                        className="text-[#2D241E] truncate"
-                        style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "0.95rem" }}
-                      >
-                        €{item.lineTotal.toLocaleString()}
+                      <span className="text-[#2D241E] truncate" style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "1rem" }}>
+                        {formatPrice(item.lineTotal, locale)}
                       </span>
                     </LangLink>
                   );
                 })}
               </div>
 
-              {/* Order Details */}
-              <div className="flex flex-wrap gap-4 mt-5 pt-5" style={{ borderTop: "1px solid rgba(45,36,30,0.06)" }}>
+              <div className="flex flex-wrap gap-4 mt-5 pt-5 items-center" style={{ borderTop: "1px solid rgba(45,36,30,0.06)" }}>
                 {order.estimatedDelivery && (
                   <div className="flex items-center gap-2">
-                    <Calendar size={13} style={{ color: "#2D241E", opacity: 0.4 }} />
-                    <span
-                      className="text-xs"
-                      style={{ fontFamily: "'DM Sans', sans-serif", color: "#2D241E", opacity: 0.6 }}
-                    >
-                      Est. delivery: {order.estimatedDelivery}
+                    <Calendar size={13} style={{ color: "#2D241E", opacity: 0.45 }} />
+                    <span className="text-xs" style={{ fontFamily: "'DM Sans', sans-serif", color: "#2D241E", opacity: 0.6 }}>
+                      {t("account.orderRow.estDelivery")}: {toDisplayDate(order.estimatedDelivery, locale)}
                     </span>
                   </div>
                 )}
                 <div className="ml-auto flex items-center gap-2">
-                  <span
-                    className="text-[#2D241E]"
-                    style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "0.8rem", opacity: 0.5 }}
-                  >
-                    Total
+                  <span className="text-[#2D241E]" style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "0.8rem", opacity: 0.5 }}>
+                    {t("account.orderRow.total")}
                   </span>
-                  <span
-                    className="text-[#2D241E]"
-                    style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "1.1rem", fontWeight: 500 }}
-                  >
-                    €{order.total}
+                  <span className="text-[#2D241E]" style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "1.15rem", fontWeight: 500 }}>
+                    {formatPrice(order.total, locale)}
                   </span>
                 </div>
               </div>
@@ -323,18 +249,41 @@ function OrderRow({ order, productImageByCode }: { order: Order; productImageByC
 }
 
 export function AccountPage() {
+  const { t } = useTranslation();
+  const locale = useLocale();
   const { user, isLoggedIn, openLogin, logout, wishlist } = useApp();
   const { products } = useProducts();
+
   const [activeTab, setActiveTab] = useState<Tab>("overview");
   const [orders, setOrders] = useState<Order[]>([]);
   const [ordersLoading, setOrdersLoading] = useState(false);
   const [ordersError, setOrdersError] = useState<string | null>(null);
+  const [saveSuccess, setSaveSuccess] = useState(false);
   const [profileForm, setProfileForm] = useState({
-    name: user?.name || "Sophie",
-    email: user?.email || "sophie@example.com",
-    phone: "+33 6 12 34 56 78",
-    address: "14 Rue des Abbesses, 75018 Paris, France",
+    name: user?.name ?? "",
+    email: user?.email ?? "",
+    phone: "",
+    address: "",
   });
+
+  useEffect(() => {
+    setProfileForm((prev) => ({
+      ...prev,
+      name: user?.name ?? "",
+      email: user?.email ?? "",
+    }));
+  }, [user?.name, user?.email]);
+
+  useEffect(() => {
+    if (!isLoggedIn) return;
+    setOrdersLoading(true);
+    setOrdersError(null);
+    fetchMyOrders()
+      .then((data) => setOrders(data.map(mapOrderDto)))
+      .catch((e) => setOrdersError(e instanceof Error ? e.message : t("account.errors.loadOrders")))
+      .finally(() => setOrdersLoading(false));
+  }, [isLoggedIn, t]);
+
   const productImageByCode = useMemo(
     () =>
       new Map(
@@ -345,165 +294,89 @@ export function AccountPage() {
       ),
     [products]
   );
-  const [saveSuccess, setSaveSuccess] = useState(false);
 
-  useEffect(() => {
-    if (!isLoggedIn) return;
-    setOrdersLoading(true);
-    setOrdersError(null);
-    fetchMyOrders()
-      .then((data) => setOrders(data.map(mapOrderDto)))
-      .catch((e) => setOrdersError(e instanceof Error ? e.message : "Failed to load your orders."))
-      .finally(() => setOrdersLoading(false));
-  }, [isLoggedIn]);
+  const totalSpent = useMemo(() => orders.reduce((sum, order) => sum + order.total, 0), [orders]);
+  const receivedCount = useMemo(() => orders.filter((order) => order.status === "received").length, [orders]);
 
-  const totalSpent = useMemo(() => orders.reduce((s, o) => s + o.total, 0), [orders]);
-  const receivedCount = useMemo(() => orders.filter((o) => o.status === "received").length, [orders]);
+  const stats = [
+    { key: "orders", value: orders.length.toLocaleString() },
+    { key: "wishlisted", value: wishlist.length.toLocaleString() },
+    { key: "totalSpent", value: formatPrice(totalSpent, locale) },
+  ] as const;
+
+  const overviewCards = [
+    { icon: <ShoppingBag size={20} />, label: t("account.overview.cards.totalOrders"), value: orders.length.toLocaleString() },
+    { icon: <CheckCircle2 size={20} />, label: t("account.overview.cards.received"), value: receivedCount.toLocaleString() },
+    { icon: <Heart size={20} />, label: t("account.overview.cards.wishlisted"), value: wishlist.length.toLocaleString() },
+  ];
 
   const handleSaveProfile = () => {
     setSaveSuccess(true);
     setTimeout(() => setSaveSuccess(false), 2500);
   };
 
-  // Not logged in
   if (!isLoggedIn) {
     return (
-      <main
-        className="min-h-[100svh] flex items-center justify-center"
-        style={{ backgroundColor: "#F5F2ED", paddingTop: "100px" }}
-      >
-        <motion.div
-          className="text-center max-w-sm px-6"
-          initial={{ opacity: 0, y: 30 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.7, ease: easing }}
-        >
-          <div
-            className="w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-8"
-            style={{ backgroundColor: "rgba(45,36,30,0.06)" }}
-          >
+      <main className="min-h-[100svh] flex items-center justify-center" style={{ backgroundColor: "#F5F2ED", paddingTop: "100px" }}>
+        <motion.div className="text-center max-w-sm px-6" initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.7, ease: easing }}>
+          <div className="w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-8" style={{ backgroundColor: "rgba(45,36,30,0.06)" }}>
             <User size={32} style={{ color: "#2D241E", opacity: 0.4 }} />
           </div>
-          <h1
-            className="text-[#2D241E] mb-4"
-            style={{
-              fontFamily: "'Cormorant Garamond', serif",
-              fontSize: "2rem",
-              fontWeight: 400,
-            }}
-          >
-            Welcome back
+          <h1 className="text-[#2D241E] mb-4" style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "2rem", fontWeight: 400 }}>
+            {t("account.guest.title")}
           </h1>
-          <p
-            className="text-[#2D241E]/50 mb-8"
-            style={{ fontFamily: "'DM Sans', sans-serif", lineHeight: 1.7, fontSize: "0.9rem" }}
-          >
-            Sign in to view your orders, manage your profile, and access your wishlist.
+          <p className="text-[#2D241E]/50 mb-8" style={{ fontFamily: "'DM Sans', sans-serif", lineHeight: 1.7, fontSize: "0.9rem" }}>
+            {t("account.guest.subtitle")}
           </p>
           <button
             onClick={openLogin}
-            className="w-full py-4 rounded-full text-[#F5F2ED] transition-all duration-300 hover:opacity-90"
-            style={{
-              backgroundColor: "#2D241E",
-              fontFamily: "'DM Sans', sans-serif",
-              fontSize: "0.78rem",
-              letterSpacing: "0.15em",
-            }}
+            className="w-full py-4 rounded-full text-[#F5F2ED] transition-all duration-300 hover:opacity-90 uppercase tracking-widest"
+            style={{ backgroundColor: "#2D241E", fontFamily: "'DM Sans', sans-serif", fontSize: "0.78rem", letterSpacing: "0.15em" }}
           >
-            <span className="uppercase tracking-widest">Sign In</span>
+            {t("account.guest.signIn")}
           </button>
-          <LangLink
-            to="/collection"
-            className="block mt-4 text-[#2D241E]/50 hover:text-[#4A0E0E] transition-colors text-sm"
-            style={{ fontFamily: "'DM Sans', sans-serif" }}
-          >
-            Continue browsing
+          <LangLink to="/collection" className="block mt-4 text-[#2D241E]/50 hover:text-[#4A0E0E] transition-colors text-sm" style={{ fontFamily: "'DM Sans', sans-serif" }}>
+            {t("account.guest.continueBrowsing")}
           </LangLink>
         </motion.div>
       </main>
     );
   }
 
-  const displayName = user?.name || "Sophie";
-  const displayEmail = user?.email || "sophie@example.com";
+  const displayName = user?.name || t("account.header.anonymousName");
+  const displayEmail = user?.email ?? "";
 
   return (
     <main style={{ backgroundColor: "#F5F2ED", minHeight: "100svh" }}>
-      {/* Page Header */}
-      <section
-        className="pt-32 pb-12 md:pt-40 md:pb-16"
-        style={{ borderBottom: "1px solid rgba(45,36,30,0.08)" }}
-      >
+      <section className="pt-32 pb-12 md:pt-40 md:pb-16" style={{ borderBottom: "1px solid rgba(45,36,30,0.08)" }}>
         <div className="max-w-[1200px] mx-auto px-6 md:px-10">
-          <motion.div
-            className="flex flex-col md:flex-row md:items-center gap-6 md:gap-10"
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.7, ease: easing }}
-          >
-            {/* Avatar */}
-            <div
-              className="w-20 h-20 rounded-full flex items-center justify-center flex-shrink-0"
-              style={{ backgroundColor: "#2D241E" }}
-            >
-              <span
-                className="text-[#F5F2ED]"
-                style={{
-                  fontFamily: "'Cormorant Garamond', serif",
-                  fontSize: "1.8rem",
-                  fontWeight: 400,
-                }}
-              >
+          <motion.div className="flex flex-col md:flex-row md:items-center gap-6 md:gap-10" initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.7, ease: easing }}>
+            <div className="w-20 h-20 rounded-full flex items-center justify-center flex-shrink-0" style={{ backgroundColor: "#2D241E" }}>
+              <span className="text-[#F5F2ED]" style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "1.8rem", fontWeight: 400 }}>
                 {displayName.charAt(0).toUpperCase()}
               </span>
             </div>
 
-            {/* Info */}
             <div className="flex-1">
-              <p
-                className="text-[#2D241E]/40 tracking-widest uppercase mb-1"
-                style={{ fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.2em", fontSize: "0.65rem" }}
-              >
-                My Account
+              <p className="text-[#2D241E]/40 tracking-widest uppercase mb-1" style={{ fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.2em", fontSize: "0.65rem" }}>
+                {t("account.header.eyebrow")}
               </p>
-              <h1
-                className="text-[#2D241E]"
-                style={{
-                  fontFamily: "'Cormorant Garamond', serif",
-                  fontSize: "clamp(1.8rem, 4vw, 2.5rem)",
-                  fontWeight: 400,
-                  lineHeight: 1.2,
-                }}
-              >
+              <h1 className="text-[#2D241E]" style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "clamp(1.8rem, 4vw, 2.5rem)", fontWeight: 400, lineHeight: 1.2 }}>
                 {displayName}
               </h1>
-              <p
-                className="text-[#2D241E]/50 mt-1"
-                style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "0.85rem" }}
-              >
-                {displayEmail} · Member since January 2025
+              <p className="text-[#2D241E]/50 mt-1" style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "0.85rem" }}>
+                {displayEmail}
               </p>
             </div>
 
-            {/* Stats */}
-            <div className="flex gap-6 md:gap-10">
-              {[
-                { label: "Orders", value: orders.length.toString() },
-                { label: "Wishlist", value: wishlist.length.toString() },
-                { label: "Total Spent", value: `€${totalSpent.toLocaleString()}` },
-              ].map((stat) => (
-                <div key={stat.label} className="text-center">
-                  <p
-                    className="text-[#2D241E]"
-                    style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "1.5rem", fontWeight: 400 }}
-                  >
+            <div className="grid grid-cols-3 gap-4 md:gap-8 min-w-full md:min-w-[360px]">
+              {stats.map((stat) => (
+                <div key={stat.key} className="text-center">
+                  <p className="text-[#2D241E]" style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "1.4rem", fontWeight: 500 }}>
                     {stat.value}
                   </p>
-                  <p
-                    className="text-[#2D241E]/40 text-xs"
-                    style={{ fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.1em" }}
-                  >
-                    {stat.label}
+                  <p className="text-[#2D241E]/45 text-xs uppercase tracking-widest" style={{ fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.1em" }}>
+                    {t(`account.stats.${stat.key}`)}
                   </p>
                 </div>
               ))}
@@ -512,195 +385,95 @@ export function AccountPage() {
         </div>
       </section>
 
-      {/* Tabs */}
-      <div
-        className="sticky z-30"
-        style={{
-          top: "80px",
-          backgroundColor: "rgba(245,242,237,0.95)",
-          backdropFilter: "blur(16px)",
-          borderBottom: "1px solid rgba(45,36,30,0.08)",
-        }}
-      >
-        <div className="max-w-[1200px] mx-auto px-6 md:px-10">
-          <div className="flex gap-8 overflow-x-auto scrollbar-hide">
+      <div className="sticky z-30" style={{ top: "80px", backgroundColor: "rgba(245,242,237,0.94)", backdropFilter: "blur(12px)", borderBottom: "1px solid rgba(45,36,30,0.08)" }}>
+        <div className="max-w-[1200px] mx-auto px-6 md:px-10 py-4">
+          <div className="w-full md:w-fit rounded-full p-1 flex gap-1 overflow-x-auto" style={{ backgroundColor: "rgba(45,36,30,0.06)" }}>
             {(["overview", "orders", "profile"] as Tab[]).map((tab) => (
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
-                className="py-5 relative whitespace-nowrap transition-colors duration-300"
-                style={{
-                  fontFamily: "'DM Sans', sans-serif",
-                  fontSize: "0.78rem",
-                  letterSpacing: "0.12em",
-                  color: activeTab === tab ? "#2D241E" : "rgba(45,36,30,0.4)",
-                }}
+                className="relative whitespace-nowrap rounded-full px-5 py-2.5 text-sm transition-colors duration-300"
+                style={{ fontFamily: "'DM Sans', sans-serif", color: activeTab === tab ? "#F5F2ED" : "#2D241E" }}
               >
-                <span className="uppercase tracking-widest capitalize">{tab}</span>
                 {activeTab === tab && (
-                  <motion.div
-                    layoutId="account-tab-indicator"
-                    className="absolute bottom-0 left-0 right-0 h-0.5"
-                    style={{ backgroundColor: "#4A0E0E" }}
-                    transition={{ duration: 0.3, ease: easing }}
+                  <motion.span
+                    layoutId="account-tab-pill"
+                    className="absolute inset-0 rounded-full"
+                    style={{ backgroundColor: "#2D241E" }}
+                    transition={{ duration: 0.25, ease: easing }}
                   />
                 )}
+                <span className="relative z-10">{t(`account.tabs.${tab}`)}</span>
               </button>
             ))}
           </div>
         </div>
       </div>
 
-      {/* Tab Content */}
       <div className="max-w-[1200px] mx-auto px-6 md:px-10 py-12 md:py-16">
         <AnimatePresence mode="wait">
-          {/* ── OVERVIEW ── */}
           {activeTab === "overview" && (
-            <motion.div
-              key="overview"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
-              transition={{ duration: 0.4, ease: easing }}
-            >
-              {/* Summary Cards */}
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-12">
-                {[
-                  { icon: <ShoppingBag size={20} />, label: "Total Orders", value: orders.length },
-                  { icon: <CheckCircle2 size={20} />, label: "Received", value: receivedCount },
-                  { icon: <Heart size={20} />, label: "Wishlisted", value: wishlist.length },
-                  { icon: <Star size={20} />, label: "Loyalty Points", value: "1,480" },
-                ].map((card, i) => (
+            <motion.div key="overview" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.4, ease: easing }}>
+              <div className="grid md:grid-cols-3 gap-4 mb-12">
+                {overviewCards.map((card, idx) => (
                   <motion.div
                     key={card.label}
                     className="rounded-[24px] p-6"
                     style={{ backgroundColor: "#EDE9E2" }}
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: i * 0.07, duration: 0.5, ease: easing }}
+                    transition={{ delay: idx * 0.07, duration: 0.45, ease: easing }}
                   >
-                    <div
-                      className="w-9 h-9 rounded-full flex items-center justify-center mb-4"
-                      style={{ backgroundColor: "rgba(45,36,30,0.08)", color: "#4A0E0E" }}
-                    >
+                    <div className="w-9 h-9 rounded-full flex items-center justify-center mb-4" style={{ backgroundColor: "rgba(45,36,30,0.08)", color: "#4A0E0E" }}>
                       {card.icon}
                     </div>
-                    <p
-                      className="text-[#2D241E]"
-                      style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "1.6rem", fontWeight: 400 }}
-                    >
+                    <p className="text-[#2D241E]" style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "1.7rem", fontWeight: 500 }}>
                       {card.value}
                     </p>
-                    <p
-                      className="text-[#2D241E]/50 text-xs mt-0.5"
-                      style={{ fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.08em" }}
-                    >
+                    <p className="text-[#2D241E]/50 text-xs mt-0.5 uppercase tracking-widest" style={{ fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.08em" }}>
                       {card.label}
                     </p>
                   </motion.div>
                 ))}
               </div>
 
-              {/* Recent Orders */}
               <div className="mb-8 flex items-center justify-between">
-                <h2
-                  className="text-[#2D241E]"
-                  style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "1.5rem", fontWeight: 400 }}
-                >
-                  Recent Orders
+                <h2 className="text-[#2D241E]" style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "1.6rem", fontWeight: 400 }}>
+                  {t("account.overview.recentOrdersTitle")}
                 </h2>
-                <button
-                  onClick={() => setActiveTab("orders")}
-                  className="flex items-center gap-2 text-[#2D241E]/50 hover:text-[#4A0E0E] transition-colors text-xs"
-                  style={{ fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.1em" }}
-                >
-                  <span className="uppercase tracking-widest">View all</span>
+                <button onClick={() => setActiveTab("orders")} className="flex items-center gap-2 text-[#2D241E]/55 hover:text-[#4A0E0E] transition-colors text-xs uppercase tracking-widest" style={{ fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.1em" }}>
+                  {t("account.overview.viewAll")}
                   <ChevronRight size={14} />
                 </button>
               </div>
 
-              <div className="space-y-3">
+              <div className="space-y-4">
                 {orders.slice(0, 3).map((order) => (
                   <OrderRow key={order.id} order={order} productImageByCode={productImageByCode} />
                 ))}
                 {!ordersLoading && orders.length === 0 && (
                   <p className="text-[#2D241E]/45 text-sm" style={{ fontFamily: "'DM Sans', sans-serif" }}>
-                    No orders yet for this account.
+                    {t("account.overview.emptyOrders")}
                   </p>
                 )}
               </div>
-
-              {/* Membership Banner */}
-              <motion.div
-                className="mt-10 rounded-[32px] p-8 md:p-10 flex flex-col md:flex-row items-start md:items-center gap-6"
-                style={{ backgroundColor: "#2D241E" }}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.3, duration: 0.6, ease: easing }}
-              >
-                <div className="flex-1">
-                  <p
-                    className="text-white/50 tracking-widest uppercase mb-2"
-                    style={{ fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.2em", fontSize: "0.65rem" }}
-                  >
-                    Membership Status
-                  </p>
-                  <h3
-                    className="text-white mb-2"
-                    style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "1.5rem", fontWeight: 400 }}
-                  >
-                    Gold Member
-                  </h3>
-                  <p
-                    className="text-white/50"
-                    style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "0.85rem", lineHeight: 1.6 }}
-                  >
-                    You have 1,480 loyalty points. Spend €520 more to reach Platinum status.
-                  </p>
-                </div>
-                <div className="w-full md:w-48">
-                  <div className="flex justify-between text-xs mb-2" style={{ fontFamily: "'DM Sans', sans-serif" }}>
-                    <span className="text-white/50">Gold</span>
-                    <span className="text-white/50">Platinum</span>
-                  </div>
-                  <div className="h-1.5 rounded-full" style={{ backgroundColor: "rgba(255,255,255,0.1)" }}>
-                    <div
-                      className="h-full rounded-full"
-                      style={{ width: "74%", backgroundColor: "#4A0E0E" }}
-                    />
-                  </div>
-                </div>
-              </motion.div>
             </motion.div>
           )}
 
-          {/* ── ORDERS ── */}
           {activeTab === "orders" && (
-            <motion.div
-              key="orders"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
-              transition={{ duration: 0.4, ease: easing }}
-            >
+            <motion.div key="orders" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.4, ease: easing }}>
               <div className="mb-8 flex items-center justify-between">
-                <h2
-                  className="text-[#2D241E]"
-                  style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "1.5rem", fontWeight: 400 }}
-                >
-                  Order History
+                <h2 className="text-[#2D241E]" style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "1.6rem", fontWeight: 400 }}>
+                  {t("account.orders.title")}
                 </h2>
-                <span
-                  className="text-[#2D241E]/40 text-xs"
-                  style={{ fontFamily: "'DM Sans', sans-serif" }}
-                >
-                  {orders.length} orders
+                <span className="text-[#2D241E]/45 text-xs uppercase tracking-widest" style={{ fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.1em" }}>
+                  {t("account.orders.count", { count: orders.length })}
                 </span>
               </div>
 
               {ordersLoading && (
                 <p className="text-[#2D241E]/45 text-sm mb-3" style={{ fontFamily: "'DM Sans', sans-serif" }}>
-                  Loading your orders...
+                  {t("account.orders.loading")}
                 </p>
               )}
               {ordersError && (
@@ -708,148 +481,88 @@ export function AccountPage() {
                   {ordersError}
                 </p>
               )}
-              <div className="space-y-3">
+
+              <div className="space-y-4">
                 {orders.map((order) => (
                   <OrderRow key={order.id} order={order} productImageByCode={productImageByCode} />
                 ))}
                 {!ordersLoading && orders.length === 0 && !ordersError && (
                   <p className="text-[#2D241E]/45 text-sm" style={{ fontFamily: "'DM Sans', sans-serif" }}>
-                    No orders yet for this account.
+                    {t("account.orders.empty")}
                   </p>
                 )}
               </div>
             </motion.div>
           )}
 
-          {/* ── PROFILE ── */}
           {activeTab === "profile" && (
-            <motion.div
-              key="profile"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
-              transition={{ duration: 0.4, ease: easing }}
-            >
-              <div className="grid md:grid-cols-2 gap-8">
-                {/* Personal Information */}
-                <div
-                  className="rounded-[32px] p-8"
-                  style={{ backgroundColor: "#EDE9E2" }}
-                >
-                  <div className="flex items-center justify-between mb-8">
-                    <h3
-                      className="text-[#2D241E]"
-                      style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "1.25rem", fontWeight: 400 }}
-                    >
-                      Personal Information
-                    </h3>
-                    <Edit3 size={15} style={{ color: "#2D241E", opacity: 0.4 }} />
-                  </div>
+            <motion.div key="profile" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.4, ease: easing }}>
+              <h2 className="text-[#2D241E] mb-7" style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "1.6rem", fontWeight: 400 }}>
+                {t("account.profile.title")}
+              </h2>
 
+              <div className="grid lg:grid-cols-2 gap-6">
+                <section className="rounded-[28px] p-7" style={{ backgroundColor: "#EDE9E2" }}>
+                  <h3 className="text-[#2D241E] mb-6" style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "1.25rem", fontWeight: 500 }}>
+                    {t("account.profile.sections.personal")}
+                  </h3>
                   <div className="space-y-5">
                     {[
-                      { label: "Full Name", icon: <User size={14} />, key: "name" as const },
-                      { label: "Email Address", icon: <Mail size={14} />, key: "email" as const },
-                      { label: "Phone Number", icon: <Phone size={14} />, key: "phone" as const },
+                      { key: "name", label: t("account.profile.labels.fullName"), icon: <User size={14} /> },
+                      { key: "email", label: t("account.profile.labels.emailAddress"), icon: <Mail size={14} /> },
+                      { key: "phone", label: t("account.profile.labels.phoneNumber"), icon: <Phone size={14} /> },
                     ].map((field) => (
                       <div key={field.key}>
-                        <label
-                          className="flex items-center gap-2 text-xs mb-2"
-                          style={{
-                            fontFamily: "'DM Sans', sans-serif",
-                            letterSpacing: "0.12em",
-                            color: "rgba(45,36,30,0.4)",
-                          }}
-                        >
+                        <label className="flex items-center gap-2 text-xs mb-2 uppercase tracking-widest text-[#2D241E]/45" style={{ fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.1em" }}>
                           {field.icon}
-                          <span className="uppercase tracking-widest">{field.label}</span>
+                          {field.label}
                         </label>
                         <input
                           type="text"
-                          value={profileForm[field.key]}
-                          onChange={(e) =>
-                            setProfileForm((prev) => ({ ...prev, [field.key]: e.target.value }))
-                          }
-                          className="w-full bg-transparent border-0 border-b pb-2 focus:outline-none text-[#2D241E] transition-colors duration-300"
-                          style={{
-                            fontFamily: "'DM Sans', sans-serif",
-                            fontSize: "0.9rem",
-                            borderBottom: "1.5px solid rgba(45,36,30,0.15)",
-                          }}
+                          value={profileForm[field.key as keyof typeof profileForm]}
+                          onChange={(e) => setProfileForm((prev) => ({ ...prev, [field.key]: e.target.value }))}
+                          className="w-full bg-transparent border-0 border-b pb-2 focus:outline-none text-[#2D241E]"
+                          style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "0.92rem", borderBottom: "1.5px solid rgba(45,36,30,0.16)" }}
                           onFocus={(e) => (e.target.style.borderBottomColor = "#4A0E0E")}
-                          onBlur={(e) => (e.target.style.borderBottomColor = "rgba(45,36,30,0.15)")}
+                          onBlur={(e) => (e.target.style.borderBottomColor = "rgba(45,36,30,0.16)")}
                         />
                       </div>
                     ))}
                   </div>
-                </div>
+                </section>
 
-                {/* Shipping Address */}
-                <div
-                  className="rounded-[32px] p-8"
-                  style={{ backgroundColor: "#EDE9E2" }}
-                >
-                  <div className="flex items-center justify-between mb-8">
-                    <h3
-                      className="text-[#2D241E]"
-                      style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "1.25rem", fontWeight: 400 }}
-                    >
-                      Default Address
-                    </h3>
-                    <Edit3 size={15} style={{ color: "#2D241E", opacity: 0.4 }} />
-                  </div>
+                <section className="rounded-[28px] p-7" style={{ backgroundColor: "#EDE9E2" }}>
+                  <h3 className="text-[#2D241E] mb-6" style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "1.25rem", fontWeight: 500 }}>
+                    {t("account.profile.sections.address")}
+                  </h3>
 
-                  <div>
-                    <label
-                      className="flex items-center gap-2 text-xs mb-2"
-                      style={{
-                        fontFamily: "'DM Sans', sans-serif",
-                        letterSpacing: "0.12em",
-                        color: "rgba(45,36,30,0.4)",
-                      }}
-                    >
-                      <MapPin size={14} />
-                      <span className="uppercase tracking-widest">Shipping Address</span>
-                    </label>
-                    <textarea
-                      value={profileForm.address}
-                      onChange={(e) =>
-                        setProfileForm((prev) => ({ ...prev, address: e.target.value }))
-                      }
-                      rows={3}
-                      className="w-full bg-transparent border-0 border-b pb-2 focus:outline-none text-[#2D241E] resize-none transition-colors duration-300"
-                      style={{
-                        fontFamily: "'DM Sans', sans-serif",
-                        fontSize: "0.9rem",
-                        borderBottom: "1.5px solid rgba(45,36,30,0.15)",
-                        lineHeight: 1.7,
-                      }}
-                      onFocus={(e) => (e.target.style.borderBottomColor = "#4A0E0E")}
-                      onBlur={(e) => (e.target.style.borderBottomColor = "rgba(45,36,30,0.15)")}
-                    />
-                  </div>
+                  <label className="flex items-center gap-2 text-xs mb-2 uppercase tracking-widest text-[#2D241E]/45" style={{ fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.1em" }}>
+                    <MapPin size={14} />
+                    {t("account.profile.labels.shippingAddress")}
+                  </label>
+                  <textarea
+                    value={profileForm.address}
+                    onChange={(e) => setProfileForm((prev) => ({ ...prev, address: e.target.value }))}
+                    rows={3}
+                    className="w-full bg-transparent border-0 border-b pb-2 focus:outline-none text-[#2D241E] resize-none"
+                    style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "0.92rem", borderBottom: "1.5px solid rgba(45,36,30,0.16)", lineHeight: 1.7 }}
+                    onFocus={(e) => (e.target.style.borderBottomColor = "#4A0E0E")}
+                    onBlur={(e) => (e.target.style.borderBottomColor = "rgba(45,36,30,0.16)")}
+                  />
 
-                  {/* Preferences */}
                   <div className="mt-8">
-                    <p
-                      className="text-[#2D241E]/40 text-xs mb-4 tracking-widest uppercase"
-                      style={{ fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.12em" }}
-                    >
-                      Email Preferences
+                    <p className="text-[#2D241E]/45 text-xs mb-4 uppercase tracking-widest" style={{ fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.1em" }}>
+                      {t("account.profile.sections.emailPreferences")}
                     </p>
                     <div className="space-y-3">
                       {[
-                        { label: "New arrivals & collections", checked: true },
-                        { label: "Order updates & shipping", checked: true },
-                        { label: "Loyalty rewards & offers", checked: false },
+                        { label: t("account.profile.preferences.arrivals"), checked: true },
+                        { label: t("account.profile.preferences.orderUpdates"), checked: true },
                       ].map((pref) => (
-                        <label key={pref.label} className="flex items-center gap-3 cursor-pointer group">
+                        <label key={pref.label} className="flex items-center gap-3 cursor-pointer">
                           <div
                             className="w-4 h-4 rounded flex items-center justify-center flex-shrink-0"
-                            style={{
-                              border: pref.checked ? "none" : "1.5px solid rgba(45,36,30,0.2)",
-                              backgroundColor: pref.checked ? "#2D241E" : "transparent",
-                            }}
+                            style={{ border: pref.checked ? "none" : "1.5px solid rgba(45,36,30,0.2)", backgroundColor: pref.checked ? "#2D241E" : "transparent" }}
                           >
                             {pref.checked && (
                               <svg width="10" height="8" viewBox="0 0 10 8" fill="none">
@@ -857,54 +570,39 @@ export function AccountPage() {
                               </svg>
                             )}
                           </div>
-                          <span
-                            className="text-sm text-[#2D241E]/70"
-                            style={{ fontFamily: "'DM Sans', sans-serif" }}
-                          >
+                          <span className="text-sm text-[#2D241E]/75" style={{ fontFamily: "'DM Sans', sans-serif" }}>
                             {pref.label}
                           </span>
                         </label>
                       ))}
                     </div>
                   </div>
-                </div>
+                </section>
               </div>
 
-              {/* Save & Danger Zone */}
               <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 mt-8">
                 <button
                   onClick={handleSaveProfile}
-                  className="px-10 py-4 rounded-full text-[#F5F2ED] transition-all duration-300 hover:opacity-90 flex items-center gap-2"
-                  style={{
-                    backgroundColor: saveSuccess ? "#2D6A4F" : "#2D241E",
-                    fontFamily: "'DM Sans', sans-serif",
-                    fontSize: "0.78rem",
-                    letterSpacing: "0.15em",
-                  }}
+                  className="px-10 py-4 rounded-full text-[#F5F2ED] transition-all duration-300 hover:opacity-90 flex items-center gap-2 uppercase tracking-widest"
+                  style={{ backgroundColor: saveSuccess ? "#2D6A4F" : "#2D241E", fontFamily: "'DM Sans', sans-serif", fontSize: "0.78rem", letterSpacing: "0.14em" }}
                 >
                   {saveSuccess ? (
                     <>
                       <CheckCircle2 size={14} />
-                      <span className="uppercase tracking-widest">Saved!</span>
+                      {t("account.profile.actions.saved")}
                     </>
                   ) : (
-                    <span className="uppercase tracking-widest">Save Changes</span>
+                    t("account.profile.actions.saveChanges")
                   )}
                 </button>
 
                 <button
                   onClick={logout}
                   className="flex items-center gap-2 px-6 py-4 rounded-full border transition-all duration-300 hover:border-[#4A0E0E] hover:text-[#4A0E0E]"
-                  style={{
-                    borderColor: "rgba(45,36,30,0.2)",
-                    fontFamily: "'DM Sans', sans-serif",
-                    fontSize: "0.78rem",
-                    letterSpacing: "0.12em",
-                    color: "rgba(45,36,30,0.5)",
-                  }}
+                  style={{ borderColor: "rgba(45,36,30,0.2)", fontFamily: "'DM Sans', sans-serif", fontSize: "0.78rem", letterSpacing: "0.12em", color: "rgba(45,36,30,0.56)" }}
                 >
                   <LogOut size={14} />
-                  <span className="uppercase tracking-widest">Sign Out</span>
+                  <span className="uppercase tracking-widest">{t("account.profile.actions.signOut")}</span>
                 </button>
               </div>
             </motion.div>

@@ -95,14 +95,14 @@ export function ProductDetail() {
           className="text-[#2D241E]/50"
           style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "1.5rem" }}
         >
-          Product not found.
+          {t("product.notFound")}
         </p>
         <LangLink
           to="/collection"
           className="mt-6 text-[#2D241E] underline text-sm"
           style={{ fontFamily: "'DM Sans', sans-serif" }}
         >
-          Back to collection
+          {t("checkout.backToCollection")}
         </LangLink>
       </main>
     );
@@ -194,7 +194,7 @@ export function ProductDetail() {
           style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "0.78rem", letterSpacing: "0.12em" }}
         >
           <ArrowLeft size={14} className="group-hover:-translate-x-1 transition-transform duration-300" />
-          <span className="uppercase tracking-widest">Back</span>
+          <span className="uppercase tracking-widest">{t("product.back")}</span>
         </button>
 
         <div className="grid md:grid-cols-2 lg:grid-cols-[minmax(0,1fr)_minmax(340px,420px)] gap-6 md:gap-8 lg:gap-12 items-start mt-0">
@@ -220,7 +220,7 @@ export function ProductDetail() {
                     className="px-3 py-1 rounded-full text-xs text-white"
                     style={{ backgroundColor: "#4A0E0E", fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.12em", fontSize: "0.65rem" }}
                   >
-                    NEW
+                    {t("product.badgeNew")}
                   </span>
                 )}
                 {product.isBestseller && (
@@ -228,7 +228,7 @@ export function ProductDetail() {
                     className="px-3 py-1 rounded-full text-xs"
                     style={{ backgroundColor: "rgba(245,242,237,0.9)", color: "#2D241E", fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.1em", fontSize: "0.65rem" }}
                   >
-                    BESTSELLER
+                    {t("product.badgeBestseller")}
                   </span>
                 )}
               </div>
@@ -289,7 +289,7 @@ export function ProductDetail() {
                 className="text-[#2D241E] mt-3"
                 style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "1.6rem", fontWeight: 400 }}
               >
-                €{product.price}
+                {formatPrice(product.price, locale)}
               </p>
             </div>
 
@@ -300,7 +300,7 @@ export function ProductDetail() {
                   className="text-[#2D241E] text-xs tracking-widest uppercase"
                   style={{ fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.14em" }}
                 >
-                  Colour
+                  {t("product.colour")}
                 </p>
                 <p
                   className="text-[#2D241E]/60 text-xs"
@@ -348,7 +348,7 @@ export function ProductDetail() {
                   className="text-[#2D241E] text-xs tracking-widest uppercase mb-3"
                   style={{ fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.14em" }}
                 >
-                  {t("product.lace.label", { defaultValue: "Lace" })}
+                  {t("product.lace.label")}
                 </p>
                 <LayoutGroup id="desktop-lace">
                   <div
@@ -356,8 +356,8 @@ export function ProductDetail() {
                     style={{ backgroundColor: "rgba(45,36,30,0.06)", border: "1px solid rgba(45,36,30,0.12)" }}
                   >
                     {[
-                      { value: false, label: t("product.lace.withoutLace", { defaultValue: "Without lace" }) },
-                      { value: true, label: t("product.lace.withLace", { defaultValue: "With lace" }) },
+                      { value: false, label: t("product.lace.withoutLace") },
+                      { value: true, label: t("product.lace.withLace") },
                     ].map((opt) => (
                       <button
                         key={String(opt.value)}
@@ -394,13 +394,13 @@ export function ProductDetail() {
                   className="text-[#2D241E] text-xs tracking-widest uppercase"
                   style={{ fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.14em" }}
                 >
-                  Size
+                  {t("product.size")}
                 </p>
                 <button
                   className="text-[#2D241E]/50 text-xs hover:text-[#4A0E0E] transition-colors underline"
                   style={{ fontFamily: "'DM Sans', sans-serif" }}
                 >
-                  Size guide
+                  {t("product.sizeGuide")}
                 </button>
               </div>
               <div className="flex flex-wrap gap-2">
@@ -437,7 +437,7 @@ export function ProductDetail() {
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0 }}
                   >
-                    Please select a size to continue.
+                    {t("product.selectSize")}
                   </motion.p>
                 )}
               </AnimatePresence>
@@ -446,7 +446,7 @@ export function ProductDetail() {
                   className="text-[#2D241E]/55 text-xs mt-2"
                   style={{ fontFamily: "'DM Sans', sans-serif" }}
                 >
-                  In stock: {displayStock}
+                  {t("product.inStock", { count: displayStock })}
                 </p>
               )}
             </div>
@@ -468,21 +468,23 @@ export function ProductDetail() {
                 {addedToBag ? (
                   <>
                     <Check size={15} />
-                    <span className="uppercase tracking-widest">Added to Bag</span>
+                    <span className="uppercase tracking-widest">{t("product.addedToBag")}</span>
                   </>
                 ) : (
                   <>
                     <ShoppingBag size={15} strokeWidth={1.5} />
                     <span className="uppercase tracking-widest">
-                      {outOfStock ? "Out of stock" : "Add to Bag"}
+                      {outOfStock ? t("product.outOfStock") : t("product.addToBag")}
                     </span>
                   </>
                 )}
               </motion.button>
 
               <button
+                type="button"
                 onClick={() => toggleWishlist(product.id)}
                 className="w-14 h-14 rounded-full border flex items-center justify-center transition-all duration-300"
+                aria-label={isWishlisted ? t("product.wishlistRemove") : t("product.wishlistAdd")}
                 style={{
                   borderColor: isWishlisted ? "#4A0E0E" : "rgba(45,36,30,0.2)",
                   backgroundColor: isWishlisted ? "#4A0E0E" : "transparent",
@@ -517,7 +519,7 @@ export function ProductDetail() {
                   className="text-[#2D241E] text-xs tracking-widest uppercase"
                   style={{ fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.14em" }}
                 >
-                  Product Details
+                  {t("product.detailsTitle")}
                 </span>
                 <motion.div animate={{ rotate: detailsOpen ? 180 : 0 }} transition={{ duration: 0.3 }}>
                   <ChevronDown size={16} className="text-[#2D241E]/50" />
@@ -558,13 +560,13 @@ export function ProductDetail() {
                     className="text-[#2D241E] text-xs tracking-widest uppercase mb-1"
                     style={{ fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.12em" }}
                   >
-                    Complimentary Shipping
+                    {t("product.shipping.title")}
                   </p>
                   <p
                     className="text-[#2D241E]/50 text-xs"
                     style={{ fontFamily: "'DM Sans', sans-serif" }}
                   >
-                    Free delivery on all orders over €200. Returns accepted within 30 days.
+                    {t("product.shipping.description")}
                   </p>
                 </div>
               </div>
@@ -582,13 +584,13 @@ export function ProductDetail() {
                 className="text-[#2D241E]/40 tracking-widest uppercase text-xs mb-2"
                 style={{ fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.2em" }}
               >
-                You may also like
+                {t("product.relatedEyebrow")}
               </p>
               <h2
                 className="text-[#2D241E]"
                 style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "clamp(1.5rem, 3vw, 2rem)", fontWeight: 400 }}
               >
-                Complete the wardrobe
+                {t("product.relatedTitle")}
               </h2>
             </div>
             <LangLink
@@ -596,7 +598,7 @@ export function ProductDetail() {
               className="hidden md:flex items-center gap-2 text-[#2D241E]/50 hover:text-[#4A0E0E] text-xs transition-colors uppercase tracking-widest"
               style={{ fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.12em" }}
             >
-              View all
+              {t("common.viewAll")}
             </LangLink>
           </div>
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-5 lg:gap-8">

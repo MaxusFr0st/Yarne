@@ -1,4 +1,5 @@
 import { requestGoogleAccessToken } from "../utils/googleSignIn";
+import { useTranslation } from "react-i18next";
 
 type Props = {
   loading: boolean;
@@ -8,20 +9,21 @@ type Props = {
 };
 
 export function LoginGoogleButton({ loading, setLoading, setError, onToken }: Props) {
+  const { t } = useTranslation();
   const handleClick = async () => {
     setError("");
     setLoading(true);
     try {
       const accessToken = await requestGoogleAccessToken();
       const result = await onToken(accessToken);
-      if (!result.ok) setError(result.error ?? "Google sign-in failed. Please try again.");
+      if (!result.ok) setError(result.error ?? t("auth.errors.googleFailed"));
     } catch (err) {
       if (err instanceof Error && err.message === "Google Sign In is not configured.") {
-        setError(err.message);
+        setError(t("auth.errors.googleNotConfigured"));
       } else if (err instanceof Error && err.message.includes("cancelled")) {
-        setError("Google sign-in was cancelled or failed.");
+        setError(t("auth.errors.googleCancelled"));
       } else {
-        setError("Google sign-in failed. Check that the backend is running.");
+        setError(t("auth.errors.googleBackend"));
       }
     } finally {
       setLoading(false);
@@ -42,7 +44,7 @@ export function LoginGoogleButton({ loading, setLoading, setError, onToken }: Pr
         <path fill="#FBBC05" d="M3.964 10.707c-.18-.54-.282-1.117-.282-1.707 0-.59.102-1.167.282-1.707V4.961H.957C.347 6.175 0 7.548 0 9s.348 2.825.957 4.039l3.007-2.332z" />
         <path fill="#EA4335" d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0 5.482 0 2.438 2.017.957 4.961L3.964 7.293C4.672 5.166 6.656 3.58 9 3.58z" />
       </svg>
-      Continue with Google
+      {t("auth.continueWithGoogle")}
     </button>
   );
 }

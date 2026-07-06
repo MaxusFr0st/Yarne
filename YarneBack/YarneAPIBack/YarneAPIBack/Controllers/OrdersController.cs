@@ -6,6 +6,7 @@ using YarneAPIBack.Configuration;
 using YarneAPIBack.Data;
 using YarneAPIBack.DTOs.Order;
 using YarneAPIBack.Models;
+using YarneAPIBack.Services;
 using YarneAPIBack.Services.Contracts;
 
 namespace YarneAPIBack.Controllers;
@@ -33,11 +34,19 @@ public class OrdersController : ControllerBase
 
     private readonly YarneDbContext _context;
     private readonly IAdminActivityLogService _activityLogs;
+    private readonly IEmailService _emailService;
+    private readonly ILogger<OrdersController> _logger;
 
-    public OrdersController(YarneDbContext context, IAdminActivityLogService activityLogs)
+    public OrdersController(
+        YarneDbContext context,
+        IAdminActivityLogService activityLogs,
+        IEmailService emailService,
+        ILogger<OrdersController> logger)
     {
         _context = context;
         _activityLogs = activityLogs;
+        _emailService = emailService;
+        _logger = logger;
     }
 
     [HttpGet("my")]
@@ -277,6 +286,8 @@ public class OrdersController : ControllerBase
         if (createdOrder == null)
             return StatusCode(StatusCodes.Status500InternalServerError, new { message = "Order was created but could not be loaded." });
 
+        QueueOrderConfirmationEmail(createdOrder);
+
         return CreatedAtAction(nameof(GetOrderById), new { id = order.Id }, MapOrder(createdOrder));
     }
 
@@ -381,6 +392,54 @@ public class OrdersController : ControllerBase
                     LineTotal = i.UnitPrice * i.Quantity,
                     CountryId = i.CountryId,
                     CountryName = i.Country?.Name,
+                })
+                .ToList(),
+        };
+    }
+
+    private void QueueOrderConfirmationEmail(Order order)
+    {
+        if (string.IsNullOrWhiteSpace(order.Customer.Email))
+            return;
+
+        var message = BuildOrderConfirmationMessage(order);
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await _emailService.SendOrderConfirmationAsync(message);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(
+                    ex,
+                    "Unexpected error while sending order confirmation for order #{OrderId}.",
+                    order.Id);
+            }
+        });
+    }
+
+    private static OrderConfirmationEmailMessage BuildOrderConfirmationMessage(Order order)
+    {
+        var customerName = $"{order.Customer.FirstName} {order.Customer.LastName}".Trim();
+        if (string.IsNullOrWhiteSpace(customerName))
+            customerName = order.Customer.UserName;
+
+        return new OrderConfirmationEmailMessage
+        {
+            OrderId = order.Id,
+            CustomerName = customerName,
+            ToEmail = order.Customer.Email,
+            OrderDateUtc = order.OrderDate,
+            Total = order.Total,
+            Items = order.OrderItems
+                .OrderBy(i => i.Id)
+                .Select(i => new OrderConfirmationEmailItem
+                {
+                    ProductCode = i.Product.ProductCode,
+                    ProductName = i.Product.Name,
+                    Quantity = i.Quantity,
+                    UnitPrice = i.UnitPrice,
                 })
                 .ToList(),
         };

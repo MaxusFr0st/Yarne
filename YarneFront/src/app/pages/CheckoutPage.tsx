@@ -1,22 +1,34 @@
 import React, { useMemo, useState } from "react";
 import { motion } from "motion/react";
 import { ArrowRight, CheckCircle2, Package, ShoppingBag } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { createOrder, type OrderDto } from "../api/orders";
 import { useApp, type CartItem } from "../context/AppContext";
 import { ImageWithFallback } from "../components/figma/ImageWithFallback";
 import { LangLink } from "../i18n/LangLink";
+import { useLocale } from "../i18n/useLocale";
+import { formatPrice } from "../i18n/format";
 
 const easing = [0.25, 0.1, 0.25, 1] as const;
 const ORDER_ITEM_PLACEHOLDER =
   "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='400' viewBox='0 0 400 400'%3E%3Crect fill='%23EDE9E2' width='400' height='400'/%3E%3Cpath d='M120 220l50-60 50 60 30-40 40 60H110z' fill='%232D241E' fill-opacity='0.18'/%3E%3Ccircle cx='150' cy='150' r='18' fill='%232D241E' fill-opacity='0.18'/%3E%3C/svg%3E";
 
-function toDisplayDate(value: string): string {
+function toDisplayDate(value: string, locale: "uk" | "en"): string {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return value;
-  return date.toLocaleString("en-US", { year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
+  const dateLocale = locale === "uk" ? "uk-UA" : "en-US";
+  return date.toLocaleString(dateLocale, {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 }
 
 export function CheckoutPage() {
+  const { t } = useTranslation();
+  const locale = useLocale();
   const { cartItems, cartTotal, isLoggedIn, user, openLogin, clearCart } = useApp();
   const [placingOrder, setPlacingOrder] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -44,7 +56,7 @@ export function CheckoutPage() {
       setPlacedOrder(order);
       clearCart();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Unable to place order right now.");
+      setError(e instanceof Error ? e.message : t("checkout.errors.unableToPlaceOrder"));
     } finally {
       setPlacingOrder(false);
     }
@@ -64,20 +76,20 @@ export function CheckoutPage() {
             <ShoppingBag size={26} className="text-[#2D241E]/70" />
           </div>
           <h1 className="text-[#2D241E] mb-3" style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "2rem", fontWeight: 400 }}>
-            Sign in to checkout
+            {t("checkout.signInTitle")}
           </h1>
           <p className="text-[#2D241E]/50 mb-8" style={{ fontFamily: "'DM Sans', sans-serif", lineHeight: 1.7 }}>
-            Log in to review your order details and place your order.
+            {t("checkout.signInSubtitle")}
           </p>
           <button
             onClick={openLogin}
             className="w-full py-4 rounded-full text-[#F5F2ED] uppercase tracking-widest transition-all duration-300 hover:opacity-90"
             style={{ backgroundColor: "#2D241E", fontFamily: "'DM Sans', sans-serif", fontSize: "0.78rem", letterSpacing: "0.13em" }}
           >
-            Open Login
+            {t("checkout.openLogin")}
           </button>
           <LangLink to="/collection" className="inline-block mt-4 text-[#2D241E]/50 hover:text-[#4A0E0E] transition-colors" style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "0.85rem" }}>
-            Back to collection
+            {t("checkout.backToCollection")}
           </LangLink>
         </motion.div>
       </main>
@@ -97,17 +109,17 @@ export function CheckoutPage() {
             <Package size={24} className="text-[#2D241E]/70" />
           </div>
           <h1 className="text-[#2D241E] mb-3" style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "2rem", fontWeight: 400 }}>
-            Your bag is empty
+            {t("checkout.emptyTitle")}
           </h1>
           <p className="text-[#2D241E]/50 mb-8" style={{ fontFamily: "'DM Sans', sans-serif", lineHeight: 1.7 }}>
-            Add pieces to your bag to review checkout details.
+            {t("checkout.emptySubtitle")}
           </p>
           <LangLink
             to="/collection"
             className="inline-flex items-center gap-2 px-8 py-4 rounded-full text-[#F5F2ED] uppercase tracking-widest transition-all duration-300 hover:opacity-90"
             style={{ backgroundColor: "#2D241E", fontFamily: "'DM Sans', sans-serif", fontSize: "0.78rem", letterSpacing: "0.13em" }}
           >
-            <span>Go Shopping</span>
+            <span>{t("checkout.goShopping")}</span>
             <ArrowRight size={15} />
           </LangLink>
         </motion.div>
@@ -125,15 +137,15 @@ export function CheckoutPage() {
             transition={{ duration: 0.6, ease: easing }}
           >
             <p className="text-[#2D241E]/40 uppercase tracking-widest mb-2" style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "0.68rem", letterSpacing: "0.15em" }}>
-              Checkout
+              {t("checkout.eyebrow")}
             </p>
             <h1 className="text-[#2D241E]" style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "clamp(2rem, 5vw, 3rem)", fontWeight: 400 }}>
-              Review your order
+              {t("checkout.title")}
             </h1>
             <p className="text-[#2D241E]/50 mt-2" style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "0.9rem" }}>
               {placedOrder
-                ? `Order #${placedOrder.id} was placed successfully.`
-                : `${user?.name ?? "Customer"}, confirm all details before placing your order.`}
+                ? t("checkout.placedMessage", { id: placedOrder.id })
+                : t("checkout.reviewMessage", { name: user?.name ?? t("checkout.customerFallback") })}
             </p>
           </motion.div>
         </div>
@@ -149,10 +161,10 @@ export function CheckoutPage() {
         >
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-[#2D241E]" style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "1.7rem", fontWeight: 400 }}>
-              Order details
+              {t("checkout.orderDetails")}
             </h2>
             <span className="text-[#2D241E]/45 uppercase tracking-widest text-xs" style={{ fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.12em" }}>
-              {activeItems.length} items
+              {t("checkout.itemCount", { count: activeItems.length })}
             </span>
           </div>
 
@@ -166,7 +178,7 @@ export function CheckoutPage() {
                   to={productHref}
                   className="block rounded-[22px] p-4 md:p-5"
                   style={{ border: "1px solid rgba(45,36,30,0.08)", backgroundColor: "rgba(45,36,30,0.02)" }}
-                  aria-label={`Open ${item.name}`}
+                  aria-label={t("checkout.openProduct", { name: item.name })}
                 >
                   <div className="flex gap-4">
                     <div className="w-20 h-24 rounded-[16px] overflow-hidden bg-[#EDE9E2] flex-shrink-0">
@@ -178,11 +190,11 @@ export function CheckoutPage() {
                           {item.name}
                         </p>
                         <p className="text-[#2D241E]/55 text-xs mt-1" style={{ fontFamily: "'DM Sans', sans-serif" }}>
-                          {item.color} · Size {item.size} · Qty {item.quantity}
+                          {item.color} · {t("checkout.size")} {item.size} · {t("checkout.qty")} {item.quantity}
                         </p>
                       </div>
                       <p className="text-[#2D241E]" style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "1.05rem", fontWeight: 500 }}>
-                        €{(item.price * item.quantity).toLocaleString()}
+                        {formatPrice(item.price * item.quantity, locale)}
                       </p>
                     </div>
                   </div>
@@ -206,24 +218,24 @@ export function CheckoutPage() {
           style={{ border: "1px solid rgba(45,36,30,0.08)", backgroundColor: "#EDE9E2" }}
         >
           <h3 className="text-[#2D241E] mb-5" style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "1.4rem", fontWeight: 400 }}>
-            Summary
+            {t("checkout.summary")}
           </h3>
 
           <div className="space-y-3 pb-5 border-b border-[#2D241E]/10">
             <div className="flex items-center justify-between text-sm" style={{ fontFamily: "'DM Sans', sans-serif" }}>
-              <span className="text-[#2D241E]/60">Subtotal</span>
-              <span className="text-[#2D241E]">€{cartTotal.toLocaleString()}</span>
+              <span className="text-[#2D241E]/60">{t("checkout.subtotal")}</span>
+              <span className="text-[#2D241E]">{formatPrice(cartTotal, locale)}</span>
             </div>
             <div className="flex items-center justify-between text-sm" style={{ fontFamily: "'DM Sans', sans-serif" }}>
-              <span className="text-[#2D241E]/60">Shipping</span>
-              <span className="text-[#2D241E]">{shipping === 0 ? "Free" : `€${shipping.toLocaleString()}`}</span>
+              <span className="text-[#2D241E]/60">{t("checkout.shipping")}</span>
+              <span className="text-[#2D241E]">{shipping === 0 ? t("checkout.shippingFree") : formatPrice(shipping, locale)}</span>
             </div>
             <div className="flex items-center justify-between mt-2">
               <span className="text-[#2D241E]/70 uppercase tracking-widest text-xs" style={{ fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.1em" }}>
-                Total
+                {t("checkout.total")}
               </span>
               <span className="text-[#2D241E]" style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "1.5rem", fontWeight: 500 }}>
-                €{grandTotal.toLocaleString()}
+                {formatPrice(grandTotal, locale)}
               </span>
             </div>
           </div>
@@ -233,23 +245,23 @@ export function CheckoutPage() {
               <div className="rounded-[20px] p-4 mb-4" style={{ backgroundColor: "rgba(45,106,79,0.08)" }}>
                 <div className="flex items-center gap-2 text-[#2D6A4F] mb-1" style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "0.85rem" }}>
                   <CheckCircle2 size={15} />
-                  Order placed
+                  {t("checkout.orderPlaced")}
                 </div>
                 <p className="text-[#2D241E]/70 text-sm" style={{ fontFamily: "'DM Sans', sans-serif" }}>
-                  #{placedOrder.id} · {toDisplayDate(placedOrder.orderDate)}
+                  #{placedOrder.id} · {toDisplayDate(placedOrder.orderDate, locale)}
                 </p>
               </div>
               <div className="space-y-2 text-sm" style={{ fontFamily: "'DM Sans', sans-serif" }}>
-                <p className="text-[#2D241E]/70">Status: <span className="text-[#2D241E]">{placedOrder.status}</span></p>
-                <p className="text-[#2D241E]/70">Payment: <span className="text-[#2D241E]">{placedOrder.paymentMethodName}</span></p>
-                <p className="text-[#2D241E]/70">Items in order: <span className="text-[#2D241E]">{placedOrder.items.length}</span></p>
+                <p className="text-[#2D241E]/70">{t("checkout.status")}: <span className="text-[#2D241E]">{placedOrder.status}</span></p>
+                <p className="text-[#2D241E]/70">{t("checkout.payment")}: <span className="text-[#2D241E]">{placedOrder.paymentMethodName}</span></p>
+                <p className="text-[#2D241E]/70">{t("checkout.itemsInOrder")}: <span className="text-[#2D241E]">{placedOrder.items.length}</span></p>
               </div>
               <LangLink
                 to="/account"
                 className="mt-6 inline-flex items-center gap-2 text-[#4A0E0E] hover:opacity-80 transition-opacity text-sm"
                 style={{ fontFamily: "'DM Sans', sans-serif" }}
               >
-                View in account
+                {t("checkout.viewInAccount")}
                 <ArrowRight size={14} />
               </LangLink>
             </div>
@@ -260,7 +272,7 @@ export function CheckoutPage() {
               className="mt-6 w-full py-4 rounded-full text-[#F5F2ED] uppercase tracking-widest transition-all duration-300 disabled:opacity-60"
               style={{ backgroundColor: "#2D241E", fontFamily: "'DM Sans', sans-serif", fontSize: "0.78rem", letterSpacing: "0.14em" }}
             >
-              {placingOrder ? "Placing order..." : "Place order"}
+              {placingOrder ? t("checkout.placingOrder") : t("checkout.placeOrder")}
             </button>
           )}
         </motion.aside>

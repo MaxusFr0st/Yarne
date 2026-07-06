@@ -116,6 +116,7 @@ builder.Services.AddScoped<IStorefrontSettingsService, StorefrontSettingsService
 builder.Services.AddScoped<IAdminActivityLogService, AdminActivityLogService>();
 builder.Services.AddScoped<IAccountingService, AccountingService>();
 builder.Services.AddScoped<IAccountingPdfService, AccountingPdfService>();
+builder.Services.AddSingleton<IEmailService, SmtpEmailService>();
 builder.Services.AddSingleton<IImageUploadNormalizer, ImageUploadNormalizer>();
 
 builder.Services.AddControllers();

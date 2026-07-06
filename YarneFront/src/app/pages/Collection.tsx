@@ -2,15 +2,20 @@ import { useState } from "react";
 import { useSearchParams } from "react-router";
 import { motion } from "motion/react";
 import { SlidersHorizontal, X } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { useProducts } from "../hooks/useProducts";
+import { useLocale } from "../i18n/useLocale";
+import { formatPrice } from "../i18n/format";
 import { ProductCard } from "../components/ProductCard";
 import { Skeleton } from "../components/ui/skeleton";
 
-const DEFAULT_CATEGORIES = ["All", "Sweaters", "Cardigans", "Vests", "Jackets"];
-const SORT_OPTIONS = ["Featured", "Price: Low to High", "Price: High to Low", "Newest"];
 const SKELETON_COUNT = 6;
 
 const easing = [0.25, 0.1, 0.25, 1] as const;
+const ALL_CATEGORY_KEY = "__all";
+const DEFAULT_CATEGORY_KEYS = ["sweaters", "cardigans", "vests", "jackets"] as const;
+const SORT_OPTION_KEYS = ["featured", "priceLowToHigh", "priceHighToLow", "newest"] as const;
+type SortOptionKey = (typeof SORT_OPTION_KEYS)[number];
 
 function CollectionCardSkeleton() {
   return (
@@ -30,26 +35,32 @@ function CollectionCardSkeleton() {
 }
 
 export function Collection() {
+  const { t } = useTranslation();
+  const locale = useLocale();
   const [searchParams] = useSearchParams();
   const filterParam = searchParams.get("filter");
-  const [activeCategory, setActiveCategory] = useState("All");
-  const [activeSort, setActiveSort] = useState("Featured");
+  const [activeCategory, setActiveCategory] = useState<string>(ALL_CATEGORY_KEY);
+  const [activeSort, setActiveSort] = useState<SortOptionKey>("featured");
   const [filterOpen, setFilterOpen] = useState(false);
   const [priceRange, setPriceRange] = useState<[number, number]>([0, 500]);
 
   const { products, loading } = useProducts(filterParam === "new" ? { isNew: true } : undefined);
   const apiCategories = Array.from(new Set(products.map((p) => p.category).filter(Boolean))).sort();
-  const CATEGORIES = loading
-    ? DEFAULT_CATEGORIES
-    : ["All", ...(apiCategories.length > 0 ? apiCategories : DEFAULT_CATEGORIES.slice(1))];
+  const defaultCategoryLabels = DEFAULT_CATEGORY_KEYS.map((key) => t(`collection.categories.${key}`));
+  const categories = loading
+    ? [{ value: ALL_CATEGORY_KEY, label: t("collection.categories.all") }, ...defaultCategoryLabels.map((label) => ({ value: label, label }))]
+    : [
+      { value: ALL_CATEGORY_KEY, label: t("collection.categories.all") },
+      ...((apiCategories.length > 0 ? apiCategories : defaultCategoryLabels).map((category) => ({ value: category, label: category }))),
+    ];
   let filtered = products;
   if (filterParam === "new") filtered = filtered.filter((p) => p.isNew);
-  if (activeCategory !== "All") filtered = filtered.filter((p) => p.category === activeCategory);
+  if (activeCategory !== ALL_CATEGORY_KEY) filtered = filtered.filter((p) => p.category === activeCategory);
 
   // Sort
-  if (activeSort === "Price: Low to High") {
+  if (activeSort === "priceLowToHigh") {
     filtered = [...filtered].sort((a, b) => a.price - b.price);
-  } else if (activeSort === "Price: High to Low") {
+  } else if (activeSort === "priceHighToLow") {
     filtered = [...filtered].sort((a, b) => b.price - a.price);
   }
 
@@ -63,7 +74,7 @@ export function Collection() {
               className="text-[#2D241E]/40 tracking-widest uppercase text-xs mb-4"
               style={{ fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.2em" }}
             >
-              {filterParam === "new" ? "New Arrivals" : "The Collection"}
+              {filterParam === "new" ? t("collection.header.newArrivalsEyebrow") : t("collection.header.collectionEyebrow")}
             </p>
             <h1
               className="text-[#2D241E]"
@@ -75,9 +86,9 @@ export function Collection() {
               }}
             >
               {filterParam === "new" ? (
-                <>New <em style={{ fontStyle: "italic", fontWeight: 300 }}>Arrivals</em></>
+                <>{t("collection.header.newArrivalsTitleLead")} <em style={{ fontStyle: "italic", fontWeight: 300 }}>{t("collection.header.newArrivalsTitleAccent")}</em></>
               ) : (
-                <>The <em style={{ fontStyle: "italic", fontWeight: 300 }}>Knit Gallery</em></>
+                <>{t("collection.header.collectionTitleLead")} <em style={{ fontStyle: "italic", fontWeight: 300 }}>{t("collection.header.collectionTitleAccent")}</em></>
               )}
             </h1>
             <p
@@ -89,7 +100,7 @@ export function Collection() {
                 <span className="inline-block w-48 h-4 rounded bg-[#E5E0D8] animate-pulse align-middle" aria-hidden />
               ) : (
                 <>
-                  {filtered.length} {filtered.length === 1 ? "piece" : "pieces"} — crafted from the world's finest natural fibres
+                  {t("collection.header.pieceCount", { count: filtered.length })}
                 </>
               )}
             </p>
@@ -103,20 +114,20 @@ export function Collection() {
           <div className="flex items-center justify-between py-2.5 gap-3 overflow-x-auto scrollbar-hide min-h-[44px]">
             {/* Categories */}
             <div className="flex items-center gap-2 flex-shrink-0 min-h-[36px]">
-              {CATEGORIES.map((cat) => (
+              {categories.map((cat) => (
                 <button
-                  key={cat}
-                  onClick={() => setActiveCategory(cat)}
+                  key={cat.value}
+                  onClick={() => setActiveCategory(cat.value)}
                   className="px-5 py-2 rounded-full text-xs transition-all duration-300 whitespace-nowrap"
                   style={{
                     fontFamily: "'DM Sans', sans-serif",
                     letterSpacing: "0.1em",
-                    backgroundColor: activeCategory === cat ? "#2D241E" : "transparent",
-                    color: activeCategory === cat ? "#F5F2ED" : "#2D241E",
-                    border: activeCategory === cat ? "1.5px solid #2D241E" : "1.5px solid rgba(45,36,30,0.2)",
+                    backgroundColor: activeCategory === cat.value ? "#2D241E" : "transparent",
+                    color: activeCategory === cat.value ? "#F5F2ED" : "#2D241E",
+                    border: activeCategory === cat.value ? "1.5px solid #2D241E" : "1.5px solid rgba(45,36,30,0.2)",
                   }}
                 >
-                  {cat}
+                  {cat.label}
                 </button>
               ))}
             </div>
@@ -126,12 +137,12 @@ export function Collection() {
               {/* Sort */}
               <select
                 value={activeSort}
-                onChange={(e) => setActiveSort(e.target.value)}
+                onChange={(e) => setActiveSort(e.target.value as SortOptionKey)}
                 className="bg-transparent border border-[#2D241E]/20 rounded-full px-4 py-2 text-xs text-[#2D241E] focus:outline-none focus:border-[#2D241E]/50 cursor-pointer"
                 style={{ fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.06em" }}
               >
-                {SORT_OPTIONS.map((s) => (
-                  <option key={s} value={s}>{s}</option>
+                {SORT_OPTION_KEYS.map((s) => (
+                  <option key={s} value={s}>{t(`collection.sort.${s}`)}</option>
                 ))}
               </select>
 
@@ -142,7 +153,7 @@ export function Collection() {
                 style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "0.72rem", letterSpacing: "0.1em" }}
               >
                 <SlidersHorizontal size={13} />
-                <span className="uppercase tracking-widest hidden sm:inline">Filter</span>
+                <span className="uppercase tracking-widest hidden sm:inline">{t("collection.filter.button")}</span>
               </button>
             </div>
           </div>
@@ -163,11 +174,11 @@ export function Collection() {
                     className="text-[#2D241E]/50 text-xs tracking-widest uppercase mb-3"
                     style={{ fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.16em" }}
                   >
-                    Price Range
+                    {t("collection.filter.priceRange")}
                   </p>
                   <div className="flex items-center gap-3">
                     <span className="text-[#2D241E] text-sm" style={{ fontFamily: "'Cormorant Garamond', serif" }}>
-                      €{priceRange[0]}
+                      {formatPrice(priceRange[0], locale)}
                     </span>
                     <input
                       type="range"
@@ -178,7 +189,7 @@ export function Collection() {
                       className="w-32 accent-[#4A0E0E]"
                     />
                     <span className="text-[#2D241E] text-sm" style={{ fontFamily: "'Cormorant Garamond', serif" }}>
-                      €{priceRange[1]}
+                      {formatPrice(priceRange[1], locale)}
                     </span>
                   </div>
                 </div>
@@ -189,16 +200,16 @@ export function Collection() {
                     className="text-[#2D241E]/50 text-xs tracking-widest uppercase mb-3"
                     style={{ fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.16em" }}
                   >
-                    Availability
+                    {t("collection.filter.availability")}
                   </p>
                   <div className="flex gap-2">
-                    {["All Items", "New Only", "Bestsellers"].map((opt) => (
+                    {(["allItems", "newOnly", "bestsellers"] as const).map((opt) => (
                       <button
                         key={opt}
                         className="px-4 py-1.5 rounded-full text-xs border border-[#2D241E]/20 text-[#2D241E] hover:border-[#2D241E]/50 transition-colors"
                         style={{ fontFamily: "'DM Sans', sans-serif" }}
                       >
-                        {opt}
+                        {t(`collection.availability.${opt}`)}
                       </button>
                     ))}
                   </div>
@@ -210,7 +221,7 @@ export function Collection() {
                   style={{ fontFamily: "'DM Sans', sans-serif" }}
                 >
                   <X size={13} />
-                  Close
+                  {t("collection.filter.close")}
                 </button>
               </div>
             </motion.div>
@@ -246,7 +257,7 @@ export function Collection() {
               className="text-[#2D241E]/40"
               style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "1.5rem" }}
             >
-              No pieces found in this selection.
+              {t("collection.empty")}
             </p>
           </motion.div>
         ) : (
@@ -283,19 +294,19 @@ export function Collection() {
               className="text-[#2D241E]/50 tracking-widest uppercase text-xs mb-4"
               style={{ fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.2em" }}
             >
-              Can't decide?
+              {t("collection.cta.eyebrow")}
             </p>
             <p
               className="text-[#2D241E] mb-6"
               style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "clamp(1.4rem, 3vw, 2rem)", fontWeight: 400 }}
             >
-              Book a personal styling session
+              {t("collection.cta.title")}
             </p>
             <p
               className="text-[#2D241E]/50 max-w-sm mx-auto mb-8 text-sm"
               style={{ fontFamily: "'DM Sans', sans-serif", lineHeight: 1.7 }}
             >
-              Our stylists can help you find the perfect piece for your wardrobe, lifestyle and body shape.
+              {t("collection.cta.subtitle")}
             </p>
             <button
               className="px-10 py-4 rounded-full text-white transition-all duration-300 hover:opacity-90"
@@ -306,7 +317,7 @@ export function Collection() {
                 letterSpacing: "0.15em",
               }}
             >
-              <span className="uppercase tracking-widest">Book a Consultation</span>
+              <span className="uppercase tracking-widest">{t("collection.cta.action")}</span>
             </button>
           </motion.div>
         </div>

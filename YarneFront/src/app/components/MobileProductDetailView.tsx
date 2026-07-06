@@ -130,7 +130,7 @@ export function MobileProductDetailView({
           onClick={onBack}
           className="absolute z-20 top-[clamp(10px,2.5vw,16px)] left-[clamp(10px,2.5vw,16px)] flex items-center justify-center rounded-full bg-white/92 shadow-sm cursor-pointer"
           style={{ width: "clamp(36px, 9vw, 42px)", height: "clamp(36px, 9vw, 42px)" }}
-          aria-label={t("common.back", { defaultValue: "Back" })}
+          aria-label={t("product.back")}
         >
           <ArrowLeft size={18} strokeWidth={1.5} className="text-[#2D241E]" />
         </button>
@@ -140,7 +140,7 @@ export function MobileProductDetailView({
           onClick={onToggleWishlist}
           className="absolute z-20 top-[clamp(10px,2.5vw,16px)] right-[clamp(10px,2.5vw,16px)] flex items-center justify-center rounded-full bg-white/92 shadow-sm cursor-pointer"
           style={{ width: "clamp(36px, 9vw, 42px)", height: "clamp(36px, 9vw, 42px)" }}
-          aria-label={isWishlisted ? "Remove from wishlist" : "Add to wishlist"}
+          aria-label={isWishlisted ? t("product.wishlistRemove") : t("product.wishlistAdd")}
         >
           <Heart
             size={17}
@@ -163,7 +163,7 @@ export function MobileProductDetailView({
                   height: "clamp(6px, 1.5vw, 7px)",
                   backgroundColor: safeGalleryIndex === i ? "#F5F2ED" : "rgba(245,242,237,0.55)",
                 }}
-                aria-label={`Image ${i + 1}`}
+                aria-label={t("product.galleryImage", { index: i + 1 })}
                 aria-current={safeGalleryIndex === i}
               />
             ))}
@@ -229,7 +229,7 @@ export function MobileProductDetailView({
                 fontSize: "clamp(0.58rem, 2.3vw, 0.68rem)",
               }}
             >
-              {t("product.description", { defaultValue: "Description" })}
+              {t("product.description")}
             </span>
             <motion.span animate={{ rotate: descriptionOpen ? 180 : 0 }} transition={{ duration: 0.25 }}>
               <ChevronDown size={15} className="text-[#2D241E]/50" strokeWidth={1.5} />
@@ -269,7 +269,7 @@ export function MobileProductDetailView({
                   fontSize: "clamp(0.58rem, 2.3vw, 0.68rem)",
                 }}
               >
-                {t("product.colour", { defaultValue: "Colour" })}
+                {t("product.colour")}
               </p>
               <p
                 className="text-[#2D241E]/55"
@@ -325,7 +325,7 @@ export function MobileProductDetailView({
                   fontSize: "clamp(0.58rem, 2.3vw, 0.68rem)",
                 }}
               >
-                {t("product.lace.label", { defaultValue: "Lace" })}
+                {t("product.lace.label")}
               </p>
               <LayoutGroup id="mobile-lace">
                 <div
@@ -333,8 +333,8 @@ export function MobileProductDetailView({
                   style={{ backgroundColor: "rgba(45,36,30,0.06)", border: "1px solid rgba(45,36,30,0.12)" }}
                 >
                   {[
-                    { value: false, label: t("product.lace.withoutLace", { defaultValue: "Without lace" }) },
-                    { value: true, label: t("product.lace.withLace", { defaultValue: "With lace" }) },
+                    { value: false, label: t("product.lace.withoutLace") },
+                    { value: true, label: t("product.lace.withLace") },
                   ].map((opt) => (
                     <button
                       key={String(opt.value)}
@@ -377,7 +377,7 @@ export function MobileProductDetailView({
                     fontSize: "clamp(0.58rem, 2.3vw, 0.68rem)",
                   }}
                 >
-                  {t("product.size", { defaultValue: "Size" })}
+                  {t("product.size")}
                 </p>
                 {activeSize && (
                   <p
@@ -388,8 +388,8 @@ export function MobileProductDetailView({
                     }}
                   >
                     {displayStock <= 0
-                      ? t("product.outOfStock", { defaultValue: "Out of stock" })
-                      : t("product.inStock", { count: displayStock, defaultValue: "{{count}} available" })}
+                      ? t("product.outOfStock")
+                      : t("product.inStockShort", { count: displayStock })}
                   </p>
                 )}
               </div>
@@ -437,7 +437,7 @@ export function MobileProductDetailView({
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0 }}
                   >
-                    {t("product.selectSize", { defaultValue: "Please select a size to continue." })}
+                    {t("product.selectSize")}
                   </motion.p>
                 )}
               </AnimatePresence>
@@ -461,13 +461,13 @@ export function MobileProductDetailView({
           {addedToBag ? (
             <>
               <Check size={14} />
-              <span className="uppercase tracking-widest">{t("product.addedToBag", { defaultValue: "Added to Bag" })}</span>
+              <span className="uppercase tracking-widest">{t("product.addedToBag")}</span>
             </>
           ) : (
             <>
               <ShoppingBag size={14} strokeWidth={1.5} />
               <span className="uppercase tracking-widest">
-                {outOfStock ? t("product.outOfStock", { defaultValue: "Out of stock" }) : t("product.addToBag", { defaultValue: "Add to Bag" })}
+                {outOfStock ? t("product.outOfStock") : t("product.addToBag")}
               </span>
             </>
           )}

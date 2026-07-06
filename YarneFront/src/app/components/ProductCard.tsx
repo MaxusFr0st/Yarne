@@ -8,7 +8,7 @@ import { useCart } from "../context/AppContext";
 import { ImageWithFallback } from "./figma/ImageWithFallback";
 import { LangLink } from "../i18n/LangLink";
 import { useLocale } from "../i18n/useLocale";
-import { formatPrice } from "../i18n/format";
+import { formatPriceCompact } from "../i18n/format";
 import { useMotionEntrance } from "../hooks/useMotionEntrance";
 import { getDefaultColorIndex } from "../utils/productColorIndex";
 
@@ -206,7 +206,7 @@ function ProductCardInner({ product, index = 0, size = "medium", inCarousel = fa
                 fontWeight: 400,
               }}
             >
-              {formatPrice(product.price, locale)}
+              {formatPriceCompact(product.price, locale)}
             </p>
           </div>
 

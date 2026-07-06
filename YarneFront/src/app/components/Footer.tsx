@@ -1,7 +1,18 @@
 import { Link } from "react-router";
-import { Instagram, Youtube } from "lucide-react";
+import { Instagram } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Logo } from "./Logo";
+
+const INSTAGRAM_URL = "https://www.instagram.com/yarne.acc/";
+const TIKTOK_URL = "https://www.tiktok.com/@yarne.acc";
+
+function TikTokIcon({ size = 18 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+      <path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-2.88 2.5 2.89 2.89 0 0 1-2.89-2.89 2.89 2.89 0 0 1 2.89-2.89c.28 0 .54.04.79.1v-3.5a6.37 6.37 0 0 0-.79-.05 6.34 6.34 0 0 0-6.34 6.34 6.34 6.34 0 0 0 6.34 6.34 6.34 6.34 0 0 0 6.33-6.34V8.69a8.18 8.18 0 0 0 4.77 1.52V6.76a4.85 4.85 0 0 1-1-.07z" />
+    </svg>
+  );
+}
 
 export function Footer() {
   const { t } = useTranslation();
@@ -68,44 +79,6 @@ export function Footer() {
           ))}
         </div>
 
-        {/* Newsletter */}
-        <div
-          className="rounded-[32px] p-8 md:p-12 mb-16 text-center"
-          style={{ backgroundColor: "#EDE9E2" }}
-        >
-          <p
-            className="text-[#2D241E] mb-2"
-            style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "1.6rem", fontWeight: 400 }}
-          >
-            {t("footer.newsletter.title")}
-          </p>
-          <p
-            className="text-[#2D241E]/50 text-sm mb-8"
-            style={{ fontFamily: "'DM Sans', sans-serif" }}
-          >
-            {t("footer.newsletter.subtitle")}
-          </p>
-          <div className="flex flex-col sm:flex-row gap-3 max-w-md mx-auto">
-            <input
-              type="email"
-              placeholder={t("footer.newsletter.placeholder")}
-              className="flex-1 bg-white/70 border border-[#2D241E]/15 rounded-full px-6 py-3.5 text-[#2D241E] placeholder-[#2D241E]/30 focus:outline-none focus:border-[#2D241E]/40 transition-colors text-sm"
-              style={{ fontFamily: "'DM Sans', sans-serif" }}
-            />
-            <button
-              className="px-8 py-3.5 rounded-full text-white text-sm transition-all duration-300 hover:opacity-90 whitespace-nowrap"
-              style={{
-                backgroundColor: "#2D241E",
-                fontFamily: "'DM Sans', sans-serif",
-                letterSpacing: "0.12em",
-                fontSize: "0.75rem",
-              }}
-            >
-              <span className="uppercase tracking-widest">{t("footer.newsletter.submit")}</span>
-            </button>
-          </div>
-        </div>
-
         {/* Bottom */}
         <div className="flex flex-col md:flex-row items-center justify-between gap-4 pt-8 border-t border-[#2D241E]/8">
           <p
@@ -115,11 +88,23 @@ export function Footer() {
             {t("footer.rights", { year: new Date().getFullYear() })}
           </p>
           <div className="flex items-center gap-4">
-            <a href="#" className="text-[#2D241E]/40 hover:text-[#4A0E0E] transition-colors" aria-label="Instagram">
+            <a
+              href={INSTAGRAM_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-[#2D241E]/40 hover:text-[#4A0E0E] transition-colors cursor-pointer"
+              aria-label="Instagram"
+            >
               <Instagram size={18} strokeWidth={1.5} />
             </a>
-            <a href="#" className="text-[#2D241E]/40 hover:text-[#4A0E0E] transition-colors" aria-label="YouTube">
-              <Youtube size={18} strokeWidth={1.5} />
+            <a
+              href={TIKTOK_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-[#2D241E]/40 hover:text-[#4A0E0E] transition-colors cursor-pointer"
+              aria-label="TikTok"
+            >
+              <TikTokIcon size={18} />
             </a>
           </div>
           <div className="flex items-center gap-6">

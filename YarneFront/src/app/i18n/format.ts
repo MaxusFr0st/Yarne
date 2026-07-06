@@ -5,25 +5,52 @@ const LOCALE_BCP47: Record<Locale, string> = {
   uk: "uk-UA",
 };
 
+/** Official Ukrainian hryvnia sign (Unicode U+20B4), adopted by NBU in 2004. */
+export const HRYVNIA_SIGN = "\u20B4";
+
+function getHryvniaUnit(amount: number): string {
+  const wholeUnits = Math.floor(Math.abs(amount));
+  const mod100 = wholeUnits % 100;
+  const mod10 = wholeUnits % 10;
+
+  if (mod100 >= 11 && mod100 <= 14) return "гривень";
+  if (mod10 === 1) return "гривня";
+  if (mod10 >= 2 && mod10 <= 4) return "гривні";
+  return "гривень";
+}
+
+function formatAmountNumber(amount: number, locale: Locale): string {
+  const safe = Number.isFinite(amount) ? amount : 0;
+  return new Intl.NumberFormat(LOCALE_BCP47[locale], {
+    minimumFractionDigits: Number.isInteger(safe) ? 0 : 2,
+    maximumFractionDigits: Number.isInteger(safe) ? 0 : 2,
+  }).format(safe);
+}
+
+export function formatPriceCompact(amount: number, locale: Locale): string {
+  const safe = Number.isFinite(amount) ? amount : 0;
+  return `${HRYVNIA_SIGN} ${formatAmountNumber(safe, locale)}`;
+}
+
 export function formatPrice(amount: number, locale: Locale): string {
   const safe = Number.isFinite(amount) ? amount : 0;
+  const amountStr = formatAmountNumber(safe, locale);
+
+  if (locale === "uk") {
+    return `${HRYVNIA_SIGN}\u00a0${amountStr} ${getHryvniaUnit(safe)}`;
+  }
+
   try {
     const formatted = new Intl.NumberFormat(LOCALE_BCP47[locale], {
       style: "currency",
-      currency: "EUR",
-      // Pin the visible glyph: some browser/ICU combinations default to the
-      // ISO code ("285 EUR") for non-native currencies on Slavic locales,
-      // which looks like a bug. `narrowSymbol` forces "€" everywhere.
+      currency: "UAH",
       currencyDisplay: "narrowSymbol",
       minimumFractionDigits: Number.isInteger(safe) ? 0 : 2,
       maximumFractionDigits: Number.isInteger(safe) ? 0 : 2,
     }).format(safe);
-    // Some Intl outputs use NBSP (U+00A0) or NNBSP (U+202F) between the
-    // amount and the symbol — replace with a regular space for consistency
-    // with the rest of the typography.
     return formatted.replace(/[\u00A0\u202F]/g, " ");
   } catch {
-    return locale === "uk" ? `${safe} €` : `€${safe}`;
+    return `${HRYVNIA_SIGN}${amountStr}`;
   }
 }
 

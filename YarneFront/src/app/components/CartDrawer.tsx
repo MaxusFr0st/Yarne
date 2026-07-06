@@ -1,10 +1,15 @@
 import { motion, AnimatePresence } from "motion/react";
 import { X, Minus, Plus, ShoppingBag, ArrowRight } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { useOverlay, useCart } from "../context/AppContext";
 import { ImageWithFallback } from "./figma/ImageWithFallback";
 import { useLangNavigate } from "../i18n/useLangNavigate";
+import { formatPrice } from "../i18n/format";
+import { useLocale } from "../i18n/useLocale";
 
 export function CartDrawer() {
+  const { t } = useTranslation();
+  const locale = useLocale();
   const navigate = useLangNavigate();
   const { cartOpen, closeCart } = useOverlay();
   const { cartItems, removeFromCart, updateQuantity, cartTotal } = useCart();
@@ -40,17 +45,18 @@ export function CartDrawer() {
                   className="text-[#2D241E]"
                   style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "1.5rem", fontWeight: 500 }}
                 >
-                  Your Bag
+                  {t("cart.title")}
                 </h2>
                 <p
                   className="text-[#2D241E]/50 text-xs tracking-widest uppercase mt-0.5"
                   style={{ fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.15em" }}
                 >
-                  {cartItems.length} {cartItems.length === 1 ? "item" : "items"}
+                  {t("cart.itemCount", { count: cartItems.length })}
                 </p>
               </div>
               <button
                 onClick={closeCart}
+                aria-label={t("cart.closeDrawer")}
                 className="w-10 h-10 rounded-full flex items-center justify-center hover:bg-[#2D241E]/8 transition-colors duration-200 text-[#2D241E]/70 hover:text-[#2D241E]"
               >
                 <X size={18} strokeWidth={1.5} />
@@ -72,20 +78,20 @@ export function CartDrawer() {
                       className="text-[#2D241E]"
                       style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "1.4rem", fontWeight: 400 }}
                     >
-                      Your bag is empty
+                      {t("cart.emptyTitle")}
                     </p>
                     <p
                       className="text-[#2D241E]/50 mt-2 text-sm"
                       style={{ fontFamily: "'DM Sans', sans-serif" }}
                     >
-                      Add something beautiful to begin.
+                      {t("cart.emptySubtitle")}
                     </p>
                     <button
                       onClick={closeCart}
                       className="mt-8 px-8 py-3 rounded-full border border-[#2D241E]/30 text-[#2D241E] text-sm tracking-widest uppercase hover:bg-[#2D241E] hover:text-[#F5F2ED] transition-all duration-300"
                       style={{ fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.1em" }}
                     >
-                      Continue Shopping
+                      {t("cart.continueShopping")}
                     </button>
                   </motion.div>
                 ) : (
@@ -125,7 +131,7 @@ export function CartDrawer() {
                               className="text-[#2D241E]/60 text-xs"
                               style={{ fontFamily: "'DM Sans', sans-serif" }}
                             >
-                              {item.color} · Size {item.size}
+                              {item.color} · {t("cart.size")} {item.size}
                             </span>
                           </div>
                         </div>
@@ -159,10 +165,11 @@ export function CartDrawer() {
                               className="text-[#2D241E]"
                               style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "1rem", fontWeight: 500 }}
                             >
-                              €{(item.price * item.quantity).toLocaleString()}
+                              {formatPrice(item.price * item.quantity, locale)}
                             </span>
                             <button
                               onClick={() => removeFromCart(item.cartId)}
+                              aria-label={t("cart.removeItem")}
                               className="text-[#2D241E]/30 hover:text-[#4A0E0E] transition-colors"
                             >
                               <X size={14} />
@@ -184,20 +191,20 @@ export function CartDrawer() {
                     className="text-[#2D241E]/60 text-sm tracking-widest uppercase"
                     style={{ fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.12em" }}
                   >
-                    Subtotal
+                    {t("cart.subtotal")}
                   </span>
                   <span
                     className="text-[#2D241E]"
                     style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "1.4rem", fontWeight: 500 }}
                   >
-                    €{cartTotal.toLocaleString()}
+                    {formatPrice(cartTotal, locale)}
                   </span>
                 </div>
                 <p
                   className="text-[#2D241E]/40 text-xs text-center"
                   style={{ fontFamily: "'DM Sans', sans-serif" }}
                 >
-                  Shipping & taxes calculated at checkout
+                  {t("cart.shippingTaxesCheckout")}
                 </p>
                 <button
                   onClick={() => {
@@ -207,7 +214,7 @@ export function CartDrawer() {
                   className="w-full py-4 rounded-full flex items-center justify-center gap-3 text-white transition-all duration-300 hover:opacity-90"
                   style={{ backgroundColor: "#2D241E", fontFamily: "'DM Sans', sans-serif", fontSize: "0.8rem", letterSpacing: "0.15em" }}
                 >
-                  <span className="uppercase tracking-widest">Proceed to Checkout</span>
+                  <span className="uppercase tracking-widest">{t("cart.proceedToCheckout")}</span>
                   <ArrowRight size={16} />
                 </button>
                 <button
@@ -215,7 +222,7 @@ export function CartDrawer() {
                   className="w-full py-3 rounded-full border border-[#2D241E]/20 text-[#2D241E] text-sm uppercase tracking-widest hover:border-[#2D241E]/50 transition-colors duration-300"
                   style={{ fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.1em" }}
                 >
-                  Continue Shopping
+                  {t("cart.continueShopping")}
                 </button>
               </div>
             )}
