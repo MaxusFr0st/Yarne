@@ -8,7 +8,7 @@ import { useApp } from "../context/AppContext";
 import { ImageWithFallback as Img } from "./figma/ImageWithFallback";
 import { LangLink } from "../i18n/LangLink";
 import { useLocale } from "../i18n/useLocale";
-import { formatPriceCompact } from "../i18n/format";
+import { PriceTag } from "./PriceTag";
 import { resolveMediaUrl } from "../utils/storefrontMedia";
 import {
   DEFAULT_SHOWCASE_EYEBROW,
@@ -184,7 +184,7 @@ function ProductTile({ slot, product, fallbackTitle, variant, showWishlist = fal
                 fontWeight: 400,
               }}
             >
-              {formatPriceCompact(price, locale)}
+              <PriceTag amount={price} locale={locale} variant="card" />
             </p>
           )}
         </div>

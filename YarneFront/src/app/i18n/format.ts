@@ -8,7 +8,7 @@ const LOCALE_BCP47: Record<Locale, string> = {
 /** Official Ukrainian hryvnia sign (Unicode U+20B4), adopted by NBU in 2004. */
 export const HRYVNIA_SIGN = "\u20B4";
 
-function getHryvniaUnit(amount: number): string {
+export function getHryvniaUnit(amount: number): string {
   const wholeUnits = Math.floor(Math.abs(amount));
   const mod100 = wholeUnits % 100;
   const mod10 = wholeUnits % 10;

@@ -4,7 +4,7 @@ import { useTranslation } from "react-i18next";
 import { useOverlay, useCart } from "../context/AppContext";
 import { ImageWithFallback } from "./figma/ImageWithFallback";
 import { useLangNavigate } from "../i18n/useLangNavigate";
-import { formatPrice } from "../i18n/format";
+import { PriceTag } from "./PriceTag";
 import { useLocale } from "../i18n/useLocale";
 
 export function CartDrawer() {
@@ -161,12 +161,7 @@ export function CartDrawer() {
                           </div>
 
                           <div className="flex items-center gap-3">
-                            <span
-                              className="text-[#2D241E]"
-                              style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "1rem", fontWeight: 500 }}
-                            >
-                              {formatPrice(item.price * item.quantity, locale)}
-                            </span>
+                            <PriceTag amount={item.price * item.quantity} locale={locale} variant="line" />
                             <button
                               onClick={() => removeFromCart(item.cartId)}
                               aria-label={t("cart.removeItem")}
@@ -193,12 +188,7 @@ export function CartDrawer() {
                   >
                     {t("cart.subtotal")}
                   </span>
-                  <span
-                    className="text-[#2D241E]"
-                    style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "1.4rem", fontWeight: 500 }}
-                  >
-                    {formatPrice(cartTotal, locale)}
-                  </span>
+                  <PriceTag amount={cartTotal} locale={locale} variant="emphasis" withUnit />
                 </div>
                 <p
                   className="text-[#2D241E]/40 text-xs text-center"

@@ -10,8 +10,9 @@ import { useLangNavigate } from "../i18n/useLangNavigate";
 import { LanguageSwitcher } from "../i18n/LanguageSwitcher";
 import { useTouchMobileLayout } from "../hooks/useTouchMobileLayout";
 import { LOCALE_DISPLAY, LOCALE_STORAGE_KEY, SUPPORTED_LOCALES, type Locale } from "../i18n/config";
-import { stripLocaleFromPath } from "../i18n/useLocale";
+import { stripLocaleFromPath, useLocale } from "../i18n/useLocale";
 import { preserveScrollForLocaleSwitch } from "../i18n/localeNavigation";
+import { scrollToPageTop } from "../utils/scrollToTop";
 
 export function Header() {
   const { t, i18n } = useTranslation();
@@ -27,6 +28,14 @@ export function Header() {
   const location = useLocation();
   const navigate = useLangNavigate();
   const rawNavigate = useNavigate();
+  const locale = useLocale();
+
+  const handleLogoClick = (event: React.MouseEvent<HTMLAnchorElement>) => {
+    scrollToPageTop();
+    if (stripLocaleFromPath(location.pathname) === "/") {
+      event.preventDefault();
+    }
+  };
 
   const activeLocale = (SUPPORTED_LOCALES as readonly string[]).includes(i18n.language)
     ? (i18n.language as Locale)
@@ -205,7 +214,7 @@ export function Header() {
             </div>
 
             {/* Center Logo */}
-            <LangLink to="/" className="flex items-center justify-center justify-self-center text-[#2D241E]">
+            <LangLink to="/" className="flex items-center justify-center justify-self-center text-[#2D241E]" onClick={handleLogoClick}>
               <Logo
                 title="Yarné – The Knit Gallery"
                 className="h-6 md:h-7 w-auto"

@@ -7,7 +7,7 @@ import { useApp, type CartItem } from "../context/AppContext";
 import { ImageWithFallback } from "../components/figma/ImageWithFallback";
 import { LangLink } from "../i18n/LangLink";
 import { useLocale } from "../i18n/useLocale";
-import { formatPrice } from "../i18n/format";
+import { PriceTag } from "../components/PriceTag";
 
 const easing = [0.25, 0.1, 0.25, 1] as const;
 const ORDER_ITEM_PLACEHOLDER =
@@ -193,9 +193,7 @@ export function CheckoutPage() {
                           {item.color} · {t("checkout.size")} {item.size} · {t("checkout.qty")} {item.quantity}
                         </p>
                       </div>
-                      <p className="text-[#2D241E]" style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "1.05rem", fontWeight: 500 }}>
-                        {formatPrice(item.price * item.quantity, locale)}
-                      </p>
+                      <PriceTag amount={item.price * item.quantity} locale={locale} variant="line" />
                     </div>
                   </div>
                 </LangLink>
@@ -224,19 +222,17 @@ export function CheckoutPage() {
           <div className="space-y-3 pb-5 border-b border-[#2D241E]/10">
             <div className="flex items-center justify-between text-sm" style={{ fontFamily: "'DM Sans', sans-serif" }}>
               <span className="text-[#2D241E]/60">{t("checkout.subtotal")}</span>
-              <span className="text-[#2D241E]">{formatPrice(cartTotal, locale)}</span>
+              <PriceTag amount={cartTotal} locale={locale} variant="line" withUnit />
             </div>
             <div className="flex items-center justify-between text-sm" style={{ fontFamily: "'DM Sans', sans-serif" }}>
               <span className="text-[#2D241E]/60">{t("checkout.shipping")}</span>
-              <span className="text-[#2D241E]">{shipping === 0 ? t("checkout.shippingFree") : formatPrice(shipping, locale)}</span>
+              <span className="text-[#2D241E]">{shipping === 0 ? t("checkout.shippingFree") : <PriceTag amount={shipping} locale={locale} variant="line" withUnit />}</span>
             </div>
             <div className="flex items-center justify-between mt-2">
               <span className="text-[#2D241E]/70 uppercase tracking-widest text-xs" style={{ fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.1em" }}>
                 {t("checkout.total")}
               </span>
-              <span className="text-[#2D241E]" style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "1.5rem", fontWeight: 500 }}>
-                {formatPrice(grandTotal, locale)}
-              </span>
+              <PriceTag amount={grandTotal} locale={locale} variant="emphasis" withUnit />
             </div>
           </div>
 

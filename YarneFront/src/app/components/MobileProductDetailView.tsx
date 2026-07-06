@@ -5,7 +5,7 @@ import { ArrowLeft, Heart, ShoppingBag, Check, ChevronDown } from "lucide-react"
 import { useTranslation } from "react-i18next";
 import type { Product } from "../types/product";
 import type { Locale } from "../i18n/config";
-import { formatPriceCompact } from "../i18n/format";
+import { PriceTag } from "./PriceTag";
 import { ImageWithFallback } from "./figma/ImageWithFallback";
 import { CrossfadeImage } from "./figma/CrossfadeImage";
 
@@ -203,16 +203,7 @@ export function MobileProductDetailView({
             >
               {product.name}
             </h1>
-            <p
-              className="text-[#2D241E] shrink-0"
-              style={{
-                fontFamily: "'Cormorant Garamond', serif",
-                fontSize: "clamp(1.1rem, 4.4vw, 1.35rem)",
-                fontWeight: 500,
-              }}
-            >
-              {formatPriceCompact(product.price, locale)}
-            </p>
+            <PriceTag amount={product.price} locale={locale} variant="display" />
           </div>
 
           <button

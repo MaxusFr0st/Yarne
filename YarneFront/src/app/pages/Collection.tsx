@@ -5,7 +5,7 @@ import { SlidersHorizontal, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useProducts } from "../hooks/useProducts";
 import { useLocale } from "../i18n/useLocale";
-import { formatPrice } from "../i18n/format";
+import { PriceTag } from "../components/PriceTag";
 import { ProductCard } from "../components/ProductCard";
 import { Skeleton } from "../components/ui/skeleton";
 
@@ -177,8 +177,8 @@ export function Collection() {
                     {t("collection.filter.priceRange")}
                   </p>
                   <div className="flex items-center gap-3">
-                    <span className="text-[#2D241E] text-sm" style={{ fontFamily: "'Cormorant Garamond', serif" }}>
-                      {formatPrice(priceRange[0], locale)}
+                    <span className="text-[#2D241E] text-sm">
+                      <PriceTag amount={priceRange[0]} locale={locale} variant="card" />
                     </span>
                     <input
                       type="range"
@@ -188,8 +188,8 @@ export function Collection() {
                       onChange={(e) => setPriceRange([priceRange[0], parseInt(e.target.value)])}
                       className="w-32 accent-[#4A0E0E]"
                     />
-                    <span className="text-[#2D241E] text-sm" style={{ fontFamily: "'Cormorant Garamond', serif" }}>
-                      {formatPrice(priceRange[1], locale)}
+                    <span className="text-[#2D241E] text-sm">
+                      <PriceTag amount={priceRange[1]} locale={locale} variant="card" />
                     </span>
                   </div>
                 </div>

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { useTranslation } from "react-i18next";
 import {
@@ -22,7 +22,7 @@ import { ImageWithFallback } from "../components/figma/ImageWithFallback";
 import { useApp } from "../context/AppContext";
 import { LangLink } from "../i18n/LangLink";
 import { useLocale } from "../i18n/useLocale";
-import { formatPrice } from "../i18n/format";
+import { PriceTag } from "../components/PriceTag";
 import { useProducts } from "../hooks/useProducts";
 
 const easing = [0.25, 0.1, 0.25, 1] as const;
@@ -167,7 +167,7 @@ function OrderRow({ order, productImageByCode }: { order: Order; productImageByC
               <StatusBadge status={order.status} />
             </div>
             <p className="text-[#2D241E]/50 text-xs mt-1" style={{ fontFamily: "'DM Sans', sans-serif" }}>
-              {toDisplayDate(order.date, locale)} · {t("account.orderRow.itemCount", { count: order.items.length })} · {formatPrice(order.total, locale)}
+              {toDisplayDate(order.date, locale)} · {t("account.orderRow.itemCount", { count: order.items.length })} · <PriceTag amount={order.total} locale={locale} variant="line" withUnit />
             </p>
             <DeliveryProgressPreview status={order.status} />
           </div>
@@ -215,7 +215,7 @@ function OrderRow({ order, productImageByCode }: { order: Order; productImageByC
                         </div>
                       </div>
                       <span className="text-[#2D241E] truncate" style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "1rem" }}>
-                        {formatPrice(item.lineTotal, locale)}
+                        <PriceTag amount={item.lineTotal} locale={locale} variant="line" />
                       </span>
                     </LangLink>
                   );
@@ -236,7 +236,7 @@ function OrderRow({ order, productImageByCode }: { order: Order; productImageByC
                     {t("account.orderRow.total")}
                   </span>
                   <span className="text-[#2D241E]" style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "1.15rem", fontWeight: 500 }}>
-                    {formatPrice(order.total, locale)}
+                    <PriceTag amount={order.total} locale={locale} variant="emphasis" withUnit />
                   </span>
                 </div>
               </div>
@@ -298,11 +298,11 @@ export function AccountPage() {
   const totalSpent = useMemo(() => orders.reduce((sum, order) => sum + order.total, 0), [orders]);
   const receivedCount = useMemo(() => orders.filter((order) => order.status === "received").length, [orders]);
 
-  const stats = [
+  const stats: { key: "orders" | "wishlisted" | "totalSpent"; value: ReactNode }[] = [
     { key: "orders", value: orders.length.toLocaleString() },
     { key: "wishlisted", value: wishlist.length.toLocaleString() },
-    { key: "totalSpent", value: formatPrice(totalSpent, locale) },
-  ] as const;
+    { key: "totalSpent", value: <PriceTag amount={totalSpent} locale={locale} variant="emphasis" withUnit /> },
+  ];
 
   const overviewCards = [
     { icon: <ShoppingBag size={20} />, label: t("account.overview.cards.totalOrders"), value: orders.length.toLocaleString() },
@@ -372,9 +372,13 @@ export function AccountPage() {
             <div className="grid grid-cols-3 gap-4 md:gap-8 min-w-full md:min-w-[360px]">
               {stats.map((stat) => (
                 <div key={stat.key} className="text-center">
-                  <p className="text-[#2D241E]" style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "1.4rem", fontWeight: 500 }}>
-                    {stat.value}
-                  </p>
+                  {typeof stat.value === "string" ? (
+                    <p className="text-[#2D241E]" style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "1.4rem", fontWeight: 500 }}>
+                      {stat.value}
+                    </p>
+                  ) : (
+                    <div className="flex justify-center">{stat.value}</div>
+                  )}
                   <p className="text-[#2D241E]/45 text-xs uppercase tracking-widest" style={{ fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.1em" }}>
                     {t(`account.stats.${stat.key}`)}
                   </p>

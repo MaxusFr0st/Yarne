@@ -4,7 +4,7 @@ import { motion, AnimatePresence, LayoutGroup, useReducedMotion } from "motion/r
 import { ArrowLeft, Heart, ChevronDown, ShoppingBag, Check } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useLocale } from "../i18n/useLocale";
-import { formatPriceCompact } from "../i18n/format";
+import { PriceTag } from "../components/PriceTag";
 import { useProduct, useProducts } from "../hooks/useProducts";
 import { useCart, useWishlist } from "../context/AppContext";
 import { getDefaultColorIndex } from "../utils/productColorIndex";
@@ -285,12 +285,7 @@ export function ProductDetail() {
               >
                 {product.subtitle}
               </p>
-              <p
-                className="text-[#2D241E] mt-3"
-                style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "1.6rem", fontWeight: 400 }}
-              >
-                {formatPriceCompact(product.price, locale)}
-              </p>
+              <PriceTag amount={product.price} locale={locale} variant="display" className="mt-3" />
             </div>
 
             {/* Color Selection */}
