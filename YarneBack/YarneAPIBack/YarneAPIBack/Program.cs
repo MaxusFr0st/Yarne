@@ -116,7 +116,23 @@ builder.Services.AddScoped<IStorefrontSettingsService, StorefrontSettingsService
 builder.Services.AddScoped<IAdminActivityLogService, AdminActivityLogService>();
 builder.Services.AddScoped<IAccountingService, AccountingService>();
 builder.Services.AddScoped<IAccountingPdfService, AccountingPdfService>();
-builder.Services.AddSingleton<IEmailService, SmtpEmailService>();
+builder.Services.AddSingleton<IEmailService>(sp =>
+{
+    var configuration = sp.GetRequiredService<IConfiguration>();
+    var provider = (configuration["EMAIL_PROVIDER"] ?? Environment.GetEnvironmentVariable("EMAIL_PROVIDER") ?? "smtp").Trim();
+
+    if (provider.Equals("resend", StringComparison.OrdinalIgnoreCase))
+    {
+        var httpClientFactory = sp.GetRequiredService<IHttpClientFactory>();
+        var logger = sp.GetRequiredService<ILogger<ResendEmailService>>();
+        return new ResendEmailService(configuration, httpClientFactory, logger);
+    }
+
+    {
+        var logger = sp.GetRequiredService<ILogger<SmtpEmailService>>();
+        return new SmtpEmailService(configuration, logger);
+    }
+});
 builder.Services.AddSingleton<IImageUploadNormalizer, ImageUploadNormalizer>();
 
 builder.Services.AddControllers();
