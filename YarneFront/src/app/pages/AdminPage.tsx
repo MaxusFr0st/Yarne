@@ -411,6 +411,20 @@ function ProductModal({
   });
 
   const handleChange = (key: keyof ProductFormData, value: string | number | boolean) => {
+    // Note: <input min={0}> doesn't prevent typing "-" in many browsers,
+    // so we clamp client-side to avoid saving negative numeric fields.
+    if ((key === "price" || key === "stock") && typeof value === "string") {
+      const trimmed = value.trim();
+      if (trimmed === "") {
+        setForm((prev) => ({ ...prev, [key]: "" }));
+        return;
+      }
+      const n = Number(trimmed);
+      if (Number.isFinite(n) && n < 0) {
+        setForm((prev) => ({ ...prev, [key]: "0" }));
+        return;
+      }
+    }
     setForm((prev) => ({ ...prev, [key]: value }));
   };
 
@@ -1030,7 +1044,13 @@ function ProductModal({
                                 placeholder="Stock"
                                 value={form.variantStocks[key] ?? ""}
                                 onChange={(e) => {
-                                  const value = e.target.value;
+                                  const raw = e.target.value;
+                                  const trimmed = raw.trim();
+                                  let value = raw;
+                                  if (trimmed !== "") {
+                                    const n = Number(trimmed);
+                                    if (Number.isFinite(n) && n < 0) value = "0";
+                                  }
                                   setForm((p) => ({ ...p, variantStocks: { ...p.variantStocks, [key]: value } }));
                                 }}
                                 className="w-20 bg-white/60 border rounded-[10px] px-2.5 py-1.5 text-xs text-[#2D241E] focus:outline-none"
