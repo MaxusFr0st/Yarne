@@ -4,9 +4,8 @@ namespace YarneAPIBack.DTOs.Product;
 
 public class CreateProductRequest
 {
-    [Required]
     [StringLength(50)]
-    public string ProductCode { get; set; } = null!;
+    public string? ProductCode { get; set; }
 
     [Required]
     [StringLength(255)]

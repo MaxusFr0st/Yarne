@@ -59,7 +59,15 @@ public class ProductsController : ControllerBase
     public async Task<ActionResult<ProductDto>> CreateProduct([FromBody] CreateProductRequest request, CancellationToken ct = default)
     {
         if (request == null) return BadRequest();
-        var product = await _productService.CreateProductAsync(request, ct);
+        ProductDto product;
+        try
+        {
+            product = await _productService.CreateProductAsync(request, ct);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
         var imageUrls = ProductLogImageHelper.CollectImageUrls(product);
 
         var (actorUserId, actorEmail) = AdminActivityLogHelper.GetActor(HttpContext);
@@ -101,7 +109,15 @@ public class ProductsController : ControllerBase
             ? ProductLogImageHelper.CollectImageUrls(existingDetail)
             : new List<string>();
 
-        var product = await _productService.UpdateProductAsync(id, request, ct);
+        ProductDto? product;
+        try
+        {
+            product = await _productService.UpdateProductAsync(id, request, ct);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
         if (product == null) return NotFound();
 
         var afterImages = ProductLogImageHelper.CollectImageUrls(product);

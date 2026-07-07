@@ -110,11 +110,13 @@ public class ProductService : IProductService
 
     public async Task<ProductDto> CreateProductAsync(CreateProductRequest request, CancellationToken ct = default)
     {
+        EnsureNonNegativeStockInputs(request.QuantityInStock, request.VariantStocks);
+
         var validSizeIds = await ResolveSizeIdsAsync(request.SizeIds, request.DefaultSizeId, request.ColorSizeVariants.Select(v => v.SizeId), ct);
         var defaultSizeId = await ResolveDefaultSizeIdAsync(validSizeIds, request.DefaultSizeId, ct);
         var computedTotalStock = ComputeTotalStock(request.QuantityInStock, request.VariantStocks);
 
-        var productCode = await GenerateUniqueProductCodeAsync(ct);
+        var productCode = await ResolveCreateProductCodeAsync(request.ProductCode, ct);
 
         var product = new Models.Product
         {
@@ -181,6 +183,20 @@ public class ProductService : IProductService
         return MapToProductDto(created);
     }
 
+    private async Task<string> ResolveCreateProductCodeAsync(string? requestedCode, CancellationToken ct)
+    {
+        var normalizedRequested = requestedCode?.Trim();
+        if (!string.IsNullOrWhiteSpace(normalizedRequested))
+        {
+            var exists = await _context.Products.AnyAsync(p => p.ProductCode == normalizedRequested, ct);
+            if (exists)
+                throw new InvalidOperationException($"Product code '{normalizedRequested}' already exists.");
+            return normalizedRequested;
+        }
+
+        return await GenerateUniqueProductCodeAsync(ct);
+    }
+
     private async Task<string> GenerateUniqueProductCodeAsync(CancellationToken ct)
     {
         const string Prefix = "YRN-";
@@ -202,6 +218,8 @@ public class ProductService : IProductService
 
     public async Task<ProductDto?> UpdateProductAsync(int id, UpdateProductRequest request, CancellationToken ct = default)
     {
+        EnsureNonNegativeStockInputs(request.QuantityInStock, request.VariantStocks);
+
         var product = await _context.Products
             .Include(p => p.ProductImages)
             .Include(p => p.ProductColors)
@@ -308,6 +326,16 @@ public class ProductService : IProductService
                         .ThenInclude(ps => ps.Size)
             .FirstAsync(p => p.Id == id, ct);
         return MapToProductDto(updated);
+    }
+
+    private static void EnsureNonNegativeStockInputs(int explicitStock, IEnumerable<VariantStockInput>? variantStocks)
+    {
+        if (explicitStock < 0)
+            throw new InvalidOperationException("Stock cannot be negative.");
+
+        if (variantStocks == null) return;
+        if (variantStocks.Any(v => v.QuantityInStock < 0))
+            throw new InvalidOperationException("Variant stock cannot be negative.");
     }
 
     public async Task<bool> DeleteProductAsync(int id, CancellationToken ct = default)

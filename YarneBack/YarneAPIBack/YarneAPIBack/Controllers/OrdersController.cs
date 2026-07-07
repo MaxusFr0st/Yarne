@@ -16,6 +16,8 @@ namespace YarneAPIBack.Controllers;
 [Authorize]
 public class OrdersController : ControllerBase
 {
+    private const string DefaultOrderReceivedNotifyEmail = "anastasiia.moroz.yarne@gmail.com";
+
     private static readonly Dictionary<string, string> AllowedStatuses = new(StringComparer.OrdinalIgnoreCase)
     {
         ["pending"] = "Pending",
@@ -440,7 +442,7 @@ public class OrdersController : ControllerBase
                     ProductId = i.ProductId,
                     ProductCode = i.Product?.ProductCode ?? string.Empty,
                     ProductName = i.Product?.Name ?? "Product",
-                    ProductImageUrl = i.Product?.ImageUrl,
+                    ProductImageUrl = ResolvePrimaryProductImageUrl(i.Product),
                     ProductSubtitle = i.ProductSubtitle,
                     ColorName = i.ColorName,
                     SizeName = i.SizeName,
@@ -486,6 +488,21 @@ public class OrdersController : ControllerBase
                     order.Id,
                     message.ToEmail);
                 await _emailService.SendOrderConfirmationAsync(message, CancellationToken.None);
+
+                if (message.Event == OrderEmailEvent.Received)
+                {
+                    var notifyEmail = ResolveOrderReceivedNotifyEmail();
+                    if (!string.IsNullOrWhiteSpace(notifyEmail)
+                        && !string.Equals(notifyEmail, message.ToEmail, StringComparison.OrdinalIgnoreCase))
+                    {
+                        var internalMessage = CloneMessageForRecipient(message, notifyEmail);
+                        _logger.LogInformation(
+                            "Sending internal order placed notification for order #{OrderId} to {Email}.",
+                            order.Id,
+                            notifyEmail);
+                        await _emailService.SendOrderConfirmationAsync(internalMessage, CancellationToken.None);
+                    }
+                }
             }
             catch (Exception ex)
             {
@@ -517,22 +534,13 @@ public class OrdersController : ControllerBase
 
         var apiBase = ResolvePublicApiBaseUrl().TrimEnd('/');
 
-        var bcc = new List<string>();
-        if (emailEvent == OrderEmailEvent.Received)
-        {
-            var notify = (_configuration["ORDER_RECEIVED_NOTIFY_EMAIL"]
-                ?? Environment.GetEnvironmentVariable("ORDER_RECEIVED_NOTIFY_EMAIL"))?.Trim();
-            if (!string.IsNullOrWhiteSpace(notify))
-                bcc.Add(notify);
-        }
-
         return new OrderConfirmationEmailMessage
         {
             OrderId = order.Id,
             Event = emailEvent,
             CustomerName = customerName,
             ToEmail = customer.Email ?? string.Empty,
-            BccEmails = bcc,
+            BccEmails = [],
             AccountUrl = accountUrl,
             OrderDateUtc = order.OrderDate,
             Total = order.Total,
@@ -566,6 +574,42 @@ public class OrdersController : ControllerBase
             .FirstOrDefault();
 
         return !string.IsNullOrWhiteSpace(primary) ? primary : product.ImageUrl;
+    }
+
+    private string ResolveOrderReceivedNotifyEmail()
+    {
+        return (_configuration["ORDER_RECEIVED_NOTIFY_EMAIL"]
+            ?? Environment.GetEnvironmentVariable("ORDER_RECEIVED_NOTIFY_EMAIL")
+            ?? DefaultOrderReceivedNotifyEmail).Trim();
+    }
+
+    private static OrderConfirmationEmailMessage CloneMessageForRecipient(OrderConfirmationEmailMessage source, string toEmail)
+    {
+        return new OrderConfirmationEmailMessage
+        {
+            OrderId = source.OrderId,
+            Event = source.Event,
+            CustomerName = source.CustomerName,
+            ToEmail = toEmail,
+            BccEmails = [],
+            AccountUrl = source.AccountUrl,
+            OrderDateUtc = source.OrderDateUtc,
+            Total = source.Total,
+            Items = source.Items
+                .Select(i => new OrderConfirmationEmailItem
+                {
+                    ProductCode = i.ProductCode,
+                    ProductName = i.ProductName,
+                    ProductImageUrl = i.ProductImageUrl,
+                    ProductSubtitle = i.ProductSubtitle,
+                    ColorName = i.ColorName,
+                    SizeName = i.SizeName,
+                    WithLace = i.WithLace,
+                    Quantity = i.Quantity,
+                    UnitPrice = i.UnitPrice,
+                })
+                .ToList(),
+        };
     }
 
     private string ResolvePublicApiBaseUrl()

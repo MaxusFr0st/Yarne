@@ -552,7 +552,6 @@ function ProductModal({
     });
 
     if (!form.name.trim()) errors.name = "This field must not be empty.";
-    if (product && !form.sku.trim()) errors.sku = "This field must not be empty.";
     if (!form.description.trim()) errors.description = "This field must not be empty.";
     if (!Number.isFinite(parsedPrice) || parsedPrice <= 0) errors.price = "Enter a valid price greater than 0.";
     if (form.stock.trim() && (!Number.isFinite(parsedStock) || parsedStock < 0)) {
@@ -667,6 +666,7 @@ function ProductModal({
                 </label>
                 <input
                   type={field.type}
+                  min={field.key === "stock" ? 0 : undefined}
                   value={form[field.key] as string}
                   onChange={(e) => handleChange(field.key, e.target.value)}
                   placeholder={field.placeholder}
@@ -712,11 +712,10 @@ function ProductModal({
               </label>
               <input
                 type="text"
-                value={product ? form.sku : "Auto-generated after saving"}
+                value={form.sku}
                 onChange={(e) => handleChange("sku", e.target.value)}
-                placeholder="YRN-000000"
-                disabled={!product}
-                className="w-full bg-transparent border rounded-[14px] px-4 py-3 text-[#2D241E] focus:outline-none transition-colors duration-200 placeholder:text-[#2D241E]/20 disabled:opacity-70"
+                placeholder="Leave empty to auto-generate (YRN-######)"
+                className="w-full bg-transparent border rounded-[14px] px-4 py-3 text-[#2D241E] focus:outline-none transition-colors duration-200 placeholder:text-[#2D241E]/20"
                 style={{
                   fontFamily: "'DM Sans', sans-serif",
                   fontSize: "0.9rem",
@@ -2150,7 +2149,7 @@ export function AdminPage() {
       );
 
       const payload = {
-        productCode: productModal.editing ? data.sku : undefined,
+        productCode: data.sku.trim() ? data.sku.trim() : undefined,
         name: data.name,
         description: data.description,
         price: parseFloat(data.price) || 0,
