@@ -36,16 +36,19 @@ public class OrdersController : ControllerBase
     private readonly IAdminActivityLogService _activityLogs;
     private readonly IEmailService _emailService;
     private readonly ILogger<OrdersController> _logger;
+    private readonly IConfiguration _configuration;
 
     public OrdersController(
         YarneDbContext context,
         IAdminActivityLogService activityLogs,
         IEmailService emailService,
+        IConfiguration configuration,
         ILogger<OrdersController> logger)
     {
         _context = context;
         _activityLogs = activityLogs;
         _emailService = emailService;
+        _configuration = configuration;
         _logger = logger;
     }
 
@@ -312,7 +315,7 @@ public class OrdersController : ControllerBase
 
         try
         {
-            QueueOrderConfirmationEmail(createdOrder);
+            QueueOrderStatusEmail(createdOrder, OrderEmailEvent.Received);
         }
         catch (Exception ex)
         {
@@ -348,17 +351,18 @@ public class OrdersController : ControllerBase
 
         // If admin "confirms" an order (Pending -> Accepted), send the same confirmation email
         // that is sent when the order is initially placed.
-        if (!string.Equals(previousStatus, "Accepted", StringComparison.OrdinalIgnoreCase)
-            && string.Equals(canonicalStatus, "Accepted", StringComparison.OrdinalIgnoreCase))
+        if (!string.Equals(previousStatus, canonicalStatus, StringComparison.OrdinalIgnoreCase))
         {
-            try
+            var statusEmailEvent = canonicalStatus switch
             {
-                QueueOrderConfirmationEmail(updatedOrder);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Order #{OrderId} was accepted but confirmation email could not be queued.", id);
-            }
+                "Accepted" => OrderEmailEvent.Confirmed,
+                "Shipped" => OrderEmailEvent.Shipped,
+                "Canceled" => OrderEmailEvent.Canceled,
+                _ => (OrderEmailEvent?)null,
+            };
+
+            if (statusEmailEvent.HasValue)
+                QueueOrderStatusEmail(updatedOrder, statusEmailEvent.Value);
         }
 
         var (actorUserId, actorEmail) = AdminActivityLogHelper.GetActor(HttpContext);
@@ -450,12 +454,12 @@ public class OrdersController : ControllerBase
         };
     }
 
-    private void QueueOrderConfirmationEmail(Order order)
+    private void QueueOrderStatusEmail(Order order, OrderEmailEvent emailEvent)
     {
         if (order.Customer == null || string.IsNullOrWhiteSpace(order.Customer.Email))
         {
             _logger.LogWarning(
-                "Skipping order confirmation email for order #{OrderId}: customer email is missing.",
+                "Skipping order status email for order #{OrderId}: customer email is missing.",
                 order.Id);
             return;
         }
@@ -463,11 +467,11 @@ public class OrdersController : ControllerBase
         OrderConfirmationEmailMessage message;
         try
         {
-            message = BuildOrderConfirmationMessage(order);
+            message = BuildOrderStatusMessage(order, emailEvent);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to build order confirmation email for order #{OrderId}.", order.Id);
+            _logger.LogError(ex, "Failed to build order status email for order #{OrderId}.", order.Id);
             return;
         }
 
@@ -476,7 +480,8 @@ public class OrdersController : ControllerBase
             try
             {
                 _logger.LogInformation(
-                    "Sending order confirmation email for order #{OrderId} to {Email}.",
+                    "Sending order status email ({Event}) for order #{OrderId} to {Email}.",
+                    message.Event,
                     order.Id,
                     message.ToEmail);
                 await _emailService.SendOrderConfirmationAsync(message, CancellationToken.None);
@@ -485,7 +490,7 @@ public class OrdersController : ControllerBase
             {
                 _logger.LogError(
                     ex,
-                    "Unexpected error while sending order confirmation for order #{OrderId}.",
+                    "Unexpected error while sending order status email for order #{OrderId}.",
                     order.Id);
             }
         });
@@ -497,18 +502,27 @@ public class OrdersController : ControllerBase
         return value.Trim();
     }
 
-    private static OrderConfirmationEmailMessage BuildOrderConfirmationMessage(Order order)
+    private OrderConfirmationEmailMessage BuildOrderStatusMessage(Order order, OrderEmailEvent emailEvent)
     {
         var customer = order.Customer ?? throw new InvalidOperationException("Order customer is not loaded.");
         var customerName = $"{customer.FirstName} {customer.LastName}".Trim();
         if (string.IsNullOrWhiteSpace(customerName))
             customerName = customer.UserName ?? customer.Email ?? "Customer";
 
+        var frontendBase = (_configuration["FRONTEND_BASE_URL"]
+            ?? Environment.GetEnvironmentVariable("FRONTEND_BASE_URL")
+            ?? "https://yarne-acc.com").Trim().TrimEnd('/');
+        var accountUrl = $"{frontendBase}/account";
+
+        var apiBase = ResolvePublicApiBaseUrl().TrimEnd('/');
+
         return new OrderConfirmationEmailMessage
         {
             OrderId = order.Id,
+            Event = emailEvent,
             CustomerName = customerName,
             ToEmail = customer.Email ?? string.Empty,
+            AccountUrl = accountUrl,
             OrderDateUtc = order.OrderDate,
             Total = order.Total,
             Items = order.OrderItems
@@ -517,6 +531,7 @@ public class OrdersController : ControllerBase
                 {
                     ProductCode = i.Product?.ProductCode ?? string.Empty,
                     ProductName = i.Product?.Name ?? "Product",
+                    ProductImageUrl = ResolveAbsoluteImageUrl(i.Product?.ImageUrl, apiBase),
                     ProductSubtitle = i.ProductSubtitle,
                     ColorName = i.ColorName,
                     SizeName = i.SizeName,
@@ -526,5 +541,28 @@ public class OrdersController : ControllerBase
                 })
                 .ToList(),
         };
+    }
+
+    private string ResolvePublicApiBaseUrl()
+    {
+        var configured = _configuration["PUBLIC_API_BASE_URL"]
+            ?? Environment.GetEnvironmentVariable("PUBLIC_API_BASE_URL");
+        if (!string.IsNullOrWhiteSpace(configured))
+            return configured.Trim();
+
+        var req = HttpContext?.Request;
+        if (req == null) return "https://mindful-flexibility-production.up.railway.app";
+        return $"{req.Scheme}://{req.Host.Value}";
+    }
+
+    private static string? ResolveAbsoluteImageUrl(string? raw, string apiBase)
+    {
+        if (string.IsNullOrWhiteSpace(raw)) return null;
+        var value = raw.Trim();
+        if (Uri.TryCreate(value, UriKind.Absolute, out _))
+            return value;
+        if (!value.StartsWith("/", StringComparison.Ordinal))
+            value = "/" + value;
+        return apiBase + value;
     }
 }

@@ -9,19 +9,37 @@ public static class OrderConfirmationEmailBuilder
     private static readonly CultureInfo UkrainianCulture = CultureInfo.GetCultureInfo("uk-UA");
 
     public static string BuildSubject(OrderConfirmationEmailMessage message)
-        => $"Підтвердження замовлення №{message.OrderId}";
+        => message.Event switch
+        {
+            OrderEmailEvent.Received => $"Замовлення №{message.OrderId} отримано",
+            OrderEmailEvent.Confirmed => $"Замовлення №{message.OrderId} підтверджено",
+            OrderEmailEvent.Shipped => $"Замовлення №{message.OrderId} відправлено",
+            OrderEmailEvent.Canceled => $"Замовлення №{message.OrderId} скасовано",
+            _ => $"Замовлення №{message.OrderId}",
+        };
 
     public static string BuildHtml(OrderConfirmationEmailMessage message)
     {
         var safeName = WebUtility.HtmlEncode(message.CustomerName);
         var orderDate = message.OrderDateUtc.ToLocalTime().ToString("dd.MM.yyyy HH:mm", UkrainianCulture);
         var total = FormatPrice(message.Total);
+        var accountUrl = string.IsNullOrWhiteSpace(message.AccountUrl) ? null : message.AccountUrl.Trim();
+
+        var (title, intro) = message.Event switch
+        {
+            OrderEmailEvent.Received => ("Дякуємо за замовлення в Yarné", "Ми отримали ваше замовлення та вже передали його в обробку."),
+            OrderEmailEvent.Confirmed => ("Замовлення підтверджено", "Ваше замовлення підтверджено. Ми починаємо підготовку до відправлення."),
+            OrderEmailEvent.Shipped => ("Замовлення відправлено", "Ваше замовлення відправлено. Перевіряйте статус у вашому акаунті."),
+            OrderEmailEvent.Canceled => ("Замовлення скасовано", "Ваше замовлення було скасовано. Якщо це помилка — відповідайте на цей лист."),
+            _ => ("Оновлення замовлення", "Статус вашого замовлення оновлено."),
+        };
 
         var rowsBuilder = new StringBuilder();
         foreach (var item in message.Items)
         {
             var safeCode = WebUtility.HtmlEncode(item.ProductCode);
             var safeProductName = WebUtility.HtmlEncode(item.ProductName);
+            var safeImg = WebUtility.HtmlEncode(item.ProductImageUrl ?? string.Empty);
             var safeSubtitle = WebUtility.HtmlEncode(item.ProductSubtitle ?? "—");
             var safeColor = WebUtility.HtmlEncode(item.ColorName ?? "—");
             var safeSize = WebUtility.HtmlEncode(item.SizeName ?? "—");
@@ -31,6 +49,9 @@ public static class OrderConfirmationEmailBuilder
 
             rowsBuilder.AppendLine($"""
                     <tr>
+                      <td style="padding:8px;border:1px solid #e5e7eb;">
+                        {(string.IsNullOrWhiteSpace(safeImg) ? "" : $"<img src=\"{safeImg}\" alt=\"\" width=\"56\" height=\"56\" style=\"display:block;border-radius:10px;object-fit:cover;background:#f3f4f6;\" />")}
+                      </td>
                       <td style="padding:8px;border:1px solid #e5e7eb;">{safeCode}</td>
                       <td style="padding:8px;border:1px solid #e5e7eb;">{safeProductName}</td>
                       <td style="padding:8px;border:1px solid #e5e7eb;">{safeSubtitle}</td>
@@ -54,9 +75,9 @@ public static class OrderConfirmationEmailBuilder
                       <table role="presentation" width="900" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:10px;overflow:hidden;">
                         <tr>
                           <td style="padding:24px;border-bottom:1px solid #e5e7eb;">
-                            <h1 style="margin:0;font-size:22px;line-height:1.3;">Дякуємо за замовлення в Yarné</h1>
+                            <h1 style="margin:0;font-size:22px;line-height:1.3;">{{title}}</h1>
                             <p style="margin:12px 0 0;font-size:14px;color:#4b5563;">
-                              Вітаємо, {{safeName}}! Ми отримали ваше замовлення та вже передали його в обробку.
+                              Вітаємо, {{safeName}}! {{intro}}
                             </p>
                           </td>
                         </tr>
@@ -66,9 +87,19 @@ public static class OrderConfirmationEmailBuilder
                             <p style="margin:0 0 8px;font-size:14px;"><strong>Дата:</strong> {{orderDate}}</p>
                             <p style="margin:0 0 16px;font-size:14px;"><strong>Разом:</strong> {{total}}</p>
 
+                            {{(accountUrl == null ? "" : $"""
+                              <div style="margin:0 0 16px;">
+                                <a href="{WebUtility.HtmlEncode(accountUrl)}"
+                                   style="display:inline-block;padding:12px 16px;border-radius:12px;background:#111827;color:#ffffff;text-decoration:none;font-size:14px;">
+                                  Переглянути статус замовлення
+                                </a>
+                              </div>
+                            """)}}
+
                             <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;font-size:13px;">
                               <thead>
                                 <tr style="background:#f3f4f6;">
+                                  <th align="left" style="padding:8px;border:1px solid #e5e7eb;">Фото</th>
                                   <th align="left" style="padding:8px;border:1px solid #e5e7eb;">Код</th>
                                   <th align="left" style="padding:8px;border:1px solid #e5e7eb;">Модель</th>
                                   <th align="left" style="padding:8px;border:1px solid #e5e7eb;">Опис</th>

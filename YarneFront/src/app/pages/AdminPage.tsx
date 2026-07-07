@@ -55,9 +55,13 @@ import {
   Info,
   ScrollText,
   Star,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react";
 import { fetchActivityLogs, type AdminActivityLogDto } from "../api/admin";
 import { AdminAccountingTab } from "../components/admin/AdminAccountingTab";
+import { PriceTag } from "../components/PriceTag";
+import { OrderLineDetails, orderItemDtoToLineDetails } from "../components/OrderLineDetails";
 
 const easing = [0.25, 0.1, 0.25, 1] as const;
 
@@ -1773,6 +1777,7 @@ export function AdminPage() {
   const [savingOrderId, setSavingOrderId] = useState<number | null>(null);
   const [orderStatusDrafts, setOrderStatusDrafts] = useState<Record<number, OrderStatus>>({});
   const [orderDeliveryDrafts, setOrderDeliveryDrafts] = useState<Record<number, string>>({});
+  const [expandedOrders, setExpandedOrders] = useState<Record<number, boolean>>({});
   const [carouselProductCodes, setCarouselProductCodes] = useState<string[]>([]);
   const [homeSectionsSelection, setHomeSectionsSelection] = useState<HomeSectionsSelection>(
     getDefaultHomeSectionsSelection
@@ -3789,6 +3794,7 @@ export function AdminPage() {
                     const currentDeliveryDate = order.estimatedDelivery ? order.estimatedDelivery.slice(0, 10) : "";
                     const draftDeliveryDate = orderDeliveryDrafts[order.id] ?? currentDeliveryDate;
                     const hasStatusChange = draftStatus !== currentStatus || draftDeliveryDate !== currentDeliveryDate;
+                    const isExpanded = !!expandedOrders[order.id];
 
                     return (
                       <div
@@ -3805,14 +3811,56 @@ export function AdminPage() {
                               {new Date(order.orderDate).toLocaleDateString()} · {order.itemCount} items
                             </p>
                           </div>
-                          <OrderStatusPill status={order.status} />
+                          <div className="flex items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setExpandedOrders((prev) => ({
+                                  ...prev,
+                                  [order.id]: !prev[order.id],
+                                }))
+                              }
+                              className="w-9 h-9 rounded-full flex items-center justify-center hover:bg-[#2D241E]/8 transition-colors"
+                              title={isExpanded ? "Hide details" : "Show details"}
+                            >
+                              {isExpanded ? <ChevronUp size={16} style={{ color: "#2D241E", opacity: 0.6 }} /> : <ChevronDown size={16} style={{ color: "#2D241E", opacity: 0.6 }} />}
+                            </button>
+                            <OrderStatusPill status={order.status} />
+                          </div>
                         </div>
 
                         <div className="grid grid-cols-2 gap-2 text-sm" style={{ fontFamily: "'DM Sans', sans-serif" }}>
                           <p className="text-[#2D241E]/60 truncate">{order.customerName}</p>
-                          <p className="text-[#2D241E] text-right">€{order.total.toLocaleString()}</p>
+                          <div className="text-right">
+                            <PriceTag amount={order.total} locale="uk" />
+                          </div>
                           <p className="text-[#2D241E]/45 text-xs col-span-2 truncate">{order.customerEmail}</p>
                         </div>
+
+                        {isExpanded && order.items.length > 0 && (
+                          <div
+                            className="rounded-[18px] p-3 space-y-3"
+                            style={{ border: "1px solid rgba(45,36,30,0.08)", backgroundColor: "rgba(255,255,255,0.55)" }}
+                          >
+                            {order.items.map((item) => {
+                              const img = item.productImageUrl ? resolveMediaUrl(item.productImageUrl) : "";
+                              return (
+                                <div
+                                  key={`mobile-order-${order.id}-item-${item.id}`}
+                                  className="flex gap-3"
+                                  style={{ borderBottom: "1px solid rgba(45,36,30,0.06)", paddingBottom: 12, marginBottom: 12 }}
+                                >
+                                  <div className="w-[58px] h-[58px] rounded-[14px] overflow-hidden shrink-0" style={{ backgroundColor: "rgba(45,36,30,0.06)" }}>
+                                    {img ? <img src={img} alt="" className="w-full h-full object-cover" /> : null}
+                                  </div>
+                                  <div className="flex-1 min-w-0">
+                                    <OrderLineDetails line={orderItemDtoToLineDetails(item)} locale="uk" />
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
 
                         <div className="space-y-2">
                           <select
@@ -3899,36 +3947,52 @@ export function AdminPage() {
                       const currentDeliveryDate = order.estimatedDelivery ? order.estimatedDelivery.slice(0, 10) : "";
                       const draftDeliveryDate = orderDeliveryDrafts[order.id] ?? currentDeliveryDate;
                       const hasStatusChange = draftStatus !== currentStatus || draftDeliveryDate !== currentDeliveryDate;
+                      const isExpanded = !!expandedOrders[order.id];
                       return (
-                        <div
-                          key={order.id}
-                          className="grid items-center px-6 py-4 hover:bg-[#2D241E]/[0.02] transition-colors"
-                          style={{ gridTemplateColumns: "80px 1.1fr 0.6fr 0.5fr 0.7fr 0.95fr 380px" }}
-                        >
-                          <span className="text-[#2D241E]" style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "1rem" }}>
-                            #{order.id}
-                          </span>
-                          <div className="min-w-0">
-                            <p className="text-[#2D241E] truncate" style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "0.9rem" }}>
-                              {order.customerName}
-                            </p>
-                            <p className="text-[#2D241E]/40 text-xs truncate" style={{ fontFamily: "'DM Sans', sans-serif" }}>
-                              {order.customerEmail}
-                            </p>
-                          </div>
-                          <span className="text-[#2D241E]" style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "1rem" }}>
-                            €{order.total.toLocaleString()}
-                          </span>
-                          <span className="text-[#2D241E]/60 text-sm" style={{ fontFamily: "'DM Sans', sans-serif" }}>
-                            {order.itemCount}
-                          </span>
-                          <span className="text-[#2D241E]/60 text-sm" style={{ fontFamily: "'DM Sans', sans-serif" }}>
-                            {new Date(order.orderDate).toLocaleDateString()}
-                          </span>
-                          <div className="pr-4">
-                            <OrderStatusPill status={order.status} />
-                          </div>
-                          <div className="flex items-center justify-end gap-2 pl-3 border-l border-[#2D241E]/10">
+                        <div key={order.id} className="hover:bg-[#2D241E]/[0.02] transition-colors">
+                          <div
+                            className="grid items-center px-6 py-4"
+                            style={{ gridTemplateColumns: "80px 1.1fr 0.6fr 0.5fr 0.7fr 0.95fr 380px" }}
+                          >
+                            <div className="flex items-center gap-2">
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setExpandedOrders((prev) => ({
+                                    ...prev,
+                                    [order.id]: !prev[order.id],
+                                  }))
+                                }
+                                className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-[#2D241E]/8 transition-colors"
+                                title={isExpanded ? "Hide details" : "Show details"}
+                              >
+                                {isExpanded ? <ChevronUp size={16} style={{ color: "#2D241E", opacity: 0.6 }} /> : <ChevronDown size={16} style={{ color: "#2D241E", opacity: 0.6 }} />}
+                              </button>
+                              <span className="text-[#2D241E]" style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "1rem" }}>
+                                #{order.id}
+                              </span>
+                            </div>
+                            <div className="min-w-0">
+                              <p className="text-[#2D241E] truncate" style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "0.9rem" }}>
+                                {order.customerName}
+                              </p>
+                              <p className="text-[#2D241E]/40 text-xs truncate" style={{ fontFamily: "'DM Sans', sans-serif" }}>
+                                {order.customerEmail}
+                              </p>
+                            </div>
+                            <div>
+                              <PriceTag amount={order.total} locale="uk" />
+                            </div>
+                            <span className="text-[#2D241E]/60 text-sm" style={{ fontFamily: "'DM Sans', sans-serif" }}>
+                              {order.itemCount}
+                            </span>
+                            <span className="text-[#2D241E]/60 text-sm" style={{ fontFamily: "'DM Sans', sans-serif" }}>
+                              {new Date(order.orderDate).toLocaleDateString()}
+                            </span>
+                            <div className="pr-4">
+                              <OrderStatusPill status={order.status} />
+                            </div>
+                            <div className="flex items-center justify-end gap-2 pl-3 border-l border-[#2D241E]/10">
                             <select
                               value={draftStatus}
                               onChange={(e) =>
@@ -3974,6 +4038,32 @@ export function AdminPage() {
                               </span>
                             </button>
                           </div>
+                          </div>
+
+                          {isExpanded && order.items.length > 0 && (
+                            <div className="px-6 pb-5">
+                              <div
+                                className="rounded-[20px] p-4"
+                                style={{ border: "1px solid rgba(45,36,30,0.08)", backgroundColor: "rgba(245,242,237,0.7)" }}
+                              >
+                                <div className="grid gap-4" style={{ gridTemplateColumns: "repeat(2, minmax(0, 1fr))" }}>
+                                  {order.items.map((item) => {
+                                    const img = item.productImageUrl ? resolveMediaUrl(item.productImageUrl) : "";
+                                    return (
+                                      <div key={`order-${order.id}-item-${item.id}`} className="flex gap-4">
+                                        <div className="w-[72px] h-[72px] rounded-[18px] overflow-hidden shrink-0" style={{ backgroundColor: "rgba(45,36,30,0.06)" }}>
+                                          {img ? <img src={img} alt="" className="w-full h-full object-cover" /> : null}
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                          <OrderLineDetails line={orderItemDtoToLineDetails(item)} locale="uk" />
+                                        </div>
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+                            </div>
+                          )}
                         </div>
                       );
                     })

@@ -33,7 +33,7 @@ import {
   type UserDto,
 } from "../api/admin";
 import { register } from "../api/auth";
-import { fetchAdminOrders, fetchAdminOrdersSummary, updateOrderStatus, type OrderDto, type AdminOrdersSummaryDto, type OrderStatus } from "../api/orders";
+import { fetchAdminOrders, fetchAdminOrdersSummary, updateOrderStatus, type OrderDto, type AdminOrdersSummaryDto, type OrderItemDto, type OrderStatus } from "../api/orders";
 import type { ProductDto, ColorVariantDto } from "../api/products";
 import type { Product } from "../types/product";
 import { normalizeLaceVariants } from "../utils/variantStock";
@@ -122,6 +122,7 @@ function mapOrderDtoToAdminOrder(o: OrderDto): {
   orderDate: string;
   estimatedDelivery: string | null;
   paymentMethodName: string;
+  items: OrderItemDto[];
 } {
   return {
     id: o.id,
@@ -133,6 +134,7 @@ function mapOrderDtoToAdminOrder(o: OrderDto): {
     orderDate: o.orderDate,
     estimatedDelivery: o.estimatedDelivery,
     paymentMethodName: o.paymentMethodName,
+    items: o.items,
   };
 }
 

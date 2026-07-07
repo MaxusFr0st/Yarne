@@ -1,3 +1,4 @@
+using System.Security.Cryptography;
 using Microsoft.EntityFrameworkCore;
 using YarneAPIBack.Configuration;
 using YarneAPIBack.Data;
@@ -113,9 +114,11 @@ public class ProductService : IProductService
         var defaultSizeId = await ResolveDefaultSizeIdAsync(validSizeIds, request.DefaultSizeId, ct);
         var computedTotalStock = ComputeTotalStock(request.QuantityInStock, request.VariantStocks);
 
+        var productCode = await GenerateUniqueProductCodeAsync(ct);
+
         var product = new Models.Product
         {
-            ProductCode = request.ProductCode,
+            ProductCode = productCode,
             Name = request.Name,
             Description = request.Description,
             Price = request.Price,
@@ -176,6 +179,25 @@ public class ProductService : IProductService
                         .ThenInclude(ps => ps.Size)
             .FirstAsync(p => p.Id == product.Id, ct);
         return MapToProductDto(created);
+    }
+
+    private async Task<string> GenerateUniqueProductCodeAsync(CancellationToken ct)
+    {
+        const string Prefix = "YRN-";
+        const int MaxAttempts = 25;
+
+        for (var attempt = 0; attempt < MaxAttempts; attempt++)
+        {
+            var n = RandomNumberGenerator.GetInt32(0, 1_000_000);
+            var code = $"{Prefix}{n:000000}";
+
+            var exists = await _context.Products.AnyAsync(p => p.ProductCode == code, ct);
+            if (!exists)
+                return code;
+        }
+
+        // Extremely unlikely (1e6 space + unique index as final guard), but don't spin forever.
+        throw new InvalidOperationException("Unable to generate unique product code. Please try again.");
     }
 
     public async Task<ProductDto?> UpdateProductAsync(int id, UpdateProductRequest request, CancellationToken ct = default)
