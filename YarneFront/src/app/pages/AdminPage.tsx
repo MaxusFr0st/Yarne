@@ -666,7 +666,7 @@ function ProductModal({
                 </label>
                 <input
                   type={field.type}
-                  min={field.key === "stock" ? 0 : undefined}
+                  min={field.key === "stock" || field.key === "price" ? 0 : undefined}
                   value={form[field.key] as string}
                   onChange={(e) => handleChange(field.key, e.target.value)}
                   placeholder={field.placeholder}

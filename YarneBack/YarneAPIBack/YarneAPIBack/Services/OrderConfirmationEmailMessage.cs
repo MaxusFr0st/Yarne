@@ -6,6 +6,7 @@ public enum OrderEmailEvent
     Confirmed,
     Shipped,
     Canceled,
+    InternalPlacedNotification,
 }
 
 public class OrderConfirmationEmailMessage
@@ -15,6 +16,8 @@ public class OrderConfirmationEmailMessage
     public OrderEmailEvent Event { get; set; } = OrderEmailEvent.Received;
 
     public string CustomerName { get; set; } = string.Empty;
+
+    public string CustomerEmail { get; set; } = string.Empty;
 
     public string ToEmail { get; set; } = string.Empty;
 

@@ -110,6 +110,7 @@ public class ProductService : IProductService
 
     public async Task<ProductDto> CreateProductAsync(CreateProductRequest request, CancellationToken ct = default)
     {
+        EnsureNonNegativePrice(request.Price);
         EnsureNonNegativeStockInputs(request.QuantityInStock, request.VariantStocks);
 
         var validSizeIds = await ResolveSizeIdsAsync(request.SizeIds, request.DefaultSizeId, request.ColorSizeVariants.Select(v => v.SizeId), ct);
@@ -218,6 +219,7 @@ public class ProductService : IProductService
 
     public async Task<ProductDto?> UpdateProductAsync(int id, UpdateProductRequest request, CancellationToken ct = default)
     {
+        EnsureNonNegativePrice(request.Price);
         EnsureNonNegativeStockInputs(request.QuantityInStock, request.VariantStocks);
 
         var product = await _context.Products
@@ -336,6 +338,12 @@ public class ProductService : IProductService
         if (variantStocks == null) return;
         if (variantStocks.Any(v => v.QuantityInStock < 0))
             throw new InvalidOperationException("Variant stock cannot be negative.");
+    }
+
+    private static void EnsureNonNegativePrice(decimal price)
+    {
+        if (price < 0)
+            throw new InvalidOperationException("Price cannot be negative.");
     }
 
     public async Task<bool> DeleteProductAsync(int id, CancellationToken ct = default)

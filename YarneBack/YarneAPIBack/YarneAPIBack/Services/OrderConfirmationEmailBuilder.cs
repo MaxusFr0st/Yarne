@@ -15,15 +15,18 @@ public static class OrderConfirmationEmailBuilder
             OrderEmailEvent.Confirmed => $"Замовлення №{message.OrderId} підтверджено",
             OrderEmailEvent.Shipped => $"Замовлення №{message.OrderId} відправлено",
             OrderEmailEvent.Canceled => $"Замовлення №{message.OrderId} скасовано",
+            OrderEmailEvent.InternalPlacedNotification => $"Нове замовлення №{message.OrderId}",
             _ => $"Замовлення №{message.OrderId}",
         };
 
     public static string BuildHtml(OrderConfirmationEmailMessage message)
     {
         var safeName = WebUtility.HtmlEncode(message.CustomerName);
+        var safeCustomerEmail = WebUtility.HtmlEncode(message.CustomerEmail);
         var orderDate = message.OrderDateUtc.ToLocalTime().ToString("dd.MM.yyyy HH:mm", UkrainianCulture);
         var total = FormatPrice(message.Total);
         var accountUrl = string.IsNullOrWhiteSpace(message.AccountUrl) ? null : message.AccountUrl.Trim();
+        var isInternalNotification = message.Event == OrderEmailEvent.InternalPlacedNotification;
 
         var (title, intro) = message.Event switch
         {
@@ -31,6 +34,7 @@ public static class OrderConfirmationEmailBuilder
             OrderEmailEvent.Confirmed => ("Замовлення підтверджено", "Ваше замовлення підтверджено. Ми починаємо підготовку до відправлення."),
             OrderEmailEvent.Shipped => ("Замовлення відправлено", "Ваше замовлення відправлено. Перевіряйте статус у вашому акаунті."),
             OrderEmailEvent.Canceled => ("Замовлення скасовано", "Ваше замовлення було скасовано. Якщо це помилка — відповідайте на цей лист."),
+            OrderEmailEvent.InternalPlacedNotification => ("Нове замовлення в Yarné", "Надійшло нове замовлення від клієнта."),
             _ => ("Оновлення замовлення", "Статус вашого замовлення оновлено."),
         };
 
@@ -77,17 +81,21 @@ public static class OrderConfirmationEmailBuilder
                           <td style="padding:24px;border-bottom:1px solid #e5e7eb;">
                             <h1 style="margin:0;font-size:22px;line-height:1.3;">{{title}}</h1>
                             <p style="margin:12px 0 0;font-size:14px;color:#4b5563;">
-                              Вітаємо, {{safeName}}! {{intro}}
+                              {{(isInternalNotification ? intro : $"Вітаємо, {safeName}! {intro}")}}
                             </p>
                           </td>
                         </tr>
                         <tr>
                           <td style="padding:24px;">
+                            {{(isInternalNotification ? $"""
+                              <p style="margin:0 0 8px;font-size:14px;"><strong>Клієнт:</strong> {safeName}</p>
+                              <p style="margin:0 0 8px;font-size:14px;"><strong>Email клієнта:</strong> {safeCustomerEmail}</p>
+                            """ : "")}}
                             <p style="margin:0 0 8px;font-size:14px;"><strong>Номер замовлення:</strong> #{{message.OrderId}}</p>
                             <p style="margin:0 0 8px;font-size:14px;"><strong>Дата:</strong> {{orderDate}}</p>
                             <p style="margin:0 0 16px;font-size:14px;"><strong>Разом:</strong> {{total}}</p>
 
-                            {{(accountUrl == null ? "" : $"""
+                            {{(accountUrl == null || isInternalNotification ? "" : $"""
                               <div style="margin:0 0 16px;">
                                 <a href="{WebUtility.HtmlEncode(accountUrl)}"
                                    style="display:inline-block;padding:12px 16px;border-radius:12px;background:#111827;color:#ffffff;text-decoration:none;font-size:14px;">

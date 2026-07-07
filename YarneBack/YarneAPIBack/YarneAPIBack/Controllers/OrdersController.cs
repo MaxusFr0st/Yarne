@@ -400,6 +400,14 @@ public class OrdersController : ControllerBase
                 .ThenInclude(oi => oi.Product)
                     .ThenInclude(p => p.ProductImages)
             .Include(o => o.OrderItems)
+                .ThenInclude(oi => oi.Product)
+                    .ThenInclude(p => p.ProductColors)
+                        .ThenInclude(pc => pc.Images)
+            .Include(o => o.OrderItems)
+                .ThenInclude(oi => oi.Product)
+                    .ThenInclude(p => p.ProductColors)
+                        .ThenInclude(pc => pc.SizeImages)
+            .Include(o => o.OrderItems)
                 .ThenInclude(oi => oi.Country);
     }
 
@@ -496,6 +504,7 @@ public class OrdersController : ControllerBase
                         && !string.Equals(notifyEmail, message.ToEmail, StringComparison.OrdinalIgnoreCase))
                     {
                         var internalMessage = CloneMessageForRecipient(message, notifyEmail);
+                        internalMessage.Event = OrderEmailEvent.InternalPlacedNotification;
                         _logger.LogInformation(
                             "Sending internal order placed notification for order #{OrderId} to {Email}.",
                             order.Id,
@@ -539,6 +548,7 @@ public class OrdersController : ControllerBase
             OrderId = order.Id,
             Event = emailEvent,
             CustomerName = customerName,
+            CustomerEmail = customer.Email ?? string.Empty,
             ToEmail = customer.Email ?? string.Empty,
             BccEmails = [],
             AccountUrl = accountUrl,
@@ -573,7 +583,28 @@ public class OrdersController : ControllerBase
             .Select(pi => pi.ImageUrl)
             .FirstOrDefault();
 
-        return !string.IsNullOrWhiteSpace(primary) ? primary : product.ImageUrl;
+        if (!string.IsNullOrWhiteSpace(primary))
+            return primary;
+
+        var colorPrimary = product.ProductColors?
+            .SelectMany(pc => pc.Images)
+            .OrderBy(pi => pi.SortOrder)
+            .ThenBy(pi => pi.Id)
+            .Select(pi => pi.ImageUrl)
+            .FirstOrDefault();
+        if (!string.IsNullOrWhiteSpace(colorPrimary))
+            return colorPrimary;
+
+        var colorSizePrimary = product.ProductColors?
+            .SelectMany(pc => pc.SizeImages)
+            .OrderBy(pi => pi.SortOrder)
+            .ThenBy(pi => pi.Id)
+            .Select(pi => pi.ImageUrl)
+            .FirstOrDefault();
+        if (!string.IsNullOrWhiteSpace(colorSizePrimary))
+            return colorSizePrimary;
+
+        return product.ImageUrl;
     }
 
     private string ResolveOrderReceivedNotifyEmail()
@@ -590,6 +621,7 @@ public class OrdersController : ControllerBase
             OrderId = source.OrderId,
             Event = source.Event,
             CustomerName = source.CustomerName,
+            CustomerEmail = source.CustomerEmail,
             ToEmail = toEmail,
             BccEmails = [],
             AccountUrl = source.AccountUrl,
