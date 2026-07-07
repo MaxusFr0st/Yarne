@@ -8,6 +8,7 @@ namespace YarneAPIBack.Services;
 
 public class SmtpEmailService : IEmailService
 {
+    private static readonly TimeSpan DefaultSmtpTimeout = TimeSpan.FromSeconds(20);
     private readonly ILogger<SmtpEmailService> _logger;
     private readonly string? _smtpHost;
     private readonly int _smtpPort;
@@ -77,6 +78,10 @@ public class SmtpEmailService : IEmailService
 
     private async Task SendHtmlEmailAsync(string toEmail, string subject, string htmlBody, CancellationToken ct)
     {
+        using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        timeoutCts.CancelAfter(DefaultSmtpTimeout);
+        var timeoutToken = timeoutCts.Token;
+
         try
         {
             var mailMessage = new MimeMessage();
@@ -86,14 +91,21 @@ public class SmtpEmailService : IEmailService
             mailMessage.Body = new TextPart("html") { Text = htmlBody };
 
             using var client = new SmtpClient();
+            client.Timeout = (int)DefaultSmtpTimeout.TotalMilliseconds;
             var socketOptions = _smtpPort == 465
                 ? SecureSocketOptions.SslOnConnect
                 : SecureSocketOptions.StartTls;
 
-            await client.ConnectAsync(_smtpHost!, _smtpPort, socketOptions, ct);
-            await client.AuthenticateAsync(_smtpUser!, _smtpPassword!, ct);
-            await client.SendAsync(mailMessage, ct);
-            await client.DisconnectAsync(true, ct);
+            _logger.LogInformation("SMTP connect to {Host}:{Port} (mode={Mode}).", _smtpHost, _smtpPort, socketOptions);
+            await client.ConnectAsync(_smtpHost!, _smtpPort, socketOptions, timeoutToken);
+
+            _logger.LogInformation("SMTP authenticate as {User}.", _smtpUser);
+            await client.AuthenticateAsync(_smtpUser!, _smtpPassword!, timeoutToken);
+
+            _logger.LogInformation("SMTP send message to {Email}.", toEmail);
+            await client.SendAsync(mailMessage, timeoutToken);
+
+            await client.DisconnectAsync(true, timeoutToken);
 
             _logger.LogInformation("Order confirmation email sent to {Email}.", toEmail);
         }
