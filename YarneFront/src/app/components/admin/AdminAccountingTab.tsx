@@ -29,6 +29,7 @@ import {
   type AccountingDashboardDto,
   type AccountingReportDto,
 } from "../../api/accounting";
+import { formatPriceCompact } from "../../i18n/format";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type AccountingTab =
@@ -69,8 +70,9 @@ function todayIso(): string {
   return new Date().toISOString().slice(0, 10);
 }
 
-function formatEuro(value: number): string {
-  return `€${value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+function formatMoney(value: number): string {
+  // Accounting UI is admin-only; standardize on hryvnia compact formatting.
+  return formatPriceCompact(value, "uk");
 }
 
 function formatDate(iso: string | null | undefined): string {
@@ -920,33 +922,33 @@ export function AdminAccountingTab() {
           <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 mb-4">
             <KpiCard
               label="Revenue (sold)"
-              value={formatEuro(dashboard?.soldRevenue ?? 0)}
+              value={formatMoney(dashboard?.soldRevenue ?? 0)}
               sub={`${dashboard?.totalOrdersSold ?? 0} orders received`}
               icon={<TrendingUp size={16} />}
               accent="rgba(34,120,80,0.12)"
             />
             <KpiCard
               label="Import spend"
-              value={formatEuro(dashboard?.importSpend ?? 0)}
+              value={formatMoney(dashboard?.importSpend ?? 0)}
               icon={<Truck size={16} />}
             />
             <KpiCard
               label="Expense spend"
-              value={formatEuro(dashboard?.expenseSpend ?? 0)}
+              value={formatMoney(dashboard?.expenseSpend ?? 0)}
               icon={<Tag size={16} />}
             />
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
             <KpiCard
               label="Net (revenue − spend)"
-              value={formatEuro(dashboard?.net ?? 0)}
+              value={formatMoney(dashboard?.net ?? 0)}
               sub={(dashboard?.net ?? 0) >= 0 ? "Positive period" : "Negative period"}
               icon={(dashboard?.net ?? 0) >= 0 ? <TrendingUp size={16} /> : <TrendingDown size={16} />}
               accent={(dashboard?.net ?? 0) >= 0 ? "rgba(34,120,80,0.12)" : "rgba(74,14,14,0.1)"}
             />
             <KpiCard
               label="Material stock value"
-              value={formatEuro(dashboard?.materialStockValue ?? 0)}
+              value={formatMoney(dashboard?.materialStockValue ?? 0)}
               icon={<Package size={16} />}
             />
             <KpiCard
@@ -979,7 +981,7 @@ export function AdminAccountingTab() {
                     <span className="text-[#2D241E]/60">{formatDate(o.orderDate)}</span>
                     <span className="text-[#2D241E]">{o.customerName}</span>
                     <span className="text-[#2D241E]/60 capitalize">{o.status}</span>
-                    <span className="text-[#2D241E] font-medium">{formatEuro(o.total)}</span>
+                    <span className="text-[#2D241E] font-medium">{formatMoney(o.total)}</span>
                   </div>
                 ))
               )}
@@ -998,7 +1000,7 @@ export function AdminAccountingTab() {
                         #{o.orderId} · {formatDate(o.orderDate)} · {o.status}
                       </p>
                     </div>
-                    <span className="text-[#2D241E] font-medium text-sm" style={{ fontFamily: "'DM Sans', sans-serif" }}>{formatEuro(o.total)}</span>
+                    <span className="text-[#2D241E] font-medium text-sm" style={{ fontFamily: "'DM Sans', sans-serif" }}>{formatMoney(o.total)}</span>
                   </div>
                 </div>
               ))
@@ -1107,7 +1109,7 @@ export function AdminAccountingTab() {
                         <span className="text-[#2D241E]">{imp.supplier || "—"}</span>
                         <span className="text-[#2D241E]/60">{imp.invoiceRef || "—"}</span>
                         <span className="text-[#2D241E]/60">{imp.lineCount}</span>
-                        <span className="text-[#2D241E] font-medium">{formatEuro(imp.totalAmount)}</span>
+                        <span className="text-[#2D241E] font-medium">{formatMoney(imp.totalAmount)}</span>
                         <ActionButtons
                           onEdit={() => void openImportModal(imp.id)}
                           onDelete={() => setDeleteTarget({ type: "import", id: imp.id, name: imp.supplier ?? `Import #${imp.id}` })}
@@ -1144,8 +1146,8 @@ export function AdminAccountingTab() {
                                       <td className="px-6 py-2.5 text-[#2D241E]">{ln.materialName}</td>
                                       <td className="px-6 py-2.5 text-[#2D241E]/60">{ln.materialUnit}</td>
                                       <td className="px-6 py-2.5 text-[#2D241E]/60">{ln.quantity}</td>
-                                      <td className="px-6 py-2.5 text-[#2D241E]/60">{formatEuro(ln.unitPrice)}</td>
-                                      <td className="px-6 py-2.5 text-[#2D241E] font-medium">{formatEuro(ln.lineTotal)}</td>
+                                      <td className="px-6 py-2.5 text-[#2D241E]/60">{formatMoney(ln.unitPrice)}</td>
+                                      <td className="px-6 py-2.5 text-[#2D241E] font-medium">{formatMoney(ln.lineTotal)}</td>
                                     </tr>
                                   ))}
                                 </tbody>
@@ -1174,7 +1176,7 @@ export function AdminAccountingTab() {
                         {imp.supplier ?? `Import #${imp.id}`}
                       </p>
                       <p className="text-xs text-[#2D241E]/50 mt-0.5" style={{ fontFamily: "'DM Sans', sans-serif" }}>
-                        {formatDate(imp.transactionDate)} · {imp.lineCount} items · {formatEuro(imp.totalAmount)}
+                        {formatDate(imp.transactionDate)} · {imp.lineCount} items · {formatMoney(imp.totalAmount)}
                       </p>
                       {imp.invoiceRef && <p className="text-xs text-[#2D241E]/45 mt-1" style={{ fontFamily: "'DM Sans', sans-serif" }}>Invoice: {imp.invoiceRef}</p>}
                     </div>
@@ -1334,7 +1336,7 @@ export function AdminAccountingTab() {
                     <span className="text-[#2D241E]">{ex.name}</span>
                     <span className="text-[#2D241E]/60">{ex.category}</span>
                     <span className="text-[#2D241E]/60">{formatDate(ex.expenseDate)}</span>
-                    <span className="text-[#2D241E] font-medium">{formatEuro(ex.amount)}</span>
+                    <span className="text-[#2D241E] font-medium">{formatMoney(ex.amount)}</span>
                     <span className="text-[#2D241E]/55 truncate">{ex.notes || ex.description || "—"}</span>
                     <ActionButtons
                       onEdit={() => openExpModal(ex)}
@@ -1353,7 +1355,7 @@ export function AdminAccountingTab() {
                 <MobileCard
                   key={ex.id}
                   title={ex.name}
-                  subtitle={`${ex.category} · ${formatDate(ex.expenseDate)} · ${formatEuro(ex.amount)}`}
+                  subtitle={`${ex.category} · ${formatDate(ex.expenseDate)} · ${formatMoney(ex.amount)}`}
                   extra={ex.notes || ex.description || undefined}
                   onEdit={() => openExpModal(ex)}
                   onDelete={() => setDeleteTarget({ type: "expense", id: ex.id, name: ex.name })}
@@ -1394,8 +1396,8 @@ export function AdminAccountingTab() {
                       <span className="text-[#2D241E]/60">{s.qtyImported}</span>
                       <span className="text-[#2D241E]/60">{s.qtyUsed}</span>
                       <span style={{ color: isNeg ? "#4A0E0E" : "#2D241E", fontWeight: isNeg ? 500 : undefined }}>{s.qtyOnHand}</span>
-                      <span className="text-[#2D241E]/60">{formatEuro(s.avgUnitCost)}</span>
-                      <span style={{ color: isNeg ? "#4A0E0E" : "#2D241E", fontWeight: 500 }}>{formatEuro(s.totalStockValue)}</span>
+                      <span className="text-[#2D241E]/60">{formatMoney(s.avgUnitCost)}</span>
+                      <span style={{ color: isNeg ? "#4A0E0E" : "#2D241E", fontWeight: 500 }}>{formatMoney(s.totalStockValue)}</span>
                     </div>
                   );
                 })
@@ -1415,13 +1417,13 @@ export function AdminAccountingTab() {
                         <p className="text-[#2D241E]" style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "1.15rem" }}>{s.name}</p>
                         <p className="text-xs text-[#2D241E]/50 mt-0.5" style={{ fontFamily: "'DM Sans', sans-serif" }}>{s.unit}{s.sku ? ` · ${s.sku}` : ""}</p>
                       </div>
-                      <span className="font-medium text-sm" style={{ fontFamily: "'DM Sans', sans-serif", color: isNeg ? "#4A0E0E" : "#2D241E" }}>{formatEuro(s.totalStockValue)}</span>
+                      <span className="font-medium text-sm" style={{ fontFamily: "'DM Sans', sans-serif", color: isNeg ? "#4A0E0E" : "#2D241E" }}>{formatMoney(s.totalStockValue)}</span>
                     </div>
                     <div className="grid grid-cols-3 gap-2 text-xs" style={{ fontFamily: "'DM Sans', sans-serif" }}>
                       <span className="text-[#2D241E]/65">Imported: {s.qtyImported}</span>
                       <span className="text-[#2D241E]/65">Used: {s.qtyUsed}</span>
                       <span style={{ color: isNeg ? "#4A0E0E" : "rgba(45,36,30,0.65)", fontWeight: isNeg ? 500 : undefined }}>On hand: {s.qtyOnHand}</span>
-                      <span className="text-[#2D241E]/65">Avg cost: {formatEuro(s.avgUnitCost)}</span>
+                      <span className="text-[#2D241E]/65">Avg cost: {formatMoney(s.avgUnitCost)}</span>
                     </div>
                   </div>
                 );
@@ -1463,7 +1465,7 @@ export function AdminAccountingTab() {
                           )}
                         </div>
                         <p className="text-xs text-[#2D241E]/50" style={{ fontFamily: "'DM Sans', sans-serif" }}>
-                          {formatDate(sr.snapshotDate)} · {sr.lineCount} materials · {formatEuro(sr.totalStockValue)}
+                          {formatDate(sr.snapshotDate)} · {sr.lineCount} materials · {formatMoney(sr.totalStockValue)}
                         </p>
                         {sr.notes && <p className="text-xs text-[#2D241E]/45 mt-1" style={{ fontFamily: "'DM Sans', sans-serif" }}>{sr.notes}</p>}
                       </div>
@@ -1499,8 +1501,8 @@ export function AdminAccountingTab() {
                                     <td className="px-4 py-3 text-[#2D241E]/60">{ln.qtyImported}</td>
                                     <td className="px-4 py-3 text-[#2D241E]/60">{ln.qtyUsed}</td>
                                     <td className="px-4 py-3 text-[#2D241E]">{ln.qtyOnHand}</td>
-                                    <td className="px-4 py-3 text-[#2D241E]/60">{formatEuro(ln.avgUnitCost)}</td>
-                                    <td className="px-4 py-3 text-[#2D241E] font-medium">{formatEuro(ln.totalValue)}</td>
+                                    <td className="px-4 py-3 text-[#2D241E]/60">{formatMoney(ln.avgUnitCost)}</td>
+                                    <td className="px-4 py-3 text-[#2D241E] font-medium">{formatMoney(ln.totalValue)}</td>
                                   </tr>
                                 ))}
                               </tbody>
@@ -1560,10 +1562,10 @@ export function AdminAccountingTab() {
           {report && (
             <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3, ease: easing }}>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-                <KpiCard label="Revenue" value={formatEuro(report.soldRevenue)} icon={<TrendingUp size={16} />} accent="rgba(34,120,80,0.12)" />
-                <KpiCard label="Import spend" value={formatEuro(report.importSpend)} icon={<Truck size={16} />} />
-                <KpiCard label="Expense spend" value={formatEuro(report.expenseSpend)} icon={<Tag size={16} />} />
-                <KpiCard label="Net" value={formatEuro(report.net)} icon={report.net >= 0 ? <TrendingUp size={16} /> : <TrendingDown size={16} />} accent={report.net >= 0 ? "rgba(34,120,80,0.12)" : "rgba(74,14,14,0.1)"} />
+                <KpiCard label="Revenue" value={formatMoney(report.soldRevenue)} icon={<TrendingUp size={16} />} accent="rgba(34,120,80,0.12)" />
+                <KpiCard label="Import spend" value={formatMoney(report.importSpend)} icon={<Truck size={16} />} />
+                <KpiCard label="Expense spend" value={formatMoney(report.expenseSpend)} icon={<Tag size={16} />} />
+                <KpiCard label="Net" value={formatMoney(report.net)} icon={report.net >= 0 ? <TrendingUp size={16} /> : <TrendingDown size={16} />} accent={report.net >= 0 ? "rgba(34,120,80,0.12)" : "rgba(74,14,14,0.1)"} />
               </div>
 
               {report.orders && report.orders.length > 0 && (
@@ -1571,7 +1573,7 @@ export function AdminAccountingTab() {
                   {report.orders.map((o) => (
                     <div key={o.orderId} className="px-4 py-3 text-sm border-b last:border-b-0 flex justify-between gap-2" style={{ borderColor: "rgba(45,36,30,0.06)", fontFamily: "'DM Sans', sans-serif" }}>
                       <span className="text-[#2D241E]">#{o.orderId} — {o.customerName}</span>
-                      <span className="text-[#2D241E]/55">{formatDate(o.orderDate)} · {formatEuro(o.total)}</span>
+                      <span className="text-[#2D241E]/55">{formatDate(o.orderDate)} · {formatMoney(o.total)}</span>
                     </div>
                   ))}
                 </ReportSection>
@@ -1582,7 +1584,7 @@ export function AdminAccountingTab() {
                   {report.importTransactions.map((imp) => (
                     <div key={imp.id} className="px-4 py-3 text-sm border-b last:border-b-0 flex justify-between gap-2" style={{ borderColor: "rgba(45,36,30,0.06)", fontFamily: "'DM Sans', sans-serif" }}>
                       <span className="text-[#2D241E]">{imp.supplier || `Import #${imp.id}`}{imp.invoiceRef ? ` · ${imp.invoiceRef}` : ""}</span>
-                      <span className="text-[#2D241E]/55">{formatDate(imp.transactionDate)} · {formatEuro(imp.totalAmount)}</span>
+                      <span className="text-[#2D241E]/55">{formatDate(imp.transactionDate)} · {formatMoney(imp.totalAmount)}</span>
                     </div>
                   ))}
                 </ReportSection>
@@ -1594,13 +1596,13 @@ export function AdminAccountingTab() {
                     <div key={cat.category} className="mb-4 last:mb-0 px-4 pt-3">
                       <div className="flex justify-between mb-2">
                         <span className="text-[#2D241E]" style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "1.05rem" }}>{cat.category}</span>
-                        <span className="text-xs text-[#2D241E]/55" style={{ fontFamily: "'DM Sans', sans-serif" }}>{formatEuro(cat.totalAmount)}</span>
+                        <span className="text-xs text-[#2D241E]/55" style={{ fontFamily: "'DM Sans', sans-serif" }}>{formatMoney(cat.totalAmount)}</span>
                       </div>
                       <div className="rounded-xl overflow-hidden mb-3" style={cardBorder}>
                         {cat.items.map((item) => (
                           <div key={item.id} className="px-3 py-2.5 text-sm border-b last:border-b-0 flex justify-between gap-2" style={{ borderColor: "rgba(45,36,30,0.06)", fontFamily: "'DM Sans', sans-serif" }}>
                             <span className="text-[#2D241E]">{item.name}</span>
-                            <span className="text-[#2D241E]/55">{formatDate(item.expenseDate)} · {formatEuro(item.amount)}</span>
+                            <span className="text-[#2D241E]/55">{formatDate(item.expenseDate)} · {formatMoney(item.amount)}</span>
                           </div>
                         ))}
                       </div>
@@ -1614,7 +1616,7 @@ export function AdminAccountingTab() {
                   {report.stockSnapshot.map((s) => (
                     <div key={s.materialId} className="px-4 py-3 text-sm border-b last:border-b-0 flex justify-between gap-2" style={{ borderColor: "rgba(45,36,30,0.06)", fontFamily: "'DM Sans', sans-serif" }}>
                       <span className="text-[#2D241E]">{s.materialName} ({s.materialUnit})</span>
-                      <span className="text-[#2D241E]/55">{s.qtyOnHand} on hand · {formatEuro(s.totalValue)}</span>
+                      <span className="text-[#2D241E]/55">{s.qtyOnHand} on hand · {formatMoney(s.totalValue)}</span>
                     </div>
                   ))}
                 </ReportSection>
@@ -1728,7 +1730,7 @@ export function AdminAccountingTab() {
                         />
                       </div>
                       <div>
-                        {idx === 0 && <FieldLabel>Unit price (€)</FieldLabel>}
+                        {idx === 0 && <FieldLabel>Unit price (₴)</FieldLabel>}
                         <TextInput
                           type="number"
                           min={0}
@@ -1751,7 +1753,7 @@ export function AdminAccountingTab() {
                 </div>
                 {importForm.lines.some((l) => l.quantity && l.unitPrice) && (
                   <p className="mt-2 text-xs text-right text-[#2D241E]/50" style={{ fontFamily: "'DM Sans', sans-serif" }}>
-                    Total: {formatEuro(importForm.lines.reduce((sum, l) => {
+                    Total: {formatMoney(importForm.lines.reduce((sum, l) => {
                       const q = parseFloat(l.quantity) || 0;
                       const p = parseFloat(l.unitPrice) || 0;
                       return sum + q * p;
@@ -1813,7 +1815,7 @@ export function AdminAccountingTab() {
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <FieldLabel>Amount (€)</FieldLabel>
+                  <FieldLabel>Amount (₴)</FieldLabel>
                   <TextInput type="number" min={0} step="0.01" value={expForm.amount} onChange={(e) => setExpForm((f) => ({ ...f, amount: e.target.value }))} placeholder="0.00" />
                 </div>
                 <div>
@@ -1904,7 +1906,7 @@ export function AdminAccountingTab() {
                         <option value="">— Select website order —</option>
                         {(usageOrderOptions?.websiteOrders ?? []).map((o) => (
                           <option key={o.orderId} value={o.orderId}>
-                            {o.displayId} — {o.customerName} ({formatDate(o.orderDate)}) {formatEuro(o.total)}
+                            {o.displayId} — {o.customerName} ({formatDate(o.orderDate)}) {formatMoney(o.total)}
                           </option>
                         ))}
                       </SelectInput>

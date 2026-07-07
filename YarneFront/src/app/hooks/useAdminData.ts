@@ -187,6 +187,19 @@ export function useAdminData() {
     }
   }, []);
 
+  const refetchOrders = useCallback(async () => {
+    try {
+      const [ords, ordSummary] = await Promise.all([
+        fetchAdminOrders(),
+        fetchAdminOrdersSummary(),
+      ]);
+      setOrders(ords.map(mapOrderDtoToAdminOrder));
+      setOrdersSummary(ordSummary);
+    } catch {
+      // keep current UI state; caller can show an error if needed
+    }
+  }, []);
+
   useEffect(() => {
     load();
   }, [load]);
@@ -313,6 +326,7 @@ export function useAdminData() {
     loading,
     apiAvailable,
     refetch: load,
+    refetchOrders,
     addProduct,
     editProduct,
     removeProduct,

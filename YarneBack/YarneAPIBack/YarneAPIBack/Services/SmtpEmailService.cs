@@ -41,7 +41,7 @@ public class SmtpEmailService : IEmailService
 
         var subject = OrderConfirmationEmailBuilder.BuildSubject(message);
         var htmlBody = OrderConfirmationEmailBuilder.BuildHtml(message);
-        await SendHtmlEmailAsync(message.ToEmail, subject, htmlBody, ct);
+        await SendHtmlEmailAsync(message.ToEmail, subject, htmlBody, message.BccEmails, ct);
     }
 
     public Task SendOrderReceiptAsync(OrderConfirmationEmailMessage message, CancellationToken ct = default)
@@ -76,7 +76,7 @@ public class SmtpEmailService : IEmailService
         return false;
     }
 
-    private async Task SendHtmlEmailAsync(string toEmail, string subject, string htmlBody, CancellationToken ct)
+    private async Task SendHtmlEmailAsync(string toEmail, string subject, string htmlBody, List<string> bccEmails, CancellationToken ct)
     {
         using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
         timeoutCts.CancelAfter(DefaultSmtpTimeout);
@@ -87,6 +87,8 @@ public class SmtpEmailService : IEmailService
             var mailMessage = new MimeMessage();
             mailMessage.From.Add(MailboxAddress.Parse(_emailFrom!));
             mailMessage.To.Add(MailboxAddress.Parse(toEmail));
+            foreach (var bcc in bccEmails.Where(e => !string.IsNullOrWhiteSpace(e)))
+                mailMessage.Bcc.Add(MailboxAddress.Parse(bcc));
             mailMessage.Subject = subject;
             mailMessage.Body = new TextPart("html") { Text = htmlBody };
 

@@ -57,9 +57,11 @@ import {
   Star,
   ChevronDown,
   ChevronUp,
+  RefreshCw,
 } from "lucide-react";
 import { fetchActivityLogs, type AdminActivityLogDto } from "../api/admin";
 import { AdminAccountingTab } from "../components/admin/AdminAccountingTab";
+import { formatPriceCompact } from "../i18n/format";
 import { PriceTag } from "../components/PriceTag";
 import { OrderLineDetails, orderItemDtoToLineDetails } from "../components/OrderLineDetails";
 
@@ -550,7 +552,7 @@ function ProductModal({
     });
 
     if (!form.name.trim()) errors.name = "This field must not be empty.";
-    if (!form.sku.trim()) errors.sku = "This field must not be empty.";
+    if (product && !form.sku.trim()) errors.sku = "This field must not be empty.";
     if (!form.description.trim()) errors.description = "This field must not be empty.";
     if (!Number.isFinite(parsedPrice) || parsedPrice <= 0) errors.price = "Enter a valid price greater than 0.";
     if (form.stock.trim() && (!Number.isFinite(parsedStock) || parsedStock < 0)) {
@@ -653,7 +655,7 @@ function ProductModal({
           {/* Price, Category, Stock, SKU */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             {[
-              { label: "Price (€)", key: "price" as const, type: "number", placeholder: "0" },
+              { label: "Price (₴)", key: "price" as const, type: "number", placeholder: "0" },
               { label: "Stock", key: "stock" as const, type: "number", placeholder: "0" },
             ].map((field) => (
               <div key={field.key}>
@@ -706,14 +708,15 @@ function ProductModal({
                 className="block text-xs mb-2 tracking-widest uppercase"
                 style={{ fontFamily: "'DM Sans', sans-serif", color: "rgba(45,36,30,0.4)", letterSpacing: "0.14em" }}
               >
-                SKU
+                Product code
               </label>
               <input
                 type="text"
-                value={form.sku}
+                value={product ? form.sku : "Auto-generated after saving"}
                 onChange={(e) => handleChange("sku", e.target.value)}
-                placeholder="KG-SW-1001"
-                className="w-full bg-transparent border rounded-[14px] px-4 py-3 text-[#2D241E] focus:outline-none transition-colors duration-200 placeholder:text-[#2D241E]/20"
+                placeholder="YRN-000000"
+                disabled={!product}
+                className="w-full bg-transparent border rounded-[14px] px-4 py-3 text-[#2D241E] focus:outline-none transition-colors duration-200 placeholder:text-[#2D241E]/20 disabled:opacity-70"
                 style={{
                   fontFamily: "'DM Sans', sans-serif",
                   fontSize: "0.9rem",
@@ -1582,7 +1585,7 @@ const LOG_FIELD_LABELS: Record<string, string> = {
 
 function formatFieldValue(key: string, value: unknown): string {
   if (value == null) return "—";
-  if (key === "price") return `€${value}`;
+  if (key === "price") return formatPriceCompact(Number(value), "uk");
   if (typeof value === "boolean") return value ? "Yes" : "No";
   const s = String(value);
   return s.length > 28 ? `${s.slice(0, 26)}…` : s;
@@ -1765,6 +1768,7 @@ export function AdminPage() {
     ordersSummary,
     setOrderStatus,
     addUser,
+    refetchOrders,
   } = useAdminData();
 
   const [activeTab, setActiveTab] = useState<AdminTab>("dashboard");
@@ -2146,7 +2150,7 @@ export function AdminPage() {
       );
 
       const payload = {
-        productCode: data.sku,
+        productCode: productModal.editing ? data.sku : undefined,
         name: data.name,
         description: data.description,
         price: parseFloat(data.price) || 0,
@@ -2516,7 +2520,7 @@ export function AdminPage() {
               {/* Stat Cards */}
               <div className="grid grid-cols-2 md:grid-cols-4 gap-5 mb-12">
                 {[
-                  { icon: <DollarSign size={20} />, label: "Est. Revenue", value: `€${totalRevenue.toLocaleString()}`, sub: "Sum of all placed orders", color: "#2D6A4F" },
+                  { icon: <DollarSign size={20} />, label: "Est. Revenue", value: formatPriceCompact(totalRevenue, "uk"), sub: "Sum of all placed orders", color: "#2D6A4F" },
                   { icon: <ShoppingCart size={20} />, label: "Total Orders", value: String(ordersSummary.totalOrders ?? 0), sub: `${pendingOrdersCount} pending`, color: "#0A1128", goTo: "orders" as AdminTab },
                   {
                     icon: <Package size={20} />,
@@ -2643,7 +2647,7 @@ export function AdminPage() {
                           </div>
                         </div>
                         <div className="text-right">
-                          <p className="text-[#2D241E] text-sm" style={{ fontFamily: "'Cormorant Garamond', serif" }}>€{p.price}</p>
+                          <p className="text-[#2D241E] text-sm" style={{ fontFamily: "'Cormorant Garamond', serif" }}>{formatPriceCompact(p.price, "uk")}</p>
                           <p className="text-xs" style={{ fontFamily: "'DM Sans', sans-serif", color: p.stock < 10 ? "#9B6B2E" : "rgba(45,36,30,0.4)" }}>
                             {p.stock} in stock
                           </p>
@@ -3436,7 +3440,7 @@ export function AdminPage() {
 
                           <div className="mt-3 flex items-center justify-between">
                             <p className="text-[#2D241E]" style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "1.35rem", lineHeight: 1 }}>
-                              €{p.price}
+                              {formatPriceCompact(p.price, "uk")}
                             </p>
                             <div className="flex items-center gap-2">
                               {p.isNew && (
@@ -3571,7 +3575,7 @@ export function AdminPage() {
                         {/* Category */}
                         <span className="text-[#2D241E]/60 text-sm" style={{ fontFamily: "'DM Sans', sans-serif" }}>{p.category}</span>
                         {/* Price */}
-                        <span className="text-[#2D241E]" style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "0.95rem" }}>€{p.price}</span>
+                        <span className="text-[#2D241E]" style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "0.95rem" }}>{formatPriceCompact(p.price, "uk")}</span>
                         {/* Stock */}
                         <span
                           className="text-sm"
@@ -3718,7 +3722,7 @@ export function AdminPage() {
                         <span className="text-[#2D241E]/60 text-sm" style={{ fontFamily: "'DM Sans', sans-serif" }}>{u.orders}</span>
                         {/* Spent */}
                         <span className="text-[#2D241E]" style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "0.95rem" }}>
-                          {u.totalSpent > 0 ? `€${u.totalSpent.toLocaleString()}` : "—"}
+                          {u.totalSpent > 0 ? formatPriceCompact(u.totalSpent, "uk") : "—"}
                         </span>
                         {/* Status */}
                         <StatusPill active={u.status === "active"} />
@@ -3768,9 +3772,21 @@ export function AdminPage() {
                     style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "0.85rem", borderColor: "rgba(45,36,30,0.15)" }}
                   />
                 </div>
-                <p className="text-[#2D241E]/45 text-sm" style={{ fontFamily: "'DM Sans', sans-serif" }}>
-                  {orders.length} placed orders
-                </p>
+                <div className="flex items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={() => void refetchOrders()}
+                    className="flex items-center gap-2 px-5 py-2.5 rounded-full transition-colors duration-200 hover:bg-[#2D241E]/5 cursor-pointer"
+                    style={{ border: "1px solid rgba(45,36,30,0.12)", fontFamily: "'DM Sans', sans-serif", fontSize: "0.78rem", letterSpacing: "0.1em", color: "#2D241E" }}
+                    title="Refresh orders"
+                  >
+                    <RefreshCw size={14} />
+                    <span className="uppercase tracking-widest">Refresh</span>
+                  </button>
+                  <p className="text-[#2D241E]/45 text-sm" style={{ fontFamily: "'DM Sans', sans-serif" }}>
+                    {orders.length} placed orders
+                  </p>
+                </div>
               </div>
 
               {orderActionError && (

@@ -87,7 +87,7 @@ export interface VariantStockInput {
 }
 
 export interface CreateProductRequest {
-  productCode: string;
+  productCode?: string;
   name: string;
   description?: string;
   price: number;
@@ -110,6 +110,7 @@ export interface CreateProductRequest {
 }
 
 export interface UpdateProductRequest extends CreateProductRequest {
+  productCode: string;
   isActive?: boolean;
 }
 

@@ -396,6 +396,7 @@ public class OrdersController : ControllerBase
             .Include(o => o.PaymentMethod)
             .Include(o => o.OrderItems)
                 .ThenInclude(oi => oi.Product)
+                    .ThenInclude(p => p.ProductImages)
             .Include(o => o.OrderItems)
                 .ThenInclude(oi => oi.Country);
     }
@@ -516,12 +517,22 @@ public class OrdersController : ControllerBase
 
         var apiBase = ResolvePublicApiBaseUrl().TrimEnd('/');
 
+        var bcc = new List<string>();
+        if (emailEvent == OrderEmailEvent.Received)
+        {
+            var notify = (_configuration["ORDER_RECEIVED_NOTIFY_EMAIL"]
+                ?? Environment.GetEnvironmentVariable("ORDER_RECEIVED_NOTIFY_EMAIL"))?.Trim();
+            if (!string.IsNullOrWhiteSpace(notify))
+                bcc.Add(notify);
+        }
+
         return new OrderConfirmationEmailMessage
         {
             OrderId = order.Id,
             Event = emailEvent,
             CustomerName = customerName,
             ToEmail = customer.Email ?? string.Empty,
+            BccEmails = bcc,
             AccountUrl = accountUrl,
             OrderDateUtc = order.OrderDate,
             Total = order.Total,
@@ -531,7 +542,7 @@ public class OrdersController : ControllerBase
                 {
                     ProductCode = i.Product?.ProductCode ?? string.Empty,
                     ProductName = i.Product?.Name ?? "Product",
-                    ProductImageUrl = ResolveAbsoluteImageUrl(i.Product?.ImageUrl, apiBase),
+                    ProductImageUrl = ResolveAbsoluteImageUrl(ResolvePrimaryProductImageUrl(i.Product), apiBase),
                     ProductSubtitle = i.ProductSubtitle,
                     ColorName = i.ColorName,
                     SizeName = i.SizeName,
@@ -541,6 +552,20 @@ public class OrdersController : ControllerBase
                 })
                 .ToList(),
         };
+    }
+
+    private static string? ResolvePrimaryProductImageUrl(Product? product)
+    {
+        if (product == null) return null;
+
+        var primary = product.ProductImages?
+            .OrderByDescending(pi => pi.IsPrimary)
+            .ThenBy(pi => pi.SortOrder)
+            .ThenBy(pi => pi.Id)
+            .Select(pi => pi.ImageUrl)
+            .FirstOrDefault();
+
+        return !string.IsNullOrWhiteSpace(primary) ? primary : product.ImageUrl;
     }
 
     private string ResolvePublicApiBaseUrl()

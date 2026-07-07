@@ -18,6 +18,8 @@ public class OrderConfirmationEmailMessage
 
     public string ToEmail { get; set; } = string.Empty;
 
+    public List<string> BccEmails { get; set; } = [];
+
     public string AccountUrl { get; set; } = string.Empty;
 
     public DateTime OrderDateUtc { get; set; }

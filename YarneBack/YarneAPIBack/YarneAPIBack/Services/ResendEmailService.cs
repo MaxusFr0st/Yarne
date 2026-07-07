@@ -35,7 +35,7 @@ public class ResendEmailService : IEmailService
 
         var subject = OrderConfirmationEmailBuilder.BuildSubject(message);
         var htmlBody = OrderConfirmationEmailBuilder.BuildHtml(message);
-        await SendHtmlEmailAsync(message.ToEmail, subject, htmlBody, ct);
+        await SendHtmlEmailAsync(message.ToEmail, subject, htmlBody, message.BccEmails, ct);
     }
 
     public Task SendOrderReceiptAsync(OrderConfirmationEmailMessage message, CancellationToken ct = default)
@@ -66,7 +66,7 @@ public class ResendEmailService : IEmailService
         return false;
     }
 
-    private async Task SendHtmlEmailAsync(string toEmail, string subject, string htmlBody, CancellationToken ct)
+    private async Task SendHtmlEmailAsync(string toEmail, string subject, string htmlBody, List<string> bccEmails, CancellationToken ct)
     {
         try
         {
@@ -77,6 +77,7 @@ public class ResendEmailService : IEmailService
             {
                 from = _emailFrom,
                 to = new[] { toEmail },
+                bcc = bccEmails.Count > 0 ? bccEmails : null,
                 subject,
                 html = htmlBody,
             };
