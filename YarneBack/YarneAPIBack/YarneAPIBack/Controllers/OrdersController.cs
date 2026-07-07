@@ -346,6 +346,21 @@ public class OrdersController : ControllerBase
         if (updatedOrder == null)
             return StatusCode(StatusCodes.Status500InternalServerError, new { message = "Order was updated but could not be loaded." });
 
+        // If admin "confirms" an order (Pending -> Accepted), send the same confirmation email
+        // that is sent when the order is initially placed.
+        if (!string.Equals(previousStatus, "Accepted", StringComparison.OrdinalIgnoreCase)
+            && string.Equals(canonicalStatus, "Accepted", StringComparison.OrdinalIgnoreCase))
+        {
+            try
+            {
+                QueueOrderConfirmationEmail(updatedOrder);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Order #{OrderId} was accepted but confirmation email could not be queued.", id);
+            }
+        }
+
         var (actorUserId, actorEmail) = AdminActivityLogHelper.GetActor(HttpContext);
         await _activityLogs.LogAsync(
             "order",
