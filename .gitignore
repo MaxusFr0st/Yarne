@@ -3,6 +3,11 @@
 .env.*
 !.env.example
 
+# Secrets docs (never commit real values)
+secrets.md
+secrets.local.md
+*.secrets.md
+
 # Node
 node_modules/
 dist/

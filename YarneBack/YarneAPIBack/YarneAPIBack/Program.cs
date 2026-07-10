@@ -205,10 +205,24 @@ else
     app.UseHsts();
 }
 
-app.UseForwardedHeaders(new ForwardedHeadersOptions
+// Trust forwarded headers from Railway's reverse proxy.
+// Railway (and most PaaS proxies) sits in front of the app and rewrites X-Forwarded-For/Proto.
+// When TRUST_FORWARDED_HEADERS=true or in Production, clear the allow-list restrictions so that
+// RemoteIpAddress and Request.Scheme reflect the real client rather than the proxy.
+var trustForwardedHeaders =
+    app.Environment.IsProduction()
+    || string.Equals(Environment.GetEnvironmentVariable("TRUST_FORWARDED_HEADERS"), "true", StringComparison.OrdinalIgnoreCase);
+
+var forwardedHeadersOptions = new ForwardedHeadersOptions
 {
     ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto,
-});
+};
+if (trustForwardedHeaders)
+{
+    forwardedHeadersOptions.KnownNetworks.Clear();
+    forwardedHeadersOptions.KnownProxies.Clear();
+}
+app.UseForwardedHeaders(forwardedHeadersOptions);
 
 app.UseWhen(
     context => !context.Request.Path.StartsWithSegments("/healthz"),

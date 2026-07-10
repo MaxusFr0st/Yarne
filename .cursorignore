@@ -1,0 +1,7 @@
+# Local secrets — never index or send to AI
+secrets.md
+secrets.local.md
+*.secrets.md
+.env
+.env.*
+!.env.example

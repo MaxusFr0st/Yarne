@@ -372,15 +372,15 @@ INSERT INTO ProductColorImage (ProductId, ColorId, ImageUrl, SortOrder) VALUES
     (6, 12, 'https://images.unsplash.com/photo-1771092358890-0db24db44e56?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=1080', 0),
     (6, 16, 'https://images.unsplash.com/photo-1764697907425-62696b280b31?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=1080', 0);
 
+-- Demo customers only (no real passwords). Create your admin via APP_SEED_ADMIN_* or promote-user-to-admin.sql.
 INSERT INTO Customer (FirstName, LastName, UserName, Email, PhoneNumber, PasswordHash, PasswordSalt) VALUES
-    ('Max', 'Admin', 'maxadmin', 'max@gmail.com', NULL, '$2a$12$MU0ceadtXpoWD8J6pO5cdeEkBtom17wglTzeAl7FxTmUAmgq2BWjC', '$2a$12$MU0ceadtXpoWD8J6pO5cde'),
-    ('Admin', 'User', 'admin',   'admin@yarne.com',  NULL,          '$2b$10$exampleHashAdmin', '$2b$10$exampleSaltAdmin'),
+    ('Admin', 'User', 'admin',   'admin@yarne.local', NULL, '$2b$10$exampleHashAdmin', '$2b$10$exampleSaltAdmin'),
     ('John',  'Doe',  'johndoe', 'john@example.com', '+1234567890', '$2b$10$exampleHashJohn',  '$2b$10$exampleSaltJohn');
 
-INSERT INTO CustomerRole (CustomerId, RoleId) VALUES (1, 1), (2, 1), (3, 2);
+INSERT INTO CustomerRole (CustomerId, RoleId) VALUES (1, 1), (2, 2);
 
 INSERT INTO CustomerAddress (CustomerId, CountryId, AddressLine1, City, PostalCode, IsDefault)
-VALUES (3, 1, '123 Main Street', 'New York', '10001', 1);
+VALUES (2, 1, '123 Main Street', 'New York', '10001', 1);
 
 INSERT INTO ProductCountry (ProductId, CountryId) VALUES
     (1,1),(1,2),(1,3),(1,4),(1,5),
@@ -391,7 +391,7 @@ INSERT INTO ProductCountry (ProductId, CountryId) VALUES
     (6,1),(6,2),(6,3),(6,4),(6,5);
 
 INSERT INTO [Order] (CustomerId, PaymentMethodId, ShippingAddrId, Total, Status)
-VALUES (3, 1, 1, 930.00, 'Confirmed');
+VALUES (2, 1, 1, 930.00, 'Confirmed');
 
 INSERT INTO OrderItem (OrderId, ProductId, CountryId, Quantity, UnitPrice) VALUES
     (1, 1, 1, 2, 285.00),

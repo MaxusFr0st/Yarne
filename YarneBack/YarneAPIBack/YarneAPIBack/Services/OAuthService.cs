@@ -66,6 +66,51 @@ public class OAuthService : IOAuthService
         if (string.IsNullOrEmpty(email))
             throw new UnauthorizedAccessException("Google token does not contain an email claim.");
 
+        // Reject tokens where Google explicitly says email is not verified
+        if (root.TryGetProperty("email_verified", out var emailVerifiedEl))
+        {
+            var isVerified = emailVerifiedEl.ValueKind == JsonValueKind.True
+                || (emailVerifiedEl.ValueKind == JsonValueKind.String
+                    && string.Equals(emailVerifiedEl.GetString(), "true", StringComparison.OrdinalIgnoreCase));
+            if (!isVerified)
+                throw new UnauthorizedAccessException("Google account email is not verified.");
+        }
+
+        // Validate token audience against configured ClientId to prevent token substitution attacks
+        var configuredClientId = _configuration["OAuth:Google:ClientId"];
+        if (!string.IsNullOrWhiteSpace(configuredClientId))
+        {
+            HttpResponseMessage tokenInfoResponse;
+            try
+            {
+                tokenInfoResponse = await client.GetAsync(
+                    $"https://oauth2.googleapis.com/tokeninfo?access_token={Uri.EscapeDataString(accessToken)}", ct);
+            }
+            catch (Exception ex)
+            {
+                throw new UnauthorizedAccessException("Could not reach Google to validate token audience.", ex);
+            }
+
+            if (!tokenInfoResponse.IsSuccessStatusCode)
+                throw new UnauthorizedAccessException("Google token audience validation failed.");
+
+            using var tokenInfoDoc = JsonDocument.Parse(await tokenInfoResponse.Content.ReadAsStringAsync(ct));
+            var tokenInfoRoot = tokenInfoDoc.RootElement;
+
+            var aud = tokenInfoRoot.TryGetProperty("aud", out var audEl) ? audEl.GetString() : null;
+            var azp = tokenInfoRoot.TryGetProperty("azp", out var azpEl) ? azpEl.GetString() : null;
+
+            if (!string.Equals(aud, configuredClientId, StringComparison.Ordinal)
+                && !string.Equals(azp, configuredClientId, StringComparison.Ordinal))
+            {
+                throw new UnauthorizedAccessException("Google token audience does not match the configured client.");
+            }
+        }
+        else
+        {
+            _logger.LogWarning("OAuth:Google:ClientId is not configured; skipping token audience validation.");
+        }
+
         var sub = root.TryGetProperty("sub", out var subEl) ? subEl.GetString() ?? "" : "";
         var givenName = root.TryGetProperty("given_name", out var gnEl) ? gnEl.GetString() ?? "" : "";
         var familyName = root.TryGetProperty("family_name", out var fnEl) ? fnEl.GetString() ?? "" : "";

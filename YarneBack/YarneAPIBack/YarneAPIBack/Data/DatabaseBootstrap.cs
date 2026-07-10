@@ -28,7 +28,7 @@ public static class DatabaseBootstrap
             await ApplyStartupPatchesAsync(db, logger, app.Environment, cancellationToken);
         }
 
-        await SeedData.EnsureSeedDataAsync(db, configuration, logger, cancellationToken);
+        await SeedData.EnsureSeedDataAsync(db, configuration, logger, app.Environment.IsProduction(), cancellationToken);
     }
 
     private static async Task ApplyStartupPatchesAsync(

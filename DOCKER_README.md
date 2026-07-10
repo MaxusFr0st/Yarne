@@ -51,7 +51,7 @@ The database was not created before the API started. Fix:
 
 3. Verify the database exists:
    ```bash
-   docker exec yarne-db /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P 'YarneStrong123!' -C -Q "SELECT name FROM sys.databases"
+   docker exec yarne-db /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P 'CHANGE_ME_STRONG_PASSWORD' -C -Q "SELECT name FROM sys.databases"
    ```
 
 ### Backend doesn't start
@@ -60,7 +60,7 @@ The database was not created before the API started. Fix:
 3. Run init manually if needed:
    ```bash
    docker cp ../../YarneDB/SQLQuery1.sql yarne-db:/tmp/SQLQuery1.sql
-   docker exec yarne-db /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P 'YarneStrong123!' -C -i /tmp/SQLQuery1.sql
+   docker exec yarne-db /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P 'CHANGE_ME_STRONG_PASSWORD' -C -i /tmp/SQLQuery1.sql
    docker compose restart api
    ```
 

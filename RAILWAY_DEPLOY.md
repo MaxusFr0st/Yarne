@@ -32,7 +32,7 @@ This runbook matches the current stack:
 | `PostgresConnection` | Normalizes `postgres://` URLs → Npgsql connection string |
 | `DatabaseStartup` | Retries `MigrateAsync()` until Postgres is ready |
 | `ProductionStartupValidator` | Fails fast in Production if `Jwt__Secret` is missing/weak |
-| `SeedData` | Dev-only sample products (skipped in Production) |
+| `SeedData` | Catalog seed (always) + first-time admin from env vars (never resets passwords on redeploy) |
 | `Program.cs` | Binds `PORT`, `GET /healthz`, forwarded headers, CORS, JWT (`JWT_SECRET` fallback) |
 
 Schema is applied by **EF Core migrations** (`Data/Migrations/`) on API startup — not by SQL scripts.
@@ -74,6 +74,9 @@ Do **not** paste `${{Postgres.DATABASE_URL}}` as plain text unless it is a linke
 | `Jwt__Audience` | `YarneApp` |
 | `Jwt__Secret` | Strong secret, ≥ 32 chars (or `JWT_SECRET`) |
 | `Cors__AllowedOrigins__0` | `https://<your-frontend-domain>` |
+| `APP_SEED_ADMIN_EMAIL` | First-deploy admin email (optional, ignored once any admin exists) |
+| `APP_SEED_ADMIN_PASSWORD` | First-deploy admin password, min 12 chars (optional, never re-applied) |
+| `ADMIN_BOOTSTRAP_TOKEN` | Random secret ≥ 32 chars for `POST /api/admin/bootstrap` one-time endpoint (optional) |
 
 Do **not** wrap values in quotes.
 
@@ -88,17 +91,55 @@ On startup, if the database has **no products**, the API seeds (from `YarneDB/SQ
 - 6 products with images, colors, sizes, variant stock
 - Roles, countries, payment methods, categories, collections
 
-**Admin user** (if no admin exists yet):
+**Admin user** — no hardcoded credentials. Use one of these four approaches:
 
-| Field | Value |
-|-------|--------|
-| Email | `max@gmail.com` |
-| Username | `maxadmin` |
-| Password | `Millenium2468` (override with `APP_SEED_ADMIN_PASSWORD` on Railway) |
+#### Option 1 — Env seed on first deploy (recommended for automated setups)
 
-To **re-run seed** on an empty catalog: ensure `Product` table is empty, then redeploy API.
+Set both variables **before** first deploy. The API creates the admin user once; it will never reset or overwrite the password on subsequent deploys.
 
-To **change admin password** after first seed: set `APP_SEED_ADMIN_PASSWORD` and redeploy (only applies when no admin role exists yet), or reset via DB / register flow.
+| Variable | Requirement |
+|----------|-------------|
+| `APP_SEED_ADMIN_EMAIL` | any valid email |
+| `APP_SEED_ADMIN_PASSWORD` | min 12 chars |
+
+Once an admin exists in the DB, these variables are ignored even if present.
+
+#### Option 2 — Bootstrap token endpoint (one-time, any time)
+
+Set a strong random token (min 32 chars) in `ADMIN_BOOTSTRAP_TOKEN`, then POST once:
+
+```
+POST /api/admin/bootstrap
+X-Admin-Bootstrap-Token: <your token>
+Content-Type: application/json
+
+{ "email": "you@example.com", "password": "StrongPass123!" }
+```
+
+Returns 403 immediately after the first admin exists. Rate-limited like `/api/auth/login`.
+
+#### Option 3 — SQL script (manual promotion, no password involved)
+
+Run against Railway's Postgres (open **Connect** → copy `DATABASE_URL`):
+
+```bash
+psql "$DATABASE_URL" -v email='you@example.com' -f YarneDB/scripts/promote-user-to-admin.sql
+```
+
+The user must already exist in `Customer` (registered via the app). The script is idempotent.
+
+#### Option 4 — Existing admin promotes via API
+
+```
+POST /api/users/{id}/roles/admin        # grant Admin role
+DELETE /api/users/{id}/roles/admin      # revoke (cannot demote yourself)
+```
+
+Requires a valid Admin JWT in `Authorization: Bearer <token>`.
+
+---
+
+To **re-run catalog seed** on an empty catalog: ensure `Product` table is empty, then redeploy API.
 
 ## 3) Frontend service
 

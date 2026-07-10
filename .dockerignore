@@ -1,0 +1,34 @@
+# Git
+.git/
+.gitignore
+
+# IDE / OS
+.vscode/
+.idea/
+.cursor/
+Thumbs.db
+.DS_Store
+
+# Node
+**/node_modules/
+**/dist/
+
+# .NET
+**/bin/
+**/obj/
+*.user
+*.suo
+
+# Secrets (never bake into image)
+secrets.md
+secrets.local.md
+*.secrets.md
+.env
+.env.*
+!.env.example
+
+# Docs / local notes
+DOCKER_README.md
+RAILWAY_DEPLOY.md
+guidelines/
+docs/

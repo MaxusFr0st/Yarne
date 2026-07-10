@@ -16,8 +16,6 @@ namespace YarneAPIBack.Controllers;
 [Authorize]
 public class OrdersController : ControllerBase
 {
-    private const string DefaultOrderReceivedNotifyEmail = "anastasiia.moroz.yarne@gmail.com";
-
     private static readonly Dictionary<string, string> AllowedStatuses = new(StringComparer.OrdinalIgnoreCase)
     {
         ["pending"] = "Pending",
@@ -607,11 +605,18 @@ public class OrdersController : ControllerBase
         return product.ImageUrl;
     }
 
-    private string ResolveOrderReceivedNotifyEmail()
+    private string? ResolveOrderReceivedNotifyEmail()
     {
-        return (_configuration["ORDER_RECEIVED_NOTIFY_EMAIL"]
-            ?? Environment.GetEnvironmentVariable("ORDER_RECEIVED_NOTIFY_EMAIL")
-            ?? DefaultOrderReceivedNotifyEmail).Trim();
+        var email = (_configuration["ORDER_RECEIVED_NOTIFY_EMAIL"]
+            ?? Environment.GetEnvironmentVariable("ORDER_RECEIVED_NOTIFY_EMAIL"))?.Trim();
+
+        if (string.IsNullOrWhiteSpace(email))
+        {
+            _logger.LogWarning("ORDER_RECEIVED_NOTIFY_EMAIL is not configured; internal order notification will be skipped.");
+            return null;
+        }
+
+        return email;
     }
 
     private static OrderConfirmationEmailMessage CloneMessageForRecipient(OrderConfirmationEmailMessage source, string toEmail)

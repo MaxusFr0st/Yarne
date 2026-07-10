@@ -27,8 +27,10 @@ public class AuthController : ControllerBase
     }
 
     [HttpPost("register")]
+    [EnableRateLimiting("auth-login")]
     [ProducesResponseType(typeof(AuthResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
     public async Task<ActionResult<AuthResponse>> Register([FromBody] RegisterRequest request, CancellationToken ct)
     {
         if (request == null)
@@ -37,7 +39,7 @@ public class AuthController : ControllerBase
         var result = await _authService.RegisterAsync(request, ct);
 
         if (result == null)
-            return BadRequest(new { message = "Email or UserName already registered" });
+            return BadRequest(new { message = "Registration could not be completed. Try a different email or sign in." });
 
         await _activityLogs.LogAsync(
             "user",

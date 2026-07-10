@@ -8,3 +8,6 @@ yarn-error.log*
 pnpm-debug.log*
 .env
 .env.*
+secrets.md
+secrets.local.md
+*.secrets.md

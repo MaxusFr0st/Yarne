@@ -32,3 +32,6 @@ bin/
 obj/
 .vs/
 .git/
+secrets.md
+secrets.local.md
+*.secrets.md

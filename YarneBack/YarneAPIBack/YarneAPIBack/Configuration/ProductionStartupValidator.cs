@@ -31,5 +31,30 @@ public static class ProductionStartupValidator
                     "Generate a new secret (openssl rand -base64 48) and set Jwt__Secret in Railway.");
             }
         }
+
+        ValidateAdminSeedCredentials();
+    }
+
+    private static void ValidateAdminSeedCredentials()
+    {
+        var seedEmail = Environment.GetEnvironmentVariable("APP_SEED_ADMIN_EMAIL");
+        var seedPassword = Environment.GetEnvironmentVariable("APP_SEED_ADMIN_PASSWORD");
+
+        var hasEmail = !string.IsNullOrWhiteSpace(seedEmail);
+        var hasPassword = !string.IsNullOrWhiteSpace(seedPassword);
+
+        if (hasEmail && !hasPassword)
+            throw new InvalidOperationException(
+                "APP_SEED_ADMIN_EMAIL is set but APP_SEED_ADMIN_PASSWORD is missing. " +
+                "Both must be set together or both must be absent.");
+
+        if (hasPassword && !hasEmail)
+            throw new InvalidOperationException(
+                "APP_SEED_ADMIN_PASSWORD is set but APP_SEED_ADMIN_EMAIL is missing. " +
+                "Both must be set together or both must be absent.");
+
+        if (hasPassword && seedPassword!.Length < 12)
+            throw new InvalidOperationException(
+                "APP_SEED_ADMIN_PASSWORD must be at least 12 characters long.");
     }
 }
