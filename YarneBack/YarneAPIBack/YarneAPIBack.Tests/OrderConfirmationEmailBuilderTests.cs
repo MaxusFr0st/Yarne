@@ -11,7 +11,7 @@ public class OrderConfirmationEmailBuilderTests
 
         var subject = OrderConfirmationEmailBuilder.BuildSubject(message);
 
-        Assert.Equal("Підтвердження замовлення №42", subject);
+        Assert.Equal("Замовлення №42 отримано", subject);
     }
 
     [Fact]

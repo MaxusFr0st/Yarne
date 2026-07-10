@@ -55,6 +55,10 @@ public class CreateProductRequest
 
     /// <summary>Per-color+size stock values (optional).</summary>
     public List<VariantStockInput> VariantStocks { get; set; } = new();
+
+    /// <summary>Product codes for per-product suggested items (max 10, each max 50 chars).</summary>
+    [MaxLength(10)]
+    public List<string>? SuggestedProductCodes { get; set; }
 }
 
 public class ColorVariantInput

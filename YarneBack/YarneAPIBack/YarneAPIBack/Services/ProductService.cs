@@ -9,6 +9,8 @@ namespace YarneAPIBack.Services;
 
 public class ProductService : IProductService
 {
+    private const int MaxSuggestedProductCount = 10;
+
     private readonly YarneDbContext _context;
 
     public ProductService(YarneDbContext context)
@@ -54,7 +56,7 @@ public class ProductService : IProductService
         return products.Select(MapToProductDto).ToList();
     }
 
-    public async Task<ProductDetailDto?> GetProductByIdAsync(int id, CancellationToken ct = default)
+    public async Task<ProductDetailDto?> GetProductByIdAsync(int id, bool activeOnly = false, CancellationToken ct = default)
     {
         var product = await _context.Products
             .Include(p => p.Category)
@@ -76,9 +78,15 @@ public class ProductService : IProductService
                 .ThenInclude(pc => pc.VariantStocks)
                     .ThenInclude(vs => vs.ProductSize)
                         .ThenInclude(ps => ps.Size)
-            .FirstOrDefaultAsync(p => p.Id == id, ct);
+            .Include(p => p.Recommendations)
+                .ThenInclude(r => r.RelatedProduct)
+                    .ThenInclude(rp => rp.Category)
+            .Include(p => p.Recommendations)
+                .ThenInclude(r => r.RelatedProduct)
+                    .ThenInclude(rp => rp.ProductImages)
+            .FirstOrDefaultAsync(p => p.Id == id && (!activeOnly || p.IsActive), ct);
 
-        return product == null ? null : MapToProductDetailDto(product);
+        return product == null ? null : MapToProductDetailDto(product, activeSuggestionsOnly: activeOnly);
     }
 
     public async Task<ProductDetailDto?> GetProductByCodeAsync(string productCode, CancellationToken ct = default)
@@ -103,9 +111,15 @@ public class ProductService : IProductService
                 .ThenInclude(pc => pc.VariantStocks)
                     .ThenInclude(vs => vs.ProductSize)
                         .ThenInclude(ps => ps.Size)
+            .Include(p => p.Recommendations)
+                .ThenInclude(r => r.RelatedProduct)
+                    .ThenInclude(rp => rp.Category)
+            .Include(p => p.Recommendations)
+                .ThenInclude(r => r.RelatedProduct)
+                    .ThenInclude(rp => rp.ProductImages)
             .FirstOrDefaultAsync(p => p.ProductCode == productCode && p.IsActive, ct);
 
-        return product == null ? null : MapToProductDetailDto(product);
+        return product == null ? null : MapToProductDetailDto(product, activeSuggestionsOnly: true);
     }
 
     public async Task<ProductDto> CreateProductAsync(CreateProductRequest request, CancellationToken ct = default)
@@ -157,6 +171,7 @@ public class ProductService : IProductService
         );
         await ReplaceColorSizeImagesAsync(product.Id, colorSizeVariants, ct);
         await ReplaceVariantStocksAsync(product.Id, request.VariantStocks, ct);
+        await ReplaceProductRecommendationsAsync(product.Id, product.ProductCode, request.SuggestedProductCodes, ct);
 
         await _context.SaveChangesAsync(ct);
 
@@ -303,6 +318,9 @@ public class ProductService : IProductService
 
         if (request.VariantStocks is not null)
             await ReplaceVariantStocksAsync(product.Id, request.VariantStocks, ct);
+
+        if (request.SuggestedProductCodes is not null)
+            await ReplaceProductRecommendationsAsync(product.Id, product.ProductCode, request.SuggestedProductCodes, ct);
 
         await _context.SaveChangesAsync(ct);
 
@@ -509,9 +527,23 @@ public class ProductService : IProductService
         };
     }
 
-    private static ProductDetailDto MapToProductDetailDto(Models.Product p)
+    private static ProductDetailDto MapToProductDetailDto(Models.Product p, bool activeSuggestionsOnly)
     {
         var baseDto = MapToProductDto(p);
+        var recommendations = (p.Recommendations ?? new List<Models.ProductRecommendation>())
+            .OrderBy(r => r.SortOrder)
+            .ThenBy(r => r.RelatedProductId)
+            .ToList();
+
+        var suggestedCodes = recommendations
+            .Select(r => r.RelatedProduct.ProductCode)
+            .ToList();
+
+        var suggestedProducts = recommendations
+            .Select(r => r.RelatedProduct)
+            .Where(rp => !activeSuggestionsOnly || rp.IsActive)
+            .Select(MapToSuggestedProductDto)
+            .ToList();
 
         return new ProductDetailDto
         {
@@ -532,12 +564,30 @@ public class ProductService : IProductService
             Sizes = baseDto.Sizes,
             DefaultSize = baseDto.DefaultSize,
             DefaultColor = baseDto.DefaultColor,
-            Subtitle = p.Material ?? p.ProducerName,
+            Subtitle = p.Material,
             IsNew = p.IsNew,
             IsBestseller = p.IsBestseller,
             Lace = p.Lace,
             Details = BuildDetailsList(p),
             Colors = baseDto.Colors,
+            SuggestedProductCodes = suggestedCodes,
+            HasConfiguredSuggestions = p.SuggestionsConfigured,
+            SuggestedProducts = suggestedProducts,
+        };
+    }
+
+    private static SuggestedProductDto MapToSuggestedProductDto(Models.Product p)
+    {
+        var images = GetOrderedImageUrls(p);
+        return new SuggestedProductDto
+        {
+            ProductCode = p.ProductCode,
+            Name = p.Name,
+            Price = p.Price,
+            PrimaryImageUrl = images.FirstOrDefault() ?? p.ImageUrl,
+            CategoryName = p.Category?.Name ?? string.Empty,
+            IsNew = p.IsNew,
+            IsBestseller = p.IsBestseller,
         };
     }
 
@@ -555,17 +605,7 @@ public class ProductService : IProductService
         return string.IsNullOrEmpty(legacy) ? new List<string>() : new List<string> { legacy };
     }
 
-    private static List<string> BuildDetailsList(Models.Product p)
-    {
-        var list = new List<string>();
-        if (!string.IsNullOrEmpty(p.Material))
-            list.Add($"Material: {p.Material}");
-        if (!string.IsNullOrEmpty(p.ProducerName))
-            list.Add($"Made by {p.ProducerName}");
-        if (!string.IsNullOrEmpty(p.Description))
-            list.Add(p.Description);
-        return list.Count > 0 ? list : new List<string> { "Product details available on request." };
-    }
+    private static List<string> BuildDetailsList(Models.Product p) => new();
 
     private static List<string> NormalizeUrls(IEnumerable<string>? urls) =>
         MediaUrlNormalizer.NormalizeList(urls);
@@ -870,6 +910,80 @@ public class ProductService : IProductService
                 Lace = stock.Lace,
                 QuantityInStock = stock.QuantityInStock,
             });
+        }
+    }
+
+    private async Task ReplaceProductRecommendationsAsync(
+        int productId,
+        string productCode,
+        List<string>? codes,
+        CancellationToken ct)
+    {
+        if (codes == null) return;
+
+        ValidateSuggestedProductCodes(codes);
+
+        var product = await _context.Products.FirstOrDefaultAsync(p => p.Id == productId, ct);
+        if (product == null) return;
+        product.SuggestionsConfigured = true;
+
+        var normalized = codes
+            .Select(c => c?.Trim())
+            .Where(c => !string.IsNullOrWhiteSpace(c))
+            .Where(c => !string.Equals(c, productCode, StringComparison.OrdinalIgnoreCase))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .Take(MaxSuggestedProductCount)
+            .ToList();
+
+        var existing = await _context.ProductRecommendations.Where(r => r.ProductId == productId).ToListAsync(ct);
+        _context.ProductRecommendations.RemoveRange(existing);
+
+        if (normalized.Count == 0)
+            return;
+
+        var relatedProducts = await _context.Products
+            .AsNoTracking()
+            .Where(p => p.Id != productId)
+            .Select(p => new { p.Id, p.ProductCode })
+            .ToListAsync(ct);
+
+        var byCode = relatedProducts.ToDictionary(p => p.ProductCode, StringComparer.OrdinalIgnoreCase);
+        var invalidCodes = normalized.Where(code => !byCode.ContainsKey(code!)).ToList();
+        if (invalidCodes.Count > 0)
+        {
+            throw new ProductValidationException(
+                $"Unknown suggested product codes: {string.Join(", ", invalidCodes)}",
+                invalidCodes!);
+        }
+
+        var sortOrder = 0;
+        foreach (var code in normalized)
+        {
+            if (string.IsNullOrWhiteSpace(code))
+                continue;
+
+            var related = byCode[code];
+            _context.ProductRecommendations.Add(new Models.ProductRecommendation
+            {
+                ProductId = productId,
+                RelatedProductId = related.Id,
+                SortOrder = sortOrder++,
+            });
+        }
+    }
+
+    private static void ValidateSuggestedProductCodes(IReadOnlyList<string> codes)
+    {
+        if (codes.Count > MaxSuggestedProductCount)
+            throw new ProductValidationException($"At most {MaxSuggestedProductCount} suggested products are allowed.");
+
+        foreach (var code in codes)
+        {
+            if (string.IsNullOrWhiteSpace(code))
+                continue;
+
+            if (code.Trim().Length > 50)
+                throw new ProductValidationException("Each suggested product code must be 50 characters or fewer.");
         }
     }
 

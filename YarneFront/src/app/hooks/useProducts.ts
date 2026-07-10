@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useSyncExternalStore } from "react";
-import { fetchProducts, fetchProduct, type ProductDto, type ProductDetailDto, type ColorVariantDto } from "../api/products";
+import { fetchProducts, fetchProduct, type ProductDto, type ProductDetailDto, type ColorVariantDto, type SuggestedProductDto } from "../api/products";
 import type { Product, ColorVariant } from "../types/product";
 import { normalizeLaceVariants } from "../utils/variantStock";
 import {
@@ -64,6 +64,23 @@ function mapToFrontendProduct(d: ProductDto): Product {
   };
 }
 
+function mapSuggestedToProduct(s: SuggestedProductDto): Product {
+  const image = s.primaryImageUrl ?? PLACEHOLDER;
+  return {
+    id: s.productCode,
+    name: s.name,
+    subtitle: s.categoryName,
+    price: Number(s.price),
+    category: s.categoryName,
+    isNew: s.isNew,
+    isBestseller: s.isBestseller,
+    sizes: ["XS", "S", "M", "L", "XL"],
+    description: "",
+    details: [],
+    colors: [{ name: "Default", hex: "#2D241E", image, images: [image] }],
+  };
+}
+
 function mapDetailToFrontend(d: ProductDetailDto): Product {
   const colors: ColorVariant[] = d.colors.map(toColorVariant);
   if (colors.length === 0 && d.primaryImageUrl) {
@@ -86,6 +103,10 @@ function mapDetailToFrontend(d: ProductDetailDto): Product {
     description: d.description ?? "",
     details: d.details,
     colors,
+    suggestedProductCodes: d.suggestedProductCodes ?? [],
+    suggestedProducts: (d.suggestedProducts ?? []).map(mapSuggestedToProduct),
+    hasConfiguredSuggestions: d.hasConfiguredSuggestions ?? false,
+    producerName: d.producerName ?? undefined,
   };
 }
 

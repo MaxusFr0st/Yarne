@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useState } from "react";
 import { useParams, useNavigate } from "react-router";
 import { motion, AnimatePresence, LayoutGroup, useReducedMotion } from "motion/react";
 import { ArrowLeft, Heart, ChevronDown, ShoppingBag, Check } from "lucide-react";
@@ -13,17 +13,21 @@ import { CrossfadeImage } from "../components/figma/CrossfadeImage";
 import { ProductCard } from "../components/ProductCard";
 import { LangLink } from "../i18n/LangLink";
 import { MobileProductDetailView } from "../components/MobileProductDetailView";
+import { getSupplementaryProductDetails, hasSupplementaryProductDetails } from "../utils/productDetails";
 import { MobileRelatedProducts } from "../components/MobileRelatedProducts";
+import { ProductGuaranteeBlock } from "../components/ProductGuaranteeBlock";
 import { resolveDisplayImages } from "../utils/variantImages";
 import { resolveDisplayStock } from "../utils/variantStock";
 import { resolveMediaUrl } from "../utils/storefrontMedia";
 import { scrollToPageTop } from "../utils/scrollToTop";
-import React from "react";
+import {
+  getDefaultProductGuaranteeContent,
+  loadProductGuaranteeContent,
+  type ProductGuaranteeContent,
+} from "../utils/productGuaranteeContent";
+import type { Product } from "../types/product";
 
 const easing = [0.25, 0.1, 0.25, 1] as const;
-const enterEase = [0.22, 1, 0.36, 1] as const;
-const CONTENT_ENTER_S = 0.55;
-
 export function ProductDetail() {
   const { t } = useTranslation();
   const reduceMotion = useReducedMotion();
@@ -34,7 +38,23 @@ export function ProductDetail() {
   const { wishlist, toggleWishlist } = useWishlist();
   const { product, loading } = useProduct(id);
   const { products } = useProducts();
-  const related = products.filter((p) => p.id !== id).slice(0, 3);
+  const related = useMemo(() => {
+    const fromApi = product?.suggestedProducts ?? [];
+    if (fromApi.length > 0) return fromApi;
+
+    const codes = product?.suggestedProductCodes ?? [];
+    if (product?.hasConfiguredSuggestions) {
+      if (codes.length > 0) {
+        const resolved = codes
+          .map((code) => products.find((p) => p.id === code))
+          .filter((p): p is Product => Boolean(p) && p.id !== id);
+        return resolved;
+      }
+      return [];
+    }
+
+    return products.filter((p) => p.id !== id).slice(0, 3);
+  }, [product, products, id]);
 
   const [activeColor, setActiveColor] = useState(0);
   const [activeSize, setActiveSize] = useState<string | null>(null);
@@ -43,10 +63,22 @@ export function ProductDetail() {
   const [addedToBag, setAddedToBag] = useState(false);
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [sizeError, setSizeError] = useState(false);
+  const supplementaryDetails = useMemo(
+    () => (product ? getSupplementaryProductDetails(product) : []),
+    [product]
+  );
+  const showSupplementaryDetails = product ? hasSupplementaryProductDetails(product) : false;
+  const [guaranteeContent, setGuaranteeContent] = useState<ProductGuaranteeContent>(
+    getDefaultProductGuaranteeContent
+  );
 
   useLayoutEffect(() => {
     scrollToPageTop();
   }, [id]);
+
+  useEffect(() => {
+    void loadProductGuaranteeContent().then(setGuaranteeContent);
+  }, []);
 
   const colorScopedSizes = product
     ? Array.from(
@@ -77,8 +109,14 @@ export function ProductDetail() {
 
   useEffect(() => {
     if (!product) return;
+    const colorIndices = new Set<number>([activeColor]);
+    if (activeColor > 0) colorIndices.add(activeColor - 1);
+    if (activeColor < product.colors.length - 1) colorIndices.add(activeColor + 1);
+
     const seen = new Set<string>();
-    for (const color of product.colors) {
+    for (const colorIndex of colorIndices) {
+      const color = product.colors[colorIndex];
+      if (!color) continue;
       const urls = resolveDisplayImages(product, color, activeSize, activeLace);
       for (const src of urls) {
         const resolved = resolveMediaUrl(src);
@@ -88,7 +126,7 @@ export function ProductDetail() {
         img.src = resolved;
       }
     }
-  }, [product, activeSize, activeLace]);
+  }, [product, activeColor, activeSize, activeLace]);
 
   if (!loading && !product) {
     return (
@@ -188,6 +226,7 @@ export function ProductDetail() {
         onColorChange={handleColorChange}
         onSizeChange={(size) => { setActiveSize(size); setSizeError(false); }}
         onAddToBag={handleAddToBag}
+        guaranteeContent={guaranteeContent}
       />
 
       {related.length > 0 && <MobileRelatedProducts products={related} />}
@@ -512,6 +551,7 @@ export function ProductDetail() {
             </div>
 
             {/* Details Accordion */}
+            {showSupplementaryDetails ? (
             <div className="border-t border-[#2D241E]/10">
               <button
                 onClick={() => setDetailsOpen(!detailsOpen)}
@@ -536,7 +576,17 @@ export function ProductDetail() {
                     transition={{ duration: 0.35, ease: easing }}
                     className="overflow-hidden pb-5 space-y-2"
                   >
-                    {product.details.map((detail) => (
+                    {product.producerName ? (
+                      <li
+                        key="producer"
+                        className="flex items-start gap-3 text-[#2D241E]/60 text-sm"
+                        style={{ fontFamily: "'DM Sans', sans-serif" }}
+                      >
+                        <span className="mt-1.5 w-1 h-1 rounded-full bg-[#4A0E0E] flex-shrink-0" />
+                        {t("product.madeBy", { name: product.producerName })}
+                      </li>
+                    ) : null}
+                    {supplementaryDetails.map((detail) => (
                       <li
                         key={detail}
                         className="flex items-start gap-3 text-[#2D241E]/60 text-sm"
@@ -550,29 +600,9 @@ export function ProductDetail() {
                 )}
               </AnimatePresence>
             </div>
+            ) : null}
 
-            {/* Shipping info */}
-            <div
-              className="rounded-[20px] p-5"
-              style={{ backgroundColor: "#EDE9E2" }}
-            >
-              <div className="flex items-center gap-4">
-                <div className="flex-1">
-                  <p
-                    className="text-[#2D241E] text-xs tracking-widest uppercase mb-1"
-                    style={{ fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.12em" }}
-                  >
-                    {t("product.shipping.title")}
-                  </p>
-                  <p
-                    className="text-[#2D241E]/50 text-xs"
-                    style={{ fontFamily: "'DM Sans', sans-serif" }}
-                  >
-                    {t("product.shipping.description")}
-                  </p>
-                </div>
-              </div>
-            </div>
+            <ProductGuaranteeBlock content={guaranteeContent} locale={locale} />
           </div>
         </div>
       </div>

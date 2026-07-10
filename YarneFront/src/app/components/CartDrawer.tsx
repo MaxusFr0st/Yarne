@@ -6,11 +6,13 @@ import { ImageWithFallback } from "./figma/ImageWithFallback";
 import { useLangNavigate } from "../i18n/useLangNavigate";
 import { PriceTag } from "./PriceTag";
 import { useLocale } from "../i18n/useLocale";
+import { useTouchMobileLayout } from "../hooks/useTouchMobileLayout";
 
 export function CartDrawer() {
   const { t } = useTranslation();
   const locale = useLocale();
   const navigate = useLangNavigate();
+  const touchMobile = useTouchMobileLayout();
   const { cartOpen, closeCart } = useOverlay();
   const { cartItems, removeFromCart, updateQuantity, cartTotal } = useCart();
 
@@ -21,7 +23,10 @@ export function CartDrawer() {
           {/* Blurred backdrop */}
           <motion.div
             className="fixed inset-0 z-50"
-            style={{ backgroundColor: "rgba(45,36,30,0.3)", backdropFilter: "blur(8px)" }}
+            style={{
+              backgroundColor: touchMobile ? "rgba(45,36,30,0.45)" : "rgba(45,36,30,0.3)",
+              backdropFilter: touchMobile ? "none" : "blur(8px)",
+            }}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}

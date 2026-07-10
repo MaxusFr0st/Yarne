@@ -48,6 +48,19 @@ export interface ProductDetailDto extends ProductDto {
   sizes: string[];
   details: string[];
   colors: ColorVariantDto[];
+  suggestedProductCodes: string[];
+  suggestedProducts: SuggestedProductDto[];
+  hasConfiguredSuggestions: boolean;
+}
+
+export interface SuggestedProductDto {
+  productCode: string;
+  name: string;
+  price: number;
+  primaryImageUrl: string | null;
+  categoryName: string;
+  isNew: boolean;
+  isBestseller: boolean;
 }
 
 export async function fetchProducts(params?: {
@@ -107,6 +120,7 @@ export interface CreateProductRequest {
   isNew?: boolean;
   isBestseller?: boolean;
   lace?: boolean;
+  suggestedProductCodes?: string[];
 }
 
 export interface UpdateProductRequest extends CreateProductRequest {

@@ -35,6 +35,13 @@ import {
   type HomePageMediaSelection,
 } from "../utils/homePageMediaSelection";
 import {
+  getDefaultProductGuaranteeContent,
+  loadProductGuaranteeContentForAdmin,
+  type ProductGuaranteeContent,
+} from "../utils/productGuaranteeContent";
+import { ProductGuaranteeEditor } from "../components/admin/ProductGuaranteeEditor";
+import { ApiRequestError } from "../api/errors";
+import {
   LayoutDashboard,
   Package,
   Users,
@@ -60,6 +67,7 @@ import {
   RefreshCw,
 } from "lucide-react";
 import { fetchActivityLogs, type AdminActivityLogDto } from "../api/admin";
+import { fetchProduct } from "../api/products";
 import { AdminAccountingTab } from "../components/admin/AdminAccountingTab";
 import { formatPriceCompact } from "../i18n/format";
 import { PriceTag } from "../components/PriceTag";
@@ -294,20 +302,31 @@ interface ProductFormData {
   colorSizeVariants: Record<string, string[]>;
   /** Optional per color+size+lace stock: `${colorId}:${sizeId}:${lace}` -> quantity */
   variantStocks: Record<string, string>;
+  suggestedProductCodes: string[];
+  suggestionsHydrated: boolean;
+  suggestionsTouched: boolean;
 }
+
+type ProductModalTab = "details" | "suggested";
+
+const MAX_SUGGESTED_PRODUCTS = 10;
 
 function ProductModal({
   product,
+  allProducts,
   categories,
   colors,
   sizes,
+  saveError,
   onClose,
   onSave,
 }: {
   product: AdminProduct | null;
+  allProducts: AdminProduct[];
   categories: { id: number; name: string }[];
   colors: { id: number; name: string; hexCode: string }[];
   sizes: { id: number; name: string }[];
+  saveError?: string | null;
   onClose: () => void;
   onSave: (data: ProductFormData) => void;
 }) {
@@ -407,10 +426,75 @@ function ProductModal({
         colorSizeIds[colorId] = Array.from(new Set(collectedSizeIds));
       }
     });
-    return { ...base, colorIds, colorSizeIds, colorSizeVariants, variantStocks, defaultColorId: base.defaultColorId ?? colorIds[0] ?? null };
+    return { ...base, colorIds, colorSizeIds, colorSizeVariants, variantStocks, defaultColorId: base.defaultColorId ?? colorIds[0] ?? null, suggestedProductCodes: [], suggestionsHydrated: !product, suggestionsTouched: false };
   });
 
-  const handleChange = (key: keyof ProductFormData, value: string | number | boolean) => {
+  const [activeTab, setActiveTab] = useState<ProductModalTab>("details");
+  const suggestedProductSet = useMemo(
+    () => new Set(form.suggestedProductCodes),
+    [form.suggestedProductCodes]
+  );
+  const suggestedProducts = useMemo(
+    () =>
+      form.suggestedProductCodes
+        .map((code) => allProducts.find((p) => p.id === code))
+        .filter((p): p is AdminProduct => Boolean(p)),
+    [form.suggestedProductCodes, allProducts]
+  );
+  const pickerProducts = useMemo(
+    () => allProducts.filter((p) => p.id !== (product?.id ?? form.sku.trim())),
+    [allProducts, product?.id, form.sku]
+  );
+  const unresolvedSuggestedCodes = useMemo(
+    () => form.suggestedProductCodes.filter((code) => !allProducts.some((p) => p.id === code)),
+    [form.suggestedProductCodes, allProducts]
+  );
+
+  useEffect(() => {
+    if (!product) {
+      setForm((prev) => ({ ...prev, suggestionsHydrated: true }));
+      return;
+    }
+    let cancelled = false;
+    setForm((prev) => ({ ...prev, suggestionsHydrated: false }));
+    void fetchProduct(product.id)
+      .then((detail) => {
+        if (cancelled) return;
+        setForm((prev) => ({
+          ...prev,
+          suggestedProductCodes: detail.suggestedProductCodes ?? [],
+          suggestionsHydrated: true,
+        }));
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setForm((prev) => ({ ...prev, suggestionsHydrated: true }));
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [product?.id]);
+
+  const addSuggestedProduct = (productCode: string) => {
+    if (suggestedProductSet.has(productCode)) return;
+    if (form.suggestedProductCodes.length >= MAX_SUGGESTED_PRODUCTS) return;
+    setForm((prev) => ({
+      ...prev,
+      suggestionsTouched: true,
+      suggestedProductCodes: [...prev.suggestedProductCodes, productCode],
+    }));
+  };
+
+  const removeSuggestedProduct = (productCode: string) => {
+    setForm((prev) => ({
+      ...prev,
+      suggestionsTouched: true,
+      suggestedProductCodes: prev.suggestedProductCodes.filter((code) => code !== productCode),
+    }));
+  };
+
+  const handleChange = (key: keyof ProductFormData, value: string | number | boolean | string[]) => {
     // Note: <input min={0}> doesn't prevent typing "-" in many browsers,
     // so we clamp client-side to avoid saving negative numeric fields.
     if ((key === "price" || key === "stock") && typeof value === "string") {
@@ -444,6 +528,7 @@ function ProductModal({
     sizes?: string;
     defaultSizeId?: string;
     photos?: string;
+    suggestions?: string;
   }>({});
 
   const addImageUrl = () => setForm((p) => ({ ...p, imageUrls: [...p.imageUrls, ""] }));
@@ -583,6 +668,9 @@ function ProductModal({
     if (variantsWithTooFewPhotos.length > 0) {
       errors.photos = "Each selected color-size record must contain at least 3 photos.";
     }
+    if (unresolvedSuggestedCodes.length > 0) {
+      errors.suggestions = `Remove unknown product codes: ${unresolvedSuggestedCodes.join(", ")}`;
+    }
 
     setFormErrors(errors);
     if (Object.keys(errors).length > 0) return;
@@ -629,8 +717,43 @@ function ProductModal({
           </button>
         </div>
 
+        <div className="px-8 pt-4 flex gap-2">
+          {([
+            { key: "details" as ProductModalTab, label: "Product details" },
+            { key: "suggested" as ProductModalTab, label: "Suggested products" },
+          ]).map((tab) => (
+            <button
+              key={tab.key}
+              type="button"
+              onClick={() => {
+                setActiveTab(tab.key);
+                if (tab.key === "suggested") {
+                  setForm((prev) => ({ ...prev, suggestionsTouched: true }));
+                }
+              }}
+              className="px-4 py-2 rounded-full text-xs uppercase tracking-widest transition-colors duration-200"
+              style={{
+                fontFamily: "'DM Sans', sans-serif",
+                letterSpacing: "0.12em",
+                backgroundColor: activeTab === tab.key ? "#2D241E" : "rgba(45,36,30,0.06)",
+                color: activeTab === tab.key ? "#F5F2ED" : "rgba(45,36,30,0.55)",
+              }}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+
+        {saveError ? (
+          <div className="mx-8 mt-4 rounded-[14px] px-4 py-3 text-sm" style={{ backgroundColor: "rgba(74,14,14,0.08)", color: "#4A0E0E", fontFamily: "'DM Sans', sans-serif" }}>
+            {saveError}
+          </div>
+        ) : null}
+
         {/* Form */}
         <div className="p-8 space-y-6">
+          {activeTab === "details" ? (
+          <>
           {/* Name & Subtitle */}
           <div className="grid grid-cols-2 gap-4">
             {[
@@ -1201,6 +1324,124 @@ function ProductModal({
               </label>
             ))}
           </div>
+          </>
+          ) : (
+            <div className="rounded-[28px] overflow-hidden" style={{ border: "1px solid rgba(45,36,30,0.08)" }}>
+              <div className="flex items-center justify-between px-6 py-4" style={{ backgroundColor: "rgba(45,36,30,0.03)", borderBottom: "1px solid rgba(45,36,30,0.06)" }}>
+                <div>
+                  <p className="text-[#2D241E] uppercase tracking-widest text-xs" style={{ fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.12em" }}>
+                    Suggested Products
+                  </p>
+                  <p className="text-[#2D241E]/45 text-xs mt-1" style={{ fontFamily: "'DM Sans', sans-serif" }}>
+                    Selected: {suggestedProducts.length} / {MAX_SUGGESTED_PRODUCTS}
+                  </p>
+                </div>
+              </div>
+
+              <div className="px-6 py-5">
+                {formErrors.suggestions ? (
+                  <p className="mb-5 text-xs text-[#B42318]" style={{ fontFamily: "'DM Sans', sans-serif" }}>
+                    {formErrors.suggestions}
+                  </p>
+                ) : null}
+                {unresolvedSuggestedCodes.length > 0 ? (
+                  <div
+                    className="mb-5 rounded-[14px] px-4 py-3 text-sm"
+                    style={{ backgroundColor: "rgba(74,14,14,0.08)", color: "#4A0E0E", fontFamily: "'DM Sans', sans-serif" }}
+                  >
+                    Unknown or deleted product codes: {unresolvedSuggestedCodes.join(", ")}. Remove them before saving.
+                  </div>
+                ) : null}
+                {suggestedProducts.length > 0 && (
+                  <div className="mb-5">
+                    <p className="text-[#2D241E]/45 text-xs uppercase tracking-widest mb-2" style={{ fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.1em" }}>
+                      Selected
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      {suggestedProducts.map((item) => (
+                        <span
+                          key={`suggested-chip-${item.id}`}
+                          className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs"
+                          style={{
+                            backgroundColor: "rgba(45,36,30,0.06)",
+                            color: "#2D241E",
+                            fontFamily: "'DM Sans', sans-serif",
+                          }}
+                        >
+                          {item.name}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                <div className="rounded-[18px] overflow-hidden" style={{ border: "1px solid rgba(45,36,30,0.08)" }}>
+                  <div
+                    className="grid px-5 py-3 text-xs tracking-widest uppercase"
+                    style={{
+                      gridTemplateColumns: "2fr 1fr 110px",
+                      fontFamily: "'DM Sans', sans-serif",
+                      letterSpacing: "0.1em",
+                      color: "rgba(45,36,30,0.45)",
+                      backgroundColor: "rgba(45,36,30,0.02)",
+                      borderBottom: "1px solid rgba(45,36,30,0.06)",
+                    }}
+                  >
+                    <span>Product</span>
+                    <span>Category</span>
+                    <span className="text-right">Suggest</span>
+                  </div>
+                  <div className="max-h-[420px] overflow-y-auto divide-y" style={{ borderColor: "rgba(45,36,30,0.06)" }}>
+                    {pickerProducts.length === 0 ? (
+                      <p className="py-10 text-center text-[#2D241E]/35 text-sm" style={{ fontFamily: "'DM Sans', sans-serif" }}>
+                        No other products available.
+                      </p>
+                    ) : (
+                      pickerProducts.map((item) => {
+                        const isSelected = suggestedProductSet.has(item.id);
+                        const atLimit = !isSelected && form.suggestedProductCodes.length >= MAX_SUGGESTED_PRODUCTS;
+                        return (
+                          <div
+                            key={`suggested-list-${item.id}`}
+                            className="grid items-center px-5 py-3.5"
+                            style={{ gridTemplateColumns: "2fr 1fr 110px" }}
+                          >
+                            <div className="min-w-0">
+                              <p className="text-[#2D241E] truncate" style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "0.88rem" }}>
+                                {item.name}
+                              </p>
+                              <p className="text-[#2D241E]/40 text-xs truncate" style={{ fontFamily: "'DM Sans', sans-serif" }}>
+                                {item.sku}
+                              </p>
+                            </div>
+                            <p className="text-[#2D241E]/60 text-sm truncate" style={{ fontFamily: "'DM Sans', sans-serif" }}>
+                              {item.category}
+                            </p>
+                            <div className="flex justify-end">
+                              <button
+                                type="button"
+                                disabled={atLimit}
+                                onClick={() => (isSelected ? removeSuggestedProduct(item.id) : addSuggestedProduct(item.id))}
+                                className="px-4 py-1.5 rounded-full text-xs uppercase tracking-widest transition-all duration-300 hover:opacity-85 disabled:opacity-40 disabled:cursor-not-allowed"
+                                style={{
+                                  fontFamily: "'DM Sans', sans-serif",
+                                  letterSpacing: "0.1em",
+                                  backgroundColor: isSelected ? "rgba(74,14,14,0.1)" : "#2D241E",
+                                  color: isSelected ? "#4A0E0E" : "#F5F2ED",
+                                }}
+                              >
+                                {isSelected ? "Delete" : "Add"}
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Modal Footer */}
@@ -1812,6 +2053,10 @@ export function AdminPage() {
   const [homePageMedia, setHomePageMedia] = useState<HomePageMediaSelection>(
     getDefaultHomePageMediaSelection
   );
+  const [productGuaranteeContent, setProductGuaranteeContent] = useState<ProductGuaranteeContent>(
+    getDefaultProductGuaranteeContent
+  );
+  const [productSaveError, setProductSaveError] = useState<string | null>(null);
   const [homeMediaUploading, setHomeMediaUploading] = useState<Record<string, boolean>>({});
   const [homeMediaUploadError, setHomeMediaUploadError] = useState<string | null>(null);
   const [logsSubTab, setLogsSubTab] = useState<LogsSubTab>("all");
@@ -1859,17 +2104,19 @@ export function AdminPage() {
     let cancelled = false;
     const syncFromApi = async () => {
       try {
-        const [carousel, home, showcase, media] = await Promise.all([
+        const [carousel, home, showcase, media, guarantee] = await Promise.all([
           loadCarouselSelectionForAdmin(),
           loadHomeSectionsSelectionForAdmin(),
           loadFeaturedShowcaseSelectionForAdmin(),
           loadHomePageMediaSelectionForAdmin(),
+          loadProductGuaranteeContentForAdmin(),
         ]);
         if (cancelled) return;
         setCarouselProductCodes(carousel.productCodes);
         setHomeSectionsSelection(home);
         setFeaturedShowcaseSelectionState(showcase);
         setHomePageMedia(media);
+        setProductGuaranteeContent(guarantee);
       } catch (e) {
         if (!cancelled) {
           setSaveError(
@@ -2102,6 +2349,7 @@ export function AdminPage() {
 
   const handleSaveProduct = async (data: ProductFormData) => {
     setSaveError(null);
+    setProductSaveError(null);
     try {
       const normalizeIds = (ids: number[]) => Array.from(new Set(ids.filter((id) => Number.isFinite(id) && id > 0)));
       const fallbackSizeId = sizes.find((s) => s.name === "M")?.id ?? sizes[0]?.id;
@@ -2188,6 +2436,13 @@ export function AdminPage() {
         isNew: data.isNew,
         isBestseller: data.isBestseller,
         lace: data.lace,
+        ...(productModal.editing
+          ? data.suggestionsHydrated
+            ? { suggestedProductCodes: data.suggestedProductCodes }
+            : {}
+          : data.suggestionsTouched
+            ? { suggestedProductCodes: data.suggestedProductCodes }
+            : {}),
       };
       if (productModal.editing && "idNum" in productModal.editing) {
         await editProduct(productModal.editing.idNum, { ...payload, isActive: true });
@@ -2195,9 +2450,18 @@ export function AdminPage() {
         await addProduct(payload);
       }
       setProductModal({ open: false, editing: null });
+      setProductSaveError(null);
       refetch();
     } catch (e) {
-      setSaveError(e instanceof Error ? e.message : "Failed to save product");
+      const message = e instanceof ApiRequestError
+        ? e.invalidSuggestedCodes.length > 0
+          ? `${e.message} (${e.invalidSuggestedCodes.join(", ")})`
+          : e.message
+        : e instanceof Error
+          ? e.message
+          : "Failed to save product";
+      setProductSaveError(message);
+      setSaveError(message);
     }
   };
 
@@ -3070,6 +3334,15 @@ export function AdminPage() {
                   </div>
                 </div>
               </div>
+
+              <ProductGuaranteeEditor
+                initialContent={productGuaranteeContent}
+                onSaved={(content) => {
+                  setProductGuaranteeContent(content);
+                  setSaveError(null);
+                }}
+                onError={(message) => setSaveError(message)}
+              />
 
               {/* Featured Showcase Editor */}
               <div className="rounded-[28px] overflow-hidden mb-8" style={{ border: "1px solid rgba(45,36,30,0.08)" }}>
@@ -4502,10 +4775,15 @@ export function AdminPage() {
           <ProductModal
             key="product-modal"
             product={productModal.editing}
+            allProducts={products}
             categories={categories}
             colors={colors}
             sizes={sizes}
-            onClose={() => setProductModal({ open: false, editing: null })}
+            onClose={() => {
+              setProductModal({ open: false, editing: null });
+              setProductSaveError(null);
+            }}
+            saveError={productSaveError}
             onSave={handleSaveProduct}
           />
         )}

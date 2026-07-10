@@ -47,6 +47,8 @@ public partial class YarneDbContext : DbContext
 
     public virtual DbSet<ProductVariantStock> ProductVariantStocks { get; set; }
 
+    public virtual DbSet<ProductRecommendation> ProductRecommendations { get; set; }
+
     public virtual DbSet<Size> Sizes { get; set; }
 
     public virtual DbSet<Role> Roles { get; set; }
@@ -134,6 +136,21 @@ public partial class YarneDbContext : DbContext
                 .OnDelete(DeleteBehavior.Cascade);
             entity.HasOne(d => d.Color).WithMany(p => p.ProductColors)
                 .HasForeignKey(d => d.ColorId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<ProductRecommendation>(entity =>
+        {
+            entity.HasKey(e => new { e.ProductId, e.RelatedProductId });
+            entity.ToTable("ProductRecommendation");
+            entity.HasIndex(e => e.ProductId);
+            entity.HasOne(d => d.Product)
+                .WithMany(p => p.Recommendations)
+                .HasForeignKey(d => d.ProductId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(d => d.RelatedProduct)
+                .WithMany()
+                .HasForeignKey(d => d.RelatedProductId)
                 .OnDelete(DeleteBehavior.Cascade);
         });
 

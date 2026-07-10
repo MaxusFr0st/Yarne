@@ -8,4 +8,10 @@ public class ProductDetailDto : ProductDto
     public string? Subtitle { get; set; }
 
     public List<string> Details { get; set; } = new();
+
+    public List<string> SuggestedProductCodes { get; set; } = new();
+
+    public bool HasConfiguredSuggestions { get; set; }
+
+    public List<SuggestedProductDto> SuggestedProducts { get; set; } = new();
 }

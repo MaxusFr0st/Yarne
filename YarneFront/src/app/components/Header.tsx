@@ -105,11 +105,11 @@ export function Header() {
           paddingTop: "max(env(safe-area-inset-top, 0px), 4px)",
           minHeight: "calc(var(--main-header-h) + env(safe-area-inset-top, 0px))",
           backgroundColor: skipScrollStyle
-            ? "rgba(245,242,237,0.92)"
+            ? "rgba(245,242,237,0.95)"
             : scrolled
               ? "rgba(245,242,237,0.92)"
               : "rgba(245,242,237,0.7)",
-          backdropFilter: skipScrollStyle ? "blur(20px)" : scrolled ? "blur(20px)" : "blur(8px)",
+          backdropFilter: skipScrollStyle ? "none" : scrolled ? "blur(20px)" : "blur(8px)",
           borderBottom: skipScrollStyle
             ? "1px solid rgba(45,36,30,0.08)"
             : scrolled

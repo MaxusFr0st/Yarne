@@ -1,4 +1,5 @@
 import { buildApiUrl, resolveApiBase } from "./base";
+import { ApiRequestError } from "./errors";
 
 const API_BASE = resolveApiBase();
 
@@ -43,14 +44,14 @@ export async function apiRequest<T>(
   }
 
   if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
+    const err = await res.json().catch(() => ({} as Record<string, unknown>));
     // ASP.NET validation errors: { errors: { Field: ["msg"] } } or { message: "..." }
     const msg = err?.message
       ?? (err?.errors && typeof err.errors === "object"
-        ? Object.values(err.errors).flat().join(". ")
+        ? Object.values(err.errors as Record<string, string[]>).flat().join(". ")
         : null)
       ?? `Request failed: ${res.status}`;
-    throw new Error(typeof msg === "string" ? msg : JSON.stringify(msg));
+    throw new ApiRequestError(typeof msg === "string" ? msg : JSON.stringify(msg), res.status, err);
   }
 
   if (res.status === 204) return undefined as T;

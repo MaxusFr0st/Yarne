@@ -108,9 +108,11 @@ const en = {
     addedToBag: "Added to Bag",
     outOfStock: "Out of stock",
     detailsTitle: "Product Details",
-    shipping: {
-      title: "Complimentary Shipping",
-      description: "Free delivery on all orders over ₴200. Returns accepted within 30 days.",
+    madeBy: "Made by {{name}}",
+    guarantee: {
+      title: "Quality Guarantee",
+      description:
+        "We guarantee the quality of our products — if anything breaks, we'll fix it for free.",
     },
     relatedEyebrow: "You may also like",
     relatedTitle: "Complete the wardrobe",

@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using YarneAPIBack.Data;
@@ -11,9 +12,11 @@ using YarneAPIBack.Data;
 namespace YarneAPIBack.Data.Migrations
 {
     [DbContext(typeof(YarneDbContext))]
-    partial class YarneDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260710134641_AddProductRecommendations")]
+    partial class AddProductRecommendations
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -1029,9 +1032,6 @@ namespace YarneAPIBack.Data.Migrations
 
                     b.Property<int>("QuantityInStock")
                         .HasColumnType("integer");
-
-                    b.Property<bool>("SuggestionsConfigured")
-                        .HasColumnType("boolean");
 
                     b.HasKey("Id")
                         .HasName("PK__Product__3214EC07CAFE7D6A");

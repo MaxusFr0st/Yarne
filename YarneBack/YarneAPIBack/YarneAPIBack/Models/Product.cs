@@ -39,6 +39,8 @@ public partial class Product
 
     public bool Lace { get; set; }
 
+    public bool SuggestionsConfigured { get; set; }
+
     public DateTime CreatedAt { get; set; }
 
     public virtual Category Category { get; set; } = null!;
@@ -58,4 +60,6 @@ public partial class Product
     public virtual ICollection<ProductColor> ProductColors { get; set; } = new List<ProductColor>();
 
     public virtual ICollection<ProductSize> ProductSizes { get; set; } = new List<ProductSize>();
+
+    public virtual ICollection<ProductRecommendation> Recommendations { get; set; } = new List<ProductRecommendation>();
 }

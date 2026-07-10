@@ -17,6 +17,7 @@ public class StorefrontSettingsController : ControllerBase
             ["yarne.featuredShowcase.v1"] = "Featured showcase",
             ["yarne.home.sections.v1"] = "Home sections",
             ["yarne.home.media.v1"] = "Home page media",
+            ["yarne.product.guarantee.v1"] = "Product page guarantee",
         };
 
     private readonly IStorefrontSettingsService _settings;
@@ -57,6 +58,13 @@ public class StorefrontSettingsController : ControllerBase
         var valueJson = value.GetRawText();
         if (valueJson.Length > 256_000)
             return BadRequest(new { message = "Setting payload is too large." });
+
+        if (string.Equals(key, "yarne.product.guarantee.v1", StringComparison.Ordinal))
+        {
+            var guaranteeError = StorefrontSettingValidators.ValidateProductGuarantee(value);
+            if (guaranteeError != null)
+                return BadRequest(new { message = guaranteeError });
+        }
 
         var saved = await _settings.UpsertValueJsonAsync(key, valueJson, ct);
 

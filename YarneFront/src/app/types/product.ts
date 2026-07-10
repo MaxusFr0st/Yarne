@@ -31,4 +31,8 @@ export interface Product {
   description: string;
   details: string[];
   colors: ColorVariant[];
+  suggestedProductCodes?: string[];
+  suggestedProducts?: Product[];
+  hasConfiguredSuggestions?: boolean;
+  producerName?: string;
 }

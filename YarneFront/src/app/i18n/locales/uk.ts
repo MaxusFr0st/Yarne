@@ -110,9 +110,11 @@ const uk: Translations = {
     addedToBag: "Додано до кошика",
     outOfStock: "Немає в наявності",
     detailsTitle: "Деталі товару",
-    shipping: {
-      title: "Безкоштовна доставка",
-      description: "Безкоштовна доставка для замовлень від ₴200. Повернення протягом 30 днів.",
+    madeBy: "Виробник: {{name}}",
+    guarantee: {
+      title: "Гарантія якості",
+      description:
+        "Ми гарантуємо якість наших виробів — якщо щось зламається, ми безкоштовно відремонтуємо.",
     },
     relatedEyebrow: "Вам також може сподобатися",
     relatedTitle: "Завершіть гардероб",
@@ -121,9 +123,9 @@ const uk: Translations = {
     wishlistAdd: "Додати до списку бажань",
     wishlistRemove: "Видалити зі списку бажань",
     lace: {
-      label: "Мереживо",
-      withLace: "З мереживом",
-      withoutLace: "Без мережива",
+      label: "Ремінець",
+      withLace: "З ремінцем",
+      withoutLace: "Без ремінця",
     },
   },
   cart: {

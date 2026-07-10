@@ -3,6 +3,7 @@ import { motion, AnimatePresence, useReducedMotion, LayoutGroup } from "motion/r
 import { X, Eye, EyeOff } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useOverlay, useAuth } from "../context/AppContext";
+import { useTouchMobileLayout } from "../hooks/useTouchMobileLayout";
 import { appleClientId, appleRedirectUri, isAppleOAuthEnabled, isGoogleOAuthEnabled, isOAuthEnabled } from "../config/oauth";
 import { LoginGoogleButton } from "./LoginGoogleButton";
 
@@ -80,6 +81,7 @@ export function LoginModal() {
   const { loginOpen, closeLogin } = useOverlay();
   const { login, loginWithOAuth, register } = useAuth();
   const reduceMotion = useReducedMotion();
+  const touchMobile = useTouchMobileLayout();
   const titleId = useId();
   const panelRef = useRef<HTMLDivElement>(null);
   const emailRef = useRef<HTMLInputElement>(null);
@@ -239,7 +241,10 @@ export function LoginModal() {
             type="button"
             aria-label={t("auth.closeSignInDialog")}
             className="fixed inset-0 z-50 cursor-default"
-            style={{ backgroundColor: "rgba(45,36,30,0.38)", backdropFilter: "blur(10px)" }}
+            style={{
+              backgroundColor: touchMobile ? "rgba(45,36,30,0.45)" : "rgba(45,36,30,0.38)",
+              backdropFilter: touchMobile ? "none" : "blur(10px)",
+            }}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import useEmblaCarousel from "embla-carousel-react";
 import { motion, AnimatePresence, LayoutGroup, useReducedMotion } from "motion/react";
 import { ArrowLeft, Heart, ShoppingBag, Check, ChevronDown } from "lucide-react";
@@ -8,6 +8,10 @@ import type { Locale } from "../i18n/config";
 import { PriceTag } from "./PriceTag";
 import { ImageWithFallback } from "./figma/ImageWithFallback";
 import { CrossfadeImage } from "./figma/CrossfadeImage";
+import { ProductGuaranteeBlock } from "./ProductGuaranteeBlock";
+import type { ProductGuaranteeContent } from "../utils/productGuaranteeContent";
+import { getSupplementaryProductDetails, hasSupplementaryProductDetails } from "../utils/productDetails";
+import { useTouchMobileLayout } from "../hooks/useTouchMobileLayout";
 
 type MobileProductDetailViewProps = {
   product: Product;
@@ -29,6 +33,7 @@ type MobileProductDetailViewProps = {
   onColorChange: (index: number) => void;
   onSizeChange: (size: string) => void;
   onAddToBag: () => void;
+  guaranteeContent: ProductGuaranteeContent;
 };
 
 export function MobileProductDetailView({
@@ -51,11 +56,15 @@ export function MobileProductDetailView({
   onColorChange,
   onSizeChange,
   onAddToBag,
+  guaranteeContent,
 }: MobileProductDetailViewProps) {
   const { t } = useTranslation();
   const reduceMotion = useReducedMotion();
+  const touchMobile = useTouchMobileLayout();
+  const motionEnabled = !touchMobile && !reduceMotion;
   const [galleryIndex, setGalleryIndex] = useState(0);
   const [descriptionOpen, setDescriptionOpen] = useState(false);
+  const [detailsOpen, setDetailsOpen] = useState(false);
   const imageKey = images.join("|");
   const canLoop = images.length > 1;
 
@@ -63,7 +72,7 @@ export function MobileProductDetailView({
     loop: canLoop,
     align: "center",
     containScroll: false,
-    duration: reduceMotion ? 0 : 22,
+    duration: touchMobile || reduceMotion ? 0 : 22,
     skipSnaps: false,
   });
 
@@ -93,6 +102,11 @@ export function MobileProductDetailView({
   const safeGalleryIndex = images.length ? ((galleryIndex % images.length) + images.length) % images.length : 0;
   const gallerySlides = images.length > 0 ? images : [""];
   const transitionEase = [0.25, 0.1, 0.25, 1] as const;
+  const extraDetails = useMemo(
+    () => getSupplementaryProductDetails(product),
+    [product.details]
+  );
+  const showDetailsAccordion = hasSupplementaryProductDetails(product);
 
   return (
     <div className="md:hidden relative pt-[var(--main-header-h)]">
@@ -206,38 +220,28 @@ export function MobileProductDetailView({
             <PriceTag amount={product.price} locale={locale} variant="display" />
           </div>
 
-          <button
-            type="button"
-            onClick={() => setDescriptionOpen((open) => !open)}
-            className="flex w-full items-center justify-between gap-2 shrink-0 cursor-pointer text-left"
-            aria-expanded={descriptionOpen}
+          <MobileAccordionSection
+            title={t("product.description")}
+            open={descriptionOpen}
+            onToggle={() => setDescriptionOpen((open) => !open)}
+            motionEnabled={motionEnabled}
           >
-            <span
-              className="text-[#2D241E] uppercase"
-              style={{
-                fontFamily: "'DM Sans', sans-serif",
-                letterSpacing: "0.14em",
-                fontSize: "clamp(0.58rem, 2.3vw, 0.68rem)",
-              }}
-            >
-              {t("product.description")}
-            </span>
-            <motion.span animate={{ rotate: descriptionOpen ? 180 : 0 }} transition={{ duration: 0.25 }}>
-              <ChevronDown size={15} className="text-[#2D241E]/50" strokeWidth={1.5} />
-            </motion.span>
-          </button>
-
-          <AnimatePresence initial={false}>
-            {descriptionOpen && (
-              <motion.div
-                initial={{ height: 0, opacity: 0 }}
-                animate={{ height: "auto", opacity: 1 }}
-                exit={{ height: 0, opacity: 0 }}
-                transition={{ duration: 0.3, ease: [0.25, 0.1, 0.25, 1] }}
-                className="overflow-hidden shrink-0"
-              >
+            <div className="flex flex-col gap-[clamp(6px,1.4vw,8px)] pb-0.5">
+              {product.subtitle ? (
                 <p
-                  className="text-[#2D241E]/65 pb-0.5"
+                  className="text-[#2D241E]/60"
+                  style={{
+                    fontFamily: "'DM Sans', sans-serif",
+                    fontSize: "clamp(0.7rem, 2.7vw, 0.8rem)",
+                    lineHeight: 1.45,
+                  }}
+                >
+                  {product.subtitle}
+                </p>
+              ) : null}
+              {product.description ? (
+                <p
+                  className="text-[#2D241E]/65"
                   style={{
                     fontFamily: "'DM Sans', sans-serif",
                     fontSize: "clamp(0.72rem, 2.9vw, 0.84rem)",
@@ -246,9 +250,48 @@ export function MobileProductDetailView({
                 >
                   {product.description}
                 </p>
-              </motion.div>
-            )}
-          </AnimatePresence>
+              ) : null}
+            </div>
+          </MobileAccordionSection>
+
+          {showDetailsAccordion ? (
+            <MobileAccordionSection
+              title={t("product.detailsTitle")}
+              open={detailsOpen}
+              onToggle={() => setDetailsOpen((open) => !open)}
+              motionEnabled={motionEnabled}
+            >
+              <ul className="space-y-[clamp(6px,1.4vw,8px)] pb-0.5">
+                {product.producerName ? (
+                  <li
+                    className="flex items-start gap-[clamp(8px,2vw,10px)] text-[#2D241E]/60"
+                    style={{
+                      fontFamily: "'DM Sans', sans-serif",
+                      fontSize: "clamp(0.72rem, 2.9vw, 0.84rem)",
+                      lineHeight: 1.5,
+                    }}
+                  >
+                    <span className="mt-[0.45em] w-1 h-1 rounded-full bg-[#4A0E0E] shrink-0" />
+                    {t("product.madeBy", { name: product.producerName })}
+                  </li>
+                ) : null}
+                {extraDetails.map((detail) => (
+                  <li
+                    key={detail}
+                    className="flex items-start gap-[clamp(8px,2vw,10px)] text-[#2D241E]/60"
+                    style={{
+                      fontFamily: "'DM Sans', sans-serif",
+                      fontSize: "clamp(0.72rem, 2.9vw, 0.84rem)",
+                      lineHeight: 1.5,
+                    }}
+                  >
+                    <span className="mt-[0.45em] w-1 h-1 rounded-full bg-[#4A0E0E] shrink-0" />
+                    {detail}
+                  </li>
+                ))}
+              </ul>
+            </MobileAccordionSection>
+          ) : null}
 
           <div className="shrink-0">
             <div className="flex items-center justify-between mb-[clamp(4px,1vw,6px)]">
@@ -283,26 +326,42 @@ export function MobileProductDetailView({
               </p>
             </div>
             <div className="flex flex-wrap gap-[clamp(8px,2vw,10px)] pl-[6px] pr-[4px] py-[4px]">
-              {product.colors.map((color, i) => (
-                <motion.button
-                  key={color.name}
-                  type="button"
-                  onClick={() => onColorChange(i)}
-                  title={color.name}
-                  className="relative shrink-0 rounded-full cursor-pointer"
-                  animate={{
-                    scale: i === activeColor ? 1.08 : 1,
-                  }}
-                  transition={{ duration: 0.22, ease: transitionEase }}
-                  style={{
-                    width: "clamp(28px, 7vw, 34px)",
-                    height: "clamp(28px, 7vw, 34px)",
-                    backgroundColor: color.hex,
-                    border: i === activeColor ? "2px solid #2D241E" : "1.5px solid rgba(45,36,30,0.18)",
-                    boxShadow: i === activeColor ? "0 0 0 2px #FAF8F5, 0 0 0 4px #2D241E" : "none",
-                  }}
-                />
-              ))}
+              {product.colors.map((color, i) => {
+                const isActive = i === activeColor;
+                const colorStyle = {
+                  width: "clamp(28px, 7vw, 34px)",
+                  height: "clamp(28px, 7vw, 34px)",
+                  backgroundColor: color.hex,
+                  border: isActive ? "2px solid #2D241E" : "1.5px solid rgba(45,36,30,0.18)",
+                  boxShadow: isActive ? "0 0 0 2px #FAF8F5, 0 0 0 4px #2D241E" : "none",
+                } as const;
+
+                if (!motionEnabled) {
+                  return (
+                    <button
+                      key={color.name}
+                      type="button"
+                      onClick={() => onColorChange(i)}
+                      title={color.name}
+                      className="relative shrink-0 rounded-full cursor-pointer"
+                      style={colorStyle}
+                    />
+                  );
+                }
+
+                return (
+                  <motion.button
+                    key={color.name}
+                    type="button"
+                    onClick={() => onColorChange(i)}
+                    title={color.name}
+                    className="relative shrink-0 rounded-full cursor-pointer"
+                    animate={{ scale: isActive ? 1.08 : 1 }}
+                    transition={{ duration: 0.22, ease: transitionEase }}
+                    style={colorStyle}
+                  />
+                );
+              })}
             </div>
           </div>
 
@@ -338,15 +397,16 @@ export function MobileProductDetailView({
                         fontSize: "clamp(0.66rem, 2.5vw, 0.76rem)",
                         padding: "clamp(6px, 1.6vw, 8px) clamp(12px, 3vw, 16px)",
                         color: activeLace === opt.value ? "#F5F2ED" : "#2D241E",
+                        backgroundColor: !motionEnabled && activeLace === opt.value ? "#2D241E" : "transparent",
                         transition: "color 0.22s ease",
                       }}
                     >
-                      {activeLace === opt.value && (
+                      {motionEnabled && activeLace === opt.value && (
                         <motion.span
                           layoutId="mobile-lace-pill"
                           className="absolute inset-0 rounded-full bg-[#2D241E]"
                           style={{ zIndex: -1 }}
-                          transition={{ duration: reduceMotion ? 0 : 0.28, ease: transitionEase }}
+                          transition={{ duration: 0.28, ease: transitionEase }}
                         />
                       )}
                       <span className="relative">{opt.label}</span>
@@ -390,34 +450,51 @@ export function MobileProductDetailView({
                   gridTemplateColumns: `repeat(${Math.min(displaySizes.length, 5)}, minmax(0, 1fr))`,
                 }}
               >
-                {displaySizes.map((size) => (
-                  <motion.button
-                    key={size}
-                    type="button"
-                    onClick={() => onSizeChange(size)}
-                    className="relative w-full rounded-full cursor-pointer"
-                    animate={{
-                      scale: activeSize === size ? 1.02 : 1,
-                    }}
-                    transition={{ duration: 0.2, ease: transitionEase }}
-                    style={{
-                      fontFamily: "'DM Sans', sans-serif",
-                      fontSize: "clamp(0.66rem, 2.5vw, 0.76rem)",
-                      letterSpacing: "0.04em",
-                      padding: "clamp(6px, 1.6vw, 8px) clamp(4px, 1vw, 6px)",
-                      backgroundColor: activeSize === size ? "#2D241E" : "transparent",
-                      color: activeSize === size ? "#F5F2ED" : "#2D241E",
-                      border: activeSize === size
-                        ? "1.5px solid #2D241E"
-                        : sizeError
-                          ? "1.5px solid rgba(74,14,14,0.5)"
-                          : "1.5px solid rgba(45,36,30,0.2)",
-                      transition: "background-color 0.22s ease, color 0.22s ease, border-color 0.22s ease",
-                    }}
-                  >
-                    {size}
-                  </motion.button>
-                ))}
+                {displaySizes.map((size) => {
+                  const isActive = activeSize === size;
+                  const sizeStyle = {
+                    fontFamily: "'DM Sans', sans-serif",
+                    fontSize: "clamp(0.66rem, 2.5vw, 0.76rem)",
+                    letterSpacing: "0.04em",
+                    padding: "clamp(6px, 1.6vw, 8px) clamp(4px, 1vw, 6px)",
+                    backgroundColor: isActive ? "#2D241E" : "transparent",
+                    color: isActive ? "#F5F2ED" : "#2D241E",
+                    border: isActive
+                      ? "1.5px solid #2D241E"
+                      : sizeError
+                        ? "1.5px solid rgba(74,14,14,0.5)"
+                        : "1.5px solid rgba(45,36,30,0.2)",
+                    transition: "background-color 0.22s ease, color 0.22s ease, border-color 0.22s ease",
+                  } as const;
+
+                  if (!motionEnabled) {
+                    return (
+                      <button
+                        key={size}
+                        type="button"
+                        onClick={() => onSizeChange(size)}
+                        className="relative w-full rounded-full cursor-pointer"
+                        style={sizeStyle}
+                      >
+                        {size}
+                      </button>
+                    );
+                  }
+
+                  return (
+                    <motion.button
+                      key={size}
+                      type="button"
+                      onClick={() => onSizeChange(size)}
+                      className="relative w-full rounded-full cursor-pointer"
+                      animate={{ scale: isActive ? 1.02 : 1 }}
+                      transition={{ duration: 0.2, ease: transitionEase }}
+                      style={sizeStyle}
+                    >
+                      {size}
+                    </motion.button>
+                  );
+                })}
               </div>
               <AnimatePresence>
                 {sizeError && (
@@ -447,7 +524,7 @@ export function MobileProductDetailView({
             letterSpacing: "0.12em",
             padding: "clamp(11px, 2.6svh, 14px) clamp(16px, 4vw, 20px)",
           }}
-          whileTap={{ scale: 0.98 }}
+          whileTap={motionEnabled ? { scale: 0.98 } : undefined}
         >
           {addedToBag ? (
             <>
@@ -463,6 +540,67 @@ export function MobileProductDetailView({
             </>
           )}
           </motion.button>
+
+          <ProductGuaranteeBlock
+            content={guaranteeContent}
+            locale={locale}
+            className="mt-[clamp(10px,2svh,14px)]"
+          />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+const accordionHeaderStyle = {
+  fontFamily: "'DM Sans', sans-serif",
+  letterSpacing: "0.14em",
+  fontSize: "clamp(0.58rem, 2.3vw, 0.68rem)",
+} as const;
+
+type MobileAccordionSectionProps = {
+  title: string;
+  open: boolean;
+  onToggle: () => void;
+  motionEnabled: boolean;
+  children: ReactNode;
+};
+
+function MobileAccordionSection({
+  title,
+  open,
+  onToggle,
+  motionEnabled,
+  children,
+}: MobileAccordionSectionProps) {
+  return (
+    <div className="shrink-0">
+      <button
+        type="button"
+        onClick={onToggle}
+        className="flex w-full items-center justify-between gap-2 cursor-pointer text-left"
+        aria-expanded={open}
+      >
+        <span className="text-[#2D241E] uppercase" style={accordionHeaderStyle}>
+          {title}
+        </span>
+        <motion.span
+          animate={{ rotate: open ? 180 : 0 }}
+          transition={{ duration: motionEnabled ? 0.25 : 0 }}
+        >
+          <ChevronDown size={15} className="text-[#2D241E]/50" strokeWidth={1.5} />
+        </motion.span>
+      </button>
+      <div
+        className="grid overflow-hidden transition-[grid-template-rows,opacity] ease-[cubic-bezier(0.25,0.1,0.25,1)]"
+        style={{
+          gridTemplateRows: open ? "1fr" : "0fr",
+          opacity: open ? 1 : 0,
+          transitionDuration: motionEnabled ? "300ms" : "0ms",
+        }}
+      >
+        <div className="min-h-0 overflow-hidden">
+          {children}
         </div>
       </div>
     </div>

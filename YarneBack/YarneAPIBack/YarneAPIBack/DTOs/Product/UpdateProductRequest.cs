@@ -83,4 +83,11 @@ public class UpdateProductRequest
     public bool? IsBestseller { get; set; }
 
     public bool Lace { get; set; }
+
+    /// <summary>
+    /// Optional on update. Null = keep existing suggestions.
+    /// Empty list = clear all suggestions.
+    /// </summary>
+    [MaxLength(10)]
+    public List<string>? SuggestedProductCodes { get; set; }
 }

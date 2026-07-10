@@ -1,11 +1,12 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import useEmblaCarousel from "embla-carousel-react";
-import { motion } from "motion/react";
+import { motion, useReducedMotion } from "motion/react";
 import { useTranslation } from "react-i18next";
 import { useProducts } from "../hooks/useProducts";
 import { ProductCard } from "./ProductCard";
 import { loadCarouselSelection } from "../utils/carouselSelection";
 import { useMotionEntrance } from "../hooks/useMotionEntrance";
+import { useTouchMobileLayout } from "../hooks/useTouchMobileLayout";
 import { Skeleton } from "./ui/skeleton";
 
 const easing = [0.25, 0.1, 0.25, 1] as const;
@@ -13,12 +14,14 @@ const easing = [0.25, 0.1, 0.25, 1] as const;
 export function BestSellersCarousel() {
   const { t } = useTranslation();
   const { disabled: motionDisabled, opacityOnly } = useMotionEntrance();
+  const touchMobile = useTouchMobileLayout();
+  const reduceMotion = useReducedMotion();
   const viewportRef = useRef<HTMLDivElement>(null);
   const [emblaRef, emblaApi] = useEmblaCarousel({
     loop: true,
     align: "center",
     containScroll: "trimSnaps",
-    duration: 25,
+    duration: touchMobile || reduceMotion ? 0 : 25,
     dragFree: false,
     breakpoints: {
       "(min-width: 600px)": { align: "start" },

@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using YarneAPIBack.Configuration;
 using YarneAPIBack.DTOs.Product;
+using YarneAPIBack.Services;
 using YarneAPIBack.Services.Contracts;
 
 namespace YarneAPIBack.Controllers;
@@ -42,7 +43,10 @@ public class ProductsController : ControllerBase
         ProductDetailDto? product;
 
         if (int.TryParse(idOrCode, out var id))
-            product = await _productService.GetProductByIdAsync(id, ct);
+        {
+            var isAdmin = User.Identity?.IsAuthenticated == true && User.IsInRole("Admin");
+            product = await _productService.GetProductByIdAsync(id, activeOnly: !isAdmin, ct);
+        }
         else
             product = await _productService.GetProductByCodeAsync(idOrCode, ct);
 
@@ -63,6 +67,14 @@ public class ProductsController : ControllerBase
         try
         {
             product = await _productService.CreateProductAsync(request, ct);
+        }
+        catch (ProductValidationException ex)
+        {
+            return BadRequest(new
+            {
+                message = ex.Message,
+                invalidSuggestedCodes = ex.InvalidSuggestedCodes,
+            });
         }
         catch (InvalidOperationException ex)
         {
@@ -104,7 +116,7 @@ public class ProductsController : ControllerBase
     {
         if (request == null) return BadRequest();
 
-        var existingDetail = await _productService.GetProductByIdAsync(id, ct);
+        var existingDetail = await _productService.GetProductByIdAsync(id, ct: ct);
         var beforeImages = existingDetail != null
             ? ProductLogImageHelper.CollectImageUrls(existingDetail)
             : new List<string>();
@@ -113,6 +125,14 @@ public class ProductsController : ControllerBase
         try
         {
             product = await _productService.UpdateProductAsync(id, request, ct);
+        }
+        catch (ProductValidationException ex)
+        {
+            return BadRequest(new
+            {
+                message = ex.Message,
+                invalidSuggestedCodes = ex.InvalidSuggestedCodes,
+            });
         }
         catch (InvalidOperationException ex)
         {
@@ -149,7 +169,7 @@ public class ProductsController : ControllerBase
     [ProducesResponseType(StatusCodes.Status409Conflict)]
     public async Task<ActionResult> DeleteProduct(int id, CancellationToken ct = default)
     {
-        var existing = await _productService.GetProductByIdAsync(id, ct);
+        var existing = await _productService.GetProductByIdAsync(id, ct: ct);
         bool deleted;
         try
         {

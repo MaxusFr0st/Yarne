@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useRef, useState, type CSSProperties } from "react";
 import useEmblaCarousel from "embla-carousel-react";
+import { useReducedMotion } from "motion/react";
 import { useTranslation } from "react-i18next";
 import type { Product } from "../types/product";
 import { ProductCard } from "./ProductCard";
+import { useTouchMobileLayout } from "../hooks/useTouchMobileLayout";
 
 type MobileRelatedProductsProps = {
   products: Product[];
@@ -10,12 +12,14 @@ type MobileRelatedProductsProps = {
 
 export function MobileRelatedProducts({ products }: MobileRelatedProductsProps) {
   const { t } = useTranslation();
+  const touchMobile = useTouchMobileLayout();
+  const reduceMotion = useReducedMotion();
   const viewportRef = useRef<HTMLDivElement>(null);
   const [emblaRef, emblaApi] = useEmblaCarousel({
     align: "start",
     containScroll: "trimSnaps",
     dragFree: false,
-    duration: 22,
+    duration: touchMobile || reduceMotion ? 0 : 22,
   });
   const [selectedIndex, setSelectedIndex] = useState(0);
 

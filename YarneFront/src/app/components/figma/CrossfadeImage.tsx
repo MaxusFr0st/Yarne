@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { motion, useReducedMotion } from "motion/react";
+import { useTouchMobileLayout } from "../../hooks/useTouchMobileLayout";
 import { resolveMediaUrl } from "../../utils/storefrontMedia";
 import { ImageWithFallback } from "./ImageWithFallback";
 
@@ -26,6 +27,8 @@ export function CrossfadeImage({
   objectPosition,
 }: CrossfadeImageProps) {
   const reduceMotion = useReducedMotion();
+  const touchMobile = useTouchMobileLayout();
+  const instantSwap = touchMobile || reduceMotion;
   const resolved = src ? resolveMediaUrl(src) : "";
   const [currentSrc, setCurrentSrc] = useState(resolved);
   const [previousSrc, setPreviousSrc] = useState<string | null>(null);
@@ -33,6 +36,13 @@ export function CrossfadeImage({
 
   useEffect(() => {
     if (!resolved || resolved === currentSrc) return;
+
+    if (instantSwap) {
+      pendingRef.current = null;
+      setPreviousSrc(null);
+      setCurrentSrc(resolved);
+      return;
+    }
 
     pendingRef.current = resolved;
     const img = new Image();
@@ -50,7 +60,7 @@ export function CrossfadeImage({
       pendingRef.current = null;
     };
     img.src = resolved;
-  }, [resolved, currentSrc]);
+  }, [resolved, currentSrc, instantSwap]);
 
   useEffect(() => {
     if (!previousSrc) return;
@@ -58,11 +68,11 @@ export function CrossfadeImage({
     return () => window.clearTimeout(timer);
   }, [previousSrc, currentSrc]);
 
-  const duration = reduceMotion ? 0 : FADE_MS / 1000;
+  const duration = instantSwap ? 0 : FADE_MS / 1000;
 
   return (
     <div className="absolute inset-0 overflow-hidden bg-[#EDE9E2]">
-      {previousSrc && (
+      {previousSrc && !instantSwap && (
         <motion.div
           key={`prev-${previousSrc}`}
           className="absolute inset-0"
@@ -82,7 +92,7 @@ export function CrossfadeImage({
       <motion.div
         key={`cur-${currentSrc}`}
         className="absolute inset-0"
-        initial={previousSrc && !reduceMotion ? { opacity: 0 } : false}
+        initial={previousSrc && !instantSwap ? { opacity: 0 } : false}
         animate={{ opacity: 1 }}
         transition={{ duration, ease: EASE_OUT }}
       >

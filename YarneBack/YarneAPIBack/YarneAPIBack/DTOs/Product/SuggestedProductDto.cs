@@ -1,0 +1,18 @@
+namespace YarneAPIBack.DTOs.Product;
+
+public class SuggestedProductDto
+{
+    public string ProductCode { get; set; } = null!;
+
+    public string Name { get; set; } = null!;
+
+    public decimal Price { get; set; }
+
+    public string? PrimaryImageUrl { get; set; }
+
+    public string CategoryName { get; set; } = null!;
+
+    public bool IsNew { get; set; }
+
+    public bool IsBestseller { get; set; }
+}

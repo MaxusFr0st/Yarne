@@ -6,7 +6,7 @@ public interface IProductService
 {
     Task<IReadOnlyList<ProductDto>> GetProductsAsync(string? category = null, bool? isNew = null, bool includeInactive = false, CancellationToken ct = default);
 
-    Task<ProductDetailDto?> GetProductByIdAsync(int id, CancellationToken ct = default);
+    Task<ProductDetailDto?> GetProductByIdAsync(int id, bool activeOnly = false, CancellationToken ct = default);
 
     Task<ProductDetailDto?> GetProductByCodeAsync(string productCode, CancellationToken ct = default);
 
