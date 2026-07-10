@@ -116,7 +116,7 @@ export function MobileProductDetailView({
         style={{ height: "calc(var(--app-vh, 1svh) * 58)", maxHeight: "420px" }}
       >
         <div ref={emblaRef} className="h-full overflow-hidden">
-          <div className="flex h-full [touch-action:pan-y_pinch-zoom]" style={{ willChange: "transform" }}>
+          <div className="flex h-full [touch-action:pan-y_pinch-zoom]" style={touchMobile ? undefined : { willChange: "transform" }}>
             {gallerySlides.map((src, i) => (
               <div
                 key={i}

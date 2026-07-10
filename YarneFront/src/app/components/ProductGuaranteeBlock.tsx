@@ -66,9 +66,10 @@ export function ProductGuaranteeBlock({
     </div>
   );
 
-  if (reduced) {
+  if (reduced || touch) {
     return (
       <div
+        ref={ref}
         className={`rounded-[20px] p-5 ${className}`}
         style={{ backgroundColor: "#EDE9E2" }}
       >
@@ -77,7 +78,7 @@ export function ProductGuaranteeBlock({
     );
   }
 
-  const shiftY = touch ? 0 : 8;
+  const shiftY = 8;
 
   return (
     <motion.div
@@ -86,7 +87,7 @@ export function ProductGuaranteeBlock({
       style={{ backgroundColor: "#EDE9E2" }}
       initial={{ opacity: 0, y: shiftY }}
       animate={inView ? { opacity: 1, y: 0 } : { opacity: 0, y: shiftY }}
-      transition={{ duration: touch ? 0.28 : 0.3, ease: EASE_OUT }}
+      transition={{ duration: 0.3, ease: EASE_OUT }}
     >
       {card}
     </motion.div>

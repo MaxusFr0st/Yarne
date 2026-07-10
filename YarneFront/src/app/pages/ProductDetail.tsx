@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useMemo, useState } from "react";
-import { useParams, useNavigate } from "react-router";
+import { useParams, useNavigate, useLocation } from "react-router";
 import { motion, AnimatePresence, LayoutGroup, useReducedMotion } from "motion/react";
 import { ArrowLeft, Heart, ChevronDown, ShoppingBag, Check } from "lucide-react";
 import { useTranslation } from "react-i18next";
@@ -20,6 +20,7 @@ import { resolveDisplayImages } from "../utils/variantImages";
 import { resolveDisplayStock } from "../utils/variantStock";
 import { resolveMediaUrl } from "../utils/storefrontMedia";
 import { scrollToPageTop } from "../utils/scrollToTop";
+import { clearScrollForRoute } from "../utils/scrollRestoration";
 import {
   getDefaultProductGuaranteeContent,
   loadProductGuaranteeContent,
@@ -34,6 +35,7 @@ export function ProductDetail() {
   const locale = useLocale();
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
   const { addToCart } = useCart();
   const { wishlist, toggleWishlist } = useWishlist();
   const { product, loading } = useProduct(id);
@@ -74,7 +76,19 @@ export function ProductDetail() {
 
   useLayoutEffect(() => {
     scrollToPageTop();
-  }, [id]);
+    clearScrollForRoute(location.pathname, location.search);
+  }, [id, location.pathname, location.search]);
+
+  useEffect(() => {
+    if (loading || !product) return;
+    scrollToPageTop();
+    const raf = requestAnimationFrame(() => scrollToPageTop());
+    const timer = window.setTimeout(() => scrollToPageTop(), 120);
+    return () => {
+      cancelAnimationFrame(raf);
+      window.clearTimeout(timer);
+    };
+  }, [id, loading, product?.id, location.pathname, location.search]);
 
   useEffect(() => {
     void loadProductGuaranteeContent().then(setGuaranteeContent);

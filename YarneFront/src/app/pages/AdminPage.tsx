@@ -683,7 +683,7 @@ function ProductModal({
       style={{ backgroundColor: "rgba(45,36,30,0.5)", backdropFilter: "blur(8px)" }}
     >
       <motion.div
-        className="w-full max-w-2xl lg:max-w-5xl rounded-[32px] overflow-hidden max-h-[90vh] overflow-y-auto"
+        className="w-full max-w-2xl lg:max-w-5xl rounded-[32px] overflow-hidden max-h-[90vh] flex flex-col"
         style={{ backgroundColor: "#F5F2ED" }}
         initial={{ opacity: 0, scale: 0.95, y: 20 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -692,7 +692,7 @@ function ProductModal({
       >
         {/* Modal Header */}
         <div
-          className="flex items-center justify-between p-8 pb-6"
+          className="flex shrink-0 items-center justify-between p-8 pb-6"
           style={{ borderBottom: "1px solid rgba(45,36,30,0.08)" }}
         >
           <div>
@@ -717,7 +717,7 @@ function ProductModal({
           </button>
         </div>
 
-        <div className="px-8 pt-4 flex gap-2">
+        <div className="shrink-0 px-8 pt-4 flex gap-2">
           {([
             { key: "details" as ProductModalTab, label: "Product details" },
             { key: "suggested" as ProductModalTab, label: "Suggested products" },
@@ -750,7 +750,8 @@ function ProductModal({
           </div>
         ) : null}
 
-        {/* Form */}
+        {/* Form — scrollable body keeps footer actions visible */}
+        <div className="flex-1 min-h-0 overflow-y-auto">
         <div className="p-8 space-y-6">
           {activeTab === "details" ? (
           <>
@@ -1443,11 +1444,12 @@ function ProductModal({
             </div>
           )}
         </div>
+        </div>
 
         {/* Modal Footer */}
         <div
-          className="flex items-center justify-end gap-3 px-8 py-6"
-          style={{ borderTop: "1px solid rgba(45,36,30,0.08)" }}
+          className="flex shrink-0 items-center justify-end gap-3 px-8 py-6"
+          style={{ borderTop: "1px solid rgba(45,36,30,0.08)", backgroundColor: "#F5F2ED" }}
         >
           <button
             onClick={onClose}

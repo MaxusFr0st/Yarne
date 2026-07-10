@@ -63,7 +63,12 @@ export function clearAllScrollPositions(): void {
 }
 
 /** Only list-style pages restore scroll on browser back; detail pages always open at top. */
+export function isProductDetailPath(barePath: string): boolean {
+  return /^\/product\/[^/]+/.test(barePath);
+}
+
 export function shouldRestoreScrollOnPop(barePath: string): boolean {
+  if (isProductDetailPath(barePath)) return false;
   if (barePath === "/" || barePath === "") return true;
   return barePath === "/collection" || barePath.startsWith("/collection/");
 }

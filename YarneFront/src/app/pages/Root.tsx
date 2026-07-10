@@ -14,6 +14,7 @@ import {
   clearScrollForRoute,
   consumeReturnScroll,
   entryStorageKey,
+  isProductDetailPath,
   markReturnScroll,
   persistScrollPosition,
   readScrollPositions,
@@ -117,6 +118,15 @@ export function Root() {
       }
     }
 
+    const barePath = stripLocaleFromPath(location.pathname);
+
+    if (isProductDetailPath(barePath)) {
+      snapScroll(0);
+      clearScrollForRoute(location.pathname, location.search);
+      requestAnimationFrame(() => snapScroll(0));
+      return;
+    }
+
     const preserved = consumePreservedScroll();
     if (preserved != null) {
       restoreScrollPosition(preserved, (cleanup) => {
@@ -125,7 +135,6 @@ export function Root() {
       return;
     }
 
-    const barePath = stripLocaleFromPath(location.pathname);
     const restoreOnPop = navigationType === "POP" && shouldRestoreScrollOnPop(barePath);
 
     if (restoreOnPop) {

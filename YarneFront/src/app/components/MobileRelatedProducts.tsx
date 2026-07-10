@@ -75,7 +75,7 @@ export function MobileRelatedProducts({ products }: MobileRelatedProductsProps) 
       >
         <div
           className="flex items-start [touch-action:pan-y_pinch-zoom]"
-          style={{ marginLeft: "calc(var(--slide-spacing) * -1)", willChange: "transform" }}
+          style={{ marginLeft: "calc(var(--slide-spacing) * -1)", ...(touchMobile || reduceMotion ? {} : { willChange: "transform" }) }}
         >
           {products.map((product, i) => (
             <div
