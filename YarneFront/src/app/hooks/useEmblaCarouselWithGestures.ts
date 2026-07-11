@@ -20,11 +20,12 @@ export function useEmblaCarouselWithGestures(
   plugins: EmblaPluginType[] = [],
   gestureOptions: GestureOptions = {},
 ): EmblaCarouselType {
-  const { wheelAxis } = gestureOptions;
+  // Horizontal carousels: listen on Y so vertical trackpad / mouse-wheel scroll advances slides.
+  const { wheelAxis = "y" } = gestureOptions;
 
   return useEmblaCarousel(options, [
     WheelGesturesPlugin({
-      ...(wheelAxis ? { forceWheelAxis: wheelAxis } : {}),
+      forceWheelAxis: wheelAxis,
       wheelDraggingClass: "",
     }),
     ...plugins,

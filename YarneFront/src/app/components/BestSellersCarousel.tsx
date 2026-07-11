@@ -26,7 +26,7 @@ export function BestSellersCarousel() {
     breakpoints: {
       "(min-width: 600px)": { align: "start" },
     },
-  }, [], { wheelAxis: "x" });
+  }, [], { wheelAxis: "y" });
 
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [scrollSnaps, setScrollSnaps] = useState<number[]>([]);

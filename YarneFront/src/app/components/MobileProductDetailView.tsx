@@ -74,7 +74,7 @@ export function MobileProductDetailView({
     containScroll: false,
     duration: touchMobile || reduceMotion ? 0 : 22,
     skipSnaps: false,
-  }, [], { wheelAxis: "x" });
+  }, [], { wheelAxis: "y" });
 
   const onGallerySelect = useCallback(() => {
     if (!emblaApi) return;

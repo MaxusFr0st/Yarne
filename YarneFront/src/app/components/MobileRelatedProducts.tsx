@@ -20,7 +20,7 @@ export function MobileRelatedProducts({ products }: MobileRelatedProductsProps) 
     containScroll: "trimSnaps",
     dragFree: false,
     duration: touchMobile || reduceMotion ? 0 : 22,
-  }, [], { wheelAxis: "x" });
+  }, [], { wheelAxis: "y" });
   const [selectedIndex, setSelectedIndex] = useState(0);
 
   const onSelect = useCallback(() => {

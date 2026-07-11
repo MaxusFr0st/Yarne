@@ -56,7 +56,8 @@ function Carousel({
     const extra = plugins ? (Array.isArray(plugins) ? plugins : [plugins]) : [];
     return [
       WheelGesturesPlugin({
-        forceWheelAxis: orientation === "horizontal" ? "x" : "y",
+        // Vertical trackpad / wheel scroll drives horizontal carousel movement.
+        forceWheelAxis: orientation === "horizontal" ? "y" : "x",
         wheelDraggingClass: "",
       }),
       ...extra,
