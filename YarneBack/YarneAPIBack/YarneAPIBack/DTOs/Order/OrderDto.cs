@@ -10,6 +10,8 @@ public class OrderDto
 
     public string CustomerEmail { get; set; } = string.Empty;
 
+    public string? CustomerPhoneNumber { get; set; }
+
     public decimal Total { get; set; }
 
     public string Status { get; set; } = string.Empty;

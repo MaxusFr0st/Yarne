@@ -148,9 +148,13 @@ public class OrdersController : ControllerBase
         if (customerId == null)
             return Unauthorized();
 
-        var customerExists = await _context.Customers.AnyAsync(c => c.Id == customerId.Value, ct);
-        if (!customerExists)
+        var customer = await _context.Customers.FirstOrDefaultAsync(c => c.Id == customerId.Value, ct);
+        if (customer == null)
             return BadRequest(new { message = "Customer account was not found." });
+
+        var contactPhone = NormalizePhone(request.PhoneNumber);
+        if (string.IsNullOrWhiteSpace(contactPhone))
+            return BadRequest(new { message = "Phone number is required." });
 
         if (request.ShippingAddrId.HasValue)
         {
@@ -267,11 +271,14 @@ public class OrdersController : ControllerBase
         }
 
         var orderTotal = orderItems.Sum(i => i.UnitPrice * i.Quantity);
+        customer.PhoneNumber = contactPhone;
+
         var order = new Order
         {
             CustomerId = customerId.Value,
             PaymentMethodId = paymentMethodId,
             ShippingAddrId = request.ShippingAddrId,
+            ContactPhone = contactPhone,
             Status = "Pending",
             Total = orderTotal,
             OrderDate = DateTime.UtcNow,
@@ -433,6 +440,7 @@ public class OrdersController : ControllerBase
             CustomerId = order.CustomerId,
             CustomerName = customerName,
             CustomerEmail = customer?.Email ?? string.Empty,
+            CustomerPhoneNumber = order.ContactPhone ?? customer?.PhoneNumber,
             Total = order.Total,
             Status = order.Status,
             OrderDate = order.OrderDate,
@@ -525,6 +533,14 @@ public class OrdersController : ControllerBase
     {
         if (string.IsNullOrWhiteSpace(value)) return null;
         return value.Trim();
+    }
+
+    private static string? NormalizePhone(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value)) return null;
+        var trimmed = value.Trim();
+        if (trimmed.Length < 8 || trimmed.Length > 20) return null;
+        return trimmed;
     }
 
     private OrderConfirmationEmailMessage BuildOrderStatusMessage(Order order, OrderEmailEvent emailEvent)

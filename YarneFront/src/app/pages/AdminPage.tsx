@@ -61,6 +61,7 @@ import {
   ChevronDown,
   ChevronUp,
   RefreshCw,
+  Phone,
 } from "lucide-react";
 import { fetchActivityLogs, type AdminActivityLogDto } from "../api/admin";
 import { fetchProduct } from "../api/products";
@@ -2095,6 +2096,7 @@ export function AdminPage() {
           o.id.toString().includes(search) ||
           o.customerName.toLowerCase().includes(search) ||
           o.customerEmail.toLowerCase().includes(search) ||
+          (o.customerPhoneNumber ?? "").toLowerCase().includes(search) ||
           o.status.toLowerCase().includes(search)
         );
       }),
@@ -4077,6 +4079,20 @@ export function AdminPage() {
                             <PriceTag amount={order.total} locale="uk" />
                           </div>
                           <p className="text-[#2D241E]/45 text-xs col-span-2 truncate">{order.customerEmail}</p>
+                          {order.customerPhoneNumber ? (
+                            <a
+                              href={`tel:${order.customerPhoneNumber.replace(/\s+/g, "")}`}
+                              className="text-[#4A0E0E] text-xs col-span-2 inline-flex items-center gap-1.5 hover:opacity-80 transition-opacity"
+                              style={{ fontFamily: "'DM Sans', sans-serif" }}
+                            >
+                              <Phone size={12} />
+                              {order.customerPhoneNumber}
+                            </a>
+                          ) : (
+                            <p className="text-[#2D241E]/35 text-xs col-span-2" style={{ fontFamily: "'DM Sans', sans-serif" }}>
+                              No phone
+                            </p>
+                          )}
                         </div>
 
                         {isExpanded && order.items.length > 0 && (
@@ -4221,6 +4237,20 @@ export function AdminPage() {
                               <p className="text-[#2D241E]/40 text-xs truncate" style={{ fontFamily: "'DM Sans', sans-serif" }}>
                                 {order.customerEmail}
                               </p>
+                              {order.customerPhoneNumber ? (
+                                <a
+                                  href={`tel:${order.customerPhoneNumber.replace(/\s+/g, "")}`}
+                                  className="text-[#4A0E0E] text-xs truncate inline-flex items-center gap-1 hover:opacity-80 transition-opacity mt-0.5"
+                                  style={{ fontFamily: "'DM Sans', sans-serif" }}
+                                >
+                                  <Phone size={11} />
+                                  {order.customerPhoneNumber}
+                                </a>
+                              ) : (
+                                <p className="text-[#2D241E]/35 text-xs truncate mt-0.5" style={{ fontFamily: "'DM Sans', sans-serif" }}>
+                                  No phone
+                                </p>
+                              )}
                             </div>
                             <div>
                               <PriceTag amount={order.total} locale="uk" />

@@ -116,6 +116,7 @@ function mapOrderDtoToAdminOrder(o: OrderDto): {
   id: number;
   customerName: string;
   customerEmail: string;
+  customerPhoneNumber: string | null;
   total: number;
   status: string;
   itemCount: number;
@@ -128,6 +129,7 @@ function mapOrderDtoToAdminOrder(o: OrderDto): {
     id: o.id,
     customerName: o.customerName,
     customerEmail: o.customerEmail,
+    customerPhoneNumber: o.customerPhoneNumber ?? null,
     total: Number(o.total),
     status: o.status,
     itemCount: o.items.length,

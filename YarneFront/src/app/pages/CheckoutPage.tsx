@@ -32,6 +32,7 @@ export function CheckoutPage() {
   const { t } = useTranslation();
   const locale = useLocale();
   const { cartItems, cartTotal, isLoggedIn, user, openLogin, clearCart } = useApp();
+  const [phoneNumber, setPhoneNumber] = useState("");
   const [placingOrder, setPlacingOrder] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [placedOrder, setPlacedOrder] = useState<OrderDto | null>(null);
@@ -45,8 +46,15 @@ export function CheckoutPage() {
   const displaySubtotal = placedOrder ? Number(placedOrder.total) || snapshotTotal : cartTotal;
   const displayTotal = displaySubtotal;
 
+  const normalizedPhone = phoneNumber.trim();
+  const isPhoneValid = normalizedPhone.length >= 8 && normalizedPhone.length <= 20;
+
   const placeOrder = async () => {
     if (!isLoggedIn || cartItems.length === 0 || placingOrder) return;
+    if (!isPhoneValid) {
+      setError(t(normalizedPhone.length === 0 ? "checkout.phoneRequired" : "checkout.phoneInvalid"));
+      return;
+    }
     setPlacingOrder(true);
     setError(null);
     const snapshot = [...cartItems];
@@ -55,6 +63,7 @@ export function CheckoutPage() {
 
     try {
       const order = await createOrder({
+        phoneNumber: normalizedPhone,
         items: snapshot.map((item) => ({
           productIdOrCode: item.productId,
           quantity: item.quantity,
@@ -244,6 +253,31 @@ export function CheckoutPage() {
             </div>
           </div>
 
+          {!placedOrder && (
+            <div className="pb-5 border-b border-[#2D241E]/10">
+              <label
+                htmlFor="checkout-phone"
+                className="block text-[#2D241E]/55 uppercase tracking-widest text-xs mb-2"
+                style={{ fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.1em" }}
+              >
+                {t("checkout.phoneNumber")}
+              </label>
+              <input
+                id="checkout-phone"
+                type="tel"
+                autoComplete="tel"
+                value={phoneNumber}
+                onChange={(e) => {
+                  setPhoneNumber(e.target.value);
+                  if (error) setError(null);
+                }}
+                placeholder={t("checkout.phonePlaceholder")}
+                className="w-full rounded-[16px] border bg-[#F5F2ED]/80 px-4 py-3 text-[#2D241E] focus:outline-none"
+                style={{ borderColor: "rgba(45,36,30,0.15)", fontFamily: "'DM Sans', sans-serif", fontSize: "0.9rem" }}
+              />
+            </div>
+          )}
+
           {placedOrder ? (
             <div className="mt-6">
               <div className="rounded-[20px] p-4 mb-4" style={{ backgroundColor: "rgba(45,106,79,0.08)" }}>
@@ -270,14 +304,21 @@ export function CheckoutPage() {
               </LangLink>
             </div>
           ) : (
+            <>
+              {error && (
+                <p className="mt-4 text-sm text-[#4A0E0E]" style={{ fontFamily: "'DM Sans', sans-serif" }}>
+                  {error}
+                </p>
+              )}
             <button
               onClick={placeOrder}
-              disabled={placingOrder || cartItems.length === 0}
+              disabled={placingOrder || cartItems.length === 0 || !isPhoneValid}
               className="mt-6 w-full py-4 rounded-full text-[#F5F2ED] uppercase tracking-widest transition-all duration-300 disabled:opacity-60"
               style={{ backgroundColor: "#2D241E", fontFamily: "'DM Sans', sans-serif", fontSize: "0.78rem", letterSpacing: "0.14em" }}
             >
               {placingOrder ? t("checkout.placingOrder") : t("checkout.placeOrder")}
             </button>
+            </>
           )}
         </motion.aside>
       </div>
