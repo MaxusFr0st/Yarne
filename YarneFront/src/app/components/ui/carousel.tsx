@@ -4,6 +4,7 @@ import * as React from "react";
 import useEmblaCarousel, {
   type UseEmblaCarouselType,
 } from "embla-carousel-react";
+import { WheelGesturesPlugin } from "embla-carousel-wheel-gestures";
 import { ArrowLeft, ArrowRight } from "lucide-react";
 
 import { cn } from "./utils";
@@ -51,12 +52,23 @@ function Carousel({
   children,
   ...props
 }: React.ComponentProps<"div"> & CarouselProps) {
+  const resolvedPlugins = React.useMemo(() => {
+    const extra = plugins ? (Array.isArray(plugins) ? plugins : [plugins]) : [];
+    return [
+      WheelGesturesPlugin({
+        forceWheelAxis: orientation === "horizontal" ? "x" : "y",
+        wheelDraggingClass: "",
+      }),
+      ...extra,
+    ];
+  }, [plugins, orientation]);
+
   const [carouselRef, api] = useEmblaCarousel(
     {
       ...opts,
       axis: orientation === "horizontal" ? "x" : "y",
     },
-    plugins,
+    resolvedPlugins,
   );
   const [canScrollPrev, setCanScrollPrev] = React.useState(false);
   const [canScrollNext, setCanScrollNext] = React.useState(false);

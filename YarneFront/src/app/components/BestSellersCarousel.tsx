@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import useEmblaCarousel from "embla-carousel-react";
+import { useEmblaCarouselWithGestures } from "../hooks/useEmblaCarouselWithGestures";
 import { motion, useReducedMotion } from "motion/react";
 import { useHomePageCopy } from "../hooks/useHomePageCopy";
 import { useProducts } from "../hooks/useProducts";
@@ -17,7 +17,7 @@ export function BestSellersCarousel() {
   const touchMobile = useTouchMobileLayout();
   const reduceMotion = useReducedMotion();
   const viewportRef = useRef<HTMLDivElement>(null);
-  const [emblaRef, emblaApi] = useEmblaCarousel({
+  const [emblaRef, emblaApi] = useEmblaCarouselWithGestures({
     loop: true,
     align: "center",
     containScroll: "trimSnaps",
@@ -26,7 +26,7 @@ export function BestSellersCarousel() {
     breakpoints: {
       "(min-width: 600px)": { align: "start" },
     },
-  });
+  }, [], { wheelAxis: "x" });
 
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [scrollSnaps, setScrollSnaps] = useState<number[]>([]);

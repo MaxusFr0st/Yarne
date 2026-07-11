@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type CSSProperties } from "react";
-import useEmblaCarousel from "embla-carousel-react";
+import { useEmblaCarouselWithGestures } from "../hooks/useEmblaCarouselWithGestures";
 import { useReducedMotion } from "motion/react";
 import { useTranslation } from "react-i18next";
 import type { Product } from "../types/product";
@@ -15,12 +15,12 @@ export function MobileRelatedProducts({ products }: MobileRelatedProductsProps) 
   const touchMobile = useTouchMobileLayout();
   const reduceMotion = useReducedMotion();
   const viewportRef = useRef<HTMLDivElement>(null);
-  const [emblaRef, emblaApi] = useEmblaCarousel({
+  const [emblaRef, emblaApi] = useEmblaCarouselWithGestures({
     align: "start",
     containScroll: "trimSnaps",
     dragFree: false,
     duration: touchMobile || reduceMotion ? 0 : 22,
-  });
+  }, [], { wheelAxis: "x" });
   const [selectedIndex, setSelectedIndex] = useState(0);
 
   const onSelect = useCallback(() => {

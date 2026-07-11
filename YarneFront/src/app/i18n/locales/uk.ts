@@ -232,12 +232,8 @@ const uk: Translations = {
     },
   },
   collection: {
-    categories: {
-      all: "Усе",
-      sweaters: "Светри",
-      cardigans: "Кардигани",
-      vests: "Жилети",
-      jackets: "Жакети",
+    tabs: {
+      allPieces: "Усі речі",
     },
     sort: {
       featured: "Рекомендовані",
@@ -269,13 +265,6 @@ const uk: Translations = {
       close: "Закрити",
     },
     empty: "У цій добірці товарів не знайдено.",
-    cta: {
-      eyebrow: "Важко визначитись?",
-      title: "Запишіться на персональну стилізацію",
-      subtitle:
-        "Наші стилісти допоможуть підібрати ідеальну річ під ваш гардероб, стиль життя та тип фігури.",
-      action: "Записатися на консультацію",
-    },
   },
   account: {
     guest: {
