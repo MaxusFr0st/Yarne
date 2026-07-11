@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
-import useEmblaCarousel from "embla-carousel-react";
+import { useEmblaCarouselWithGestures } from "../hooks/useEmblaCarouselWithGestures";
 import { motion, AnimatePresence, LayoutGroup, useReducedMotion } from "motion/react";
 import { ArrowLeft, Heart, ShoppingBag, Check, ChevronDown } from "lucide-react";
 import { useTranslation } from "react-i18next";
@@ -68,13 +68,13 @@ export function MobileProductDetailView({
   const imageKey = images.join("|");
   const canLoop = images.length > 1;
 
-  const [emblaRef, emblaApi] = useEmblaCarousel({
+  const [emblaRef, emblaApi] = useEmblaCarouselWithGestures({
     loop: canLoop,
     align: "center",
     containScroll: false,
     duration: touchMobile || reduceMotion ? 0 : 22,
     skipSnaps: false,
-  });
+  }, [], { wheelAxis: "x" });
 
   const onGallerySelect = useCallback(() => {
     if (!emblaApi) return;
