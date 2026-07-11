@@ -272,6 +272,7 @@ public class OrdersController : ControllerBase
 
         var orderTotal = orderItems.Sum(i => i.UnitPrice * i.Quantity);
         customer.PhoneNumber = contactPhone;
+        _context.Entry(customer).Property(c => c.PhoneNumber).IsModified = true;
 
         var order = new Order
         {
@@ -308,12 +309,7 @@ public class OrdersController : ControllerBase
         }
         catch (DbUpdateException ex)
         {
-            _logger.LogWarning(ex, "Order save failed — likely stock, schema, or constraint conflict.");
-            var detail = ex.InnerException?.Message ?? ex.Message;
-            if (detail.Contains("ContactPhone", StringComparison.OrdinalIgnoreCase))
-            {
-                return BadRequest(new { message = "Checkout is updating. Please try again in a minute." });
-            }
+            _logger.LogWarning(ex, "Order save failed — likely stock or constraint conflict.");
             return BadRequest(new { message = "Unable to place order. Please refresh and try again." });
         }
 
@@ -543,7 +539,7 @@ public class OrdersController : ControllerBase
     {
         if (string.IsNullOrWhiteSpace(value)) return null;
         var trimmed = value.Trim();
-        if (trimmed.Length < 8 || trimmed.Length > 20) return null;
+        if (trimmed.Length < 8 || trimmed.Length > 32) return null;
         return trimmed;
     }
 

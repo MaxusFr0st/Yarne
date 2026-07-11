@@ -13,6 +13,6 @@ public class CreateOrderRequest
     public int? ShippingAddrId { get; set; }
 
     [Required]
-    [StringLength(20, MinimumLength = 8)]
+    [StringLength(32, MinimumLength = 8)]
     public string PhoneNumber { get; set; } = string.Empty;
 }
