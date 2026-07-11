@@ -11,7 +11,6 @@ import {
   persistCarouselSelection,
 } from "../utils/carouselSelection";
 import {
-  DEFAULT_MORE_FROM_COLLECTION_TITLE,
   getDefaultHomeSectionsSelection,
   loadHomeSectionsSelectionForAdmin,
   persistHomeSectionsSelection,
@@ -67,6 +66,7 @@ import { fetchActivityLogs, type AdminActivityLogDto } from "../api/admin";
 import { fetchProduct } from "../api/products";
 import { AdminAccountingTab } from "../components/admin/AdminAccountingTab";
 import { AdminHomeCopyEditor } from "../components/admin/AdminHomeCopyEditor";
+import { AdminOurHistoryEditor } from "../components/admin/AdminOurHistoryEditor";
 import { AdminCollectionsTab } from "../components/admin/AdminCollectionsTab";
 import { formatPriceCompact } from "../i18n/format";
 import { PriceTag } from "../components/PriceTag";
@@ -2985,6 +2985,8 @@ export function AdminPage() {
             >
               <AdminHomeCopyEditor onError={(message) => setSaveError(message)} />
 
+              <AdminOurHistoryEditor onError={(message) => setSaveError(message)} />
+
               {/* Home page images */}
               <div className="rounded-[28px] overflow-hidden mb-8" style={{ border: "1px solid rgba(45,36,30,0.08)" }}>
                 <div className="px-6 py-4" style={{ backgroundColor: "rgba(45,36,30,0.03)", borderBottom: "1px solid rgba(45,36,30,0.06)" }}>
@@ -3252,24 +3254,6 @@ export function AdminPage() {
                   </div>
 
                   <div>
-                    <div className="mb-3">
-                      <p className="text-[#2D241E]/45 text-xs uppercase tracking-widest mb-2" style={{ fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.1em" }}>
-                        More From The Collection
-                      </p>
-                      <input
-                        type="text"
-                        value={homeSectionsSelection.moreFromCollectionTitle}
-                        onChange={(e) =>
-                          updateHomeSelection({
-                            ...homeSectionsSelection,
-                            moreFromCollectionTitle: e.target.value || DEFAULT_MORE_FROM_COLLECTION_TITLE,
-                          })
-                        }
-                        placeholder={DEFAULT_MORE_FROM_COLLECTION_TITLE}
-                        className="w-full max-w-lg rounded-[14px] border bg-transparent px-4 py-2.5 text-[#2D241E] focus:outline-none"
-                        style={{ borderColor: "rgba(45,36,30,0.15)", fontFamily: "'DM Sans', sans-serif", fontSize: "0.85rem" }}
-                      />
-                    </div>
                     {moreFromCollectionProducts.length > 0 && (
                       <div className="mb-4 flex flex-wrap gap-2">
                         {moreFromCollectionProducts.map((product) => (

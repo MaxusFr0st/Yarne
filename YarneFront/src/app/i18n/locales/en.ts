@@ -83,6 +83,7 @@ const en = {
     },
     moreFromCollection: {
       eyebrow: "Complete the look",
+      title: "More from the collection",
     },
   },
   showcase: {
@@ -355,9 +356,11 @@ const en = {
       eyebrow: "The Brand",
       title: "Our History",
       paragraphs: [
-        "Yarné began as a small knit atelier with a simple belief: clothing should be made slowly, worn often, and cared for over time.",
-        "What started with a handful of hand-finished pieces has grown into a considered wardrobe of seasonal collections — still rooted in natural fibres, thoughtful construction, and the artisans who bring each garment to life.",
-        "This page is a placeholder for your brand story. Update it anytime as your narrative evolves.",
+        "YARNÉ was founded in 2025 in a small knitting atelier with one simple idea — to create a knitted bag that would not look ordinary.",
+        "We did not set out to follow trends. We wanted to rethink the category itself, combining contemporary design, hand craftsmanship, and materials that retain their beauty across many seasons.",
+        "Every YARNÉ bag begins with a careful selection of yarn and ends with a piece in which every detail matters. We consciously choose quality over compromise, believing that the true value of an accessory is defined not only by how it looks, but by how it serves you over time.",
+        "For us, a bag is more than a functional object. It is the finishing accent of a look — the detail that draws attention without excess words and remains relevant regardless of season.",
+        "We do not create pieces for a single season. We create accessories you will want to return to again and again.",
       ],
     },
     delivery: {

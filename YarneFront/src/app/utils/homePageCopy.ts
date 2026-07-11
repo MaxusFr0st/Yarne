@@ -45,6 +45,7 @@ export type HomePageCopyLocale = {
   };
   moreFromCollection: {
     eyebrow: string;
+    title: string;
   };
 };
 
@@ -95,6 +96,7 @@ function pickLocaleCopy(
     },
     moreFromCollection: {
       eyebrow: home.moreFromCollection.eyebrow,
+      title: home.moreFromCollection.title,
     },
   };
 }
@@ -176,6 +178,7 @@ function normalizeLocaleCopy(value: unknown, fallback: HomePageCopyLocale): Home
     },
     moreFromCollection: {
       eyebrow: normalizeString(moreFromCollection.eyebrow, fallback.moreFromCollection.eyebrow),
+      title: normalizeString(moreFromCollection.title, fallback.moreFromCollection.title),
     },
   };
 }

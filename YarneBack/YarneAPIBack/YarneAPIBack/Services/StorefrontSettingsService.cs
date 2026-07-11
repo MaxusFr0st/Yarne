@@ -14,6 +14,7 @@ public class StorefrontSettingsService : IStorefrontSettingsService
         "yarne.home.sections.v1",
         "yarne.home.media.v1",
         "yarne.home.copy.v1",
+        "yarne.staticPages.v1",
         "yarne.product.guarantee.v1",
     };
 

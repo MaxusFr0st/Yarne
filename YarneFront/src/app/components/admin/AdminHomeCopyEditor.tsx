@@ -76,6 +76,7 @@ const SECTIONS: { title: string; fields: FieldDef[] }[] = [
     title: "More From Collection",
     fields: [
       { key: "moreFromCollection.eyebrow", label: "Eyebrow", path: (c) => c.moreFromCollection.eyebrow, set: (c, v) => ({ ...c, moreFromCollection: { ...c.moreFromCollection, eyebrow: v } }) },
+      { key: "moreFromCollection.title", label: "Title (e.g. More from the collection)", path: (c) => c.moreFromCollection.title, set: (c, v) => ({ ...c, moreFromCollection: { ...c.moreFromCollection, title: v } }) },
     ],
   },
 ];

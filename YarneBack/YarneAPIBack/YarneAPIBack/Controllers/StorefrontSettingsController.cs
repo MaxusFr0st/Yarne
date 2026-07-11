@@ -18,6 +18,7 @@ public class StorefrontSettingsController : ControllerBase
             ["yarne.home.sections.v1"] = "Home sections",
             ["yarne.home.media.v1"] = "Home page media",
             ["yarne.home.copy.v1"] = "Home page copy",
+            ["yarne.staticPages.v1"] = "Static pages copy",
             ["yarne.product.guarantee.v1"] = "Product page guarantee",
         };
 
