@@ -45,7 +45,7 @@ export type HomePageCopyLocale = {
 
 export type HomePageCopy = Record<Locale, HomePageCopyLocale>;
 
-function pickLocaleCopy(source: typeof en.home): HomePageCopyLocale {
+function pickLocaleCopy(source: typeof en.home, locale: "en" | "uk"): HomePageCopyLocale {
   return {
     hero: {
       eyebrow: source.hero.eyebrow,
@@ -63,7 +63,7 @@ function pickLocaleCopy(source: typeof en.home): HomePageCopyLocale {
     featured: {
       eyebrow: source.featured.eyebrow,
       viewAll: source.featured.viewAll,
-      shopAllPieces: "Shop All {{count}} Pieces",
+      shopAllPieces: locale === "uk" ? "Усі {{count}} речі" : "Shop All {{count}} Pieces",
     },
     editorial: {
       eyebrow: source.editorial.eyebrow,
@@ -86,8 +86,8 @@ function pickLocaleCopy(source: typeof en.home): HomePageCopyLocale {
 }
 
 export const DEFAULT_HOME_PAGE_COPY: HomePageCopy = {
-  en: pickLocaleCopy(en.home),
-  uk: pickLocaleCopy(uk.home),
+  en: pickLocaleCopy(en.home, "en"),
+  uk: pickLocaleCopy(uk.home, "uk"),
 };
 
 function normalizeString(value: unknown, fallback: string): string {

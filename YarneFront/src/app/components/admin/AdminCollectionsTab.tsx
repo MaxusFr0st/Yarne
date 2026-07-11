@@ -52,10 +52,22 @@ export function AdminCollectionsTab({ products, onError }: Props) {
     void loadCollections();
   }, [loadCollections]);
 
+  const [productSearch, setProductSearch] = useState("");
+
   const sortedProducts = useMemo(
     () => [...products].sort((a, b) => a.name.localeCompare(b.name)),
     [products],
   );
+
+  const visibleProducts = useMemo(() => {
+    const query = productSearch.trim().toLowerCase();
+    if (!query) return sortedProducts;
+    return sortedProducts.filter(
+      (product) =>
+        product.name.toLowerCase().includes(query) ||
+        product.sku.toLowerCase().includes(query),
+    );
+  }, [sortedProducts, productSearch]);
 
   const openCreate = () => {
     setCollectionModal({ open: true, editing: null, name: "", startDate: "", endDate: "" });
@@ -122,6 +134,7 @@ export function AdminCollectionsTab({ products, onError }: Props) {
         collection,
         selectedIds: new Set(detail.productIds),
       });
+      setProductSearch("");
     } catch (err) {
       onError?.(err instanceof Error ? err.message : "Failed to load collection products.");
     } finally {
@@ -315,8 +328,16 @@ export function AdminCollectionsTab({ products, onError }: Props) {
                 <X size={18} />
               </button>
             </div>
+            <input
+              type="search"
+              value={productSearch}
+              onChange={(e) => setProductSearch(e.target.value)}
+              placeholder="Search products…"
+              className="w-full rounded-[14px] border bg-transparent px-4 py-2.5 mb-4 text-[#2D241E] focus:outline-none"
+              style={{ borderColor: "rgba(45,36,30,0.15)", fontFamily: "'DM Sans', sans-serif", fontSize: "0.85rem" }}
+            />
             <div className="flex-1 overflow-y-auto divide-y rounded-[16px] border" style={{ borderColor: "rgba(45,36,30,0.08)" }}>
-              {sortedProducts.map((product) => {
+              {visibleProducts.map((product) => {
                 const selected = productsModal.selectedIds.has(product.idNum);
                 return (
                   <button

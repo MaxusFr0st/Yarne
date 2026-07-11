@@ -61,6 +61,7 @@ export function Footer() {
   const helpLinks = [
     { label: t("footer.links.delivery"), to: "/pages/delivery" },
     { label: t("footer.links.care"), to: "/pages/care" },
+    { label: t("footer.legal.terms"), to: "/pages/terms" },
     { label: t("footer.links.contact"), href: "mailto:hello@yarne.acc" },
   ];
 
@@ -163,15 +164,6 @@ export function Footer() {
             >
               <TikTokIcon size={18} />
             </a>
-          </div>
-          <div className="flex items-center gap-6">
-            <LangLink
-              to="/pages/terms"
-              className="text-[#2D241E]/35 hover:text-[#2D241E] text-xs transition-colors"
-              style={{ fontFamily: "'DM Sans', sans-serif" }}
-            >
-              {t("footer.legal.terms")}
-            </LangLink>
           </div>
         </div>
       </div>

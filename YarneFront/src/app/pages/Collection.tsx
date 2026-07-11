@@ -47,6 +47,7 @@ export function Collection() {
   const [activeCategory, setActiveCategory] = useState<string>(ALL_CATEGORY_KEY);
   const [activeSort, setActiveSort] = useState<SortOptionKey>("featured");
   const [filterOpen, setFilterOpen] = useState(false);
+  const [activeAvailability, setActiveAvailability] = useState<"allItems" | "newOnly" | "bestsellers">("allItems");
   const [priceRange, setPriceRange] = useState<[number, number]>([0, 500]);
 
   useEffect(() => {
@@ -83,12 +84,20 @@ export function Collection() {
   let filtered = products;
   if (filterParam === "new") filtered = filtered.filter((p) => p.isNew);
   if (activeCategory !== ALL_CATEGORY_KEY) filtered = filtered.filter((p) => p.category === activeCategory);
+  if (activeAvailability === "newOnly") filtered = filtered.filter((p) => p.isNew);
+  if (activeAvailability === "bestsellers") filtered = filtered.filter((p) => p.isBestseller);
+  filtered = filtered.filter((p) => p.price >= priceRange[0] && p.price <= priceRange[1]);
 
-  // Sort
   if (activeSort === "priceLowToHigh") {
     filtered = [...filtered].sort((a, b) => a.price - b.price);
   } else if (activeSort === "priceHighToLow") {
     filtered = [...filtered].sort((a, b) => b.price - a.price);
+  } else if (activeSort === "newest") {
+    filtered = [...filtered].sort((a, b) => {
+      const aTime = a.createdAt ? Date.parse(a.createdAt) : 0;
+      const bTime = b.createdAt ? Date.parse(b.createdAt) : 0;
+      return bTime - aTime;
+    });
   }
 
   return (
@@ -239,8 +248,15 @@ export function Collection() {
                     {(["allItems", "newOnly", "bestsellers"] as const).map((opt) => (
                       <button
                         key={opt}
-                        className="px-4 py-1.5 rounded-full text-xs border border-[#2D241E]/20 text-[#2D241E] hover:border-[#2D241E]/50 transition-colors"
-                        style={{ fontFamily: "'DM Sans', sans-serif" }}
+                        type="button"
+                        onClick={() => setActiveAvailability(opt)}
+                        className="px-4 py-1.5 rounded-full text-xs border transition-colors"
+                        style={{
+                          fontFamily: "'DM Sans', sans-serif",
+                          borderColor: activeAvailability === opt ? "#2D241E" : "rgba(45,36,30,0.2)",
+                          backgroundColor: activeAvailability === opt ? "#2D241E" : "transparent",
+                          color: activeAvailability === opt ? "#F5F2ED" : "#2D241E",
+                        }}
                       >
                         {t(`collection.availability.${opt}`)}
                       </button>

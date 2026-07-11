@@ -24,6 +24,7 @@ export interface Product {
   category: string;
   isNew?: boolean;
   isBestseller?: boolean;
+  createdAt?: string;
   lace?: boolean;
   sizes: string[];
   defaultSize?: string;

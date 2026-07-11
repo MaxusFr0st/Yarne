@@ -54,6 +54,7 @@ function mapToFrontendProduct(d: ProductDto): Product {
     category: d.categoryName,
     isNew: d.isNew ?? false,
     isBestseller: d.isBestseller ?? false,
+    createdAt: d.createdAt,
     lace: d.lace ?? false,
     sizes: d.sizes?.length ? d.sizes : ["XS", "S", "M", "L", "XL"],
     defaultSize: d.defaultSize ?? undefined,
