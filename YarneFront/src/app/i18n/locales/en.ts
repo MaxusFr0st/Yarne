@@ -59,6 +59,7 @@ const en = {
     },
     featured: {
       eyebrow: "Curated Pieces",
+      title: "Featured this season",
       viewAll: "View all",
       shopAllPieces_one: "Shop All {{count}} Piece",
       shopAllPieces_other: "Shop All {{count}} Pieces",

@@ -105,19 +105,23 @@ type SectionRuleProps = {
 export function SectionRule({ label }: SectionRuleProps) {
   return (
     <div
-      className={`flex items-center gap-4 max-w-[1400px] mx-auto px-6 md:px-10 ${label ? "py-8 md:py-10" : "py-4 md:py-8"}`}
+      className={`flex items-center max-w-[1400px] mx-auto px-6 md:px-10 ${label ? "gap-4 py-8 md:py-10" : "py-4 md:py-8"}`}
       aria-hidden={!label}
     >
-      <span className="h-px flex-1 bg-[#2D241E]/10" />
       {label ? (
-        <span
-          className="text-[#2D241E]/35 text-[0.62rem] uppercase tracking-[0.3em] shrink-0"
-          style={{ fontFamily: "'DM Sans', sans-serif" }}
-        >
-          {label}
-        </span>
-      ) : null}
-      <span className="h-px flex-1 bg-[#2D241E]/10" />
+        <>
+          <span className="h-px flex-1 bg-[#2D241E]/10" />
+          <span
+            className="text-[#2D241E]/35 text-[0.62rem] uppercase tracking-[0.3em] shrink-0"
+            style={{ fontFamily: "'DM Sans', sans-serif" }}
+          >
+            {label}
+          </span>
+          <span className="h-px flex-1 bg-[#2D241E]/10" />
+        </>
+      ) : (
+        <span className="h-px w-full bg-[#2D241E]/10" />
+      )}
     </div>
   );
 }

@@ -37,9 +37,17 @@ const SECTIONS: { title: string; fields: FieldDef[] }[] = [
     ],
   },
   {
+    title: "Featured Showcase",
+    fields: [
+      { key: "showcase.eyebrow", label: "Eyebrow (e.g. Featured Showcase)", path: (c) => c.showcase.eyebrow, set: (c, v) => ({ ...c, showcase: { ...c.showcase, eyebrow: v } }) },
+      { key: "showcase.title", label: "Title (e.g. Editorial Picks)", path: (c) => c.showcase.title, set: (c, v) => ({ ...c, showcase: { ...c.showcase, title: v } }) },
+    ],
+  },
+  {
     title: "Featured Grid",
     fields: [
       { key: "featured.eyebrow", label: "Eyebrow", path: (c) => c.featured.eyebrow, set: (c, v) => ({ ...c, featured: { ...c.featured, eyebrow: v } }) },
+      { key: "featured.title", label: "Title (e.g. Featured this season)", path: (c) => c.featured.title, set: (c, v) => ({ ...c, featured: { ...c.featured, title: v } }) },
       { key: "featured.viewAll", label: "View all link", path: (c) => c.featured.viewAll, set: (c, v) => ({ ...c, featured: { ...c.featured, viewAll: v } }) },
       { key: "featured.shopAllPieces", label: "Shop all button (use {{count}})", path: (c) => c.featured.shopAllPieces, set: (c, v) => ({ ...c, featured: { ...c.featured, shopAllPieces: v } }) },
     ],
@@ -146,7 +154,7 @@ export function AdminHomeCopyEditor({ onError }: Props) {
             Home Page Text
           </p>
           <p className="text-[#2D241E]/45 text-xs mt-1" style={{ fontFamily: "'DM Sans', sans-serif" }}>
-            Edit every text field on the home page. Section titles for featured grids are edited below in Home Collection Sections.
+            Edit every text field on the home page, including Featured Showcase and Featured this season headings.
           </p>
         </div>
         <div className="flex items-center gap-2">

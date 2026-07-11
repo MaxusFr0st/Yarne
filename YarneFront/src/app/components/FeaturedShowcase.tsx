@@ -10,9 +10,8 @@ import { LangLink } from "../i18n/LangLink";
 import { useLocale } from "../i18n/useLocale";
 import { PriceTag } from "./PriceTag";
 import { resolveMediaUrl } from "../utils/storefrontMedia";
+import { useHomePageCopy } from "../hooks/useHomePageCopy";
 import {
-  DEFAULT_SHOWCASE_EYEBROW,
-  DEFAULT_SHOWCASE_TITLE,
   getFeaturedShowcaseSelection,
   loadFeaturedShowcaseSelection,
   type FeaturedShowcaseSelection,
@@ -382,6 +381,7 @@ function MagazineSpread({
 
 export function FeaturedShowcase() {
   const { t } = useTranslation();
+  const copy = useHomePageCopy();
   const { products } = useProducts();
   const touchLayout = useTouchMobileLayout();
   const useSpreadLayout = useShowcaseSpreadLayout();
@@ -441,12 +441,8 @@ export function FeaturedShowcase() {
     }
   }, [slot1Product, slot2Product, slot4Product]);
 
-  const eyebrow =
-    selection.eyebrow.trim() ||
-    t("showcase.defaultEyebrow", { defaultValue: DEFAULT_SHOWCASE_EYEBROW });
-  const title =
-    selection.title.trim() ||
-    t("showcase.defaultTitle", { defaultValue: DEFAULT_SHOWCASE_TITLE });
+  const eyebrow = copy.showcase.eyebrow;
+  const title = copy.showcase.title;
 
   const sectionHeader = (
     <>

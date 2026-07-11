@@ -11,7 +11,6 @@ import {
   persistCarouselSelection,
 } from "../utils/carouselSelection";
 import {
-  DEFAULT_FEATURED_TITLE,
   DEFAULT_MORE_FROM_COLLECTION_TITLE,
   getDefaultHomeSectionsSelection,
   loadHomeSectionsSelectionForAdmin,
@@ -19,8 +18,6 @@ import {
   type HomeSectionsSelection,
 } from "../utils/homeSectionsSelection";
 import {
-  DEFAULT_SHOWCASE_EYEBROW,
-  DEFAULT_SHOWCASE_TITLE,
   getDefaultFeaturedShowcaseSelection,
   loadFeaturedShowcaseSelectionForAdmin,
   persistFeaturedShowcaseSelection,
@@ -3200,29 +3197,11 @@ export function AdminPage() {
                     Home Collection Sections
                   </p>
                   <p className="text-[#2D241E]/45 text-xs mt-1" style={{ fontFamily: "'DM Sans', sans-serif" }}>
-                    Edit title and products for "Featured this season" and "More from the collection".
+                    Choose products for the featured grid and “More from the collection”. Section titles are edited in Home Page Text above.
                   </p>
                 </div>
                 <div className="px-6 py-5 space-y-8">
                   <div>
-                    <div className="mb-3">
-                      <p className="text-[#2D241E]/45 text-xs uppercase tracking-widest mb-2" style={{ fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.1em" }}>
-                        Featured This Season
-                      </p>
-                      <input
-                        type="text"
-                        value={homeSectionsSelection.featuredTitle}
-                        onChange={(e) =>
-                          updateHomeSelection({
-                            ...homeSectionsSelection,
-                            featuredTitle: e.target.value || DEFAULT_FEATURED_TITLE,
-                          })
-                        }
-                        placeholder={DEFAULT_FEATURED_TITLE}
-                        className="w-full max-w-lg rounded-[14px] border bg-transparent px-4 py-2.5 text-[#2D241E] focus:outline-none"
-                        style={{ borderColor: "rgba(45,36,30,0.15)", fontFamily: "'DM Sans', sans-serif", fontSize: "0.85rem" }}
-                      />
-                    </div>
                     {featuredHomeProducts.length > 0 && (
                       <div className="mb-4 flex flex-wrap gap-2">
                         {featuredHomeProducts.map((product) => (
@@ -3363,45 +3342,9 @@ export function AdminPage() {
                 </div>
 
                 <div className="px-6 py-5 space-y-6">
-                  {/* Section heading inputs */}
-                  <div className="grid sm:grid-cols-2 gap-4">
-                    <div>
-                      <p className="text-[#2D241E]/45 text-xs uppercase tracking-widest mb-2" style={{ fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.1em" }}>
-                        Eyebrow
-                      </p>
-                      <input
-                        type="text"
-                        value={featuredShowcaseSelection.eyebrow}
-                        onChange={(e) =>
-                          updateFeaturedShowcaseSelection({
-                            ...featuredShowcaseSelection,
-                            eyebrow: e.target.value,
-                          })
-                        }
-                        placeholder={DEFAULT_SHOWCASE_EYEBROW}
-                        className="w-full rounded-[14px] border bg-transparent px-4 py-2.5 text-[#2D241E] focus:outline-none"
-                        style={{ borderColor: "rgba(45,36,30,0.15)", fontFamily: "'DM Sans', sans-serif", fontSize: "0.85rem" }}
-                      />
-                    </div>
-                    <div>
-                      <p className="text-[#2D241E]/45 text-xs uppercase tracking-widest mb-2" style={{ fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.1em" }}>
-                        Title
-                      </p>
-                      <input
-                        type="text"
-                        value={featuredShowcaseSelection.title}
-                        onChange={(e) =>
-                          updateFeaturedShowcaseSelection({
-                            ...featuredShowcaseSelection,
-                            title: e.target.value,
-                          })
-                        }
-                        placeholder={DEFAULT_SHOWCASE_TITLE}
-                        className="w-full rounded-[14px] border bg-transparent px-4 py-2.5 text-[#2D241E] focus:outline-none"
-                        style={{ borderColor: "rgba(45,36,30,0.15)", fontFamily: "'DM Sans', sans-serif", fontSize: "0.85rem" }}
-                      />
-                    </div>
-                  </div>
+                  <p className="text-[#2D241E]/45 text-xs" style={{ fontFamily: "'DM Sans', sans-serif" }}>
+                    Section heading (“Featured Showcase” / “Editorial Picks”) is edited in Home Page Text above.
+                  </p>
 
                   {showcaseUploadError && (
                     <div className="rounded-[14px] px-4 py-3" style={{ backgroundColor: "rgba(196,48,48,0.08)", border: "1px solid rgba(196,48,48,0.25)" }}>

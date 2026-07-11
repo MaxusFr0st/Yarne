@@ -19,8 +19,13 @@ export type HomePageCopyLocale = {
     eyebrow: string;
     title: string;
   };
+  showcase: {
+    eyebrow: string;
+    title: string;
+  };
   featured: {
     eyebrow: string;
+    title: string;
     viewAll: string;
     shopAllPieces: string;
   };
@@ -45,49 +50,58 @@ export type HomePageCopyLocale = {
 
 export type HomePageCopy = Record<Locale, HomePageCopyLocale>;
 
-function pickLocaleCopy(source: typeof en.home, locale: "en" | "uk"): HomePageCopyLocale {
+function pickLocaleCopy(
+  home: typeof en.home,
+  showcase: typeof en.showcase,
+  locale: "en" | "uk",
+): HomePageCopyLocale {
   return {
     hero: {
-      eyebrow: source.hero.eyebrow,
-      titleLine1: source.hero.titleLine1,
-      titleAccent: source.hero.titleAccent,
-      subtitle: source.hero.subtitle,
-      ctaPrimary: source.hero.ctaPrimary,
-      ctaSecondary: source.hero.ctaSecondary,
-      scroll: source.hero.scroll,
+      eyebrow: home.hero.eyebrow,
+      titleLine1: home.hero.titleLine1,
+      titleAccent: home.hero.titleAccent,
+      subtitle: home.hero.subtitle,
+      ctaPrimary: home.hero.ctaPrimary,
+      ctaSecondary: home.hero.ctaSecondary,
+      scroll: home.hero.scroll,
     },
     bestSellers: {
-      eyebrow: source.bestSellers.eyebrow,
-      title: source.bestSellers.title,
+      eyebrow: home.bestSellers.eyebrow,
+      title: home.bestSellers.title,
+    },
+    showcase: {
+      eyebrow: showcase.defaultEyebrow,
+      title: showcase.defaultTitle,
     },
     featured: {
-      eyebrow: source.featured.eyebrow,
-      viewAll: source.featured.viewAll,
+      eyebrow: home.featured.eyebrow,
+      title: home.featured.title,
+      viewAll: home.featured.viewAll,
       shopAllPieces: locale === "uk" ? "Усі {{count}} речі" : "Shop All {{count}} Pieces",
     },
     editorial: {
-      eyebrow: source.editorial.eyebrow,
-      titleLine1: source.editorial.titleLine1,
-      titleLine2: source.editorial.titleLine2,
-      paragraph1: source.editorial.paragraph1,
-      paragraph2: source.editorial.paragraph2,
-      ourStory: source.editorial.ourStory,
+      eyebrow: home.editorial.eyebrow,
+      titleLine1: home.editorial.titleLine1,
+      titleLine2: home.editorial.titleLine2,
+      paragraph1: home.editorial.paragraph1,
+      paragraph2: home.editorial.paragraph2,
+      ourStory: home.editorial.ourStory,
     },
     lookbook: {
-      eyebrow: source.lookbook.eyebrow,
-      titleLine1: source.lookbook.titleLine1,
-      titleLine2: source.lookbook.titleLine2,
-      cta: source.lookbook.cta,
+      eyebrow: home.lookbook.eyebrow,
+      titleLine1: home.lookbook.titleLine1,
+      titleLine2: home.lookbook.titleLine2,
+      cta: home.lookbook.cta,
     },
     moreFromCollection: {
-      eyebrow: source.moreFromCollection.eyebrow,
+      eyebrow: home.moreFromCollection.eyebrow,
     },
   };
 }
 
 export const DEFAULT_HOME_PAGE_COPY: HomePageCopy = {
-  en: pickLocaleCopy(en.home, "en"),
-  uk: pickLocaleCopy(uk.home, "uk"),
+  en: pickLocaleCopy(en.home, en.showcase, "en"),
+  uk: pickLocaleCopy(uk.home, uk.showcase, "uk"),
 };
 
 function normalizeString(value: unknown, fallback: string): string {
@@ -100,6 +114,10 @@ function normalizeLocaleCopy(value: unknown, fallback: HomePageCopyLocale): Home
   const bestSellers =
     typeof source.bestSellers === "object" && source.bestSellers !== null
       ? (source.bestSellers as Record<string, unknown>)
+      : {};
+  const showcase =
+    typeof source.showcase === "object" && source.showcase !== null
+      ? (source.showcase as Record<string, unknown>)
       : {};
   const featured =
     typeof source.featured === "object" && source.featured !== null
@@ -132,8 +150,13 @@ function normalizeLocaleCopy(value: unknown, fallback: HomePageCopyLocale): Home
       eyebrow: normalizeString(bestSellers.eyebrow, fallback.bestSellers.eyebrow),
       title: normalizeString(bestSellers.title, fallback.bestSellers.title),
     },
+    showcase: {
+      eyebrow: normalizeString(showcase.eyebrow, fallback.showcase.eyebrow),
+      title: normalizeString(showcase.title, fallback.showcase.title),
+    },
     featured: {
       eyebrow: normalizeString(featured.eyebrow, fallback.featured.eyebrow),
+      title: normalizeString(featured.title, fallback.featured.title),
       viewAll: normalizeString(featured.viewAll, fallback.featured.viewAll),
       shopAllPieces: normalizeString(featured.shopAllPieces, fallback.featured.shopAllPieces),
     },
