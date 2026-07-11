@@ -11,10 +11,9 @@ import { Skeleton } from "../components/ui/skeleton";
 import { fetchCollections, type CollectionDto } from "../api/collections";
 
 const SKELETON_COUNT = 6;
+const ALL_PRODUCTS_TAB = "all";
 
 const easing = [0.25, 0.1, 0.25, 1] as const;
-const ALL_CATEGORY_KEY = "__all";
-const DEFAULT_CATEGORY_KEYS = ["sweaters", "cardigans", "vests", "jackets"] as const;
 const SORT_OPTION_KEYS = ["featured", "priceLowToHigh", "priceHighToLow", "newest"] as const;
 type SortOptionKey = (typeof SORT_OPTION_KEYS)[number];
 
@@ -38,17 +37,18 @@ function CollectionCardSkeleton() {
 export function Collection() {
   const { t } = useTranslation();
   const locale = useLocale();
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const filterParam = searchParams.get("filter");
   const collectionParam = searchParams.get("collection");
   const collectionId = collectionParam ? Number.parseInt(collectionParam, 10) : undefined;
   const validCollectionId = collectionId && !Number.isNaN(collectionId) ? collectionId : undefined;
   const [collections, setCollections] = useState<CollectionDto[]>([]);
-  const [activeCategory, setActiveCategory] = useState<string>(ALL_CATEGORY_KEY);
   const [activeSort, setActiveSort] = useState<SortOptionKey>("featured");
   const [filterOpen, setFilterOpen] = useState(false);
   const [activeAvailability, setActiveAvailability] = useState<"allItems" | "newOnly" | "bestsellers">("allItems");
   const [priceRange, setPriceRange] = useState<[number, number]>([0, 500]);
+
+  const activeTab = validCollectionId ? String(validCollectionId) : ALL_PRODUCTS_TAB;
 
   useEffect(() => {
     let cancelled = false;
@@ -73,17 +73,28 @@ export function Collection() {
     () => collections.find((collection) => collection.id === validCollectionId) ?? null,
     [collections, validCollectionId],
   );
-  const apiCategories = Array.from(new Set(products.map((p) => p.category).filter(Boolean))).sort();
-  const defaultCategoryLabels = DEFAULT_CATEGORY_KEYS.map((key) => t(`collection.categories.${key}`));
-  const categories = loading
-    ? [{ value: ALL_CATEGORY_KEY, label: t("collection.categories.all") }, ...defaultCategoryLabels.map((label) => ({ value: label, label }))]
-    : [
-      { value: ALL_CATEGORY_KEY, label: t("collection.categories.all") },
-      ...((apiCategories.length > 0 ? apiCategories : defaultCategoryLabels).map((category) => ({ value: category, label: category }))),
-    ];
+
+  const tabs = useMemo(
+    () => [
+      { id: ALL_PRODUCTS_TAB, label: t("collection.tabs.allPieces") },
+      ...collections.map((collection) => ({ id: String(collection.id), label: collection.name })),
+    ],
+    [collections, t],
+  );
+
+  const selectTab = (tabId: string) => {
+    const next = new URLSearchParams(searchParams);
+    next.delete("filter");
+    if (tabId === ALL_PRODUCTS_TAB) {
+      next.delete("collection");
+    } else {
+      next.set("collection", tabId);
+    }
+    setSearchParams(next, { replace: true });
+  };
+
   let filtered = products;
   if (filterParam === "new") filtered = filtered.filter((p) => p.isNew);
-  if (activeCategory !== ALL_CATEGORY_KEY) filtered = filtered.filter((p) => p.category === activeCategory);
   if (activeAvailability === "newOnly") filtered = filtered.filter((p) => p.isNew);
   if (activeAvailability === "bestsellers") filtered = filtered.filter((p) => p.isBestseller);
   filtered = filtered.filter((p) => p.price >= priceRange[0] && p.price <= priceRange[1]);
@@ -102,7 +113,6 @@ export function Collection() {
 
   return (
     <main style={{ backgroundColor: "#F5F2ED", minHeight: "100svh", overflowX: "hidden" }}>
-      {/* Header Banner */}
       <section className="pt-28 pb-8 md:pt-32 md:pb-10">
         <div className="max-w-[1400px] mx-auto px-6 md:px-10">
           <div>
@@ -141,42 +151,37 @@ export function Collection() {
               {loading ? (
                 <span className="inline-block w-48 h-4 rounded bg-[#E5E0D8] animate-pulse align-middle" aria-hidden />
               ) : (
-                <>
-                  {t("collection.header.pieceCount", { count: filtered.length })}
-                </>
+                t("collection.header.pieceCount", { count: filtered.length })
               )}
             </p>
           </div>
         </div>
       </section>
 
-      {/* Filter Bar */}
       <div className="md:sticky top-[var(--main-header-h)] z-30 border-y border-[#2D241E]/10" style={{ backgroundColor: "rgba(245,242,237,0.95)", backdropFilter: "blur(16px)" }}>
         <div className="max-w-[1400px] mx-auto px-6 md:px-10">
           <div className="flex items-center justify-between py-2.5 gap-3 overflow-x-auto scrollbar-hide min-h-[44px]">
-            {/* Categories */}
             <div className="flex items-center gap-2 flex-shrink-0 min-h-[36px]">
-              {categories.map((cat) => (
+              {tabs.map((tab) => (
                 <button
-                  key={cat.value}
-                  onClick={() => setActiveCategory(cat.value)}
+                  key={tab.id}
+                  type="button"
+                  onClick={() => selectTab(tab.id)}
                   className="px-5 py-2 rounded-full text-xs transition-all duration-300 whitespace-nowrap"
                   style={{
                     fontFamily: "'DM Sans', sans-serif",
                     letterSpacing: "0.1em",
-                    backgroundColor: activeCategory === cat.value ? "#2D241E" : "transparent",
-                    color: activeCategory === cat.value ? "#F5F2ED" : "#2D241E",
-                    border: activeCategory === cat.value ? "1.5px solid #2D241E" : "1.5px solid rgba(45,36,30,0.2)",
+                    backgroundColor: activeTab === tab.id ? "#2D241E" : "transparent",
+                    color: activeTab === tab.id ? "#F5F2ED" : "#2D241E",
+                    border: activeTab === tab.id ? "1.5px solid #2D241E" : "1.5px solid rgba(45,36,30,0.2)",
                   }}
                 >
-                  {cat.label}
+                  {tab.label}
                 </button>
               ))}
             </div>
 
-            {/* Right Controls */}
             <div className="flex items-center gap-4 flex-shrink-0">
-              {/* Sort */}
               <select
                 value={activeSort}
                 onChange={(e) => setActiveSort(e.target.value as SortOptionKey)}
@@ -188,8 +193,8 @@ export function Collection() {
                 ))}
               </select>
 
-              {/* Filter toggle */}
               <button
+                type="button"
                 onClick={() => setFilterOpen(!filterOpen)}
                 className="flex items-center gap-2 px-4 py-2 rounded-full border border-[#2D241E]/20 hover:border-[#2D241E]/50 transition-colors text-[#2D241E]"
                 style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "0.72rem", letterSpacing: "0.1em" }}
@@ -200,7 +205,6 @@ export function Collection() {
             </div>
           </div>
 
-          {/* Expanded Filter Panel */}
           {filterOpen && (
             <motion.div
               initial={{ height: 0, opacity: 0 }}
@@ -210,7 +214,6 @@ export function Collection() {
               className="border-t border-[#2D241E]/10 py-6"
             >
               <div className="flex flex-wrap gap-8 items-start">
-                {/* Price Range */}
                 <div>
                   <p
                     className="text-[#2D241E]/50 text-xs tracking-widest uppercase mb-3"
@@ -236,7 +239,6 @@ export function Collection() {
                   </div>
                 </div>
 
-                {/* New Only */}
                 <div>
                   <p
                     className="text-[#2D241E]/50 text-xs tracking-widest uppercase mb-3"
@@ -265,6 +267,7 @@ export function Collection() {
                 </div>
 
                 <button
+                  type="button"
                   onClick={() => setFilterOpen(false)}
                   className="ml-auto flex items-center gap-2 text-[#2D241E]/50 hover:text-[#2D241E] transition-colors text-xs"
                   style={{ fontFamily: "'DM Sans', sans-serif" }}
@@ -278,9 +281,8 @@ export function Collection() {
         </div>
       </div>
 
-      {/* Products Grid */}
       <div
-        className="max-w-[1400px] mx-auto px-6 md:px-10 py-10 md:py-12"
+        className="max-w-[1400px] mx-auto px-6 md:px-10 py-10 md:py-12 pb-24"
         aria-busy={loading}
       >
         {loading ? (
@@ -311,14 +313,11 @@ export function Collection() {
           </motion.div>
         ) : (
           <>
-            {/* Desktop: uniform 3-column grid */}
             <div className="hidden md:grid md:grid-cols-2 lg:grid-cols-3 gap-5 lg:gap-8">
               {filtered.map((product, i) => (
                 <ProductCard key={product.id} product={product} index={i} size="collection" subtleEntrance />
               ))}
             </div>
-
-            {/* Mobile: 1-column layout for better card display */}
             <div className="md:hidden grid grid-cols-1 gap-y-8 w-full">
               {filtered.map((product, i) => (
                 <ProductCard key={product.id} product={product} index={i} size="collection" subtleEntrance />
@@ -327,50 +326,6 @@ export function Collection() {
           </>
         )}
       </div>
-
-      {/* Bottom CTA */}
-      <section className="pb-24 text-center">
-        <div className="max-w-[1400px] mx-auto px-6">
-          <motion.div
-            className="inline-block rounded-[40px] p-12 md:p-16"
-            style={{ backgroundColor: "#EDE9E2" }}
-            initial={{ opacity: 0 }}
-            whileInView={{ opacity: 1 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.7, ease: easing }}
-          >
-            <p
-              className="text-[#2D241E]/50 tracking-widest uppercase text-xs mb-4"
-              style={{ fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.2em" }}
-            >
-              {t("collection.cta.eyebrow")}
-            </p>
-            <p
-              className="text-[#2D241E] mb-6"
-              style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "clamp(1.4rem, 3vw, 2rem)", fontWeight: 400 }}
-            >
-              {t("collection.cta.title")}
-            </p>
-            <p
-              className="text-[#2D241E]/50 max-w-sm mx-auto mb-8 text-sm"
-              style={{ fontFamily: "'DM Sans', sans-serif", lineHeight: 1.7 }}
-            >
-              {t("collection.cta.subtitle")}
-            </p>
-            <button
-              className="px-10 py-4 rounded-full text-white transition-all duration-300 hover:opacity-90"
-              style={{
-                backgroundColor: "#4A0E0E",
-                fontFamily: "'DM Sans', sans-serif",
-                fontSize: "0.75rem",
-                letterSpacing: "0.15em",
-              }}
-            >
-              <span className="uppercase tracking-widest">{t("collection.cta.action")}</span>
-            </button>
-          </motion.div>
-        </div>
-      </section>
     </main>
   );
 }

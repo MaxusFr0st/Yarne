@@ -226,12 +226,8 @@ const en = {
     },
   },
   collection: {
-    categories: {
-      all: "All",
-      sweaters: "Sweaters",
-      cardigans: "Cardigans",
-      vests: "Vests",
-      jackets: "Jackets",
+    tabs: {
+      allPieces: "All Pieces",
     },
     sort: {
       featured: "Featured",
@@ -261,13 +257,6 @@ const en = {
       close: "Close",
     },
     empty: "No pieces found in this selection.",
-    cta: {
-      eyebrow: "Can't decide?",
-      title: "Book a personal styling session",
-      subtitle:
-        "Our stylists can help you find the perfect piece for your wardrobe, lifestyle and body shape.",
-      action: "Book a Consultation",
-    },
   },
   account: {
     guest: {
