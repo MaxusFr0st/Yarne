@@ -221,12 +221,6 @@ export function CheckoutPage() {
               );
             })}
           </div>
-
-          {error && (
-            <p className="mt-5 text-sm text-[#4A0E0E]" style={{ fontFamily: "'DM Sans', sans-serif" }}>
-              {error}
-            </p>
-          )}
         </motion.section>
 
         <motion.aside

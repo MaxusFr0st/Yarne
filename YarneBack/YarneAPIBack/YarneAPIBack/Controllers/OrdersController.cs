@@ -278,7 +278,6 @@ public class OrdersController : ControllerBase
             CustomerId = customerId.Value,
             PaymentMethodId = paymentMethodId,
             ShippingAddrId = request.ShippingAddrId,
-            ContactPhone = contactPhone,
             Status = "Pending",
             Total = orderTotal,
             OrderDate = DateTime.UtcNow,
@@ -309,7 +308,12 @@ public class OrdersController : ControllerBase
         }
         catch (DbUpdateException ex)
         {
-            _logger.LogWarning(ex, "Order save failed — likely stock or constraint conflict.");
+            _logger.LogWarning(ex, "Order save failed — likely stock, schema, or constraint conflict.");
+            var detail = ex.InnerException?.Message ?? ex.Message;
+            if (detail.Contains("ContactPhone", StringComparison.OrdinalIgnoreCase))
+            {
+                return BadRequest(new { message = "Checkout is updating. Please try again in a minute." });
+            }
             return BadRequest(new { message = "Unable to place order. Please refresh and try again." });
         }
 
@@ -440,7 +444,7 @@ public class OrdersController : ControllerBase
             CustomerId = order.CustomerId,
             CustomerName = customerName,
             CustomerEmail = customer?.Email ?? string.Empty,
-            CustomerPhoneNumber = order.ContactPhone ?? customer?.PhoneNumber,
+            CustomerPhoneNumber = customer?.PhoneNumber,
             Total = order.Total,
             Status = order.Status,
             OrderDate = order.OrderDate,

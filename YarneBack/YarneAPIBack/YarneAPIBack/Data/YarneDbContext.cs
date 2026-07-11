@@ -317,7 +317,6 @@ public partial class YarneDbContext : DbContext
                 .HasMaxLength(50)
                 .HasDefaultValue("Pending");
             entity.Property(e => e.Total).HasColumnType("decimal(18, 2)");
-            entity.Property(e => e.ContactPhone).HasMaxLength(20);
 
             entity.HasOne(d => d.Customer).WithMany(p => p.Orders)
                 .HasForeignKey(d => d.CustomerId)
