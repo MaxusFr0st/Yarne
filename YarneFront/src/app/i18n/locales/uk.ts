@@ -59,6 +59,7 @@ const uk: Translations = {
     },
     featured: {
       eyebrow: "Кураторський вибір",
+      title: "Добірка сезону",
       viewAll: "Дивитись усе",
       shopAllPieces_one: "Переглянути {{count}} модель",
       shopAllPieces_few: "Переглянути {{count}} моделі",

@@ -9,7 +9,6 @@ import { FeaturedShowcase } from "../components/FeaturedShowcase";
 import { ImageWithFallback as Img } from "../components/figma/ImageWithFallback";
 import { LangLink } from "../i18n/LangLink";
 import {
-  DEFAULT_FEATURED_TITLE,
   DEFAULT_MORE_FROM_COLLECTION_TITLE,
   getDefaultHomeSectionsSelection,
   loadHomeSectionsSelection,
@@ -194,7 +193,7 @@ export function Home() {
             <div>
               <SectionEyebrow>{copy.featured.eyebrow}</SectionEyebrow>
               <SectionTitle>
-                {homeSectionsSelection.featuredTitle || DEFAULT_FEATURED_TITLE}
+                {copy.featured.title}
               </SectionTitle>
             </div>
             <LangLink
