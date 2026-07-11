@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import useEmblaCarousel from "embla-carousel-react";
 import { motion, useReducedMotion } from "motion/react";
-import { useTranslation } from "react-i18next";
+import { useHomePageCopy } from "../hooks/useHomePageCopy";
 import { useProducts } from "../hooks/useProducts";
 import { ProductCard } from "./ProductCard";
 import { loadCarouselSelection } from "../utils/carouselSelection";
@@ -12,7 +12,7 @@ import { Skeleton } from "./ui/skeleton";
 const easing = [0.25, 0.1, 0.25, 1] as const;
 
 export function BestSellersCarousel() {
-  const { t } = useTranslation();
+  const copy = useHomePageCopy();
   const { disabled: motionDisabled, opacityOnly } = useMotionEntrance();
   const touchMobile = useTouchMobileLayout();
   const reduceMotion = useReducedMotion();
@@ -98,7 +98,7 @@ export function BestSellersCarousel() {
               fontSize: "0.65rem",
             }}
           >
-            {t("home.bestSellers.eyebrow")}
+            {copy.bestSellers.eyebrow}
           </p>
           <h2
             className="text-[#2D241E]"
@@ -109,7 +109,7 @@ export function BestSellersCarousel() {
               lineHeight: 1.15,
             }}
           >
-            {t("home.bestSellers.title")}
+            {copy.bestSellers.title}
           </h2>
         </motion.div>
 

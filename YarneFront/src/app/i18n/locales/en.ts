@@ -360,27 +360,76 @@ const en = {
       loadOrders: "Failed to load your orders.",
     },
   },
+  pages: {
+    ourHistory: {
+      eyebrow: "The Brand",
+      title: "Our History",
+      paragraphs: [
+        "Yarné began as a small knit atelier with a simple belief: clothing should be made slowly, worn often, and cared for over time.",
+        "What started with a handful of hand-finished pieces has grown into a considered wardrobe of seasonal collections — still rooted in natural fibres, thoughtful construction, and the artisans who bring each garment to life.",
+        "This page is a placeholder for your brand story. Update it anytime as your narrative evolves.",
+      ],
+    },
+    delivery: {
+      eyebrow: "Help",
+      title: "Delivery & Returns",
+      paragraphs: [
+        "We ship orders within 2–4 business days. Standard delivery typically arrives in 3–7 business days depending on your location.",
+        "Express shipping is available at checkout where offered. Once your order ships, you will receive a tracking link by email.",
+        "If something is not quite right, you may return unworn items with original tags within 14 days of delivery. Contact us at hello@yarne.acc to start a return.",
+        "This page is placeholder copy — update shipping windows, carriers, and return rules to match your store policy.",
+      ],
+    },
+    care: {
+      eyebrow: "Help",
+      title: "Care Instructions",
+      paragraphs: [
+        "Hand wash cold with a gentle wool detergent. Do not bleach.",
+        "Lay flat to dry away from direct heat and sunlight. Store folded rather than on a hanger to preserve shape.",
+        "For pilling, use a fabric comb lightly along the surface. Professional dry cleaning is recommended for structured pieces.",
+        "Replace this text with fibre-specific guidance for your collections.",
+      ],
+    },
+    terms: {
+      eyebrow: "Legal",
+      title: "Terms & Conditions",
+      lastUpdated: "Last updated: July 2026",
+      paragraphs: [
+        "By accessing yarne.acc and placing an order, you agree to these Terms & Conditions. If you do not agree, please do not use our website.",
+        "All product descriptions, prices, and availability are subject to change without notice. We reserve the right to refuse or cancel orders in cases of pricing errors, suspected fraud, or stock limitations.",
+        "Payment is charged when your order is confirmed. You are responsible for providing accurate shipping and contact details.",
+        "Risk of loss passes to you upon delivery to the carrier. Delivery times are estimates only and may vary due to customs, weather, or carrier delays.",
+        "Returns are accepted only under the conditions stated on our Delivery & Returns page. Sale items and personalised goods may be excluded unless required by law.",
+        "Content on this site — including images, copy, and branding — is owned by Yarné or its licensors and may not be reproduced without permission.",
+        "To the fullest extent permitted by law, Yarné is not liable for indirect or consequential damages arising from use of the site or products. Nothing in these terms limits your statutory consumer rights.",
+        "These terms are governed by the laws applicable where Yarné operates. For questions, contact hello@yarne.acc.",
+      ],
+    },
+  },
   footer: {
     tagline: "Crafted slowly. Worn forever.",
+    links: {
+      newArrivals: "New Arrivals",
+      allPieces: "All Pieces",
+      ourHistory: "Our History",
+      delivery: "Delivery & Returns",
+      care: "Care Instructions",
+      contact: "Contact",
+    },
     columns: {
       shop: {
         title: "Shop",
-        items: ["New Arrivals", "Sweaters", "Cardigans", "Vests", "Accessories"],
       },
       brand: {
         title: "The Brand",
-        items: ["Our Story", "Journal", "Craftsmanship", "Sustainability"],
       },
       help: {
         title: "Help",
-        items: ["Size Guide", "Shipping & Returns", "Care Instructions", "Contact"],
       },
       connect: {
         title: "Connect",
         instagram: "Instagram",
         tiktok: "TikTok",
-        pinterest: "Pinterest",
-        stockists: "Stockists",
       },
     },
     rights: "© {{year}} Yarné — The Knit Gallery. All rights reserved.",

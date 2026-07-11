@@ -66,11 +66,13 @@ export interface SuggestedProductDto {
 export async function fetchProducts(params?: {
   category?: string;
   isNew?: boolean;
+  collectionId?: number;
   includeInactive?: boolean;
 }): Promise<ProductDto[]> {
   const sp = new URLSearchParams();
   if (params?.category) sp.set("category", params.category);
   if (params?.isNew !== undefined) sp.set("isNew", String(params.isNew));
+  if (params?.collectionId !== undefined) sp.set("collectionId", String(params.collectionId));
   if (params?.includeInactive) sp.set("includeInactive", "true");
   const qs = sp.toString();
   return apiRequest<ProductDto[]>(`/api/products${qs ? `?${qs}` : ""}`);

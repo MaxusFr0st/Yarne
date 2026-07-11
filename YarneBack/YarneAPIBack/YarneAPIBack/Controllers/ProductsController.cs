@@ -25,13 +25,14 @@ public class ProductsController : ControllerBase
     public async Task<ActionResult<IEnumerable<ProductDto>>> GetProducts(
         [FromQuery] string? category = null,
         [FromQuery] bool? isNew = null,
+        [FromQuery] int? collectionId = null,
         [FromQuery] bool includeInactive = false,
         CancellationToken ct = default)
     {
         if (includeInactive && !(User.Identity?.IsAuthenticated == true && User.IsInRole("Admin")))
             return Forbid();
 
-        var products = await _productService.GetProductsAsync(category, isNew, includeInactive, ct);
+        var products = await _productService.GetProductsAsync(category, isNew, collectionId, includeInactive, ct);
         return Ok(products);
     }
 

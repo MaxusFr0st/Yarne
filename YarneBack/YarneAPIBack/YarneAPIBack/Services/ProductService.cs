@@ -18,7 +18,7 @@ public class ProductService : IProductService
         _context = context;
     }
 
-    public async Task<IReadOnlyList<ProductDto>> GetProductsAsync(string? category = null, bool? isNew = null, bool includeInactive = false, CancellationToken ct = default)
+    public async Task<IReadOnlyList<ProductDto>> GetProductsAsync(string? category = null, bool? isNew = null, int? collectionId = null, bool includeInactive = false, CancellationToken ct = default)
     {
         var query = _context.Products
             .Include(p => p.Category)
@@ -50,6 +50,9 @@ public class ProductService : IProductService
 
         if (isNew == true)
             query = query.Where(p => p.IsNew);
+
+        if (collectionId.HasValue)
+            query = query.Where(p => p.CollectionId == collectionId.Value);
 
         var products = await query.AsNoTracking().OrderBy(p => p.Name).ToListAsync(ct);
 

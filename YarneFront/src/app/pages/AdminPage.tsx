@@ -69,6 +69,8 @@ import {
 import { fetchActivityLogs, type AdminActivityLogDto } from "../api/admin";
 import { fetchProduct } from "../api/products";
 import { AdminAccountingTab } from "../components/admin/AdminAccountingTab";
+import { AdminHomeCopyEditor } from "../components/admin/AdminHomeCopyEditor";
+import { AdminCollectionsTab } from "../components/admin/AdminCollectionsTab";
 import { formatPriceCompact } from "../i18n/format";
 import { PriceTag } from "../components/PriceTag";
 import { OrderLineDetails, orderItemDtoToLineDetails } from "../components/OrderLineDetails";
@@ -1813,7 +1815,7 @@ function DeleteModal({ name, onClose, onConfirm }: { name: string; onClose: () =
 /* ─────────────────────────────────────────────
    MAIN ADMIN PAGE
 ───────────────────────────────────────────── */
-type AdminTab = "dashboard" | "contents" | "products" | "users" | "orders" | "logs" | "accounting" | "categories" | "countries" | "colors" | "sizes";
+type AdminTab = "dashboard" | "contents" | "products" | "users" | "orders" | "logs" | "accounting" | "categories" | "collections" | "countries" | "colors" | "sizes";
 type LogsSubTab = "all" | "product" | "user" | "push" | "order" | "catalog" | "image";
 
 function formatLogTimestamp(iso: string) {
@@ -2758,6 +2760,7 @@ export function AdminPage() {
               { key: "logs" as AdminTab, label: "Logs", icon: <ScrollText size={14} /> },
               { key: "accounting" as AdminTab, label: "Accounting", icon: <DollarSign size={14} /> },
               { key: "categories" as AdminTab, label: "Categories", icon: <Tag size={14} /> },
+              { key: "collections" as AdminTab, label: "Collections", icon: <Star size={14} /> },
               { key: "countries" as AdminTab, label: "Countries", icon: <Globe size={14} /> },
               { key: "colors" as AdminTab, label: "Colors", icon: <Palette size={14} /> },
               { key: "sizes" as AdminTab, label: "Sizes", icon: <Tag size={14} /> },
@@ -2983,6 +2986,8 @@ export function AdminPage() {
               exit={{ opacity: 0, y: -10 }}
               transition={{ duration: 0.4, ease: easing }}
             >
+              <AdminHomeCopyEditor onError={(message) => setSaveError(message)} />
+
               {/* Home page images */}
               <div className="rounded-[28px] overflow-hidden mb-8" style={{ border: "1px solid rgba(45,36,30,0.08)" }}>
                 <div className="px-6 py-4" style={{ backgroundColor: "rgba(45,36,30,0.03)", borderBottom: "1px solid rgba(45,36,30,0.06)" }}>
@@ -4452,6 +4457,18 @@ export function AdminPage() {
                 </div>
               </div>
             </motion.div>
+          )}
+
+          {/* ── COLLECTIONS ── */}
+          {activeTab === "collections" && (
+            <AdminCollectionsTab
+              products={products.map((product) => ({
+                idNum: product.idNum,
+                name: product.name,
+                sku: product.sku,
+              }))}
+              onError={(message) => setSaveError(message)}
+            />
           )}
 
           {/* ── COUNTRIES ── */}
