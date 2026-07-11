@@ -187,6 +187,10 @@ const uk: Translations = {
     viewInAccount: "Переглянути в кабінеті",
     placeOrder: "Оформити замовлення",
     placingOrder: "Оформлюємо замовлення...",
+    phoneNumber: "Номер телефону",
+    phonePlaceholder: "+380 XX XXX XX XX",
+    phoneRequired: "Введіть номер телефону.",
+    phoneInvalid: "Введіть коректний номер (8–20 символів).",
     errors: {
       unableToPlaceOrder: "Наразі не вдалося оформити замовлення.",
     },

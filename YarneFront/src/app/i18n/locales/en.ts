@@ -181,6 +181,10 @@ const en = {
     viewInAccount: "View in account",
     placeOrder: "Place order",
     placingOrder: "Placing order...",
+    phoneNumber: "Phone number",
+    phonePlaceholder: "+380 XX XXX XX XX",
+    phoneRequired: "Please enter your phone number.",
+    phoneInvalid: "Enter a valid phone number (8–20 characters).",
     errors: {
       unableToPlaceOrder: "Unable to place order right now.",
     },

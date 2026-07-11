@@ -22,6 +22,7 @@ export interface OrderDto {
   customerId: number;
   customerName: string;
   customerEmail: string;
+  customerPhoneNumber: string | null;
   total: number;
   status: string;
   orderDate: string;
@@ -50,6 +51,7 @@ export interface CreateOrderItemRequest {
 
 export interface CreateOrderRequest {
   items: CreateOrderItemRequest[];
+  phoneNumber: string;
   paymentMethodId?: number;
   shippingAddrId?: number;
 }

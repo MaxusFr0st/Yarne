@@ -21,6 +21,8 @@ public partial class Order
 
     public DateTime? EstimatedDelivery { get; set; }
 
+    public string? ContactPhone { get; set; }
+
     public virtual Customer Customer { get; set; } = null!;
 
     public virtual ICollection<OrderItem> OrderItems { get; set; } = new List<OrderItem>();
