@@ -13,6 +13,7 @@ public class StorefrontSettingsService : IStorefrontSettingsService
         "yarne.featuredShowcase.v1",
         "yarne.home.sections.v1",
         "yarne.home.media.v1",
+        "yarne.home.copy.v1",
         "yarne.product.guarantee.v1",
     };
 

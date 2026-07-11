@@ -1,7 +1,11 @@
+import { useEffect, useState } from "react";
 import { Link } from "react-router";
 import { Instagram } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Logo } from "./Logo";
+import { LangLink } from "../i18n/LangLink";
+import { useLocale, withLocale } from "../i18n/useLocale";
+import { fetchCollections, type CollectionDto } from "../api/collections";
 
 const INSTAGRAM_URL = "https://www.instagram.com/yarne.acc/";
 const TIKTOK_URL = "https://www.tiktok.com/@yarne.acc";
@@ -10,10 +14,6 @@ const CONNECT_LINKS = [
   { key: "instagram", href: INSTAGRAM_URL },
   { key: "tiktok", href: TIKTOK_URL },
 ] as const;
-
-type FooterColumn =
-  | { id: "shop" | "brand" | "help"; title: string; links: string[] }
-  | { id: "connect"; title: string };
 
 function TikTokIcon({ size = 18 }: { size?: number }) {
   return (
@@ -28,28 +28,48 @@ const linkClassName =
 
 export function Footer() {
   const { t } = useTranslation();
+  const locale = useLocale();
+  const [collections, setCollections] = useState<CollectionDto[]>([]);
 
-  const columns: FooterColumn[] = [
-    {
-      id: "shop",
-      title: t("footer.columns.shop.title"),
-      links: t("footer.columns.shop.items", { returnObjects: true }) as string[],
-    },
-    {
-      id: "brand",
-      title: t("footer.columns.brand.title"),
-      links: t("footer.columns.brand.items", { returnObjects: true }) as string[],
-    },
-    {
-      id: "help",
-      title: t("footer.columns.help.title"),
-      links: t("footer.columns.help.items", { returnObjects: true }) as string[],
-    },
-    {
-      id: "connect",
-      title: t("footer.columns.connect.title"),
-    },
+  useEffect(() => {
+    let cancelled = false;
+    void fetchCollections()
+      .then((data) => {
+        if (!cancelled) setCollections(data);
+      })
+      .catch(() => {
+        // Footer still renders without dynamic collections
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const shopLinks = [
+    { label: t("footer.links.newArrivals"), to: "/collection?filter=new" },
+    ...collections.map((collection) => ({
+      label: collection.name,
+      to: `/collection?collection=${collection.id}`,
+    })),
+    { label: t("footer.links.allPieces"), to: "/collection" },
   ];
+
+  const brandLinks = [
+    { label: t("footer.links.ourHistory"), to: "/pages/our-history" },
+  ];
+
+  const helpLinks = [
+    { label: t("footer.links.delivery"), to: "/pages/delivery" },
+    { label: t("footer.links.care"), to: "/pages/care" },
+    { label: t("footer.links.contact"), href: "mailto:hello@yarne.acc" },
+  ];
+
+  const columns = [
+    { id: "shop", title: t("footer.columns.shop.title"), links: shopLinks },
+    { id: "brand", title: t("footer.columns.brand.title"), links: brandLinks },
+    { id: "help", title: t("footer.columns.help.title"), links: helpLinks },
+    { id: "connect", title: t("footer.columns.connect.title") },
+  ] as const;
 
   return (
     <footer
@@ -57,7 +77,6 @@ export function Footer() {
       style={{ backgroundColor: "#F5F2ED" }}
     >
       <div className="max-w-[1400px] mx-auto px-6 md:px-10 py-16 md:py-20">
-        {/* Top: Logo + Tagline */}
         <div className="flex flex-col items-center text-center mb-16">
           <Logo title="Yarné" className="h-10 w-auto mb-4 text-[#2D241E] opacity-80" />
           <p
@@ -68,7 +87,6 @@ export function Footer() {
           </p>
         </div>
 
-        {/* Links Grid */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-10 mb-16">
           {columns.map((col) => (
             <div key={col.id}>
@@ -94,14 +112,24 @@ export function Footer() {
                       </li>
                     ))
                   : col.links.map((link) => (
-                      <li key={link}>
-                        <Link
-                          to="#"
-                          className={linkClassName}
-                          style={{ fontFamily: "'DM Sans', sans-serif" }}
-                        >
-                          {link}
-                        </Link>
+                      <li key={link.label}>
+                        {"href" in link ? (
+                          <a
+                            href={link.href}
+                            className={linkClassName}
+                            style={{ fontFamily: "'DM Sans', sans-serif" }}
+                          >
+                            {link.label}
+                          </a>
+                        ) : (
+                          <Link
+                            to={withLocale(link.to, locale)}
+                            className={linkClassName}
+                            style={{ fontFamily: "'DM Sans', sans-serif" }}
+                          >
+                            {link.label}
+                          </Link>
+                        )}
                       </li>
                     ))}
               </ul>
@@ -109,7 +137,6 @@ export function Footer() {
           ))}
         </div>
 
-        {/* Bottom */}
         <div className="flex flex-col md:flex-row items-center justify-between gap-4 pt-8 border-t border-[#2D241E]/8">
           <p
             className="text-[#2D241E]/35 text-xs"
@@ -138,20 +165,13 @@ export function Footer() {
             </a>
           </div>
           <div className="flex items-center gap-6">
-            {[
-              { key: "privacy", label: t("footer.legal.privacy") },
-              { key: "terms", label: t("footer.legal.terms") },
-              { key: "cookies", label: t("footer.legal.cookies") },
-            ].map((item) => (
-              <Link
-                key={item.key}
-                to="#"
-                className="text-[#2D241E]/35 hover:text-[#2D241E] text-xs transition-colors"
-                style={{ fontFamily: "'DM Sans', sans-serif" }}
-              >
-                {item.label}
-              </Link>
-            ))}
+            <LangLink
+              to="/pages/terms"
+              className="text-[#2D241E]/35 hover:text-[#2D241E] text-xs transition-colors"
+              style={{ fontFamily: "'DM Sans', sans-serif" }}
+            >
+              {t("footer.legal.terms")}
+            </LangLink>
           </div>
         </div>
       </div>

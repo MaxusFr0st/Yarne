@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { motion, useReducedMotion, useScroll, useTransform } from "motion/react";
 import { ArrowRight, ChevronDown } from "lucide-react";
-import { useTranslation } from "react-i18next";
+import { useHomePageCopy } from "../hooks/useHomePageCopy";
 import { useProducts } from "../hooks/useProducts";
 import { ProductCard } from "../components/ProductCard";
 import { BestSellersCarousel } from "../components/BestSellersCarousel";
@@ -26,7 +26,7 @@ import { resolveMediaUrl } from "../utils/storefrontMedia";
 const ease = [0.22, 1, 0.36, 1] as const;
 
 export function Home() {
-  const { t } = useTranslation();
+  const copy = useHomePageCopy();
   const heroRef = useRef<HTMLDivElement>(null);
   const editorialRef = useRef<HTMLDivElement>(null);
   const touch = useTouchMobileLayout();
@@ -90,12 +90,6 @@ export function Home() {
     return selected.length > 0 ? selected : products.slice(3);
   }, [homeSectionsSelection.moreFromCollectionProductCodes, products]);
 
-  const brandStripItems = [
-    { label: t("home.brandStrip.yarnOriginsLabel"), value: t("home.brandStrip.yarnOriginsValue") },
-    { label: t("home.brandStrip.craftedSinceLabel"), value: t("home.brandStrip.craftedSinceValue") },
-    { label: t("home.brandStrip.materialsLabel"), value: t("home.brandStrip.materialsValue") },
-    { label: t("home.brandStrip.carbonLabel"), value: t("home.brandStrip.carbonValue") },
-  ];
 
   return (
     <main className="relative overflow-x-hidden bg-[#F5F2ED]" style={{ fontFamily: "'DM Sans', sans-serif" }}>
@@ -131,7 +125,7 @@ export function Home() {
               className="text-white/65 tracking-[0.28em] uppercase text-[0.65rem] mb-5 md:mb-6"
               style={{ fontFamily: "'DM Sans', sans-serif" }}
             >
-              {t("home.hero.eyebrow")}
+              {copy.hero.eyebrow}
             </p>
             <h1
               className="text-white"
@@ -144,15 +138,15 @@ export function Home() {
                 textWrap: "balance",
               } as React.CSSProperties}
             >
-              {t("home.hero.titleLine1")}
+              {copy.hero.titleLine1}
               <br />
-              <em className="font-light italic">{t("home.hero.titleAccent")}</em>
+              <em className="font-light italic">{copy.hero.titleAccent}</em>
             </h1>
             <p
               className="text-white/70 mt-5 md:mt-6 max-w-md text-[0.95rem] leading-relaxed min-h-[4.25rem]"
               style={{ fontFamily: "'DM Sans', sans-serif" }}
             >
-              {t("home.hero.subtitle")}
+              {copy.hero.subtitle}
             </p>
             <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 mt-8 md:mt-10 w-full max-w-lg">
               <LangLink
@@ -160,7 +154,7 @@ export function Home() {
                 className="flex items-center justify-center gap-2.5 w-full sm:w-auto px-7 py-3.5 rounded-full bg-[#F5F2ED] text-[#2D241E] hover:bg-white transition-colors duration-200 group cursor-pointer"
                 style={{ fontSize: "0.75rem", letterSpacing: "0.16em" }}
               >
-                <span className="uppercase tracking-widest">{t("home.hero.ctaPrimary")}</span>
+                <span className="uppercase tracking-widest">{copy.hero.ctaPrimary}</span>
                 <ArrowRight size={14} className="group-hover:translate-x-0.5 transition-transform duration-200" />
               </LangLink>
               <LangLink
@@ -168,7 +162,7 @@ export function Home() {
                 className="flex items-center justify-center gap-2.5 w-full sm:w-auto px-7 py-3.5 rounded-full text-white border border-white/35 hover:border-white/70 hover:bg-white/10 transition-colors duration-200 cursor-pointer"
                 style={{ fontSize: "0.75rem", letterSpacing: "0.16em" }}
               >
-                <span className="uppercase tracking-widest">{t("home.hero.ctaSecondary")}</span>
+                <span className="uppercase tracking-widest">{copy.hero.ctaSecondary}</span>
               </LangLink>
             </div>
           </div>
@@ -179,38 +173,9 @@ export function Home() {
             className="text-[0.62rem] tracking-[0.25em] uppercase"
             style={{ writingMode: "vertical-rl", fontFamily: "'DM Sans', sans-serif" }}
           >
-            {t("home.hero.scroll")}
+            {copy.hero.scroll}
           </span>
           <ChevronDown size={16} className="animate-[bounce-soft_2s_ease-in-out_infinite] motion-reduce:animate-none" />
-        </div>
-      </section>
-
-      {/* ─── BRAND STRIP ─── */}
-      <section className="border-y border-[#2D241E]/8 bg-[#F5F2ED]" aria-label={t("home.brandStrip.aria", { defaultValue: "Brand highlights" })}>
-        <div className="max-w-[1400px] mx-auto px-6 md:px-10 py-12 md:py-14">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-px bg-[#2D241E]/8 rounded-2xl overflow-hidden">
-            {brandStripItems.map((item, i) => (
-              <ScrollReveal
-                key={item.label}
-                delay={i * 0.06}
-                y={14}
-                className="bg-[#F5F2ED] px-5 py-6 md:py-8 text-center"
-              >
-                <p
-                  className="text-[#2D241E]/40 text-[0.62rem] tracking-[0.2em] uppercase mb-1.5"
-                  style={{ fontFamily: "'DM Sans', sans-serif" }}
-                >
-                  {item.label}
-                </p>
-                <p
-                  className="text-[#2D241E] text-[1.05rem] md:text-[1.15rem]"
-                  style={{ fontFamily: "'Cormorant Garamond', serif", fontWeight: 500 }}
-                >
-                  {item.value}
-                </p>
-              </ScrollReveal>
-            ))}
-          </div>
         </div>
       </section>
 
@@ -227,7 +192,7 @@ export function Home() {
         <div className="max-w-[1400px] mx-auto px-6 md:px-10">
           <ScrollReveal className="md:sticky z-30 mb-10 md:mb-12 -mx-6 md:-mx-10 px-6 md:px-10 py-4 flex items-end justify-between gap-4 border-b border-[#2D241E]/6 md:border-0" style={{ top: "var(--main-header-h)", backgroundColor: "rgba(237,233,226,0.9)", backdropFilter: "blur(8px)" }}>
             <div>
-              <SectionEyebrow>{t("home.featured.eyebrow")}</SectionEyebrow>
+              <SectionEyebrow>{copy.featured.eyebrow}</SectionEyebrow>
               <SectionTitle>
                 {homeSectionsSelection.featuredTitle || DEFAULT_FEATURED_TITLE}
               </SectionTitle>
@@ -237,7 +202,7 @@ export function Home() {
               className="hidden md:flex items-center gap-2 text-[#2D241E]/55 hover:text-[#4A0E0E] transition-colors duration-200 group shrink-0 cursor-pointer"
               style={{ fontSize: "0.75rem", letterSpacing: "0.14em" }}
             >
-              <span className="uppercase tracking-widest">{t("home.featured.viewAll")}</span>
+              <span className="uppercase tracking-widest">{copy.featured.viewAll}</span>
               <ArrowRight size={14} className="group-hover:translate-x-0.5 transition-transform duration-200" />
             </LangLink>
           </ScrollReveal>
@@ -257,7 +222,7 @@ export function Home() {
               style={{ fontSize: "0.75rem", letterSpacing: "0.15em" }}
             >
               <span className="uppercase tracking-widest">
-                {t("home.featured.shopAllPieces", { count: products.length })}
+                {copy.featured.shopAllPieces.replace("{{count}}", String(products.length))}
               </span>
               <ArrowRight size={14} className="group-hover:translate-x-0.5 transition-transform duration-200" />
             </LangLink>
@@ -276,7 +241,7 @@ export function Home() {
                     {editorialImageSrc ? (
                       <Img
                         src={editorialImageSrc}
-                        alt={t("home.editorial.eyebrow")}
+                        alt={copy.editorial.eyebrow}
                         className="h-full w-full object-cover object-center"
                       />
                     ) : null}
@@ -285,55 +250,41 @@ export function Home() {
                   editorialImageSrc ? (
                     <Img
                       src={editorialImageSrc}
-                      alt={t("home.editorial.eyebrow")}
+                      alt={copy.editorial.eyebrow}
                       className="absolute inset-0 h-full w-full object-cover object-center"
                     />
                   ) : null
                 )}
               </div>
-              <div
-                className="absolute -right-2 md:-right-8 bottom-12 md:bottom-16 rounded-2xl px-6 py-5 shadow-lg border border-[#2D241E]/6"
-                style={{ backgroundColor: "#F5F2ED" }}
-              >
-                <p
-                  className="text-[#4A0E0E] text-[2.25rem] leading-none"
-                  style={{ fontFamily: "'Cormorant Garamond', serif" }}
-                >
-                  15+
-                </p>
-                <p className="text-[#2D241E]/50 text-xs mt-1" style={{ fontFamily: "'DM Sans', sans-serif" }}>
-                  {t("home.editorial.yearsLabel")}
-                </p>
-              </div>
             </ScrollReveal>
 
             <div className="flex flex-col gap-6 md:gap-7">
               <ScrollReveal delay={0.05}>
-                <SectionEyebrow>{t("home.editorial.eyebrow")}</SectionEyebrow>
+                <SectionEyebrow>{copy.editorial.eyebrow}</SectionEyebrow>
                 <SectionTitle className="mt-1">
-                  {t("home.editorial.titleLine1")}
+                  {copy.editorial.titleLine1}
                   <br />
-                  {t("home.editorial.titleLine2")}
+                  {copy.editorial.titleLine2}
                 </SectionTitle>
               </ScrollReveal>
               <ScrollReveal delay={0.1}>
                 <p className="text-[#2D241E]/62 text-[0.92rem] leading-[1.85]" style={{ fontFamily: "'DM Sans', sans-serif" }}>
-                  {t("home.editorial.paragraph1")}
+                  {copy.editorial.paragraph1}
                 </p>
               </ScrollReveal>
               <ScrollReveal delay={0.14}>
                 <p className="text-[#2D241E]/62 text-[0.92rem] leading-[1.85]" style={{ fontFamily: "'DM Sans', sans-serif" }}>
-                  {t("home.editorial.paragraph2")}
+                  {copy.editorial.paragraph2}
                 </p>
               </ScrollReveal>
               <ScrollReveal delay={0.18}>
                 <LangLink
-                  to="/collection"
+                  to="/pages/our-history"
                   className="inline-flex items-center gap-2.5 group text-[#2D241E] hover:text-[#4A0E0E] transition-colors duration-200 cursor-pointer"
                   style={{ fontSize: "0.75rem", letterSpacing: "0.15em" }}
                 >
                   <span className="uppercase tracking-widest border-b border-[#2D241E]/35 pb-0.5 group-hover:border-[#4A0E0E]">
-                    {t("home.editorial.ourStory")}
+                    {copy.editorial.ourStory}
                   </span>
                   <ArrowRight size={14} className="group-hover:translate-x-0.5 transition-transform duration-200" />
                 </LangLink>
@@ -362,7 +313,7 @@ export function Home() {
               className="text-white/55 tracking-[0.28em] uppercase text-[0.65rem] mb-4"
               style={{ fontFamily: "'DM Sans', sans-serif" }}
             >
-              {t("home.lookbook.eyebrow")}
+              {copy.lookbook.eyebrow}
             </p>
             <h2
               className="text-white font-light leading-[1.12] mb-8"
@@ -371,16 +322,16 @@ export function Home() {
                 fontSize: "clamp(2rem, 5.5vw, 3.75rem)",
               }}
             >
-              {t("home.lookbook.titleLine1")}
+              {copy.lookbook.titleLine1}
               <br />
-              {t("home.lookbook.titleLine2")}
+              {copy.lookbook.titleLine2}
             </h2>
             <LangLink
               to="/collection"
               className="inline-flex px-9 py-3.5 rounded-full border border-white/40 text-white hover:bg-white hover:text-[#2D241E] transition-colors duration-200 cursor-pointer"
               style={{ fontSize: "0.75rem", letterSpacing: "0.15em" }}
             >
-              <span className="uppercase tracking-widest">{t("home.lookbook.cta")}</span>
+              <span className="uppercase tracking-widest">{copy.lookbook.cta}</span>
             </LangLink>
           </ScrollReveal>
         </div>
@@ -390,7 +341,7 @@ export function Home() {
       <section className="relative py-12 md:py-16 bg-[#F5F2ED]">
         <div className="max-w-[1400px] mx-auto px-6 md:px-10">
           <ScrollReveal className="text-center mb-10 md:mb-14 md:sticky z-30 -mx-6 md:-mx-10 px-6 md:px-10 py-4" style={{ top: "var(--main-header-h)", backgroundColor: "rgba(245,242,237,0.88)", backdropFilter: "blur(10px)" }}>
-            <SectionEyebrow className="mb-2">{t("home.moreFromCollection.eyebrow")}</SectionEyebrow>
+            <SectionEyebrow className="mb-2">{copy.moreFromCollection.eyebrow}</SectionEyebrow>
             <SectionTitle>
               {homeSectionsSelection.moreFromCollectionTitle || DEFAULT_MORE_FROM_COLLECTION_TITLE}
             </SectionTitle>

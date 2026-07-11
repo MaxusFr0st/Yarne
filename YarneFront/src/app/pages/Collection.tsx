@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useSearchParams } from "react-router";
 import { motion } from "motion/react";
 import { SlidersHorizontal, X } from "lucide-react";
@@ -8,6 +8,7 @@ import { useLocale } from "../i18n/useLocale";
 import { PriceTag } from "../components/PriceTag";
 import { ProductCard } from "../components/ProductCard";
 import { Skeleton } from "../components/ui/skeleton";
+import { fetchCollections, type CollectionDto } from "../api/collections";
 
 const SKELETON_COUNT = 6;
 
@@ -39,12 +40,38 @@ export function Collection() {
   const locale = useLocale();
   const [searchParams] = useSearchParams();
   const filterParam = searchParams.get("filter");
+  const collectionParam = searchParams.get("collection");
+  const collectionId = collectionParam ? Number.parseInt(collectionParam, 10) : undefined;
+  const validCollectionId = collectionId && !Number.isNaN(collectionId) ? collectionId : undefined;
+  const [collections, setCollections] = useState<CollectionDto[]>([]);
   const [activeCategory, setActiveCategory] = useState<string>(ALL_CATEGORY_KEY);
   const [activeSort, setActiveSort] = useState<SortOptionKey>("featured");
   const [filterOpen, setFilterOpen] = useState(false);
   const [priceRange, setPriceRange] = useState<[number, number]>([0, 500]);
 
-  const { products, loading } = useProducts(filterParam === "new" ? { isNew: true } : undefined);
+  useEffect(() => {
+    let cancelled = false;
+    void fetchCollections()
+      .then((data) => {
+        if (!cancelled) setCollections(data);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const productQuery = useMemo(() => {
+    if (validCollectionId) return { collectionId: validCollectionId };
+    if (filterParam === "new") return { isNew: true };
+    return undefined;
+  }, [validCollectionId, filterParam]);
+
+  const { products, loading } = useProducts(productQuery);
+  const activeCollection = useMemo(
+    () => collections.find((collection) => collection.id === validCollectionId) ?? null,
+    [collections, validCollectionId],
+  );
   const apiCategories = Array.from(new Set(products.map((p) => p.category).filter(Boolean))).sort();
   const defaultCategoryLabels = DEFAULT_CATEGORY_KEYS.map((key) => t(`collection.categories.${key}`));
   const categories = loading
@@ -74,7 +101,11 @@ export function Collection() {
               className="text-[#2D241E]/40 tracking-widest uppercase text-xs mb-4"
               style={{ fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.2em" }}
             >
-              {filterParam === "new" ? t("collection.header.newArrivalsEyebrow") : t("collection.header.collectionEyebrow")}
+              {activeCollection
+                ? t("collection.header.collectionEyebrow")
+                : filterParam === "new"
+                  ? t("collection.header.newArrivalsEyebrow")
+                  : t("collection.header.collectionEyebrow")}
             </p>
             <h1
               className="text-[#2D241E]"
@@ -85,7 +116,9 @@ export function Collection() {
                 lineHeight: 1.1,
               }}
             >
-              {filterParam === "new" ? (
+              {activeCollection ? (
+                <>{activeCollection.name}</>
+              ) : filterParam === "new" ? (
                 <>{t("collection.header.newArrivalsTitleLead")} <em style={{ fontStyle: "italic", fontWeight: 300 }}>{t("collection.header.newArrivalsTitleAccent")}</em></>
               ) : (
                 <>{t("collection.header.collectionTitleLead")} <em style={{ fontStyle: "italic", fontWeight: 300 }}>{t("collection.header.collectionTitleAccent")}</em></>

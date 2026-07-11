@@ -111,7 +111,7 @@ function mapDetailToFrontend(d: ProductDetailDto): Product {
 }
 
 export function useProducts(
-  params?: { category?: string; isNew?: boolean; includeInactive?: boolean }
+  params?: { category?: string; isNew?: boolean; collectionId?: number; includeInactive?: boolean }
 ) {
   const cacheKey = productsQueryKey(params);
   const entry = useSyncExternalStore(
@@ -126,7 +126,7 @@ export function useProducts(
     void loadProductsList(cacheKey, () => fetchProducts(params), { force: true }).finally(() => {
       setPending(false);
     });
-  }, [cacheKey, params?.category, params?.isNew, params?.includeInactive]);
+  }, [cacheKey, params?.category, params?.isNew, params?.collectionId, params?.includeInactive]);
 
   useEffect(() => {
     let cancelled = false;
@@ -140,7 +140,7 @@ export function useProducts(
     return () => {
       cancelled = true;
     };
-  }, [cacheKey, params?.category, params?.isNew, params?.includeInactive]);
+  }, [cacheKey, params?.category, params?.isNew, params?.collectionId, params?.includeInactive]);
 
   return {
     products: (entry?.data ?? []).map(mapToFrontendProduct),

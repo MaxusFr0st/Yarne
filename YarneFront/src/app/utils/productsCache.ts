@@ -3,6 +3,7 @@ import type { ProductDto, ProductDetailDto } from "../api/products";
 export type ProductsQuery = {
   category?: string;
   isNew?: boolean;
+  collectionId?: number;
   includeInactive?: boolean;
 };
 
@@ -45,6 +46,7 @@ export function productsQueryKey(params?: ProductsQuery): string {
   return JSON.stringify({
     category: params?.category ?? null,
     isNew: params?.isNew ?? null,
+    collectionId: params?.collectionId ?? null,
     includeInactive: params?.includeInactive ?? null,
   });
 }
