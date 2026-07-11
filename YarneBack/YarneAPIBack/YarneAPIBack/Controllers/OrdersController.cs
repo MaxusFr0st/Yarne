@@ -272,13 +272,13 @@ public class OrdersController : ControllerBase
 
         var orderTotal = orderItems.Sum(i => i.UnitPrice * i.Quantity);
         customer.PhoneNumber = contactPhone;
+        _context.Entry(customer).Property(c => c.PhoneNumber).IsModified = true;
 
         var order = new Order
         {
             CustomerId = customerId.Value,
             PaymentMethodId = paymentMethodId,
             ShippingAddrId = request.ShippingAddrId,
-            ContactPhone = contactPhone,
             Status = "Pending",
             Total = orderTotal,
             OrderDate = DateTime.UtcNow,
@@ -440,7 +440,7 @@ public class OrdersController : ControllerBase
             CustomerId = order.CustomerId,
             CustomerName = customerName,
             CustomerEmail = customer?.Email ?? string.Empty,
-            CustomerPhoneNumber = order.ContactPhone ?? customer?.PhoneNumber,
+            CustomerPhoneNumber = customer?.PhoneNumber,
             Total = order.Total,
             Status = order.Status,
             OrderDate = order.OrderDate,
@@ -539,7 +539,7 @@ public class OrdersController : ControllerBase
     {
         if (string.IsNullOrWhiteSpace(value)) return null;
         var trimmed = value.Trim();
-        if (trimmed.Length < 8 || trimmed.Length > 20) return null;
+        if (trimmed.Length < 8 || trimmed.Length > 32) return null;
         return trimmed;
     }
 

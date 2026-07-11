@@ -190,7 +190,7 @@ const uk: Translations = {
     phoneNumber: "Номер телефону",
     phonePlaceholder: "+380 XX XXX XX XX",
     phoneRequired: "Введіть номер телефону.",
-    phoneInvalid: "Введіть коректний номер (8–20 символів).",
+    phoneInvalid: "Введіть коректний номер (8–32 символи).",
     errors: {
       unableToPlaceOrder: "Наразі не вдалося оформити замовлення.",
     },

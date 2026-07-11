@@ -22,8 +22,7 @@ public class RegisterRequest
     [StringLength(255)]
     public string Email { get; set; } = null!;
 
-    [Phone]
-    [StringLength(20)]
+    [StringLength(32, MinimumLength = 8)]
     public string? PhoneNumber { get; set; }
 
     [Required]

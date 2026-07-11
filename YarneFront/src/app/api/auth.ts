@@ -23,6 +23,16 @@ export interface LoginRequest {
   password: string;
 }
 
+export interface CustomerProfileResponse {
+  email: string;
+  fullName: string;
+  phoneNumber: string | null;
+}
+
+export async function fetchCustomerProfile(): Promise<CustomerProfileResponse> {
+  return apiRequest<CustomerProfileResponse>("/api/auth/me");
+}
+
 export async function register(data: RegisterRequest): Promise<AuthResponse> {
   return apiRequest<AuthResponse>("/api/auth/register", {
     method: "POST",

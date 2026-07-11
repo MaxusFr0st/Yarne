@@ -23,7 +23,6 @@ public static class DatabaseStartup
                 await AccountingEnhancementsSchemaPatches.EnsureAsync(db, logger, cancellationToken);
                 await AccountingUnlockImportLocksSchemaPatches.EnsureAsync(db, logger, cancellationToken);
                 await OrderStatusSchemaPatches.EnsureOrderStatusesAsync(db, logger, cancellationToken);
-                await OrderContactPhoneSchemaPatches.EnsureContactPhoneColumnAsync(db, logger, cancellationToken);
                 return;
             }
             catch (Exception ex) when (attempt < maxAttempts)

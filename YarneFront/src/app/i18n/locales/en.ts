@@ -184,7 +184,7 @@ const en = {
     phoneNumber: "Phone number",
     phonePlaceholder: "+380 XX XXX XX XX",
     phoneRequired: "Please enter your phone number.",
-    phoneInvalid: "Enter a valid phone number (8–20 characters).",
+    phoneInvalid: "Enter a valid phone number (8–32 characters).",
     errors: {
       unableToPlaceOrder: "Unable to place order right now.",
     },

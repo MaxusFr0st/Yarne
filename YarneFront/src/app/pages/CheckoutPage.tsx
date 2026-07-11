@@ -1,8 +1,9 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { motion } from "motion/react";
 import { ArrowRight, CheckCircle2, Package, ShoppingBag } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { createOrder, type OrderDto } from "../api/orders";
+import { fetchCustomerProfile } from "../api/auth";
 import { useApp, type CartItem } from "../context/AppContext";
 import { ImageWithFallback } from "../components/figma/ImageWithFallback";
 import { LangLink } from "../i18n/LangLink";
@@ -47,7 +48,23 @@ export function CheckoutPage() {
   const displayTotal = displaySubtotal;
 
   const normalizedPhone = phoneNumber.trim();
-  const isPhoneValid = normalizedPhone.length >= 8 && normalizedPhone.length <= 20;
+  const isPhoneValid = normalizedPhone.length >= 8 && normalizedPhone.length <= 32;
+
+  useEffect(() => {
+    if (!isLoggedIn) return;
+    let cancelled = false;
+    void fetchCustomerProfile()
+      .then((profile) => {
+        if (cancelled || !profile.phoneNumber) return;
+        setPhoneNumber((current) => (current.trim().length > 0 ? current : profile.phoneNumber ?? ""));
+      })
+      .catch(() => {
+        // profile optional for checkout
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [isLoggedIn]);
 
   const placeOrder = async () => {
     if (!isLoggedIn || cartItems.length === 0 || placingOrder) return;
@@ -221,12 +238,6 @@ export function CheckoutPage() {
               );
             })}
           </div>
-
-          {error && (
-            <p className="mt-5 text-sm text-[#4A0E0E]" style={{ fontFamily: "'DM Sans', sans-serif" }}>
-              {error}
-            </p>
-          )}
         </motion.section>
 
         <motion.aside

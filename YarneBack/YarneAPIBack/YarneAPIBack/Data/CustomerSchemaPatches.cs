@@ -22,11 +22,13 @@ public static class CustomerSchemaPatches
         {
             await db.Database.ExecuteSqlRawAsync(
                 """
+                ALTER TABLE "Customer" ADD COLUMN IF NOT EXISTS "PhoneNumber" character varying(32) NULL;
+                ALTER TABLE "Customer" ALTER COLUMN "PhoneNumber" TYPE character varying(32);
                 ALTER TABLE "Customer" ADD COLUMN IF NOT EXISTS "OAuthProvider" character varying(50) NULL;
                 ALTER TABLE "Customer" ADD COLUMN IF NOT EXISTS "OAuthProviderId" character varying(255) NULL;
                 """,
                 cancellationToken);
-            logger.LogInformation("Verified Customer OAuth columns exist.");
+            logger.LogInformation("Verified Customer profile columns (PhoneNumber, OAuth).");
         }
         catch (Exception ex)
         {
