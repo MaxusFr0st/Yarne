@@ -9,7 +9,6 @@ import { FeaturedShowcase } from "../components/FeaturedShowcase";
 import { ImageWithFallback as Img } from "../components/figma/ImageWithFallback";
 import { LangLink } from "../i18n/LangLink";
 import {
-  DEFAULT_MORE_FROM_COLLECTION_TITLE,
   getDefaultHomeSectionsSelection,
   loadHomeSectionsSelection,
 } from "../utils/homeSectionsSelection";
@@ -342,7 +341,7 @@ export function Home() {
           <ScrollReveal className="text-center mb-10 md:mb-14 md:sticky z-30 -mx-6 md:-mx-10 px-6 md:px-10 py-4" style={{ top: "var(--main-header-h)", backgroundColor: "rgba(245,242,237,0.88)", backdropFilter: "blur(10px)" }}>
             <SectionEyebrow className="mb-2">{copy.moreFromCollection.eyebrow}</SectionEyebrow>
             <SectionTitle>
-              {homeSectionsSelection.moreFromCollectionTitle || DEFAULT_MORE_FROM_COLLECTION_TITLE}
+              {copy.moreFromCollection.title}
             </SectionTitle>
           </ScrollReveal>
 
