@@ -47,6 +47,7 @@ export function Collection() {
   const [filterOpen, setFilterOpen] = useState(false);
   const [activeAvailability, setActiveAvailability] = useState<"allItems" | "newOnly" | "bestsellers">("allItems");
   const [priceRange, setPriceRange] = useState<[number, number]>([0, 500]);
+  const [priceFilterTouched, setPriceFilterTouched] = useState(false);
 
   const activeTab = validCollectionId ? String(validCollectionId) : ALL_PRODUCTS_TAB;
 
@@ -74,6 +75,18 @@ export function Collection() {
     [collections, validCollectionId],
   );
 
+  const priceBounds = useMemo(() => {
+    if (products.length === 0) return { min: 0, max: 500 };
+    const prices = products.map((product) => product.price);
+    const max = Math.ceil(Math.max(...prices));
+    return { min: 0, max: Math.max(max, 100) };
+  }, [products]);
+
+  useEffect(() => {
+    if (priceFilterTouched) return;
+    setPriceRange([priceBounds.min, priceBounds.max]);
+  }, [priceBounds.min, priceBounds.max, activeTab, priceFilterTouched]);
+
   const tabs = useMemo(
     () => [
       { id: ALL_PRODUCTS_TAB, label: t("collection.tabs.allPieces") },
@@ -97,7 +110,9 @@ export function Collection() {
   if (filterParam === "new") filtered = filtered.filter((p) => p.isNew);
   if (activeAvailability === "newOnly") filtered = filtered.filter((p) => p.isNew);
   if (activeAvailability === "bestsellers") filtered = filtered.filter((p) => p.isBestseller);
-  filtered = filtered.filter((p) => p.price >= priceRange[0] && p.price <= priceRange[1]);
+  if (priceFilterTouched) {
+    filtered = filtered.filter((p) => p.price >= priceRange[0] && p.price <= priceRange[1]);
+  }
 
   if (activeSort === "priceLowToHigh") {
     filtered = [...filtered].sort((a, b) => a.price - b.price);
@@ -227,10 +242,13 @@ export function Collection() {
                     </span>
                     <input
                       type="range"
-                      min={0}
-                      max={500}
-                      value={priceRange[1]}
-                      onChange={(e) => setPriceRange([priceRange[0], parseInt(e.target.value)])}
+                      min={priceBounds.min}
+                      max={priceBounds.max}
+                      value={Math.min(priceRange[1], priceBounds.max)}
+                      onChange={(e) => {
+                        setPriceFilterTouched(true);
+                        setPriceRange([priceBounds.min, parseInt(e.target.value, 10)]);
+                      }}
                       className="w-32 accent-[#4A0E0E]"
                     />
                     <span className="text-[#2D241E] text-sm">

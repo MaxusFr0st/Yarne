@@ -37,6 +37,7 @@ import { fetchAdminOrders, fetchAdminOrdersSummary, updateOrderStatus, type Orde
 import type { ProductDto, ColorVariantDto } from "../api/products";
 import type { Product } from "../types/product";
 import { normalizeLaceVariants } from "../utils/variantStock";
+import { invalidateProductsCache } from "../utils/productsCache";
 
 function mapColorVariant(c: ColorVariantDto) {
   const seen = new Set<string>();
@@ -209,6 +210,7 @@ export function useAdminData() {
   const addProduct = useCallback(
     async (data: CreateProductRequest) => {
       const created = await createProduct(data);
+      invalidateProductsCache();
       setProducts((prev) => [mapProductDtoToProduct(created), ...prev]);
       return created;
     },
@@ -218,6 +220,7 @@ export function useAdminData() {
   const editProduct = useCallback(
     async (id: number, data: UpdateProductRequest) => {
       const updated = await updateProduct(id, data);
+      invalidateProductsCache();
       setProducts((prev) =>
         prev.map((p) => (p.idNum === id ? mapProductDtoToProduct(updated) : p))
       );
@@ -228,6 +231,7 @@ export function useAdminData() {
 
   const removeProduct = useCallback(async (id: number) => {
     await deleteProduct(id);
+    invalidateProductsCache();
     setProducts((prev) => prev.filter((p) => p.idNum !== id));
   }, []);
 

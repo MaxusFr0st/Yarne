@@ -27,6 +27,9 @@ public class UpdateProductRequest
     [Required]
     public int CategoryId { get; set; }
 
+    /// <summary>
+    /// Optional on update. Null = keep current collection assignment.
+    /// </summary>
     public int? CollectionId { get; set; }
 
     [StringLength(255)]
