@@ -2384,6 +2384,7 @@ export function AdminPage() {
     countries,
     loading,
     apiAvailable,
+    loadWarnings,
     refetch,
     addProduct,
     editProduct,
@@ -3187,7 +3188,19 @@ export function AdminPage() {
     <main style={{ backgroundColor: "#F5F2ED", minHeight: "100svh" }} className="relative">
       {!apiAvailable && !loading && (
         <div className="fixed top-20 left-0 right-0 z-50 mx-4 md:mx-auto max-w-xl bg-[#4A0E0E] text-[#F5F2ED] px-6 py-4 rounded-2xl shadow-lg text-center" style={{ fontFamily: "'DM Sans', sans-serif" }}>
-          Backend API unavailable. Docker: ensure api container runs on port 8080. Local: <code className="bg-black/20 px-2 py-0.5 rounded">dotnet run</code> and set <code className="bg-black/20 px-2 py-0.5 rounded">VITE_API_URL=http://localhost:5000</code>.
+          Cannot reach the backend API. Check that the mindful-flexibility service is running on Railway and that <code className="bg-black/20 px-2 py-0.5 rounded">VITE_API_URL</code> points to it.
+          <button onClick={() => refetch()} className="ml-3 underline">Retry</button>
+        </div>
+      )}
+      {apiAvailable && loadWarnings.length > 0 && !loading && (
+        <div className="fixed top-20 left-0 right-0 z-50 mx-4 md:mx-auto max-w-2xl bg-[#6B4E1E] text-[#F5F2ED] px-6 py-4 rounded-2xl shadow-lg text-center text-sm" style={{ fontFamily: "'DM Sans', sans-serif" }}>
+          <p className="font-medium mb-1">Some admin data could not be loaded</p>
+          <ul className="space-y-1 opacity-90">
+            {loadWarnings.map((warning) => (
+              <li key={warning}>{warning}</li>
+            ))}
+          </ul>
+          <button onClick={() => refetch()} className="mt-2 underline">Retry</button>
         </div>
       )}
       {saveError && (
