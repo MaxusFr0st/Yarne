@@ -46,11 +46,18 @@ export async function uploadImage(file: File): Promise<string> {
     (headers as Record<string, string>)["Authorization"] = `Bearer ${token}`;
   }
 
-  const res = await fetch(buildApiUrl(API_BASE, "/api/images/upload"), {
-    method: "POST",
-    headers,
-    body: formData,
-  });
+  let res: Response;
+  try {
+    res = await fetch(buildApiUrl(API_BASE, "/api/images/upload"), {
+      method: "POST",
+      headers,
+      body: formData,
+    });
+  } catch {
+    throw new Error(
+      `Could not reach the upload API (${API_BASE}). Check backend status and CORS settings, then try again.`,
+    );
+  }
 
   if (res.status === 401) {
     handleUnauthorized();

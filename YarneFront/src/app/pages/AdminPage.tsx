@@ -7,7 +7,7 @@ import { uploadImage } from "../api/images";
 import { AdminColorPicker, sanitizeColorHex } from "../components/admin/AdminColorPicker";
 import { ImageCropDialog } from "../components/admin/ImageCropDialog";
 import { ProductCardPreviewPanel } from "../components/admin/ProductCardPreviewPanel";
-import { fileToDataUrl, resolveImageSrcForCrop, revokeCropImageSrc } from "../utils/cropImage";
+import { fileToDataUrl, extractUploadPath, resolveImageSrcForCrop, revokeCropImageSrc } from "../utils/cropImage";
 import { normalizeStoredMediaUrl, resolveMediaUrl } from "../utils/storefrontMedia";
 import { getProductPreviewUrl } from "../utils/productPreview";
 import type { Product } from "../types/product";
@@ -415,7 +415,9 @@ function ProductModal({
           return;
         }
         cropInFlightRef.current = true;
-        const rawSrc = url.trim().startsWith("data:") ? url.trim() : resolveMediaUrl(url.trim());
+        const rawSrc = url.trim().startsWith("data:")
+          ? url.trim()
+          : extractUploadPath(url.trim()) ?? resolveMediaUrl(url.trim());
         if (!rawSrc) {
           cropInFlightRef.current = false;
           reject(new Error("No image to crop"));
