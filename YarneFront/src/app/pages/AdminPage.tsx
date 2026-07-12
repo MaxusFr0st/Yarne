@@ -711,11 +711,11 @@ function ProductModal({
     try {
       for (let i = 0; i < files.length; i++) {
         try {
+          setUploading(true);
           const { croppedFile, settings, originalFile } = await promptCropForUpload(
             files[i],
             files.length > 1 ? `Crop image ${i + 1} of ${files.length}` : "Crop for product card",
           );
-          setUploading(true);
           const { displayUrl, sourceUrl } = await uploadCroppedWithOriginal(croppedFile, originalFile);
           updateCropMeta((prev) =>
             setImageCropMeta(prev, displayUrl, buildCropMetaEntry(sourceUrl, settings)),
@@ -752,11 +752,11 @@ function ProductModal({
     try {
       for (let i = 0; i < files.length; i++) {
         try {
+          setUploadingColorId(colorId);
           const { croppedFile, settings, originalFile } = await promptCropForUpload(
             files[i],
             files.length > 1 ? `Crop image ${i + 1} of ${files.length}` : "Crop for product card",
           );
-          setUploadingColorId(colorId);
           const { displayUrl, sourceUrl } = await uploadCroppedWithOriginal(croppedFile, originalFile);
           updateCropMeta((prev) =>
             setImageCropMeta(prev, displayUrl, buildCropMetaEntry(sourceUrl, settings)),
@@ -1117,25 +1117,34 @@ function ProductModal({
                 <input
                   ref={fileInputRef}
                   type="file"
-                  accept="image/jpeg,image/png,image/gif,image/webp"
+                  accept="image/*"
                   multiple
                   className="hidden"
                   onChange={handleFileSelect}
                 />
                 {uploadError && (
                   <p className="text-sm text-[#4A0E0E] mr-2" style={{ fontFamily: "'DM Sans', sans-serif" }}>
-                    Upload failed: {uploadError}
+                    {uploadError}
                   </p>
                 )}
                 <button
                   type="button"
-                  onClick={() => { setUploadError(null); fileInputRef.current?.click(); }}
-                  disabled={uploading || imagesLockedByColors || cropBusy}
+                  onClick={() => {
+                    setUploadError(null);
+                    if (imagesLockedByColors) {
+                      setUploadError(
+                        "Colors are selected — add photos in the Constructor section below (per color & size).",
+                      );
+                      return;
+                    }
+                    fileInputRef.current?.click();
+                  }}
+                  disabled={uploading || cropBusy}
                   className="flex items-center gap-1.5 px-3 py-2 rounded-[12px] text-xs border transition-all hover:bg-[#2D241E]/5 disabled:opacity-50"
                   style={{ fontFamily: "'DM Sans', sans-serif", borderColor: "rgba(45,36,30,0.2)", color: "#2D241E" }}
                 >
                   <ImagePlus size={14} />
-                  {uploading ? "Uploading..." : "Add from device"}
+                  {uploading ? (cropBusy ? "Crop image…" : "Uploading…") : "Add from device"}
                 </button>
                 {!imagesLockedByColors && (
                   <button type="button" onClick={addImageUrl} className="text-xs text-[#4A0E0E] hover:underline" style={{ fontFamily: "'DM Sans', sans-serif" }}>+ Add URL</button>
@@ -1362,7 +1371,7 @@ function ProductModal({
                       Upload failed: {uploadError}
                     </p>
                   )}
-                  <input ref={perColorFileInputRef} type="file" accept="image/jpeg,image/png,image/gif,image/webp" multiple className="hidden" onChange={handlePerColorFileSelect} />
+                  <input ref={perColorFileInputRef} type="file" accept="image/*" multiple className="hidden" onChange={handlePerColorFileSelect} />
                   <div className="grid gap-3 sm:gap-4 lg:grid-cols-2">
                     {form.colorIds.flatMap((colorId) =>
                       (form.colorSizeIds[colorId] ?? []).flatMap((sizeId) =>
@@ -3465,7 +3474,7 @@ export function AdminPage() {
                             </span>
                             <input
                               type="file"
-                              accept="image/jpeg,image/png,image/webp,image/gif"
+                              accept="image/*"
                               className="hidden"
                               disabled={cropDisabled}
                               onChange={(e) => {
