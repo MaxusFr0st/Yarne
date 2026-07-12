@@ -7,7 +7,7 @@ import { uploadImage } from "../api/images";
 import { AdminColorPicker, sanitizeColorHex } from "../components/admin/AdminColorPicker";
 import { ImageCropDialog } from "../components/admin/ImageCropDialog";
 import { ProductCardPreviewPanel } from "../components/admin/ProductCardPreviewPanel";
-import { fileToDataUrl } from "../utils/cropImage";
+import { fileToDataUrl, resolveImageSrcForCrop, revokeCropImageSrc } from "../utils/cropImage";
 import { normalizeStoredMediaUrl, resolveMediaUrl } from "../utils/storefrontMedia";
 import { getProductPreviewUrl } from "../utils/productPreview";
 import type { Product } from "../types/product";
@@ -201,7 +201,7 @@ function AdminImageUrlRow({
         )}
       </div>
       <input
-        type="url"
+        type="text"
         value={url}
         onChange={(e) => onChange(e.target.value)}
         readOnly={readOnly}
@@ -359,16 +359,31 @@ function ProductModal({
   useBodyScrollLock(true);
 
   const variantKey = (colorId: number, sizeId: number, lace: boolean) => `${colorId}:${sizeId}:${lace}`;
+  const cropInFlightRef = useRef(false);
   const [cropDialog, setCropDialog] = useState<{
     imageSrc: string;
     title?: string;
     onComplete: (blob: Blob) => void | Promise<void>;
     onCancel?: () => void;
+    revokeSrc?: string;
   } | null>(null);
+
+  const closeCropDialog = useCallback(() => {
+    setCropDialog((prev) => {
+      if (prev?.revokeSrc) revokeCropImageSrc(prev.revokeSrc);
+      return null;
+    });
+    cropInFlightRef.current = false;
+  }, []);
 
   const promptCropForUpload = useCallback(
     (file: File, title?: string): Promise<File> =>
       new Promise((resolve, reject) => {
+        if (cropInFlightRef.current) {
+          reject(new Error("Crop dialog already open"));
+          return;
+        }
+        cropInFlightRef.current = true;
         void fileToDataUrl(file)
           .then((imageSrc) => {
             setCropDialog({
@@ -384,7 +399,10 @@ function ProductModal({
               onCancel: () => reject(new CropCancelledError()),
             });
           })
-          .catch(reject);
+          .catch((err) => {
+            cropInFlightRef.current = false;
+            reject(err);
+          });
       }),
     [],
   );
@@ -392,17 +410,32 @@ function ProductModal({
   const promptCropForUrl = useCallback(
     (url: string, title?: string): Promise<Blob> =>
       new Promise((resolve, reject) => {
-        const imageSrc = url.trim().startsWith("data:") ? url.trim() : resolveMediaUrl(url.trim());
-        if (!imageSrc) {
+        if (cropInFlightRef.current) {
+          reject(new Error("Crop dialog already open"));
+          return;
+        }
+        cropInFlightRef.current = true;
+        const rawSrc = url.trim().startsWith("data:") ? url.trim() : resolveMediaUrl(url.trim());
+        if (!rawSrc) {
+          cropInFlightRef.current = false;
           reject(new Error("No image to crop"));
           return;
         }
-        setCropDialog({
-          imageSrc,
-          title: title ?? "Re-crop for product card",
-          onComplete: async (blob) => resolve(blob),
-          onCancel: () => reject(new CropCancelledError()),
-        });
+        void resolveImageSrcForCrop(rawSrc)
+          .then((imageSrc) => {
+            const revokeSrc = imageSrc.startsWith("blob:") ? imageSrc : undefined;
+            setCropDialog({
+              imageSrc,
+              revokeSrc,
+              title: title ?? "Re-crop for product card",
+              onComplete: async (blob) => resolve(blob),
+              onCancel: () => reject(new CropCancelledError()),
+            });
+          })
+          .catch((err) => {
+            cropInFlightRef.current = false;
+            reject(err);
+          });
       }),
     [],
   );
@@ -643,7 +676,7 @@ function ProductModal({
       setUploadError(err instanceof Error ? err.message : "Unknown error");
     } finally {
       setUploading(false);
-      setCropDialog(null);
+      closeCropDialog();
     }
   };
 
@@ -684,11 +717,12 @@ function ProductModal({
     } finally {
       setUploadingColorId(null);
       uploadTargetVariantRef.current = null;
-      setCropDialog(null);
+      closeCropDialog();
     }
   };
 
   const handleRecropImageUrl = async (url: string, onReplace: (newUrl: string) => void) => {
+    if (cropInFlightRef.current || cropDialog) return;
     setUploadError(null);
     try {
       const blob = await promptCropForUrl(url);
@@ -702,7 +736,7 @@ function ProductModal({
       setUploadError(err instanceof Error ? err.message : "Unknown error");
     } finally {
       setUploading(false);
-      setCropDialog(null);
+      closeCropDialog();
     }
   };
 
@@ -714,6 +748,7 @@ function ProductModal({
 
   const isEditing = !!product;
   const imagesLockedByColors = form.colorIds.length > 0;
+  const cropBusy = Boolean(cropDialog);
   const selectedSizeIds = Array.from(
     new Set(
       form.colorIds.flatMap((colorId) => form.colorSizeIds[colorId] ?? [])
@@ -1053,7 +1088,7 @@ function ProductModal({
                       : undefined
                   }
                   readOnly={imagesLockedByColors}
-                  disabled={imagesLockedByColors || uploading}
+                  disabled={imagesLockedByColors || uploading || cropBusy}
                   placeholder={`Image ${i + 1} URL or upload from device`}
                 />
               ))}
@@ -1379,7 +1414,7 @@ function ProductModal({
                                     return { ...p, colorSizeVariants: next };
                                   });
                                 }}
-                                disabled={uploadingColorId === colorId || uploading}
+                                disabled={uploadingColorId === colorId || uploading || cropBusy}
                                 placeholder={`Image ${i + 1} URL or upload from device`}
                               />
                             ))}
@@ -1628,9 +1663,10 @@ function ProductModal({
         <ImageCropDialog
           imageSrc={cropDialog.imageSrc}
           title={cropDialog.title}
-          onClose={() => {
+          onClose={closeCropDialog}
+          onCancel={() => {
             cropDialog.onCancel?.();
-            setCropDialog(null);
+            closeCropDialog();
           }}
           onComplete={cropDialog.onComplete}
         />

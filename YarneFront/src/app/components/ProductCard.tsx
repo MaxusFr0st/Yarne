@@ -20,9 +20,19 @@ interface ProductCardProps {
   inCarousel?: boolean;
   subtleEntrance?: boolean;
   viewportRoot?: React.RefObject<HTMLElement | null>;
+  /** Forces layout independent of viewport breakpoints (admin preview). */
+  previewBreakpoint?: "mobile" | "tablet" | "desktop";
 }
 
-function ProductCardInner({ product, index = 0, size = "medium", inCarousel = false, subtleEntrance = false, viewportRoot }: ProductCardProps) {
+function ProductCardInner({
+  product,
+  index = 0,
+  size = "medium",
+  inCarousel = false,
+  subtleEntrance = false,
+  viewportRoot,
+  previewBreakpoint,
+}: ProductCardProps) {
   const { t } = useTranslation();
   const locale = useLocale();
   const [activeColor, setActiveColor] = useState(() => getDefaultColorIndex(product));
@@ -35,15 +45,23 @@ function ProductCardInner({ product, index = 0, size = "medium", inCarousel = fa
   const isWishlisted = wishlist.includes(product.id);
   const isCarouselCard = inCarousel || size === "carousel";
 
-  const aspectClass = isCarouselCard
-    ? "w-full min-h-0 aspect-[3/4]"
-    : size === "collection"
-      ? "w-full min-h-0 aspect-[3/4] md:aspect-[4/5]"
-      : "aspect-[3/4] w-full min-h-0";
+  const aspectClass = previewBreakpoint
+    ? previewBreakpoint === "desktop"
+      ? "w-full min-h-0 aspect-[4/5]"
+      : "w-full min-h-0 aspect-[3/4]"
+    : isCarouselCard
+      ? "w-full min-h-0 aspect-[3/4]"
+      : size === "collection"
+        ? "w-full min-h-0 aspect-[3/4] md:aspect-[4/5]"
+        : "aspect-[3/4] w-full min-h-0";
 
-  const imageRadiusClass = isCarouselCard
-    ? "rounded-[22px] sm:rounded-[28px]"
-    : "rounded-[24px] md:rounded-[32px]";
+  const imageRadiusClass = previewBreakpoint
+    ? previewBreakpoint === "desktop"
+      ? "rounded-[32px]"
+      : "rounded-[24px]"
+    : isCarouselCard
+      ? "rounded-[22px] sm:rounded-[28px]"
+      : "rounded-[24px] md:rounded-[32px]";
 
   const handleQuickAdd = (e: MouseEvent<HTMLButtonElement>) => {
     e.preventDefault();

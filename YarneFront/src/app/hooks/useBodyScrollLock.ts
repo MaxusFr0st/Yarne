@@ -12,6 +12,8 @@ export function useBodyScrollLock(locked: boolean) {
     const prevHtmlOverflow = html.style.overflow;
     const prevBodyOverflow = body.style.overflow;
     const scrollY = window.scrollY;
+    const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
+    const prevBodyPaddingRight = body.style.paddingRight;
 
     html.style.overflow = "hidden";
     body.style.overflow = "hidden";
@@ -20,6 +22,9 @@ export function useBodyScrollLock(locked: boolean) {
     body.style.left = "0";
     body.style.right = "0";
     body.style.width = "100%";
+    if (scrollbarWidth > 0) {
+      body.style.paddingRight = `${scrollbarWidth}px`;
+    }
 
     return () => {
       html.style.overflow = prevHtmlOverflow;
@@ -29,6 +34,7 @@ export function useBodyScrollLock(locked: boolean) {
       body.style.left = "";
       body.style.right = "";
       body.style.width = "";
+      body.style.paddingRight = prevBodyPaddingRight;
       window.scrollTo(0, scrollY);
     };
   }, [locked]);

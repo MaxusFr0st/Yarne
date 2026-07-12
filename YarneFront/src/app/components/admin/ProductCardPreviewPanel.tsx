@@ -14,9 +14,9 @@ type Props = {
 };
 
 const DEVICE_FRAMES = [
-  { id: "mobile", label: "Mobile", width: 300, size: "collection" as const },
-  { id: "tablet", label: "Tablet", width: 380, size: "medium" as const },
-  { id: "desktop", label: "Desktop grid", width: 320, size: "collection" as const },
+  { id: "mobile", label: "Mobile", width: 300, size: "collection" as const, previewBreakpoint: "mobile" as const },
+  { id: "tablet", label: "Tablet", width: 380, size: "medium" as const, previewBreakpoint: "tablet" as const },
+  { id: "desktop", label: "Desktop grid", width: 320, size: "collection" as const, previewBreakpoint: "desktop" as const },
 ];
 
 export function ProductCardPreviewPanel({ form, colors, sizes, categoryName }: Props) {
@@ -68,7 +68,12 @@ export function ProductCardPreviewPanel({ form, colors, sizes, categoryName }: P
               }}
             >
               <div className="pointer-events-none select-none">
-                <ProductCard product={draftProduct} size={device.size} subtleEntrance />
+                <ProductCard
+                  product={draftProduct}
+                  size={device.size}
+                  previewBreakpoint={device.previewBreakpoint}
+                  subtleEntrance
+                />
               </div>
             </div>
           </div>

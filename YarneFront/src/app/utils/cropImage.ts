@@ -1,5 +1,30 @@
 import type { Area } from "react-easy-crop";
 
+function getAuthToken(): string | null {
+  return sessionStorage.getItem("auth_token") ?? localStorage.getItem("auth_token");
+}
+
+/** Loads remote images as blob URLs so canvas crop works across origins. */
+export async function resolveImageSrcForCrop(src: string): Promise<string> {
+  if (src.startsWith("data:") || src.startsWith("blob:")) return src;
+
+  const headers: HeadersInit = {};
+  const token = getAuthToken();
+  if (token) {
+    (headers as Record<string, string>)["Authorization"] = `Bearer ${token}`;
+  }
+
+  const res = await fetch(src, { credentials: "include", mode: "cors", headers });
+  if (!res.ok) {
+    throw new Error(`Could not load image for cropping (${res.status}).`);
+  }
+  return URL.createObjectURL(await res.blob());
+}
+
+export function revokeCropImageSrc(src: string | undefined) {
+  if (src?.startsWith("blob:")) URL.revokeObjectURL(src);
+}
+
 function loadImage(src: string): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
     const image = new Image();

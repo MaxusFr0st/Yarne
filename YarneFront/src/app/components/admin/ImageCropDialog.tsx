@@ -8,6 +8,7 @@ type Props = {
   aspect?: number;
   title?: string;
   onClose: () => void;
+  onCancel?: () => void;
   onComplete: (blob: Blob) => void | Promise<void>;
 };
 
@@ -16,8 +17,13 @@ export function ImageCropDialog({
   aspect = 3 / 4,
   title = "Crop for product card",
   onClose,
+  onCancel,
   onComplete,
 }: Props) {
+  const dismiss = () => {
+    if (onCancel) onCancel();
+    else onClose();
+  };
   const [crop, setCrop] = useState({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(1);
   const [croppedAreaPixels, setCroppedAreaPixels] = useState<Area | null>(null);
@@ -73,7 +79,7 @@ export function ImageCropDialog({
           </div>
           <button
             type="button"
-            onClick={onClose}
+            onClick={dismiss}
             className="w-9 h-9 rounded-full flex items-center justify-center hover:bg-[#2D241E]/5"
             aria-label="Close crop dialog"
           >
@@ -117,7 +123,7 @@ export function ImageCropDialog({
           <div className="flex justify-end gap-3 pt-1">
             <button
               type="button"
-              onClick={onClose}
+              onClick={dismiss}
               className="px-5 py-2.5 rounded-full border text-[#2D241E]/70"
               style={{ borderColor: "rgba(45,36,30,0.2)", fontFamily: "'DM Sans', sans-serif", fontSize: "0.75rem" }}
             >
