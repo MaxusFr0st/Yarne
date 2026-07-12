@@ -15,11 +15,15 @@ public static class DatabaseBootstrap
 
         if (!RailwayDatabaseConfiguration.TryResolve(configuration, logger, out _))
         {
-            logger.LogError("Skipping database bootstrap because PostgreSQL is not configured.");
+            const string message = "PostgreSQL is not configured.";
+            logger.LogError("Skipping database bootstrap because {Message}", message);
+            DatabaseReadiness.MarkFailed(message);
             return;
         }
 
         var db = scope.ServiceProvider.GetRequiredService<YarneDbContext>();
+
+        await OrderItemSchemaPatches.ForceEnsureSnapshotColumnsAsync(db, logger, cancellationToken);
 
         try
         {
@@ -27,8 +31,8 @@ public static class DatabaseBootstrap
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "EF migrations failed. Applying critical OrderItem schema patches before continuing.");
-            await OrderItemSchemaPatches.EnsureSnapshotColumnsAsync(db, logger, cancellationToken);
+            logger.LogError(ex, "EF migrations failed. Re-applying critical OrderItem schema patches before continuing.");
+            await OrderItemSchemaPatches.ForceEnsureSnapshotColumnsAsync(db, logger, cancellationToken);
         }
 
         if (runStartupDbPatches)
@@ -37,6 +41,18 @@ public static class DatabaseBootstrap
         }
 
         await SeedData.EnsureSeedDataAsync(db, configuration, logger, app.Environment.IsProduction(), cancellationToken);
+
+        if (await OrderItemSchemaPatches.HasSnapshotColumnsAsync(db, cancellationToken))
+        {
+            DatabaseReadiness.MarkReady();
+            logger.LogInformation("Database bootstrap completed; orders schema is ready.");
+        }
+        else
+        {
+            const string message = "OrderItem snapshot columns are still missing after bootstrap.";
+            logger.LogError("{Message}", message);
+            DatabaseReadiness.MarkFailed(message);
+        }
     }
 
     private static async Task ApplyStartupPatchesAsync(
@@ -63,7 +79,7 @@ public static class DatabaseBootstrap
                           IF NOT EXISTS (
                             SELECT 1
                             FROM information_schema.columns
-                            WHERE table_schema = current_schema()
+                            WHERE table_schema = 'public'
                               AND table_name = 'Order'
                               AND column_name = 'EstimatedDelivery'
                           ) THEN
@@ -73,7 +89,7 @@ public static class DatabaseBootstrap
                           IF NOT EXISTS (
                             SELECT 1
                             FROM information_schema.columns
-                            WHERE table_schema = current_schema()
+                            WHERE table_schema = 'public'
                               AND table_name = 'Customer'
                               AND column_name = 'OAuthProvider'
                           ) THEN
@@ -83,7 +99,7 @@ public static class DatabaseBootstrap
                           IF NOT EXISTS (
                             SELECT 1
                             FROM information_schema.columns
-                            WHERE table_schema = current_schema()
+                            WHERE table_schema = 'public'
                               AND table_name = 'Customer'
                               AND column_name = 'OAuthProviderId'
                           ) THEN
@@ -93,7 +109,7 @@ public static class DatabaseBootstrap
                         """,
                         cancellationToken);
 
-                    await OrderItemSchemaPatches.EnsureSnapshotColumnsAsync(db, logger, cancellationToken);
+                    await OrderItemSchemaPatches.ForceEnsureSnapshotColumnsAsync(db, logger, cancellationToken);
                 }
                 else
                 {

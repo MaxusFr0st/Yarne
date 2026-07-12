@@ -267,8 +267,22 @@ app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
 
-// Railway probes /healthz while migrations run in the background.
+// Railway probes /healthz during startup while migrations run.
 app.MapGet("/healthz", () => Results.Ok(new { status = "ok" }))
+    .DisableRateLimiting()
+    .AllowAnonymous();
+
+app.MapGet("/healthz/db", async (YarneDbContext db, CancellationToken ct) =>
+    {
+        var hasSnapshotColumns = await OrderItemSchemaPatches.HasSnapshotColumnsAsync(db, ct);
+        return Results.Ok(new
+        {
+            status = hasSnapshotColumns && DatabaseReadiness.IsReady ? "ok" : "degraded",
+            ordersSchemaReady = hasSnapshotColumns,
+            bootstrapReady = DatabaseReadiness.IsReady,
+            bootstrapError = DatabaseReadiness.LastError,
+        });
+    })
     .DisableRateLimiting()
     .AllowAnonymous();
 
@@ -276,20 +290,15 @@ var runStartupDbPatches = builder.Configuration.GetValue(
     "Database:RunStartupPatches",
     builder.Environment.IsDevelopment());
 
-app.Lifetime.ApplicationStarted.Register(() =>
+try
 {
-    _ = Task.Run(async () =>
-    {
-        try
-        {
-            await DatabaseBootstrap.RunAsync(app, runStartupDbPatches);
-        }
-        catch (Exception ex)
-        {
-            var logger = app.Services.GetRequiredService<ILogger<Program>>();
-            logger.LogError(ex, "Database bootstrap failed. /healthz remains available.");
-        }
-    });
-});
+    await DatabaseBootstrap.RunAsync(app, runStartupDbPatches);
+}
+catch (Exception ex)
+{
+    var logger = app.Services.GetRequiredService<ILogger<Program>>();
+    logger.LogError(ex, "Database bootstrap failed at startup. /healthz remains available.");
+    DatabaseReadiness.MarkFailed(ex.Message);
+}
 
 app.Run();

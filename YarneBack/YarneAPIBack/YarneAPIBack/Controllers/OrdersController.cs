@@ -96,11 +96,26 @@ public class OrdersController : ControllerBase
     [ProducesResponseType(typeof(IEnumerable<OrderDto>), StatusCodes.Status200OK)]
     public async Task<ActionResult<IEnumerable<OrderDto>>> GetAllOrders(CancellationToken ct = default)
     {
+        try
+        {
+            return Ok(await LoadAdminOrdersAsync(ct));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Admin orders list failed; attempting schema self-heal.");
+            await OrderItemSchemaPatches.ForceEnsureSnapshotColumnsAsync(_context, _logger, ct);
+            var orders = await LoadAdminOrdersAsync(ct);
+            return Ok(orders);
+        }
+    }
+
+    private async Task<IEnumerable<OrderDto>> LoadAdminOrdersAsync(CancellationToken ct)
+    {
         var orders = await BuildAdminOrderListQuery()
             .OrderByDescending(o => o.OrderDate)
             .ToListAsync(ct);
 
-        return Ok(orders.Select(MapOrder));
+        return orders.Select(MapOrder);
     }
 
     [HttpGet("summary")]
