@@ -391,9 +391,23 @@ public class ProductService : IProductService
 
         var previousUploadUrls = CollectProductUploadUrls(product);
 
-        var hasOrderItems = await _context.OrderItems.AnyAsync(oi => oi.ProductId == id, ct);
-        if (hasOrderItems)
-            throw new InvalidOperationException("Cannot delete this product because it is referenced by existing orders.");
+        var orderItems = await _context.OrderItems
+            .Include(oi => oi.Product)
+                .ThenInclude(p => p!.ProductImages)
+            .Include(oi => oi.Product)
+                .ThenInclude(p => p!.ProductColors)
+                    .ThenInclude(pc => pc.Images)
+            .Include(oi => oi.Product)
+                .ThenInclude(p => p!.ProductColors)
+                    .ThenInclude(pc => pc.SizeImages)
+            .Where(oi => oi.ProductId == id)
+            .ToListAsync(ct);
+
+        foreach (var orderItem in orderItems)
+        {
+            if (orderItem.Product != null)
+                OrderItemSnapshotHelper.ApplyProductSnapshot(orderItem, orderItem.Product);
+        }
 
         // Be defensive here: some deployed databases still have NO ACTION on
         // composite product variant FKs, so explicit cleanup avoids delete

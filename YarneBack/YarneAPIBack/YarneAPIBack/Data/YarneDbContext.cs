@@ -340,6 +340,9 @@ public partial class YarneDbContext : DbContext
             entity.ToTable("OrderItem");
 
             entity.Property(e => e.UnitPrice).HasColumnType("decimal(18, 2)");
+            entity.Property(e => e.ProductName).HasMaxLength(200);
+            entity.Property(e => e.ProductCode).HasMaxLength(50);
+            entity.Property(e => e.ProductImageUrl).HasMaxLength(500);
             entity.Property(e => e.ProductSubtitle).HasMaxLength(200);
             entity.Property(e => e.ColorName).HasMaxLength(100);
             entity.Property(e => e.SizeName).HasMaxLength(20);
@@ -354,7 +357,7 @@ public partial class YarneDbContext : DbContext
 
             entity.HasOne(d => d.Product).WithMany(p => p.OrderItems)
                 .HasForeignKey(d => d.ProductId)
-                .OnDelete(DeleteBehavior.ClientSetNull)
+                .OnDelete(DeleteBehavior.SetNull)
                 .HasConstraintName("FK__OrderItem__Produ__6C190EBB");
         });
 
