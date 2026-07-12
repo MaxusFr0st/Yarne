@@ -8,6 +8,18 @@ import { AdminColorPicker, sanitizeColorHex } from "../components/admin/AdminCol
 import { ImageCropDialog } from "../components/admin/ImageCropDialog";
 import { ProductCardPreviewPanel } from "../components/admin/ProductCardPreviewPanel";
 import { fileToDataUrl, extractUploadPath, resolveImageSrcForCrop, revokeCropImageSrc } from "../utils/cropImage";
+import {
+  buildCropMetaEntry,
+  getCropMetaForDisplayUrl,
+  loadImageCropMeta,
+  persistImageCropMeta,
+  removeImageCropMeta,
+  resolveCropSourceUrl,
+  setImageCropMeta,
+  transferImageCropMeta,
+  type CropResultSettings,
+  type ImageCropMeta,
+} from "../utils/imageCropMeta";
 import { normalizeStoredMediaUrl, resolveMediaUrl } from "../utils/storefrontMedia";
 import { getProductPreviewUrl } from "../utils/productPreview";
 import type { Product } from "../types/product";
@@ -359,11 +371,35 @@ function ProductModal({
   useBodyScrollLock(true);
 
   const variantKey = (colorId: number, sizeId: number, lace: boolean) => `${colorId}:${sizeId}:${lace}`;
+  const draftCropMetaIdRef = useRef(
+    `draft-${typeof crypto !== "undefined" && "randomUUID" in crypto ? crypto.randomUUID() : Date.now()}`,
+  );
+  const cropMetaStorageId = product?.idNum ?? draftCropMetaIdRef.current;
+  const [cropMetaByDisplayUrl, setCropMetaByDisplayUrl] = useState<Record<string, ImageCropMeta>>(() =>
+    loadImageCropMeta(cropMetaStorageId),
+  );
+  const updateCropMeta = useCallback(
+    (updater: (prev: Record<string, ImageCropMeta>) => Record<string, ImageCropMeta>) => {
+      setCropMetaByDisplayUrl((prev) => {
+        const next = updater(prev);
+        persistImageCropMeta(cropMetaStorageId, next);
+        return next;
+      });
+    },
+    [cropMetaStorageId],
+  );
+  useEffect(() => {
+    setCropMetaByDisplayUrl(loadImageCropMeta(cropMetaStorageId));
+  }, [cropMetaStorageId]);
+
   const cropInFlightRef = useRef(false);
   const [cropDialog, setCropDialog] = useState<{
     imageSrc: string;
     title?: string;
-    onComplete: (blob: Blob) => void | Promise<void>;
+    initialCroppedAreaPixels?: ImageCropMeta["croppedAreaPixels"];
+    initialZoom?: number;
+    initialCrop?: { x: number; y: number };
+    onComplete: (blob: Blob, settings: CropResultSettings) => void | Promise<void>;
     onCancel?: () => void;
     revokeSrc?: string;
   } | null>(null);
@@ -377,7 +413,10 @@ function ProductModal({
   }, []);
 
   const promptCropForUpload = useCallback(
-    (file: File, title?: string): Promise<File> =>
+    (
+      file: File,
+      title?: string,
+    ): Promise<{ croppedFile: File; settings: CropResultSettings; originalFile: File }> =>
       new Promise((resolve, reject) => {
         if (cropInFlightRef.current) {
           reject(new Error("Crop dialog already open"));
@@ -389,12 +428,14 @@ function ProductModal({
             setCropDialog({
               imageSrc,
               title: title ?? "Crop for product card",
-              onComplete: async (blob) => {
-                resolve(
-                  new File([blob], `${file.name.replace(/\.[^.]+$/, "") || "image"}.jpg`, {
+              onComplete: async (blob, settings) => {
+                resolve({
+                  croppedFile: new File([blob], `${file.name.replace(/\.[^.]+$/, "") || "image"}.jpg`, {
                     type: blob.type || "image/jpeg",
                   }),
-                );
+                  settings,
+                  originalFile: file,
+                });
               },
               onCancel: () => reject(new CropCancelledError()),
             });
@@ -408,16 +449,21 @@ function ProductModal({
   );
 
   const promptCropForUrl = useCallback(
-    (url: string, title?: string): Promise<Blob> =>
+    (
+      displayUrl: string,
+      title?: string,
+    ): Promise<{ blob: Blob; settings: CropResultSettings }> =>
       new Promise((resolve, reject) => {
         if (cropInFlightRef.current) {
           reject(new Error("Crop dialog already open"));
           return;
         }
         cropInFlightRef.current = true;
-        const rawSrc = url.trim().startsWith("data:")
-          ? url.trim()
-          : extractUploadPath(url.trim()) ?? resolveMediaUrl(url.trim());
+        const sourceUrl = resolveCropSourceUrl(displayUrl, cropMetaByDisplayUrl);
+        const savedMeta = getCropMetaForDisplayUrl(displayUrl, cropMetaByDisplayUrl);
+        const rawSrc = sourceUrl.trim().startsWith("data:")
+          ? sourceUrl.trim()
+          : extractUploadPath(sourceUrl.trim()) ?? resolveMediaUrl(sourceUrl.trim());
         if (!rawSrc) {
           cropInFlightRef.current = false;
           reject(new Error("No image to crop"));
@@ -430,7 +476,10 @@ function ProductModal({
               imageSrc,
               revokeSrc,
               title: title ?? "Re-crop for product card",
-              onComplete: async (blob) => resolve(blob),
+              initialCroppedAreaPixels: savedMeta?.croppedAreaPixels,
+              initialZoom: savedMeta?.zoom,
+              initialCrop: savedMeta?.crop,
+              onComplete: async (blob, settings) => resolve({ blob, settings }),
               onCancel: () => reject(new CropCancelledError()),
             });
           })
@@ -439,7 +488,7 @@ function ProductModal({
             reject(err);
           });
       }),
-    [],
+    [cropMetaByDisplayUrl],
   );
 
   const [form, setForm] = useState<ProductFormData>(() => {
@@ -643,7 +692,15 @@ function ProductModal({
   }>({});
 
   const addImageUrl = () => setForm((p) => ({ ...p, imageUrls: [...p.imageUrls, ""] }));
-  const removeImageUrl = (i: number) => setForm((p) => ({ ...p, imageUrls: p.imageUrls.filter((_, idx) => idx !== i) }));
+  const removeImageUrl = (i: number) => {
+    setForm((p) => {
+      const removed = p.imageUrls[i];
+      if (removed?.trim()) {
+        updateCropMeta((prev) => removeImageCropMeta(prev, removed));
+      }
+      return { ...p, imageUrls: p.imageUrls.filter((_, idx) => idx !== i) };
+    });
+  };
   const setImageUrl = (i: number, url: string) => setForm((p) => {
     const next = [...p.imageUrls];
     next[i] = url;
@@ -658,15 +715,21 @@ function ProductModal({
     try {
       for (let i = 0; i < files.length; i++) {
         try {
-          const croppedFile = await promptCropForUpload(
+          const { croppedFile, settings, originalFile } = await promptCropForUpload(
             files[i],
             files.length > 1 ? `Crop image ${i + 1} of ${files.length}` : "Crop for product card",
           );
           setUploading(true);
-          const url = await uploadImage(croppedFile);
+          const [sourceUrl, displayUrl] = await Promise.all([
+            uploadImage(originalFile),
+            uploadImage(croppedFile),
+          ]);
+          updateCropMeta((prev) =>
+            setImageCropMeta(prev, displayUrl, buildCropMetaEntry(sourceUrl, settings)),
+          );
           setForm((p) => ({
             ...p,
-            imageUrls: [...p.imageUrls.filter((u) => u.trim() && !u.startsWith("Upload failed:")), url],
+            imageUrls: [...p.imageUrls.filter((u) => u.trim() && !u.startsWith("Upload failed:")), displayUrl],
           }));
         } catch (err) {
           if (err instanceof CropCancelledError) continue;
@@ -696,16 +759,22 @@ function ProductModal({
     try {
       for (let i = 0; i < files.length; i++) {
         try {
-          const croppedFile = await promptCropForUpload(
+          const { croppedFile, settings, originalFile } = await promptCropForUpload(
             files[i],
             files.length > 1 ? `Crop image ${i + 1} of ${files.length}` : "Crop for product card",
           );
           setUploadingColorId(colorId);
-          const url = await uploadImage(croppedFile);
+          const [sourceUrl, displayUrl] = await Promise.all([
+            uploadImage(originalFile),
+            uploadImage(croppedFile),
+          ]);
+          updateCropMeta((prev) =>
+            setImageCropMeta(prev, displayUrl, buildCropMetaEntry(sourceUrl, settings)),
+          );
           setForm((p) => {
             const next = { ...p.colorSizeVariants };
             const key = variantKey(colorId, sizeId, lace);
-            const arr = [...(next[key] ?? []).filter((u) => u.trim() && !u.startsWith("Upload failed:")), url];
+            const arr = [...(next[key] ?? []).filter((u) => u.trim() && !u.startsWith("Upload failed:")), displayUrl];
             next[key] = arr;
             return { ...p, colorSizeVariants: next };
           });
@@ -732,10 +801,11 @@ function ProductModal({
     }
     setUploadError(null);
     try {
-      const blob = await promptCropForUrl(url);
+      const { blob, settings } = await promptCropForUrl(url);
       setUploading(true);
       const file = new File([blob], "cropped.jpg", { type: blob.type || "image/jpeg" });
       const newUrl = await uploadImage(file);
+      updateCropMeta((prev) => transferImageCropMeta(prev, url, newUrl, settings));
       onReplace(newUrl);
     } catch (err) {
       if (err instanceof CropCancelledError) return;
@@ -1410,6 +1480,9 @@ function ProductModal({
                                   });
                                 }}
                                 onRemove={() => {
+                                  if (url.trim()) {
+                                    updateCropMeta((prev) => removeImageCropMeta(prev, url));
+                                  }
                                   setForm((p) => {
                                     const next = { ...p.colorSizeVariants };
                                     const arr = (next[key] ?? []).filter((_, idx) => idx !== i);
@@ -1670,6 +1743,9 @@ function ProductModal({
         <ImageCropDialog
           imageSrc={cropDialog.imageSrc}
           title={cropDialog.title}
+          initialCroppedAreaPixels={cropDialog.initialCroppedAreaPixels}
+          initialZoom={cropDialog.initialZoom}
+          initialCrop={cropDialog.initialCrop}
           onClose={closeCropDialog}
           onCancel={() => {
             cropDialog.onCancel?.();
