@@ -117,6 +117,7 @@ export function AdminCollectionsTab({ products, onError }: Props) {
     setSaving(true);
     try {
       await deleteCollection(deleteTarget.id);
+      invalidateProductsCache();
       setDeleteTarget(null);
       await loadCollections();
     } catch (err) {

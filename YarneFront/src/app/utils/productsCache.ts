@@ -28,11 +28,16 @@ const listInflight = new Map<string, Promise<ListEntry>>();
 const detailInflight = new Map<string, Promise<DetailEntry>>();
 
 const listeners = new Set<() => void>();
+let cacheGeneration = 0;
 
 function notify() {
   for (const listener of listeners) {
     listener();
   }
+}
+
+export function getProductsCacheGeneration(): number {
+  return cacheGeneration;
 }
 
 export function subscribeProductsCache(listener: () => void): () => void {
@@ -142,5 +147,6 @@ export async function loadProductDetail(
 export function invalidateProductsCache(): void {
   listCache.clear();
   detailCache.clear();
+  cacheGeneration += 1;
   notify();
 }

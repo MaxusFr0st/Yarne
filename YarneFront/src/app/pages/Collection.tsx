@@ -103,6 +103,7 @@ export function Collection() {
     } else {
       next.set("collection", tabId);
     }
+    setPriceFilterTouched(false);
     setSearchParams(next, { replace: true });
   };
 
