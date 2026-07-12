@@ -261,7 +261,7 @@ public class ProductService : IProductService
         product.QuantityInStock = ComputeTotalStock(request.QuantityInStock, request.VariantStocks);
         product.Material = request.Material;
         product.CategoryId = request.CategoryId;
-        product.CollectionId = request.CollectionId;
+        product.CollectionId = request.CollectionId ?? product.CollectionId;
         product.ProducerName = request.ProducerName;
         product.IsActive = request.IsActive;
         if (request.IsNew.HasValue)

@@ -10,6 +10,7 @@ import {
   updateCollection,
   type CollectionDto,
 } from "../../api/collections";
+import { invalidateProductsCache } from "../../utils/productsCache";
 
 const easing = [0.25, 0.1, 0.25, 1] as const;
 
@@ -116,6 +117,7 @@ export function AdminCollectionsTab({ products, onError }: Props) {
     setSaving(true);
     try {
       await deleteCollection(deleteTarget.id);
+      invalidateProductsCache();
       setDeleteTarget(null);
       await loadCollections();
     } catch (err) {
@@ -147,6 +149,7 @@ export function AdminCollectionsTab({ products, onError }: Props) {
     setSaving(true);
     try {
       await setCollectionProducts(productsModal.collection.id, Array.from(productsModal.selectedIds));
+      invalidateProductsCache();
       setProductsModal({ open: false });
       await loadCollections();
     } catch (err) {
