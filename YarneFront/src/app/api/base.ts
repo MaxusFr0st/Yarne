@@ -20,6 +20,11 @@ function normalizeConfiguredBaseUrl(raw: string): string {
   return `https://${unquoted}`;
 }
 
+function readRuntimeApiUrl(): string {
+  if (typeof window === "undefined") return "";
+  return window.__YARNE_CONFIG__?.apiUrl?.trim() ?? "";
+}
+
 export function buildApiUrl(baseUrl: string, endpoint: string): string {
   const base = trimTrailingSlash(baseUrl);
   const path = endpoint.startsWith("/") ? endpoint : `/${endpoint}`;
@@ -33,6 +38,11 @@ export function buildApiUrl(baseUrl: string, endpoint: string): string {
 }
 
 export function resolveApiBase(): string {
+  const runtimeRaw = readRuntimeApiUrl();
+  if (runtimeRaw) {
+    return trimTrailingSlash(normalizeConfiguredBaseUrl(runtimeRaw));
+  }
+
   const configuredRaw = import.meta.env.VITE_API_URL as string | undefined;
   if (configuredRaw && configuredRaw.trim()) {
     return trimTrailingSlash(normalizeConfiguredBaseUrl(configuredRaw));

@@ -1,8 +1,6 @@
 import { buildApiUrl, resolveApiBase } from "./base";
 import { ApiRequestError } from "./errors";
 
-const API_BASE = resolveApiBase();
-
 function getAuthToken(): string | null {
   return sessionStorage.getItem("auth_token") ?? localStorage.getItem("auth_token");
 }
@@ -23,16 +21,16 @@ export async function apiRequest<T>(
 
   let res: Response;
   try {
-    res = await fetch(buildApiUrl(API_BASE, endpoint), {
+    res = await fetch(buildApiUrl(resolveApiBase(), endpoint), {
       ...options,
       headers,
       signal: options.signal ?? AbortSignal.timeout(20_000),
     });
   } catch (err) {
     if (err instanceof DOMException && err.name === "TimeoutError") {
-      throw new Error(`API request timed out (${API_BASE}). The backend may be down — check Railway deploy logs.`);
+      throw new Error(`API request timed out (${resolveApiBase()}). The backend may be down — check Railway deploy logs.`);
     }
-    throw new Error(`Failed to reach API (${API_BASE}). Check backend/CORS and retry.`);
+    throw new Error(`Failed to reach API (${resolveApiBase()}). Check backend/CORS and retry.`);
   }
 
   if (res.status === 401) {
@@ -57,7 +55,7 @@ export async function apiRequest<T>(
   if (res.status === 204) return undefined as T;
   const contentType = res.headers.get("content-type")?.toLowerCase() ?? "";
   if (!contentType.includes("application/json")) {
-    throw new Error(`API returned non-JSON response from ${API_BASE}. Set VITE_API_URL to your backend Railway URL.`);
+    throw new Error(`API returned non-JSON response from ${resolveApiBase()}. Set VITE_API_URL to your backend Railway URL.`);
   }
   return res.json();
 }

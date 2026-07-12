@@ -134,6 +134,12 @@ builder.Services.AddSingleton<IEmailService>(sp =>
     }
 });
 builder.Services.AddSingleton<IImageUploadNormalizer, ImageUploadNormalizer>();
+builder.Services.AddScoped<IUploadFileStorageService, UploadFileStorageService>();
+
+builder.WebHost.ConfigureKestrel(options =>
+{
+    options.Limits.MaxRequestBodySize = 16 * 1024 * 1024;
+});
 
 builder.Services.AddControllers();
 

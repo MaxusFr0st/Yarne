@@ -24,13 +24,16 @@ public class StorefrontSettingsController : ControllerBase
 
     private readonly IStorefrontSettingsService _settings;
     private readonly IAdminActivityLogService _activityLogs;
+    private readonly IUploadFileStorageService _uploadStorage;
 
     public StorefrontSettingsController(
         IStorefrontSettingsService settings,
-        IAdminActivityLogService activityLogs)
+        IAdminActivityLogService activityLogs,
+        IUploadFileStorageService uploadStorage)
     {
         _settings = settings;
         _activityLogs = activityLogs;
+        _uploadStorage = uploadStorage;
     }
 
     [HttpGet("{key}")]
@@ -61,6 +64,8 @@ public class StorefrontSettingsController : ControllerBase
         if (valueJson.Length > 256_000)
             return BadRequest(new { message = "Setting payload is too large." });
 
+        var previousJson = await _settings.GetValueJsonAsync(key, ct);
+
         if (string.Equals(key, "yarne.product.guarantee.v1", StringComparison.Ordinal))
         {
             var guaranteeError = StorefrontSettingValidators.ValidateProductGuarantee(value);
@@ -69,6 +74,14 @@ public class StorefrontSettingsController : ControllerBase
         }
 
         var saved = await _settings.UpsertValueJsonAsync(key, valueJson, ct);
+
+        if (IsMediaSettingKey(key))
+        {
+            await _uploadStorage.DeleteRemovedIfUnreferencedAsync(
+                _uploadStorage.ExtractUploadPathsFromJson(previousJson),
+                _uploadStorage.ExtractUploadPathsFromJson(saved),
+                ct);
+        }
 
         var label = PushLabels.TryGetValue(key, out var friendly) ? friendly : key;
         var (actorUserId, actorEmail) = AdminActivityLogHelper.GetActor(HttpContext);
@@ -85,6 +98,11 @@ public class StorefrontSettingsController : ControllerBase
 
         return Ok(new { key, value = ParseJson(saved) });
     }
+
+    private static bool IsMediaSettingKey(string key) =>
+        string.Equals(key, "yarne.home.media.v1", StringComparison.Ordinal)
+        || string.Equals(key, "yarne.featuredShowcase.v1", StringComparison.Ordinal)
+        || string.Equals(key, "yarne.home.sections.v1", StringComparison.Ordinal);
 
     private static object? ParseJson(string valueJson)
     {

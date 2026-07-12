@@ -14,6 +14,7 @@ public class ImagesController : ControllerBase
     private readonly ILogger<ImagesController> _logger;
     private readonly IAdminActivityLogService _activityLogs;
     private readonly IImageUploadNormalizer _imageNormalizer;
+    private readonly IUploadFileStorageService _uploadStorage;
     private static readonly string[] AllowedExtensions = { ".jpg", ".jpeg", ".png", ".gif", ".webp" };
     private static readonly string[] AllowedMimeTypes = { "image/jpeg", "image/png", "image/gif", "image/webp" };
     private const int MaxFileSizeBytes = 15 * 1024 * 1024; // 15 MB — normalized to WebP on save
@@ -22,12 +23,14 @@ public class ImagesController : ControllerBase
         IWebHostEnvironment env,
         ILogger<ImagesController> logger,
         IAdminActivityLogService activityLogs,
-        IImageUploadNormalizer imageNormalizer)
+        IImageUploadNormalizer imageNormalizer,
+        IUploadFileStorageService uploadStorage)
     {
         _env = env;
         _logger = logger;
         _activityLogs = activityLogs;
         _imageNormalizer = imageNormalizer;
+        _uploadStorage = uploadStorage;
     }
 
     [HttpPost("upload")]
@@ -126,6 +129,45 @@ public class ImagesController : ControllerBase
 
             return Ok(new { url });
         }
+    }
+
+    [HttpDelete]
+    [Authorize(Roles = "Admin")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<object>> DeleteUpload([FromQuery] string path, CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(path))
+            return BadRequest(new { message = "path is required" });
+
+        var normalized = _uploadStorage.NormalizeUploadPath(path);
+        if (string.IsNullOrWhiteSpace(normalized))
+            return BadRequest(new { message = "Only /uploads/ paths can be deleted" });
+
+        if (!_uploadStorage.TryResolveLocalPath(normalized, out var filePath))
+            return BadRequest(new { message = "Invalid upload path" });
+
+        if (!System.IO.File.Exists(filePath))
+            return NotFound(new { message = "File not found" });
+
+        var deleted = await _uploadStorage.TryDeleteIfUnreferencedAsync(normalized, ct);
+        if (!deleted)
+            return BadRequest(new { message = "Upload is still referenced and cannot be deleted" });
+
+        var (actorUserId, actorEmail) = AdminActivityLogHelper.GetActor(HttpContext);
+        await _activityLogs.LogAsync(
+            "image",
+            "deleted",
+            $"Deleted image {normalized}",
+            Path.GetFileName(normalized),
+            normalized,
+            new { imageUrl = normalized },
+            actorUserId,
+            actorEmail,
+            ct);
+
+        return Ok(new { deleted = true, path = normalized });
     }
 
     /// <summary>
