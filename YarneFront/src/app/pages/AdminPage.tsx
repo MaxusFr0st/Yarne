@@ -1,8 +1,13 @@
-import React, { useState, useMemo, useRef, useEffect } from "react";
+import React, { useState, useMemo, useRef, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { useAdminData } from "../hooks/useAdminData";
+import { useBodyScrollLock } from "../hooks/useBodyScrollLock";
 import { useApp } from "../context/AppContext";
 import { uploadImage } from "../api/images";
+import { AdminColorPicker, sanitizeColorHex } from "../components/admin/AdminColorPicker";
+import { ImageCropDialog } from "../components/admin/ImageCropDialog";
+import { ProductCardPreviewPanel } from "../components/admin/ProductCardPreviewPanel";
+import { fileToDataUrl, resolveImageSrcForCrop, revokeCropImageSrc } from "../utils/cropImage";
 import { normalizeStoredMediaUrl, resolveMediaUrl } from "../utils/storefrontMedia";
 import { getProductPreviewUrl } from "../utils/productPreview";
 import type { Product } from "../types/product";
@@ -62,6 +67,7 @@ import {
   ChevronUp,
   RefreshCw,
   Phone,
+  Crop,
 } from "lucide-react";
 import { fetchActivityLogs, type AdminActivityLogDto } from "../api/admin";
 import { fetchProduct } from "../api/products";
@@ -152,6 +158,7 @@ function AdminImageUrlRow({
   onChange,
   onRemove,
   onSetDefault,
+  onCrop,
   isDefault = false,
   canSetDefault = false,
   readOnly = false,
@@ -162,6 +169,7 @@ function AdminImageUrlRow({
   onChange: (value: string) => void;
   onRemove: () => void;
   onSetDefault?: () => void;
+  onCrop?: () => void;
   isDefault?: boolean;
   canSetDefault?: boolean;
   readOnly?: boolean;
@@ -193,7 +201,7 @@ function AdminImageUrlRow({
         )}
       </div>
       <input
-        type="url"
+        type="text"
         value={url}
         onChange={(e) => onChange(e.target.value)}
         readOnly={readOnly}
@@ -211,6 +219,17 @@ function AdminImageUrlRow({
           className="w-9 h-9 rounded-full flex items-center justify-center hover:bg-[#2D241E]/8 text-[#2D241E] disabled:opacity-40 shrink-0 transition-colors"
         >
           <Star size={14} />
+        </button>
+      )}
+      {onCrop && url.trim() && (
+        <button
+          type="button"
+          disabled={disabled || readOnly}
+          onClick={onCrop}
+          title="Crop for product card"
+          className="w-9 h-9 rounded-full flex items-center justify-center hover:bg-[#2D241E]/8 text-[#2D241E] disabled:opacity-40 shrink-0 transition-colors"
+        >
+          <Crop size={14} />
         </button>
       )}
       <button
@@ -307,9 +326,16 @@ interface ProductFormData {
   suggestionsTouched: boolean;
 }
 
-type ProductModalTab = "details" | "suggested";
+type ProductModalTab = "details" | "suggested" | "preview";
 
 const MAX_SUGGESTED_PRODUCTS = 10;
+
+class CropCancelledError extends Error {
+  constructor() {
+    super("Crop cancelled");
+    this.name = "CropCancelledError";
+  }
+}
 
 function ProductModal({
   product,
@@ -330,7 +356,90 @@ function ProductModal({
   onClose: () => void;
   onSave: (data: ProductFormData) => void;
 }) {
+  useBodyScrollLock(true);
+
   const variantKey = (colorId: number, sizeId: number, lace: boolean) => `${colorId}:${sizeId}:${lace}`;
+  const cropInFlightRef = useRef(false);
+  const [cropDialog, setCropDialog] = useState<{
+    imageSrc: string;
+    title?: string;
+    onComplete: (blob: Blob) => void | Promise<void>;
+    onCancel?: () => void;
+    revokeSrc?: string;
+  } | null>(null);
+
+  const closeCropDialog = useCallback(() => {
+    setCropDialog((prev) => {
+      if (prev?.revokeSrc) revokeCropImageSrc(prev.revokeSrc);
+      return null;
+    });
+    cropInFlightRef.current = false;
+  }, []);
+
+  const promptCropForUpload = useCallback(
+    (file: File, title?: string): Promise<File> =>
+      new Promise((resolve, reject) => {
+        if (cropInFlightRef.current) {
+          reject(new Error("Crop dialog already open"));
+          return;
+        }
+        cropInFlightRef.current = true;
+        void fileToDataUrl(file)
+          .then((imageSrc) => {
+            setCropDialog({
+              imageSrc,
+              title: title ?? "Crop for product card",
+              onComplete: async (blob) => {
+                resolve(
+                  new File([blob], `${file.name.replace(/\.[^.]+$/, "") || "image"}.jpg`, {
+                    type: blob.type || "image/jpeg",
+                  }),
+                );
+              },
+              onCancel: () => reject(new CropCancelledError()),
+            });
+          })
+          .catch((err) => {
+            cropInFlightRef.current = false;
+            reject(err);
+          });
+      }),
+    [],
+  );
+
+  const promptCropForUrl = useCallback(
+    (url: string, title?: string): Promise<Blob> =>
+      new Promise((resolve, reject) => {
+        if (cropInFlightRef.current) {
+          reject(new Error("Crop dialog already open"));
+          return;
+        }
+        cropInFlightRef.current = true;
+        const rawSrc = url.trim().startsWith("data:") ? url.trim() : resolveMediaUrl(url.trim());
+        if (!rawSrc) {
+          cropInFlightRef.current = false;
+          reject(new Error("No image to crop"));
+          return;
+        }
+        void resolveImageSrcForCrop(rawSrc)
+          .then((imageSrc) => {
+            const revokeSrc = imageSrc.startsWith("blob:") ? imageSrc : undefined;
+            setCropDialog({
+              imageSrc,
+              revokeSrc,
+              title: title ?? "Re-crop for product card",
+              onComplete: async (blob) => resolve(blob),
+              onCancel: () => reject(new CropCancelledError()),
+            });
+          })
+          .catch((err) => {
+            cropInFlightRef.current = false;
+            reject(err);
+          });
+      }),
+    [],
+  );
+
   const [form, setForm] = useState<ProductFormData>(() => {
     const base = product
       ? {
@@ -544,20 +653,30 @@ function ProductModal({
     if (!files?.length) return;
     setUploading(true);
     setUploadError(null);
+    e.target.value = "";
     try {
       for (let i = 0; i < files.length; i++) {
-        const url = await uploadImage(files[i]);
-        setForm((p) => ({
-          ...p,
-          imageUrls: [...p.imageUrls.filter((u) => u.trim() && !u.startsWith("Upload failed:")), url],
-        }));
+        try {
+          const croppedFile = await promptCropForUpload(
+            files[i],
+            files.length > 1 ? `Crop image ${i + 1} of ${files.length}` : "Crop for product card",
+          );
+          const url = await uploadImage(croppedFile);
+          setForm((p) => ({
+            ...p,
+            imageUrls: [...p.imageUrls.filter((u) => u.trim() && !u.startsWith("Upload failed:")), url],
+          }));
+        } catch (err) {
+          if (err instanceof CropCancelledError) continue;
+          throw err;
+        }
       }
     } catch (err) {
       console.error("Upload failed:", err);
       setUploadError(err instanceof Error ? err.message : "Unknown error");
     } finally {
       setUploading(false);
-      e.target.value = "";
+      closeCropDialog();
     }
   };
 
@@ -571,16 +690,26 @@ function ProductModal({
     }
     const { colorId, sizeId, lace } = target;
     setUploadingColorId(colorId);
+    e.target.value = "";
     try {
       for (let i = 0; i < files.length; i++) {
-        const url = await uploadImage(files[i]);
-        setForm((p) => {
-          const next = { ...p.colorSizeVariants };
-          const key = variantKey(colorId, sizeId, lace);
-          const arr = [...(next[key] ?? []).filter((u) => u.trim() && !u.startsWith("Upload failed:")), url];
-          next[key] = arr;
-          return { ...p, colorSizeVariants: next };
-        });
+        try {
+          const croppedFile = await promptCropForUpload(
+            files[i],
+            files.length > 1 ? `Crop image ${i + 1} of ${files.length}` : "Crop for product card",
+          );
+          const url = await uploadImage(croppedFile);
+          setForm((p) => {
+            const next = { ...p.colorSizeVariants };
+            const key = variantKey(colorId, sizeId, lace);
+            const arr = [...(next[key] ?? []).filter((u) => u.trim() && !u.startsWith("Upload failed:")), url];
+            next[key] = arr;
+            return { ...p, colorSizeVariants: next };
+          });
+        } catch (err) {
+          if (err instanceof CropCancelledError) continue;
+          throw err;
+        }
       }
     } catch (err) {
       console.error("Upload failed:", err);
@@ -588,7 +717,26 @@ function ProductModal({
     } finally {
       setUploadingColorId(null);
       uploadTargetVariantRef.current = null;
-      e.target.value = "";
+      closeCropDialog();
+    }
+  };
+
+  const handleRecropImageUrl = async (url: string, onReplace: (newUrl: string) => void) => {
+    if (cropInFlightRef.current || cropDialog) return;
+    setUploadError(null);
+    try {
+      const blob = await promptCropForUrl(url);
+      setUploading(true);
+      const file = new File([blob], "cropped.jpg", { type: blob.type || "image/jpeg" });
+      const newUrl = await uploadImage(file);
+      onReplace(newUrl);
+    } catch (err) {
+      if (err instanceof CropCancelledError) return;
+      console.error("Re-crop failed:", err);
+      setUploadError(err instanceof Error ? err.message : "Unknown error");
+    } finally {
+      setUploading(false);
+      closeCropDialog();
     }
   };
 
@@ -600,6 +748,7 @@ function ProductModal({
 
   const isEditing = !!product;
   const imagesLockedByColors = form.colorIds.length > 0;
+  const cropBusy = Boolean(cropDialog);
   const selectedSizeIds = Array.from(
     new Set(
       form.colorIds.flatMap((colorId) => form.colorSizeIds[colorId] ?? [])
@@ -677,10 +826,13 @@ function ProductModal({
     onSave(form);
   };
 
+  const previewCategoryName = categories.find((c) => c.id === form.categoryId)?.name ?? "";
+
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center p-4"
       style={{ backgroundColor: "rgba(45,36,30,0.5)", backdropFilter: "blur(8px)" }}
+      onWheel={(e) => e.stopPropagation()}
     >
       <motion.div
         className="w-full max-w-2xl lg:max-w-5xl rounded-[32px] overflow-hidden max-h-[90vh] flex flex-col"
@@ -720,6 +872,7 @@ function ProductModal({
         <div className="shrink-0 px-8 pt-4 flex gap-2">
           {([
             { key: "details" as ProductModalTab, label: "Product details" },
+            { key: "preview" as ProductModalTab, label: "Card preview" },
             { key: "suggested" as ProductModalTab, label: "Suggested products" },
           ]).map((tab) => (
             <button
@@ -751,9 +904,16 @@ function ProductModal({
         ) : null}
 
         {/* Form — scrollable body keeps footer actions visible */}
-        <div className="flex-1 min-h-0 overflow-y-auto">
+        <div className="flex-1 min-h-0 overflow-y-auto" style={{ overscrollBehavior: "contain" }}>
         <div className="p-8 space-y-6">
-          {activeTab === "details" ? (
+          {activeTab === "preview" ? (
+            <ProductCardPreviewPanel
+              form={form}
+              colors={colors}
+              sizes={sizes}
+              categoryName={previewCategoryName}
+            />
+          ) : activeTab === "details" ? (
           <>
           {/* Name & Subtitle */}
           <div className="grid grid-cols-2 gap-4">
@@ -903,7 +1063,7 @@ function ProductModal({
                 <button
                   type="button"
                   onClick={() => { setUploadError(null); fileInputRef.current?.click(); }}
-                  disabled={uploading || imagesLockedByColors}
+                  disabled={uploading || imagesLockedByColors || cropBusy}
                   className="flex items-center gap-1.5 px-3 py-2 rounded-[12px] text-xs border transition-all hover:bg-[#2D241E]/5 disabled:opacity-50"
                   style={{ fontFamily: "'DM Sans', sans-serif", borderColor: "rgba(45,36,30,0.2)", color: "#2D241E" }}
                 >
@@ -922,8 +1082,13 @@ function ProductModal({
                   url={url}
                   onChange={(value) => setImageUrl(i, value)}
                   onRemove={() => removeImageUrl(i)}
+                  onCrop={
+                    !imagesLockedByColors && url.trim()
+                      ? () => void handleRecropImageUrl(url, (newUrl) => setImageUrl(i, newUrl))
+                      : undefined
+                  }
                   readOnly={imagesLockedByColors}
-                  disabled={imagesLockedByColors}
+                  disabled={imagesLockedByColors || uploading || cropBusy}
                   placeholder={`Image ${i + 1} URL or upload from device`}
                 />
               ))}
@@ -1183,7 +1348,7 @@ function ProductModal({
                               <button
                                 type="button"
                                 onClick={() => triggerPerColorUpload(colorId, sizeId, lace)}
-                                disabled={uploadingColorId === colorId}
+                                disabled={uploadingColorId === colorId || cropBusy}
                                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-[10px] text-xs border transition-all hover:bg-[#2D241E]/5 disabled:opacity-50"
                                 style={{ fontFamily: "'DM Sans', sans-serif", borderColor: "rgba(45,36,30,0.2)", color: "#2D241E" }}
                               >
@@ -1214,6 +1379,20 @@ function ProductModal({
                                     return { ...p, colorSizeVariants: next };
                                   });
                                 }}
+                                onCrop={
+                                  url.trim()
+                                    ? () =>
+                                        void handleRecropImageUrl(url, (newUrl) => {
+                                          setForm((p) => {
+                                            const next = { ...p.colorSizeVariants };
+                                            const arr = [...(next[key] ?? [])];
+                                            arr[i] = newUrl;
+                                            next[key] = arr;
+                                            return { ...p, colorSizeVariants: next };
+                                          });
+                                        })
+                                    : undefined
+                                }
                                 onChange={(value) => {
                                   setForm((p) => {
                                     const next = { ...p.colorSizeVariants };
@@ -1235,6 +1414,7 @@ function ProductModal({
                                     return { ...p, colorSizeVariants: next };
                                   });
                                 }}
+                                disabled={uploadingColorId === colorId || uploading || cropBusy}
                                 placeholder={`Image ${i + 1} URL or upload from device`}
                               />
                             ))}
@@ -1478,6 +1658,19 @@ function ProductModal({
           </button>
         </div>
       </motion.div>
+
+      {cropDialog ? (
+        <ImageCropDialog
+          imageSrc={cropDialog.imageSrc}
+          title={cropDialog.title}
+          onClose={closeCropDialog}
+          onCancel={() => {
+            cropDialog.onCancel?.();
+            closeCropDialog();
+          }}
+          onComplete={cropDialog.onComplete}
+        />
+      ) : null}
     </div>
   );
 }
@@ -1645,6 +1838,8 @@ function ColorModal({
   onClose: () => void;
   onSave: (name: string, hexCode?: string) => void;
 }) {
+  useBodyScrollLock(true);
+
   const [name, setName] = useState(editing?.name ?? "");
   const [hexCode, setHexCode] = useState(editing?.hexCode ?? "#2D241E");
   useEffect(() => {
@@ -1653,7 +1848,11 @@ function ColorModal({
   }, [editing?.id, editing?.name, editing?.hexCode]);
   const isEditing = !!editing;
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ backgroundColor: "rgba(45,36,30,0.5)", backdropFilter: "blur(8px)" }}>
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      style={{ backgroundColor: "rgba(45,36,30,0.5)", backdropFilter: "blur(8px)" }}
+      onWheel={(e) => e.stopPropagation()}
+    >
       <motion.div
         className="w-full max-w-md rounded-[32px] overflow-hidden"
         style={{ backgroundColor: "#F5F2ED" }}
@@ -1675,16 +1874,13 @@ function ColorModal({
             <input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Black" className="w-full bg-transparent border rounded-[14px] px-4 py-3 text-[#2D241E] focus:outline-none placeholder:text-[#2D241E]/20" style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "0.9rem", borderColor: "rgba(45,36,30,0.15)" }} />
           </div>
           <div>
-            <label className="block text-xs mb-2 tracking-widest uppercase" style={{ fontFamily: "'DM Sans', sans-serif", color: "rgba(45,36,30,0.4)", letterSpacing: "0.14em" }}>Hex Code</label>
-            <div className="flex gap-3 items-center">
-              <input type="text" value={hexCode} onChange={(e) => setHexCode(e.target.value)} placeholder="#2D241E" className="flex-1 bg-transparent border rounded-[14px] px-4 py-3 text-[#2D241E] focus:outline-none placeholder:text-[#2D241E]/20" style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "0.9rem", borderColor: "rgba(45,36,30,0.15)" }} />
-              <span className="w-10 h-10 rounded-full border shrink-0" style={{ backgroundColor: hexCode || "#2D241E", borderColor: "rgba(45,36,30,0.2)" }} title="Preview" />
-            </div>
+            <label className="block text-xs mb-2 tracking-widest uppercase" style={{ fontFamily: "'DM Sans', sans-serif", color: "rgba(45,36,30,0.4)", letterSpacing: "0.14em" }}>Color</label>
+            <AdminColorPicker value={hexCode} onChange={setHexCode} />
           </div>
         </div>
         <div className="flex items-center justify-end gap-3 px-8 py-6" style={{ borderTop: "1px solid rgba(45,36,30,0.08)" }}>
           <button onClick={onClose} className="px-6 py-3 rounded-full border transition-all duration-300 hover:bg-[#2D241E]/5" style={{ borderColor: "rgba(45,36,30,0.2)", fontFamily: "'DM Sans', sans-serif", fontSize: "0.78rem", letterSpacing: "0.12em", color: "rgba(45,36,30,0.6)" }}><span className="uppercase tracking-widest">Cancel</span></button>
-          <button onClick={() => onSave(name, hexCode || "#2D241E")} className="px-8 py-3 rounded-full text-[#F5F2ED] transition-all duration-300 hover:opacity-90" style={{ backgroundColor: "#2D241E", fontFamily: "'DM Sans', sans-serif", fontSize: "0.78rem", letterSpacing: "0.12em" }}><span className="uppercase tracking-widest">{isEditing ? "Save" : "Add"}</span></button>
+          <button onClick={() => onSave(name, sanitizeColorHex(hexCode))} className="px-8 py-3 rounded-full text-[#F5F2ED] transition-all duration-300 hover:opacity-90" style={{ backgroundColor: "#2D241E", fontFamily: "'DM Sans', sans-serif", fontSize: "0.78rem", letterSpacing: "0.12em" }}><span className="uppercase tracking-widest">{isEditing ? "Save" : "Add"}</span></button>
         </div>
       </motion.div>
     </div>
