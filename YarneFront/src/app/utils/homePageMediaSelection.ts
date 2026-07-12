@@ -76,18 +76,13 @@ export async function loadHomePageMediaSelectionForAdmin(): Promise<HomePageMedi
       return normalized;
     }
   } catch {
-    // continue
+    // API unavailable — show local draft for editing only; do not overwrite server.
   }
 
   const local = readLocalHomePageMedia();
-  if (!hasConfiguredMedia(local)) {
-    return getDefaultHomePageMediaSelection();
-  }
-
-  const normalized = normalizeHomePageMediaSelection(local);
-  await saveStorefrontSetting(HOME_PAGE_MEDIA_KEY, normalized);
-  writeLocalHomePageMedia(normalized);
-  return normalized;
+  return hasConfiguredMedia(local)
+    ? normalizeHomePageMediaSelection(local)
+    : getDefaultHomePageMediaSelection();
 }
 
 export async function persistHomePageMediaSelection(

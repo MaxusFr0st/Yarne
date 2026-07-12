@@ -796,7 +796,6 @@ function ProductModal({
       const file = toUploadableCroppedFile(blob, "cropped");
       const newUrl = await uploadImage(file);
       updateCropMeta((prev) => transferImageCropMeta(prev, url, newUrl, settings));
-      purgeUploadIfOrphaned(url);
       onReplace(newUrl);
     } catch (err) {
       if (err instanceof CropCancelledError) return;
@@ -2624,7 +2623,6 @@ export function AdminPage() {
       const oldUrl = homePageMedia[field];
       if (oldUrl.trim()) {
         updateContentsCropMeta((prev) => removeImageCropMeta(prev, oldUrl));
-        purgeUploadIfOrphaned(oldUrl);
       }
       updateContentsCropMeta((prev) =>
         setImageCropMeta(prev, normalizedDisplayUrl, buildCropMetaEntry(sourceUrl, settings)),
@@ -2654,7 +2652,6 @@ export function AdminPage() {
       const file = toUploadableCroppedFile(blob, "cropped");
       const newUrl = normalizeStoredMediaUrl(await uploadImage(file));
       updateContentsCropMeta((prev) => transferImageCropMeta(prev, url, newUrl, settings));
-      purgeUploadIfOrphaned(url);
       updateHomePageMedia({ [field]: newUrl });
     } catch (err) {
       if (err instanceof CropCancelledError) return;
@@ -2685,7 +2682,6 @@ export function AdminPage() {
       const oldUrl = featuredShowcaseSelection[slotKey].imageUrl;
       if (oldUrl.trim()) {
         updateContentsCropMeta((prev) => removeImageCropMeta(prev, oldUrl));
-        purgeUploadIfOrphaned(oldUrl);
       }
       updateContentsCropMeta((prev) =>
         setImageCropMeta(prev, normalizedDisplayUrl, buildCropMetaEntry(sourceUrl, settings)),
@@ -2718,7 +2714,6 @@ export function AdminPage() {
       const file = toUploadableCroppedFile(blob, "cropped");
       const newUrl = normalizeStoredMediaUrl(await uploadImage(file));
       updateContentsCropMeta((prev) => transferImageCropMeta(prev, url, newUrl, settings));
-      purgeUploadIfOrphaned(url);
       updateShowcaseProductSlot(slotKey, { imageUrl: newUrl });
     } catch (err) {
       if (err instanceof CropCancelledError) return;
