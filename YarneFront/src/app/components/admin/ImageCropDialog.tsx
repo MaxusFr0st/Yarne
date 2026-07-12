@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import Cropper, { type Area } from "react-easy-crop";
 import { X } from "lucide-react";
 import { getCroppedImageBlob } from "../../utils/cropImage";
@@ -30,12 +30,22 @@ export function ImageCropDialog({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  useEffect(() => {
+    setCrop({ x: 0, y: 0 });
+    setZoom(1);
+    setCroppedAreaPixels(null);
+    setError(null);
+  }, [imageSrc]);
+
   const onCropComplete = useCallback((_: Area, pixels: Area) => {
     setCroppedAreaPixels(pixels);
   }, []);
 
   const handleApply = async () => {
-    if (!croppedAreaPixels) return;
+    if (!croppedAreaPixels) {
+      setError("Crop area is still loading. Wait a moment, then try again.");
+      return;
+    }
     setSaving(true);
     setError(null);
     try {
@@ -96,6 +106,7 @@ export function ImageCropDialog({
             onCropChange={setCrop}
             onZoomChange={setZoom}
             onCropComplete={onCropComplete}
+            onCropAreaChange={(_, pixels) => setCroppedAreaPixels(pixels)}
           />
         </div>
 
@@ -132,7 +143,7 @@ export function ImageCropDialog({
             <button
               type="button"
               onClick={() => void handleApply()}
-              disabled={saving || !croppedAreaPixels}
+              disabled={saving}
               className="px-6 py-2.5 rounded-full text-[#F5F2ED] disabled:opacity-50"
               style={{ backgroundColor: "#2D241E", fontFamily: "'DM Sans', sans-serif", fontSize: "0.75rem" }}
             >

@@ -651,7 +651,6 @@ function ProductModal({
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files?.length) return;
-    setUploading(true);
     setUploadError(null);
     e.target.value = "";
     try {
@@ -661,6 +660,7 @@ function ProductModal({
             files[i],
             files.length > 1 ? `Crop image ${i + 1} of ${files.length}` : "Crop for product card",
           );
+          setUploading(true);
           const url = await uploadImage(croppedFile);
           setForm((p) => ({
             ...p,
@@ -669,13 +669,14 @@ function ProductModal({
         } catch (err) {
           if (err instanceof CropCancelledError) continue;
           throw err;
+        } finally {
+          setUploading(false);
         }
       }
     } catch (err) {
       console.error("Upload failed:", err);
       setUploadError(err instanceof Error ? err.message : "Unknown error");
     } finally {
-      setUploading(false);
       closeCropDialog();
     }
   };
@@ -689,7 +690,6 @@ function ProductModal({
       return;
     }
     const { colorId, sizeId, lace } = target;
-    setUploadingColorId(colorId);
     e.target.value = "";
     try {
       for (let i = 0; i < files.length; i++) {
@@ -698,6 +698,7 @@ function ProductModal({
             files[i],
             files.length > 1 ? `Crop image ${i + 1} of ${files.length}` : "Crop for product card",
           );
+          setUploadingColorId(colorId);
           const url = await uploadImage(croppedFile);
           setForm((p) => {
             const next = { ...p.colorSizeVariants };
@@ -709,20 +710,24 @@ function ProductModal({
         } catch (err) {
           if (err instanceof CropCancelledError) continue;
           throw err;
+        } finally {
+          setUploadingColorId(null);
         }
       }
     } catch (err) {
       console.error("Upload failed:", err);
       setUploadError(err instanceof Error ? err.message : "Unknown error");
     } finally {
-      setUploadingColorId(null);
       uploadTargetVariantRef.current = null;
       closeCropDialog();
     }
   };
 
   const handleRecropImageUrl = async (url: string, onReplace: (newUrl: string) => void) => {
-    if (cropInFlightRef.current || cropDialog) return;
+    if (cropInFlightRef.current || cropDialog) {
+      setUploadError("Finish or cancel the open crop dialog first.");
+      return;
+    }
     setUploadError(null);
     try {
       const blob = await promptCropForUrl(url);
