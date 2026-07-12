@@ -21,7 +21,15 @@ public static class DatabaseBootstrap
 
         var db = scope.ServiceProvider.GetRequiredService<YarneDbContext>();
 
-        await DatabaseStartup.ApplyMigrationsWithRetryAsync(db, logger, cancellationToken: cancellationToken);
+        try
+        {
+            await DatabaseStartup.ApplyMigrationsWithRetryAsync(db, logger, cancellationToken: cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "EF migrations failed. Applying critical OrderItem schema patches before continuing.");
+            await OrderItemSchemaPatches.EnsureSnapshotColumnsAsync(db, logger, cancellationToken);
+        }
 
         if (runStartupDbPatches)
         {
@@ -84,6 +92,8 @@ public static class DatabaseBootstrap
                         END $$;
                         """,
                         cancellationToken);
+
+                    await OrderItemSchemaPatches.EnsureSnapshotColumnsAsync(db, logger, cancellationToken);
                 }
                 else
                 {

@@ -154,6 +154,9 @@ function formatLoadError(label: string, reason: unknown): string {
     if (reason.status === 401 || reason.status === 403) {
       return `${label}: sign in again or confirm your account has Admin access.`;
     }
+    if (reason.message === "An unexpected error occurred.") {
+      return `${label}: server error — redeploy the mindful-flexibility API so database migrations can finish.`;
+    }
     return `${label}: ${reason.message}`;
   }
   if (reason instanceof Error) {
