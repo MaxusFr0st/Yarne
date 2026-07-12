@@ -44,8 +44,15 @@ public class ImagesController : ControllerBase
         if (string.IsNullOrEmpty(ext) || !AllowedExtensions.Contains(ext))
             return BadRequest(new { message = "Invalid file type. Allowed: jpg, jpeg, png, gif, webp" });
 
-        if (string.IsNullOrWhiteSpace(file.ContentType) || !AllowedMimeTypes.Contains(file.ContentType.ToLowerInvariant()))
-            return BadRequest(new { message = "Invalid content type for image upload" });
+        var contentType = (file.ContentType ?? "").Trim().ToLowerInvariant();
+        if (contentType == "image/jpg") contentType = "image/jpeg";
+
+        if (string.IsNullOrWhiteSpace(contentType) || !AllowedMimeTypes.Contains(contentType))
+        {
+            var inferred = InferMimeTypeFromExtension(ext);
+            if (inferred == null)
+                return BadRequest(new { message = "Invalid content type for image upload" });
+        }
 
         if (file.Length > MaxFileSizeBytes)
             return BadRequest(new { message = "File too large. Max 15 MB" });
@@ -155,6 +162,16 @@ public class ImagesController : ControllerBase
 
         return PhysicalFile(filePath, contentType, enableRangeProcessing: true);
     }
+
+    private static string? InferMimeTypeFromExtension(string extension) =>
+        extension switch
+        {
+            ".jpg" or ".jpeg" => "image/jpeg",
+            ".png" => "image/png",
+            ".gif" => "image/gif",
+            ".webp" => "image/webp",
+            _ => null,
+        };
 
     private static bool HasValidSignature(string extension, byte[] header, int bytesRead)
     {

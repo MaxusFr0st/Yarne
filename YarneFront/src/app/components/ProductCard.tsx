@@ -22,6 +22,12 @@ interface ProductCardProps {
   viewportRoot?: React.RefObject<HTMLElement | null>;
   /** Forces layout independent of viewport breakpoints (admin preview). */
   previewBreakpoint?: "mobile" | "tablet" | "desktop";
+  /** Admin preview: interactive swatches, no navigation or cart actions. */
+  previewMode?: boolean;
+  activeColorIndex?: number;
+  onActiveColorChange?: (index: number) => void;
+  /** Overrides the active color's card image (variant photo preview). */
+  previewImageOverride?: string;
 }
 
 function ProductCardInner({
@@ -32,15 +38,30 @@ function ProductCardInner({
   subtleEntrance = false,
   viewportRoot,
   previewBreakpoint,
+  previewMode = false,
+  activeColorIndex,
+  onActiveColorChange,
+  previewImageOverride,
 }: ProductCardProps) {
   const { t } = useTranslation();
   const locale = useLocale();
-  const [activeColor, setActiveColor] = useState(() => getDefaultColorIndex(product));
+  const isControlledColor = activeColorIndex !== undefined;
+  const [internalColor, setInternalColor] = useState(() => getDefaultColorIndex(product));
+  const activeColor = isControlledColor ? activeColorIndex : internalColor;
+  const setActiveColor = (index: number) => {
+    if (!isControlledColor) setInternalColor(index);
+    onActiveColorChange?.(index);
+  };
   const { addToCart } = useCart();
   const { wishlist, toggleWishlist } = useWishlist();
   const { disabled: motionDisabled, opacityOnly } = useMotionEntrance();
   const touchMobile = useTouchMobileLayout();
   const [mobilePeek, setMobilePeek] = useState(false);
+
+  useEffect(() => {
+    if (isControlledColor) return;
+    setInternalColor(getDefaultColorIndex(product));
+  }, [product.defaultColor, product.colors, isControlledColor]);
 
   const isWishlisted = wishlist.includes(product.id);
   const isCarouselCard = inCarousel || size === "carousel";
@@ -64,6 +85,7 @@ function ProductCardInner({
       : "rounded-[24px] md:rounded-[32px]";
 
   const handleQuickAdd = (e: MouseEvent<HTMLButtonElement>) => {
+    if (previewMode) return;
     e.preventDefault();
     e.stopPropagation();
     const maxQuantity = Math.max(0, product.stock ?? 0);
@@ -84,12 +106,17 @@ function ProductCardInner({
   };
 
   const handleWishlist = (e: MouseEvent<HTMLButtonElement>) => {
+    if (previewMode) return;
     e.preventDefault();
     e.stopPropagation();
     toggleWishlist(product.id);
   };
 
   const handleCardClick = (e: MouseEvent<HTMLAnchorElement>) => {
+    if (previewMode) {
+      e.preventDefault();
+      return;
+    }
     if (!touchMobile) return;
     if ((e.target as HTMLElement).closest("button")) return;
     if (!mobilePeek) {
@@ -133,28 +160,20 @@ function ProductCardInner({
       ? { opacity: 1 }
       : { opacity: 1, y: 0 };
 
-  return (
-    <motion.div
-      initial={entranceInitial}
-      whileInView={entranceAnimate}
-      viewport={motionDisabled ? undefined : (useCarouselViewport || !inCarousel ? viewport : undefined)}
-      transition={{ duration: 0.5, delay: inCarousel ? 0 : index * 0.08, ease: [0.25, 0.1, 0.25, 1] }}
-      className={`group/card ${isCarouselCard ? "overflow-visible" : ""}`}
-      data-product-card={product.id}
-    >
-      <LangLink
-        to={`/product/${product.id}`}
-        className={`block ${isCarouselCard ? "overflow-visible" : ""}`}
-        onClick={handleCardClick}
-      >
+  const cardBody = (
+    <>
         <div
-          className={`relative ${aspectClass} overflow-hidden ${imageRadiusClass} bg-[#EDE9E2] cursor-pointer`}
+          className={`relative ${aspectClass} overflow-hidden ${imageRadiusClass} bg-[#EDE9E2] ${previewMode ? "" : "cursor-pointer"}`}
         >
           <div className={`absolute inset-0 overflow-hidden ${imageRadiusClass}`}>
             {product.colors.map((color, i) => (
               <ImageWithFallback
                 key={color.name}
-                src={color.image}
+                src={
+                  previewMode && i === activeColor && previewImageOverride
+                    ? previewImageOverride
+                    : color.image
+                }
                 alt={`${product.name} in ${color.name}`}
                 className={`product-card-image absolute inset-0 h-full w-full object-cover ${
                   isCarouselCard ? "object-[center_28%] md:object-[center_32%]" : "object-[center_30%]"
@@ -200,38 +219,42 @@ function ProductCardInner({
             )}
           </div>
 
-          <button
-            onClick={handleWishlist}
-            className="absolute top-4 right-4 w-9 h-9 rounded-full flex items-center justify-center transition-colors duration-300 cursor-pointer"
-            style={{
-              backgroundColor: isWishlisted ? "#4A0E0E" : "rgba(245,242,237,0.85)",
-              backdropFilter: "blur(8px)",
-            }}
-            aria-pressed={isWishlisted}
-            aria-label={isWishlisted ? t("product.removeFromWishlist", { defaultValue: "Remove from wishlist" }) : t("product.addToWishlist", { defaultValue: "Add to wishlist" })}
-          >
-            <Heart
-              size={15}
-              strokeWidth={1.5}
-              fill={isWishlisted ? "white" : "none"}
-              stroke={isWishlisted ? "white" : "#2D241E"}
-            />
-          </button>
+          {!previewMode && (
+            <button
+              onClick={handleWishlist}
+              className="absolute top-4 right-4 w-9 h-9 rounded-full flex items-center justify-center transition-colors duration-300 cursor-pointer"
+              style={{
+                backgroundColor: isWishlisted ? "#4A0E0E" : "rgba(245,242,237,0.85)",
+                backdropFilter: "blur(8px)",
+              }}
+              aria-pressed={isWishlisted}
+              aria-label={isWishlisted ? t("product.removeFromWishlist", { defaultValue: "Remove from wishlist" }) : t("product.addToWishlist", { defaultValue: "Add to wishlist" })}
+            >
+              <Heart
+                size={15}
+                strokeWidth={1.5}
+                fill={isWishlisted ? "white" : "none"}
+                stroke={isWishlisted ? "white" : "#2D241E"}
+              />
+            </button>
+          )}
 
-          <button
-            onClick={handleQuickAdd}
-            className={`absolute bottom-4 left-1/2 -translate-x-1/2 whitespace-nowrap px-6 py-2.5 rounded-full text-white flex items-center gap-2 cursor-pointer transition-[opacity,transform] duration-[380ms] ease-[cubic-bezier(0.25,0.1,0.25,1)] ${quickAddVisibleClass} motion-reduce:transition-none motion-reduce:opacity-100 motion-reduce:translate-y-0 motion-reduce:scale-100`}
-            style={{
-              backgroundColor: "#2D241E",
-              fontFamily: "'DM Sans', sans-serif",
-              fontSize: "0.72rem",
-              letterSpacing: "0.12em",
-              boxShadow: "0 8px 24px rgba(45,36,30,0.3)",
-            }}
-          >
-            <ShoppingBag size={13} strokeWidth={1.5} />
-            <span className="uppercase tracking-widest">{t("product.quickAdd")}</span>
-          </button>
+          {!previewMode && (
+            <button
+              onClick={handleQuickAdd}
+              className={`absolute bottom-4 left-1/2 -translate-x-1/2 whitespace-nowrap px-6 py-2.5 rounded-full text-white flex items-center gap-2 cursor-pointer transition-[opacity,transform] duration-[380ms] ease-[cubic-bezier(0.25,0.1,0.25,1)] ${quickAddVisibleClass} motion-reduce:transition-none motion-reduce:opacity-100 motion-reduce:translate-y-0 motion-reduce:scale-100`}
+              style={{
+                backgroundColor: "#2D241E",
+                fontFamily: "'DM Sans', sans-serif",
+                fontSize: "0.72rem",
+                letterSpacing: "0.12em",
+                boxShadow: "0 8px 24px rgba(45,36,30,0.3)",
+              }}
+            >
+              <ShoppingBag size={13} strokeWidth={1.5} />
+              <span className="uppercase tracking-widest">{t("product.quickAdd")}</span>
+            </button>
+          )}
         </div>
 
         <div className={`${isCarouselCard ? "mt-3 overflow-visible pb-1" : "mt-4"} px-0.5`}>
@@ -259,7 +282,7 @@ function ProductCardInner({
           </div>
 
           <div
-            className={`flex items-center gap-2 ${isCarouselCard ? "mt-2 py-1.5 pl-1 -ml-1" : "mt-3"}`}
+            className={`flex items-center gap-2 ${isCarouselCard ? "mt-2 py-1.5 pl-1 -ml-1" : "mt-3"} ${previewMode ? "overflow-x-auto pb-1 -mx-0.5 px-0.5" : ""}`}
           >
             {product.colors.map((color, i) => (
               <button
@@ -284,14 +307,36 @@ function ProductCardInner({
               />
             ))}
             <span
-              className="text-[#2D241E]/40 text-xs ml-1"
+              className="text-[#2D241E]/40 text-xs ml-1 shrink-0"
               style={{ fontFamily: "'DM Sans', sans-serif" }}
             >
-              {product.colors[activeColor].name}
+              {product.colors[activeColor]?.name}
             </span>
           </div>
         </div>
-      </LangLink>
+    </>
+  );
+
+  return (
+    <motion.div
+      initial={entranceInitial}
+      whileInView={entranceAnimate}
+      viewport={motionDisabled ? undefined : (useCarouselViewport || !inCarousel ? viewport : undefined)}
+      transition={{ duration: 0.5, delay: inCarousel ? 0 : index * 0.08, ease: [0.25, 0.1, 0.25, 1] }}
+      className={`group/card ${isCarouselCard ? "overflow-visible" : ""}`}
+      data-product-card={product.id}
+    >
+      {previewMode ? (
+        <div className={`block ${isCarouselCard ? "overflow-visible" : ""}`}>{cardBody}</div>
+      ) : (
+        <LangLink
+          to={`/product/${product.id}`}
+          className={`block ${isCarouselCard ? "overflow-visible" : ""}`}
+          onClick={handleCardClick}
+        >
+          {cardBody}
+        </LangLink>
+      )}
     </motion.div>
   );
 }

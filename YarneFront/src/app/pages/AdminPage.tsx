@@ -5,6 +5,7 @@ import { useBodyScrollLock } from "../hooks/useBodyScrollLock";
 import { CropCancelledError, useCropDialog } from "../hooks/useCropDialog";
 import { useApp } from "../context/AppContext";
 import { uploadImage } from "../api/images";
+import { uploadCroppedWithOriginal, toUploadableCroppedFile } from "../utils/uploadCropPair";
 import { AdminColorPicker, sanitizeColorHex } from "../components/admin/AdminColorPicker";
 import { ImageCropDialog } from "../components/admin/ImageCropDialog";
 import { ProductCardPreviewPanel } from "../components/admin/ProductCardPreviewPanel";
@@ -425,9 +426,7 @@ function ProductModal({
               title: title ?? "Crop for product card",
               onComplete: async (blob, settings) => {
                 resolve({
-                  croppedFile: new File([blob], `${file.name.replace(/\.[^.]+$/, "") || "image"}.jpg`, {
-                    type: blob.type || "image/jpeg",
-                  }),
+                  croppedFile: toUploadableCroppedFile(blob, file.name.replace(/\.[^.]+$/, "") || "image"),
                   settings,
                   originalFile: file,
                 });
@@ -715,10 +714,7 @@ function ProductModal({
             files.length > 1 ? `Crop image ${i + 1} of ${files.length}` : "Crop for product card",
           );
           setUploading(true);
-          const [sourceUrl, displayUrl] = await Promise.all([
-            uploadImage(originalFile),
-            uploadImage(croppedFile),
-          ]);
+          const { displayUrl, sourceUrl } = await uploadCroppedWithOriginal(croppedFile, originalFile);
           updateCropMeta((prev) =>
             setImageCropMeta(prev, displayUrl, buildCropMetaEntry(sourceUrl, settings)),
           );
@@ -759,10 +755,7 @@ function ProductModal({
             files.length > 1 ? `Crop image ${i + 1} of ${files.length}` : "Crop for product card",
           );
           setUploadingColorId(colorId);
-          const [sourceUrl, displayUrl] = await Promise.all([
-            uploadImage(originalFile),
-            uploadImage(croppedFile),
-          ]);
+          const { displayUrl, sourceUrl } = await uploadCroppedWithOriginal(croppedFile, originalFile);
           updateCropMeta((prev) =>
             setImageCropMeta(prev, displayUrl, buildCropMetaEntry(sourceUrl, settings)),
           );
@@ -798,7 +791,7 @@ function ProductModal({
     try {
       const { blob, settings } = await promptCropForUrl(url);
       setUploading(true);
-      const file = new File([blob], "cropped.jpg", { type: blob.type || "image/jpeg" });
+      const file = toUploadableCroppedFile(blob, "cropped");
       const newUrl = await uploadImage(file);
       updateCropMeta((prev) => transferImageCropMeta(prev, url, newUrl, settings));
       onReplace(newUrl);
@@ -2622,10 +2615,7 @@ export function AdminPage() {
         hintText: HOME_MEDIA_HINTS[field],
       });
       setHomeMediaUploading((prev) => ({ ...prev, [field]: true }));
-      const [sourceUrl, displayUrl] = await Promise.all([
-        uploadImage(originalFile),
-        uploadImage(croppedFile),
-      ]);
+      const { displayUrl, sourceUrl } = await uploadCroppedWithOriginal(croppedFile, originalFile);
       const normalizedDisplayUrl = normalizeStoredMediaUrl(displayUrl);
       const oldUrl = homePageMedia[field];
       if (oldUrl.trim()) {
@@ -2656,7 +2646,7 @@ export function AdminPage() {
         hintText: HOME_MEDIA_HINTS[field],
       });
       setHomeMediaUploading((prev) => ({ ...prev, [field]: true }));
-      const file = new File([blob], "cropped.jpg", { type: blob.type || "image/jpeg" });
+      const file = toUploadableCroppedFile(blob, "cropped");
       const newUrl = normalizeStoredMediaUrl(await uploadImage(file));
       updateContentsCropMeta((prev) => transferImageCropMeta(prev, url, newUrl, settings));
       updateHomePageMedia({ [field]: newUrl });
@@ -2684,10 +2674,7 @@ export function AdminPage() {
         hintText: SHOWCASE_SLOT_HINTS[slotKey],
       });
       setShowcaseUploading((prev) => ({ ...prev, [slotKey]: true }));
-      const [sourceUrl, displayUrl] = await Promise.all([
-        uploadImage(originalFile),
-        uploadImage(croppedFile),
-      ]);
+      const { displayUrl, sourceUrl } = await uploadCroppedWithOriginal(croppedFile, originalFile);
       const normalizedDisplayUrl = normalizeStoredMediaUrl(displayUrl);
       const oldUrl = featuredShowcaseSelection[slotKey].imageUrl;
       if (oldUrl.trim()) {
@@ -2721,7 +2708,7 @@ export function AdminPage() {
         hintText: SHOWCASE_SLOT_HINTS[slotKey],
       });
       setShowcaseUploading((prev) => ({ ...prev, [slotKey]: true }));
-      const file = new File([blob], "cropped.jpg", { type: blob.type || "image/jpeg" });
+      const file = toUploadableCroppedFile(blob, "cropped");
       const newUrl = normalizeStoredMediaUrl(await uploadImage(file));
       updateContentsCropMeta((prev) => transferImageCropMeta(prev, url, newUrl, settings));
       updateShowcaseProductSlot(slotKey, { imageUrl: newUrl });
