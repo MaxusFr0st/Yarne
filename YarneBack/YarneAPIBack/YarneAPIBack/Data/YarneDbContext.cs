@@ -418,7 +418,8 @@ public partial class YarneDbContext : DbContext
 
             entity.HasOne(d => d.DefaultColor)
                 .WithMany(c => c.ProductsAsDefaultColor)
-                .HasForeignKey(d => d.DefaultColorId);
+                .HasForeignKey(d => d.DefaultColorId)
+                .OnDelete(DeleteBehavior.SetNull);
 
             entity.HasMany(d => d.Countries).WithMany(p => p.Products)
                 .UsingEntity<Dictionary<string, object>>(
