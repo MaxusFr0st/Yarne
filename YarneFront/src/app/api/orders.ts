@@ -2,7 +2,7 @@ import { apiRequest } from "./client";
 
 export interface OrderItemDto {
   id: number;
-  productId: number;
+  productId: number | null;
   productCode: string;
   productName: string;
   productImageUrl: string | null;

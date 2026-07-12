@@ -210,6 +210,11 @@ public class OrdersController : ControllerBase
             .ToList();
 
         var products = await _context.Products
+            .Include(p => p.ProductImages)
+            .Include(p => p.ProductColors)
+                .ThenInclude(pc => pc.Images)
+            .Include(p => p.ProductColors)
+                .ThenInclude(pc => pc.SizeImages)
             .Where(p => numericIds.Contains(p.Id) || codeIds.Contains(p.ProductCode))
             .ToListAsync(ct);
 
@@ -255,9 +260,8 @@ public class OrdersController : ControllerBase
             if (!product.IsActive)
                 return BadRequest(new { message = $"Product '{productKey}' is not available." });
 
-            orderItems.Add(new OrderItem
+            var orderItem = new OrderItem
             {
-                ProductId = product.Id,
                 CountryId = item.CountryId,
                 Quantity = item.Quantity,
                 UnitPrice = product.Price,
@@ -265,7 +269,9 @@ public class OrdersController : ControllerBase
                 ColorName = NormalizeOptional(item.ColorName),
                 SizeName = NormalizeOptional(item.SizeName),
                 WithLace = item.WithLace,
-            });
+            };
+            OrderItemSnapshotHelper.ApplyProductSnapshot(orderItem, product);
+            orderItems.Add(orderItem);
 
             quantityByProductId[product.Id] = quantityByProductId.GetValueOrDefault(product.Id) + item.Quantity;
         }
@@ -454,9 +460,9 @@ public class OrdersController : ControllerBase
                 {
                     Id = i.Id,
                     ProductId = i.ProductId,
-                    ProductCode = i.Product?.ProductCode ?? string.Empty,
-                    ProductName = i.Product?.Name ?? "Product",
-                    ProductImageUrl = ResolvePrimaryProductImageUrl(i.Product),
+                    ProductCode = OrderItemSnapshotHelper.ResolveProductCode(i),
+                    ProductName = OrderItemSnapshotHelper.ResolveProductName(i),
+                    ProductImageUrl = OrderItemSnapshotHelper.ResolveProductImageUrl(i),
                     ProductSubtitle = i.ProductSubtitle,
                     ColorName = i.ColorName,
                     SizeName = i.SizeName,
@@ -572,9 +578,9 @@ public class OrdersController : ControllerBase
                 .OrderBy(i => i.Id)
                 .Select(i => new OrderConfirmationEmailItem
                 {
-                    ProductCode = i.Product?.ProductCode ?? string.Empty,
-                    ProductName = i.Product?.Name ?? "Product",
-                    ProductImageUrl = ResolveAbsoluteImageUrl(ResolvePrimaryProductImageUrl(i.Product), apiBase),
+                    ProductCode = OrderItemSnapshotHelper.ResolveProductCode(i),
+                    ProductName = OrderItemSnapshotHelper.ResolveProductName(i),
+                    ProductImageUrl = ResolveAbsoluteImageUrl(OrderItemSnapshotHelper.ResolveProductImageUrl(i), apiBase),
                     ProductSubtitle = i.ProductSubtitle,
                     ColorName = i.ColorName,
                     SizeName = i.SizeName,
@@ -584,41 +590,6 @@ public class OrdersController : ControllerBase
                 })
                 .ToList(),
         };
-    }
-
-    private static string? ResolvePrimaryProductImageUrl(Product? product)
-    {
-        if (product == null) return null;
-
-        var primary = product.ProductImages?
-            .OrderByDescending(pi => pi.IsPrimary)
-            .ThenBy(pi => pi.SortOrder)
-            .ThenBy(pi => pi.Id)
-            .Select(pi => pi.ImageUrl)
-            .FirstOrDefault();
-
-        if (!string.IsNullOrWhiteSpace(primary))
-            return primary;
-
-        var colorPrimary = product.ProductColors?
-            .SelectMany(pc => pc.Images)
-            .OrderBy(pi => pi.SortOrder)
-            .ThenBy(pi => pi.Id)
-            .Select(pi => pi.ImageUrl)
-            .FirstOrDefault();
-        if (!string.IsNullOrWhiteSpace(colorPrimary))
-            return colorPrimary;
-
-        var colorSizePrimary = product.ProductColors?
-            .SelectMany(pc => pc.SizeImages)
-            .OrderBy(pi => pi.SortOrder)
-            .ThenBy(pi => pi.Id)
-            .Select(pi => pi.ImageUrl)
-            .FirstOrDefault();
-        if (!string.IsNullOrWhiteSpace(colorSizePrimary))
-            return colorSizePrimary;
-
-        return product.ImageUrl;
     }
 
     private string? ResolveOrderReceivedNotifyEmail()
