@@ -106,6 +106,13 @@ type AdminUser = ReturnType<typeof useAdminData>["users"][number];
 /* ─────────────────────────────────────────────
    SMALL HELPERS
 ───────────────────────────────────────────── */
+/** Snapshot selected files before clearing the input — FileList is live and can empty on reset. */
+function takeInputFiles(event: React.ChangeEvent<HTMLInputElement>): File[] {
+  const files = Array.from(event.target.files ?? []);
+  event.target.value = "";
+  return files;
+}
+
 function Avatar({ name, size = 36 }: { name: string; size?: number }) {
   const initials = name
     .split(" ")
@@ -716,9 +723,8 @@ function ProductModal({
     lace: boolean,
     e: React.ChangeEvent<HTMLInputElement>,
   ) => {
-    const files = e.target.files;
-    e.target.value = "";
-    if (!files?.length) return;
+    const files = takeInputFiles(e);
+    if (!files.length) return;
 
     const rowKey = variantKey(colorId, sizeId, lace);
     setUploadError(null);
@@ -742,9 +748,8 @@ function ProductModal({
     lace: boolean,
     e: React.ChangeEvent<HTMLInputElement>,
   ) => {
-    const files = e.target.files;
-    e.target.value = "";
-    if (!files?.length) return;
+    const files = takeInputFiles(e);
+    if (!files.length) return;
 
     const rowKey = variantKey(colorId, sizeId, lace);
     setUploadError(null);
@@ -776,10 +781,9 @@ function ProductModal({
   };
 
   const handleQuickFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (!files?.length) return;
+    const files = takeInputFiles(e);
+    if (!files.length) return;
     setUploadError(null);
-    e.target.value = "";
     try {
       setUploading(true);
       for (let i = 0; i < files.length; i++) {
@@ -798,10 +802,9 @@ function ProductModal({
   };
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (!files?.length) return;
+    const files = takeInputFiles(e);
+    if (!files.length) return;
     setUploadError(null);
-    e.target.value = "";
     try {
       for (let i = 0; i < files.length; i++) {
         try {
