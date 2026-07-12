@@ -14,6 +14,7 @@ import {
   type CropResultSettings,
   type ImageCropMeta,
 } from "../utils/imageCropMeta";
+import { toUploadableCroppedFile } from "../utils/uploadCropPair";
 import { resolveMediaUrl } from "../utils/storefrontMedia";
 
 export class CropCancelledError extends Error {
@@ -77,9 +78,7 @@ export function useCropDialog() {
               hintText: options?.hintText,
               onComplete: async (blob, settings) => {
                 resolve({
-                  croppedFile: new File([blob], `${file.name.replace(/\.[^.]+$/, "") || "image"}.jpg`, {
-                    type: blob.type || "image/jpeg",
-                  }),
+                  croppedFile: toUploadableCroppedFile(blob, file.name.replace(/\.[^.]+$/, "") || "image"),
                   settings,
                   originalFile: file,
                 });
