@@ -46,24 +46,24 @@ public class ImagesController : ControllerBase
 
         var contentType = (file.ContentType ?? "").Trim().ToLowerInvariant();
         if (contentType == "image/jpg") contentType = "image/jpeg";
+        if (contentType == "application/octet-stream")
+        {
+            var inferredOctet = InferMimeTypeFromExtension(ext);
+            if (inferredOctet != null) contentType = inferredOctet;
+        }
 
         if (string.IsNullOrWhiteSpace(contentType) || !AllowedMimeTypes.Contains(contentType))
         {
             var inferred = InferMimeTypeFromExtension(ext);
             if (inferred == null)
                 return BadRequest(new { message = "Invalid content type for image upload" });
+            contentType = inferred;
         }
 
         if (file.Length > MaxFileSizeBytes)
             return BadRequest(new { message = "File too large. Max 15 MB" });
 
         await using var uploadStream = file.OpenReadStream();
-        var header = new byte[12];
-        var read = await uploadStream.ReadAsync(header, ct);
-        if (!HasValidSignature(ext, header, read))
-            return BadRequest(new { message = "File signature does not match the extension" });
-
-        uploadStream.Position = 0;
 
         NormalizedUploadImage normalized;
         try
@@ -172,43 +172,4 @@ public class ImagesController : ControllerBase
             ".webp" => "image/webp",
             _ => null,
         };
-
-    private static bool HasValidSignature(string extension, byte[] header, int bytesRead)
-    {
-        if (bytesRead < 4) return false;
-
-        return extension switch
-        {
-            ".jpg" or ".jpeg" => bytesRead >= 3
-                && header[0] == 0xFF
-                && header[1] == 0xD8
-                && header[2] == 0xFF,
-            ".png" => bytesRead >= 8
-                && header[0] == 0x89
-                && header[1] == 0x50
-                && header[2] == 0x4E
-                && header[3] == 0x47
-                && header[4] == 0x0D
-                && header[5] == 0x0A
-                && header[6] == 0x1A
-                && header[7] == 0x0A,
-            ".gif" => bytesRead >= 6
-                && header[0] == 0x47
-                && header[1] == 0x49
-                && header[2] == 0x46
-                && header[3] == 0x38
-                && (header[4] == 0x37 || header[4] == 0x39)
-                && header[5] == 0x61,
-            ".webp" => bytesRead >= 12
-                && header[0] == 0x52
-                && header[1] == 0x49
-                && header[2] == 0x46
-                && header[3] == 0x46
-                && header[8] == 0x57
-                && header[9] == 0x45
-                && header[10] == 0x42
-                && header[11] == 0x50,
-            _ => false,
-        };
-    }
 }
