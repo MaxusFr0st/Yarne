@@ -108,23 +108,56 @@ public class ColorsController : ControllerBase
     [Authorize(Roles = "Admin")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
     public async Task<ActionResult> DeleteColor(int id, CancellationToken ct = default)
     {
         var color = await _context.Colors.FindAsync([id], ct);
         if (color == null) return NotFound();
 
         var name = color.Name;
+
+        var affectedProductNames = await _context.ProductColors
+            .Where(pc => pc.ColorId == id)
+            .Select(pc => pc.Product.Name)
+            .Distinct()
+            .OrderBy(n => n)
+            .ToListAsync(ct);
+
+        // Product.DefaultColorId references Color without ON DELETE — must clear first.
+        var productsWithDefaultColor = await _context.Products
+            .Where(p => p.DefaultColorId == id)
+            .ToListAsync(ct);
+        foreach (var product in productsWithDefaultColor)
+            product.DefaultColorId = null;
+
         _context.Colors.Remove(color);
-        await _context.SaveChangesAsync(ct);
+
+        try
+        {
+            await _context.SaveChangesAsync(ct);
+        }
+        catch (DbUpdateException)
+        {
+            var productHint = affectedProductNames.Count > 0
+                ? $" It is assigned to: {string.Join(", ", affectedProductNames)}."
+                : string.Empty;
+            return Conflict(new
+            {
+                message = $"Cannot delete color \"{name}\" because it is still in use.{productHint}",
+                products = affectedProductNames,
+            });
+        }
 
         var (actorUserId, actorEmail) = AdminActivityLogHelper.GetActor(HttpContext);
         await _activityLogs.LogAsync(
             "catalog",
             "deleted",
-            $"Deleted color \"{name}\"",
+            affectedProductNames.Count > 0
+                ? $"Deleted color \"{name}\" (removed from {affectedProductNames.Count} product(s))"
+                : $"Deleted color \"{name}\"",
             id.ToString(),
             name,
-            new { catalogType = "color", id, name },
+            new { catalogType = "color", id, name, affectedProductNames },
             actorUserId,
             actorEmail,
             ct);

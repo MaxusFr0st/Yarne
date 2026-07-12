@@ -2142,7 +2142,17 @@ function SizeModal({
 /* ─────────────────────────────────────────────
    DELETE CONFIRM MODAL
 ───────────────────────────────────────────── */
-function DeleteModal({ name, onClose, onConfirm }: { name: string; onClose: () => void; onConfirm: () => void }) {
+function DeleteModal({
+  name,
+  error,
+  onClose,
+  onConfirm,
+}: {
+  name: string;
+  error?: string | null;
+  onClose: () => void;
+  onConfirm: () => void;
+}) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ backgroundColor: "rgba(45,36,30,0.5)", backdropFilter: "blur(8px)" }}>
       <motion.div
@@ -2158,6 +2168,11 @@ function DeleteModal({ name, onClose, onConfirm }: { name: string; onClose: () =
         </div>
         <h3 className="text-[#2D241E] mb-3" style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "1.3rem", fontWeight: 400 }}>Delete "{name}"?</h3>
         <p className="text-[#2D241E]/50 mb-8 text-sm" style={{ fontFamily: "'DM Sans', sans-serif", lineHeight: 1.6 }}>This action cannot be undone. This record will be permanently removed.</p>
+        {error && (
+          <p className="text-sm text-[#4A0E0E] mb-6 p-3 rounded-[12px] bg-[#4A0E0E]/8 text-left" style={{ fontFamily: "'DM Sans', sans-serif", lineHeight: 1.5 }}>
+            {error}
+          </p>
+        )}
         <div className="flex gap-3">
           <button onClick={onClose} className="flex-1 py-3 rounded-full border transition-all hover:bg-[#2D241E]/5" style={{ borderColor: "rgba(45,36,30,0.2)", fontFamily: "'DM Sans', sans-serif", fontSize: "0.78rem", letterSpacing: "0.12em", color: "rgba(45,36,30,0.6)" }}>
             <span className="uppercase tracking-widest">Cancel</span>
@@ -2447,6 +2462,7 @@ export function AdminPage() {
   const [colorModal, setColorModal] = useState<{ open: boolean; editing: { id: number; name: string; hexCode: string } | null }>({ open: false, editing: null });
   const [sizeModal, setSizeModal] = useState<{ open: boolean; editing: { id: number; name: string } | null }>({ open: false, editing: null });
   const [deleteModal, setDeleteModal] = useState<{ open: boolean; type: "product" | "user" | "category" | "country" | "color" | "size"; id: string; idNum?: number; name: string } | null>(null);
+  const [deleteModalError, setDeleteModalError] = useState<string | null>(null);
 
   const filteredProducts = useMemo(
     () => products.filter((p) => p.name.toLowerCase().includes(productSearch.toLowerCase()) || p.category.toLowerCase().includes(productSearch.toLowerCase())),
@@ -3088,12 +3104,16 @@ export function AdminPage() {
     const id = deleteModal.idNum ?? parseInt(deleteModal.id);
     if (isNaN(id)) return;
     setSaveError(null);
+    setDeleteModalError(null);
     try {
       await removeColor(id);
       setDeleteModal(null);
+      setDeleteModalError(null);
       refetch();
     } catch (e) {
-      setSaveError(e instanceof Error ? e.message : "Failed to delete color");
+      const message = e instanceof Error ? e.message : "Failed to delete color";
+      setDeleteModalError(message);
+      setSaveError(message);
     }
   };
 
@@ -5107,7 +5127,7 @@ export function AdminPage() {
                         </div>
                         <div className="flex items-center justify-end gap-2">
                           <button onClick={() => setColorModal({ open: true, editing: c })} className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-[#2D241E]/8 transition-colors" title="Edit"><Pencil size={13} style={{ color: "#2D241E", opacity: 0.5 }} /></button>
-                          <button onClick={() => setDeleteModal({ open: true, type: "color", id: String(c.id), idNum: c.id, name: c.name })} className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-[#4A0E0E]/8 transition-colors" title="Delete"><Trash2 size={13} style={{ color: "#4A0E0E", opacity: 0.6 }} /></button>
+                          <button onClick={() => { setDeleteModalError(null); setDeleteModal({ open: true, type: "color", id: String(c.id), idNum: c.id, name: c.name }); }} className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-[#4A0E0E]/8 transition-colors" title="Delete"><Trash2 size={13} style={{ color: "#4A0E0E", opacity: 0.6 }} /></button>
                         </div>
                       </div>
                     ))
@@ -5363,7 +5383,8 @@ export function AdminPage() {
           <DeleteModal
             key="delete-modal"
             name={deleteModal.name}
-            onClose={() => setDeleteModal(null)}
+            error={deleteModalError}
+            onClose={() => { setDeleteModal(null); setDeleteModalError(null); }}
             onConfirm={() => {
               if (deleteModal.type === "product") handleDeleteProduct();
               else if (deleteModal.type === "user") handleDeleteUser();
