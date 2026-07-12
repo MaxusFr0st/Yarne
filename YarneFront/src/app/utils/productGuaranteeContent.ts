@@ -17,50 +17,55 @@ export type ProductGuaranteeContent = {
   descriptionUk: string;
 };
 
-function normalizeText(value: unknown, fallback: string, maxLength: number): string {
-  if (typeof value !== "string") return fallback;
+function normalizeText(value: unknown, maxLength: number): string {
+  if (typeof value !== "string") return "";
   const trimmed = value.trim();
-  const text = trimmed.length > 0 ? trimmed : fallback;
-  return text.length > maxLength ? text.slice(0, maxLength) : text;
+  return trimmed.length > maxLength ? trimmed.slice(0, maxLength) : trimmed;
+}
+
+/** Strip legacy auto-saved defaults so i18n remains the display fallback until admin sets text. */
+export function stripPersistedGuaranteeDefaults(content: ProductGuaranteeContent): ProductGuaranteeContent {
+  return {
+    titleEn: content.titleEn === DEFAULT_GUARANTEE_TITLE_EN ? "" : content.titleEn,
+    descriptionEn: content.descriptionEn === DEFAULT_GUARANTEE_DESCRIPTION_EN ? "" : content.descriptionEn,
+    titleUk: content.titleUk === DEFAULT_GUARANTEE_TITLE_UK ? "" : content.titleUk,
+    descriptionUk: content.descriptionUk === DEFAULT_GUARANTEE_DESCRIPTION_UK ? "" : content.descriptionUk,
+  };
 }
 
 export function normalizeProductGuaranteeContent(value: unknown): ProductGuaranteeContent {
   const source = typeof value === "object" && value !== null ? (value as Record<string, unknown>) : {};
-  return {
-    titleEn: normalizeText(source.titleEn, DEFAULT_GUARANTEE_TITLE_EN, 120),
-    descriptionEn: normalizeText(source.descriptionEn, DEFAULT_GUARANTEE_DESCRIPTION_EN, 2000),
-    titleUk: normalizeText(source.titleUk, DEFAULT_GUARANTEE_TITLE_UK, 120),
-    descriptionUk: normalizeText(source.descriptionUk, DEFAULT_GUARANTEE_DESCRIPTION_UK, 2000),
-  };
+  return stripPersistedGuaranteeDefaults({
+    titleEn: normalizeText(source.titleEn, 120),
+    descriptionEn: normalizeText(source.descriptionEn, 2000),
+    titleUk: normalizeText(source.titleUk, 120),
+    descriptionUk: normalizeText(source.descriptionUk, 2000),
+  });
 }
 
+export function getEmptyProductGuaranteeContent(): ProductGuaranteeContent {
+  return { titleEn: "", descriptionEn: "", titleUk: "", descriptionUk: "" };
+}
+
+/** @deprecated Use getEmptyProductGuaranteeContent for unconfigured state. */
 export function getDefaultProductGuaranteeContent(): ProductGuaranteeContent {
-  return normalizeProductGuaranteeContent({});
+  return getEmptyProductGuaranteeContent();
 }
 
 function readLocalProductGuarantee(): ProductGuaranteeContent {
-  if (typeof window === "undefined") return getDefaultProductGuaranteeContent();
+  if (typeof window === "undefined") return getEmptyProductGuaranteeContent();
   const raw = window.localStorage.getItem(PRODUCT_GUARANTEE_CONTENT_KEY);
-  if (raw == null) return getDefaultProductGuaranteeContent();
+  if (raw == null) return getEmptyProductGuaranteeContent();
   try {
     return normalizeProductGuaranteeContent(JSON.parse(raw));
   } catch {
-    return getDefaultProductGuaranteeContent();
+    return getEmptyProductGuaranteeContent();
   }
 }
 
 function writeLocalProductGuarantee(content: ProductGuaranteeContent) {
   if (typeof window === "undefined") return;
   window.localStorage.setItem(PRODUCT_GUARANTEE_CONTENT_KEY, JSON.stringify(content));
-}
-
-function hasConfiguredProductGuarantee(content: ProductGuaranteeContent): boolean {
-  return (
-    content.titleEn !== DEFAULT_GUARANTEE_TITLE_EN
-    || content.descriptionEn !== DEFAULT_GUARANTEE_DESCRIPTION_EN
-    || content.titleUk !== DEFAULT_GUARANTEE_TITLE_UK
-    || content.descriptionUk !== DEFAULT_GUARANTEE_DESCRIPTION_UK
-  );
 }
 
 export function getProductGuaranteeContent(): ProductGuaranteeContent {
@@ -78,7 +83,7 @@ export async function loadProductGuaranteeContent(): Promise<ProductGuaranteeCon
   } catch {
     // API unavailable
   }
-  return getDefaultProductGuaranteeContent();
+  return getEmptyProductGuaranteeContent();
 }
 
 export async function loadProductGuaranteeContentForAdmin(): Promise<ProductGuaranteeContent> {
@@ -93,15 +98,7 @@ export async function loadProductGuaranteeContentForAdmin(): Promise<ProductGuar
     // continue
   }
 
-  const local = readLocalProductGuarantee();
-  if (!hasConfiguredProductGuarantee(local)) {
-    return getDefaultProductGuaranteeContent();
-  }
-
-  const normalized = normalizeProductGuaranteeContent(local);
-  await saveStorefrontSetting(PRODUCT_GUARANTEE_CONTENT_KEY, normalized);
-  writeLocalProductGuarantee(normalized);
-  return normalized;
+  return getEmptyProductGuaranteeContent();
 }
 
 export async function persistProductGuaranteeContent(
@@ -127,7 +124,7 @@ export function resolveProductGuaranteeText(
   const title = isUk ? content.titleUk : content.titleEn;
   const description = isUk ? content.descriptionUk : content.descriptionEn;
   return {
-    title: title || fallback.title,
-    description: description || fallback.description,
+    title: title.trim() || fallback.title,
+    description: description.trim() || fallback.description,
   };
 }

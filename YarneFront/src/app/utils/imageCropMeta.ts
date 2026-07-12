@@ -15,6 +15,16 @@ export type CropResultSettings = {
   crop: { x: number; y: number };
 };
 
+export const MIN_CROP_ZOOM = 0.5;
+export const MAX_CROP_ZOOM = 3;
+export const DEFAULT_PRODUCT_CARD_CROP_HINT =
+  "Crop ratio matches the storefront product card (3:4). Re-crop opens the original photo so you can zoom out and show more of the image.";
+
+export function clampCropZoom(value: number | undefined): number {
+  if (value == null || !Number.isFinite(value)) return 1;
+  return Math.min(MAX_CROP_ZOOM, Math.max(MIN_CROP_ZOOM, value));
+}
+
 const STORAGE_PREFIX = "yarne:image-crop-meta:";
 
 function metaKey(url: string): string {

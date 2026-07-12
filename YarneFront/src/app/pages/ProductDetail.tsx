@@ -22,7 +22,7 @@ import { resolveMediaUrl } from "../utils/storefrontMedia";
 import { scrollToPageTop } from "../utils/scrollToTop";
 import { clearScrollForRoute } from "../utils/scrollRestoration";
 import {
-  getDefaultProductGuaranteeContent,
+  getEmptyProductGuaranteeContent,
   loadProductGuaranteeContent,
   type ProductGuaranteeContent,
 } from "../utils/productGuaranteeContent";
@@ -71,7 +71,7 @@ export function ProductDetail() {
   );
   const showSupplementaryDetails = product ? hasSupplementaryProductDetails(product) : false;
   const [guaranteeContent, setGuaranteeContent] = useState<ProductGuaranteeContent>(
-    getDefaultProductGuaranteeContent
+    getEmptyProductGuaranteeContent
   );
 
   useLayoutEffect(() => {

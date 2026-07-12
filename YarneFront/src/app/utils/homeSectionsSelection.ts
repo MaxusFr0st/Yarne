@@ -2,13 +2,8 @@ import { fetchStorefrontSetting, saveStorefrontSetting } from "../api/storefront
 
 export const HOME_SECTIONS_SELECTION_KEY = "yarne.home.sections.v1";
 
-export const DEFAULT_FEATURED_TITLE = "Featured this season";
-export const DEFAULT_MORE_FROM_COLLECTION_TITLE = "More from the collection";
-
 export type HomeSectionsSelection = {
-  featuredTitle: string;
   featuredProductCodes: string[];
-  moreFromCollectionTitle: string;
   moreFromCollectionProductCodes: string[];
 };
 
@@ -18,18 +13,10 @@ function normalizeCodes(codes: unknown): string[] {
   return Array.from(new Set(onlyStrings));
 }
 
-function normalizeTitle(value: unknown, fallback: string): string {
-  if (typeof value !== "string") return fallback;
-  const trimmed = value.trim();
-  return trimmed.length > 0 ? trimmed : fallback;
-}
-
 export function normalizeHomeSectionsSelection(value: unknown): HomeSectionsSelection {
   const source = typeof value === "object" && value !== null ? (value as Record<string, unknown>) : {};
   return {
-    featuredTitle: normalizeTitle(source.featuredTitle, DEFAULT_FEATURED_TITLE),
     featuredProductCodes: normalizeCodes(source.featuredProductCodes),
-    moreFromCollectionTitle: normalizeTitle(source.moreFromCollectionTitle, DEFAULT_MORE_FROM_COLLECTION_TITLE),
     moreFromCollectionProductCodes: normalizeCodes(source.moreFromCollectionProductCodes),
   };
 }
@@ -52,15 +39,6 @@ function readLocalHomeSections(): HomeSectionsSelection {
 function writeLocalHomeSections(selection: HomeSectionsSelection) {
   if (typeof window === "undefined") return;
   window.localStorage.setItem(HOME_SECTIONS_SELECTION_KEY, JSON.stringify(selection));
-}
-
-function hasConfiguredHomeSections(selection: HomeSectionsSelection): boolean {
-  return (
-    selection.featuredProductCodes.length > 0
-    || selection.moreFromCollectionProductCodes.length > 0
-    || selection.featuredTitle !== DEFAULT_FEATURED_TITLE
-    || selection.moreFromCollectionTitle !== DEFAULT_MORE_FROM_COLLECTION_TITLE
-  );
 }
 
 export function getHomeSectionsSelection(): HomeSectionsSelection {
@@ -93,15 +71,7 @@ export async function loadHomeSectionsSelectionForAdmin(): Promise<HomeSectionsS
     // continue
   }
 
-  const local = readLocalHomeSections();
-  if (!hasConfiguredHomeSections(local)) {
-    return getDefaultHomeSectionsSelection();
-  }
-
-  const normalized = normalizeHomeSectionsSelection(local);
-  await saveStorefrontSetting(HOME_SECTIONS_SELECTION_KEY, normalized);
-  writeLocalHomeSections(normalized);
-  return normalized;
+  return getDefaultHomeSectionsSelection();
 }
 
 export async function persistHomeSectionsSelection(
