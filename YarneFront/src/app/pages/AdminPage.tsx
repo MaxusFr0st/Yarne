@@ -2,6 +2,7 @@ import React, { useState, useMemo, useRef, useEffect, useCallback } from "react"
 import { motion, AnimatePresence } from "motion/react";
 import { useAdminData } from "../hooks/useAdminData";
 import { useBodyScrollLock } from "../hooks/useBodyScrollLock";
+import { CropCancelledError, useCropDialog } from "../hooks/useCropDialog";
 import { useApp } from "../context/AppContext";
 import { uploadImage } from "../api/images";
 import { AdminColorPicker, sanitizeColorHex } from "../components/admin/AdminColorPicker";
@@ -48,7 +49,7 @@ import {
   type HomePageMediaSelection,
 } from "../utils/homePageMediaSelection";
 import {
-  getDefaultProductGuaranteeContent,
+  getEmptyProductGuaranteeContent,
   loadProductGuaranteeContentForAdmin,
   type ProductGuaranteeContent,
 } from "../utils/productGuaranteeContent";
@@ -92,6 +93,7 @@ import { PriceTag } from "../components/PriceTag";
 import { OrderLineDetails, orderItemDtoToLineDetails } from "../components/OrderLineDetails";
 
 const easing = [0.25, 0.1, 0.25, 1] as const;
+const CONTENTS_CROP_META_ID = "admin-contents";
 
 /* ─────────────────────────────────────────────
    TYPES
@@ -341,13 +343,6 @@ interface ProductFormData {
 type ProductModalTab = "details" | "suggested" | "preview";
 
 const MAX_SUGGESTED_PRODUCTS = 10;
-
-class CropCancelledError extends Error {
-  constructor() {
-    super("Crop cancelled");
-    this.name = "CropCancelledError";
-  }
-}
 
 function ProductModal({
   product,
@@ -2335,11 +2330,25 @@ export function AdminPage() {
     getDefaultHomePageMediaSelection
   );
   const [productGuaranteeContent, setProductGuaranteeContent] = useState<ProductGuaranteeContent>(
-    getDefaultProductGuaranteeContent
+    getEmptyProductGuaranteeContent
   );
   const [productSaveError, setProductSaveError] = useState<string | null>(null);
   const [homeMediaUploading, setHomeMediaUploading] = useState<Record<string, boolean>>({});
   const [homeMediaUploadError, setHomeMediaUploadError] = useState<string | null>(null);
+  const [contentsCropMeta, setContentsCropMeta] = useState<Record<string, ImageCropMeta>>(() =>
+    loadImageCropMeta(CONTENTS_CROP_META_ID),
+  );
+  const updateContentsCropMeta = useCallback(
+    (updater: (prev: Record<string, ImageCropMeta>) => Record<string, ImageCropMeta>) => {
+      setContentsCropMeta((prev) => {
+        const next = updater(prev);
+        persistImageCropMeta(CONTENTS_CROP_META_ID, next);
+        return next;
+      });
+    },
+    [],
+  );
+  const contentsCrop = useCropDialog();
   const [logsSubTab, setLogsSubTab] = useState<LogsSubTab>("all");
   const [activityLogs, setActivityLogs] = useState<AdminActivityLogDto[]>([]);
   const [logsLoading, setLogsLoading] = useState(false);
@@ -2559,6 +2568,36 @@ export function AdminPage() {
 
   type HomeMediaField = keyof HomePageMediaSelection;
 
+  const HOME_MEDIA_ASPECT: Record<HomeMediaField, number> = {
+    heroImageUrl: 16 / 10,
+    editorialImageUrl: 4 / 5,
+    lookbookImageUrl: 16 / 9,
+  };
+
+  const SHOWCASE_SLOT_ASPECT = {
+    slot1: 3 / 5,
+    slot2: 1,
+    slot4: 1,
+  } as const;
+
+  const HOME_MEDIA_HINTS: Record<HomeMediaField, string> = {
+    heroImageUrl:
+      "Crop ratio: 16 × 10 — matches the home page hero. Re-crop opens the original so you can zoom out and show more.",
+    editorialImageUrl:
+      "Crop ratio: 4 × 5 — matches the editorial image block. Re-crop opens the original so you can zoom out and show more.",
+    lookbookImageUrl:
+      "Crop ratio: 16 × 9 — matches the lookbook banner. Re-crop opens the original so you can zoom out and show more.",
+  };
+
+  const SHOWCASE_SLOT_HINTS = {
+    slot1:
+      "Crop ratio: 3 × 5 — matches the large portrait showcase tile. Re-crop opens the original so you can zoom out and show more.",
+    slot2:
+      "Crop ratio: 1 × 1 — matches the square showcase tile. Re-crop opens the original so you can zoom out and show more.",
+    slot4:
+      "Crop ratio: 1 × 1 — matches the square showcase tile. Re-crop opens the original so you can zoom out and show more.",
+  } as const;
+
   const updateHomePageMedia = (patch: Partial<HomePageMediaSelection>) => {
     setSaveError(null);
     setHomePageMedia((prev) => {
@@ -2573,16 +2612,58 @@ export function AdminPage() {
   const homeMediaPreview = (field: HomeMediaField): string =>
     resolveMediaUrl(homePageMedia[field]);
 
-  const handleHomeMediaUpload = async (field: HomeMediaField, file: File | null) => {
-    if (!file) return;
+  const handleHomeMediaUpload = async (field: HomeMediaField, file: File | null, label: string) => {
+    if (!file || contentsCrop.cropBusy) return;
     setHomeMediaUploadError(null);
-    setHomeMediaUploading((prev) => ({ ...prev, [field]: true }));
     try {
-      const url = normalizeStoredMediaUrl(await uploadImage(file));
-      updateHomePageMedia({ [field]: url });
+      const { croppedFile, settings, originalFile } = await contentsCrop.promptCropForUpload(file, {
+        title: `Crop ${label}`,
+        aspect: HOME_MEDIA_ASPECT[field],
+        hintText: HOME_MEDIA_HINTS[field],
+      });
+      setHomeMediaUploading((prev) => ({ ...prev, [field]: true }));
+      const [sourceUrl, displayUrl] = await Promise.all([
+        uploadImage(originalFile),
+        uploadImage(croppedFile),
+      ]);
+      const normalizedDisplayUrl = normalizeStoredMediaUrl(displayUrl);
+      const oldUrl = homePageMedia[field];
+      if (oldUrl.trim()) {
+        updateContentsCropMeta((prev) => removeImageCropMeta(prev, oldUrl));
+      }
+      updateContentsCropMeta((prev) =>
+        setImageCropMeta(prev, normalizedDisplayUrl, buildCropMetaEntry(sourceUrl, settings)),
+      );
+      updateHomePageMedia({ [field]: normalizedDisplayUrl });
     } catch (err) {
+      if (err instanceof CropCancelledError) return;
       setHomeMediaUploadError(
-        err instanceof Error ? err.message : "Failed to upload home page image."
+        err instanceof Error ? err.message : "Failed to upload home page image.",
+      );
+    } finally {
+      setHomeMediaUploading((prev) => ({ ...prev, [field]: false }));
+    }
+  };
+
+  const handleHomeMediaRecrop = async (field: HomeMediaField, label: string) => {
+    const url = homePageMedia[field];
+    if (!url.trim() || contentsCrop.cropBusy) return;
+    setHomeMediaUploadError(null);
+    try {
+      const { blob, settings } = await contentsCrop.promptCropForUrl(url, contentsCropMeta, {
+        title: `Re-crop ${label}`,
+        aspect: HOME_MEDIA_ASPECT[field],
+        hintText: HOME_MEDIA_HINTS[field],
+      });
+      setHomeMediaUploading((prev) => ({ ...prev, [field]: true }));
+      const file = new File([blob], "cropped.jpg", { type: blob.type || "image/jpeg" });
+      const newUrl = normalizeStoredMediaUrl(await uploadImage(file));
+      updateContentsCropMeta((prev) => transferImageCropMeta(prev, url, newUrl, settings));
+      updateHomePageMedia({ [field]: newUrl });
+    } catch (err) {
+      if (err instanceof CropCancelledError) return;
+      setHomeMediaUploadError(
+        err instanceof Error ? err.message : "Failed to re-crop home page image.",
       );
     } finally {
       setHomeMediaUploading((prev) => ({ ...prev, [field]: false }));
@@ -2591,17 +2672,63 @@ export function AdminPage() {
 
   const handleShowcaseImageUpload = async (
     slotKey: "slot1" | "slot2" | "slot4",
-    file: File | null
+    file: File | null,
+    label: string,
   ) => {
-    if (!file) return;
+    if (!file || contentsCrop.cropBusy) return;
     setShowcaseUploadError(null);
-    setShowcaseUploading((prev) => ({ ...prev, [slotKey]: true }));
     try {
-      const url = await uploadImage(file);
-      updateShowcaseProductSlot(slotKey, { imageUrl: url });
+      const { croppedFile, settings, originalFile } = await contentsCrop.promptCropForUpload(file, {
+        title: `Crop ${label}`,
+        aspect: SHOWCASE_SLOT_ASPECT[slotKey],
+        hintText: SHOWCASE_SLOT_HINTS[slotKey],
+      });
+      setShowcaseUploading((prev) => ({ ...prev, [slotKey]: true }));
+      const [sourceUrl, displayUrl] = await Promise.all([
+        uploadImage(originalFile),
+        uploadImage(croppedFile),
+      ]);
+      const normalizedDisplayUrl = normalizeStoredMediaUrl(displayUrl);
+      const oldUrl = featuredShowcaseSelection[slotKey].imageUrl;
+      if (oldUrl.trim()) {
+        updateContentsCropMeta((prev) => removeImageCropMeta(prev, oldUrl));
+      }
+      updateContentsCropMeta((prev) =>
+        setImageCropMeta(prev, normalizedDisplayUrl, buildCropMetaEntry(sourceUrl, settings)),
+      );
+      updateShowcaseProductSlot(slotKey, { imageUrl: normalizedDisplayUrl });
     } catch (err) {
+      if (err instanceof CropCancelledError) return;
       setShowcaseUploadError(
-        err instanceof Error ? err.message : "Image upload failed"
+        err instanceof Error ? err.message : "Image upload failed",
+      );
+    } finally {
+      setShowcaseUploading((prev) => ({ ...prev, [slotKey]: false }));
+    }
+  };
+
+  const handleShowcaseImageRecrop = async (
+    slotKey: "slot1" | "slot2" | "slot4",
+    label: string,
+  ) => {
+    const url = featuredShowcaseSelection[slotKey].imageUrl;
+    if (!url.trim() || contentsCrop.cropBusy) return;
+    setShowcaseUploadError(null);
+    try {
+      const { blob, settings } = await contentsCrop.promptCropForUrl(url, contentsCropMeta, {
+        title: `Re-crop ${label}`,
+        aspect: SHOWCASE_SLOT_ASPECT[slotKey],
+        hintText: SHOWCASE_SLOT_HINTS[slotKey],
+      });
+      setShowcaseUploading((prev) => ({ ...prev, [slotKey]: true }));
+      const file = new File([blob], "cropped.jpg", { type: blob.type || "image/jpeg" });
+      const newUrl = normalizeStoredMediaUrl(await uploadImage(file));
+      updateContentsCropMeta((prev) => transferImageCropMeta(prev, url, newUrl, settings));
+      updateShowcaseProductSlot(slotKey, { imageUrl: newUrl });
+    } catch (err) {
+      if (err instanceof CropCancelledError) return;
+      setShowcaseUploadError(
+        err instanceof Error ? err.message : "Failed to re-crop showcase image.",
       );
     } finally {
       setShowcaseUploading((prev) => ({ ...prev, [slotKey]: false }));
@@ -3297,6 +3424,7 @@ export function AdminPage() {
                       const preview = homeMediaPreview(field);
                       const hasCustom = Boolean(homePageMedia[field].trim());
                       const isUploading = Boolean(homeMediaUploading[field]);
+                      const cropDisabled = isUploading || contentsCrop.cropBusy;
                       return (
                         <div
                           key={field}
@@ -3332,7 +3460,7 @@ export function AdminPage() {
                             )}
                           </div>
                           <label
-                            className="flex items-center justify-center gap-2 cursor-pointer rounded-full px-4 py-2 transition-all duration-300 hover:opacity-85"
+                            className={`flex items-center justify-center gap-2 rounded-full px-4 py-2 transition-all duration-300 hover:opacity-85 ${cropDisabled ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}`}
                             style={{
                               backgroundColor: "#2D241E",
                               color: "#F5F2ED",
@@ -3343,27 +3471,46 @@ export function AdminPage() {
                           >
                             <ImagePlus size={13} />
                             <span className="uppercase tracking-widest">
-                              {isUploading ? "Uploading…" : "Upload"}
+                              {isUploading ? "Uploading…" : "Upload & crop"}
                             </span>
                             <input
                               type="file"
                               accept="image/jpeg,image/png,image/webp,image/gif"
                               className="hidden"
+                              disabled={cropDisabled}
                               onChange={(e) => {
-                                void handleHomeMediaUpload(field, e.target.files?.[0] ?? null);
+                                void handleHomeMediaUpload(field, e.target.files?.[0] ?? null, label);
                                 e.target.value = "";
                               }}
                             />
                           </label>
                           {hasCustom && (
-                            <button
-                              type="button"
-                              onClick={() => updateHomePageMedia({ [field]: "" })}
-                              className="mt-2 w-full text-xs uppercase tracking-widest text-[#4A0E0E] hover:opacity-80"
-                              style={{ fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.1em" }}
-                            >
-                              Remove custom image
-                            </button>
+                            <>
+                              <button
+                                type="button"
+                                disabled={cropDisabled}
+                                onClick={() => void handleHomeMediaRecrop(field, label)}
+                                className="mt-2 w-full flex items-center justify-center gap-1.5 text-xs uppercase tracking-widest text-[#2D241E]/70 hover:opacity-80 disabled:opacity-40"
+                                style={{ fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.1em" }}
+                              >
+                                <Crop size={12} />
+                                {contentsCrop.cropFetching ? "Loading…" : "Re-crop"}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const oldUrl = homePageMedia[field];
+                                  if (oldUrl.trim()) {
+                                    updateContentsCropMeta((prev) => removeImageCropMeta(prev, oldUrl));
+                                  }
+                                  updateHomePageMedia({ [field]: "" });
+                                }}
+                                className="mt-2 w-full text-xs uppercase tracking-widest text-[#4A0E0E] hover:opacity-80"
+                                style={{ fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.1em" }}
+                              >
+                                Remove custom image
+                              </button>
+                            </>
                           )}
                         </div>
                       );
@@ -3634,6 +3781,7 @@ export function AdminPage() {
                       getProductPreviewUrl(linkedProduct ?? { colors: [] }) ||
                       "";
                     const isUploading = Boolean(showcaseUploading[key]);
+                    const cropDisabled = isUploading || contentsCrop.cropBusy;
                     return (
                       <div
                         key={key}
@@ -3683,7 +3831,7 @@ export function AdminPage() {
                             </div>
 
                             <label
-                              className="mt-3 flex items-center justify-center gap-2 cursor-pointer rounded-full px-4 py-2 transition-all duration-300 hover:opacity-85"
+                              className={`mt-3 flex items-center justify-center gap-2 rounded-full px-4 py-2 transition-all duration-300 hover:opacity-85 ${cropDisabled ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}`}
                               style={{
                                 backgroundColor: "#2D241E",
                                 color: "#F5F2ED",
@@ -3693,29 +3841,46 @@ export function AdminPage() {
                               }}
                             >
                               <ImagePlus size={13} />
-                              <span className="uppercase tracking-widest">{isUploading ? "Uploading…" : "Upload Image"}</span>
+                              <span className="uppercase tracking-widest">{isUploading ? "Uploading…" : "Upload & crop"}</span>
                               <input
                                 type="file"
                                 accept="image/*"
                                 className="hidden"
-                                disabled={isUploading}
+                                disabled={cropDisabled}
                                 onChange={(e) => {
                                   const file = e.target.files?.[0] ?? null;
-                                  handleShowcaseImageUpload(key, file);
+                                  void handleShowcaseImageUpload(key, file, label);
                                   e.target.value = "";
                                 }}
                               />
                             </label>
 
                             {slot.imageUrl && (
-                              <button
-                                type="button"
-                                onClick={() => updateShowcaseProductSlot(key, { imageUrl: "" })}
-                                className="mt-2 w-full text-center text-[11px] text-[#4A0E0E] uppercase tracking-widest"
-                                style={{ fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.12em" }}
-                              >
-                                Clear image
-                              </button>
+                              <>
+                                <button
+                                  type="button"
+                                  disabled={cropDisabled}
+                                  onClick={() => void handleShowcaseImageRecrop(key, label)}
+                                  className="mt-2 w-full flex items-center justify-center gap-1.5 text-center text-[11px] text-[#2D241E]/70 uppercase tracking-widest disabled:opacity-40"
+                                  style={{ fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.12em" }}
+                                >
+                                  <Crop size={12} />
+                                  {contentsCrop.cropFetching ? "Loading…" : "Re-crop"}
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    if (slot.imageUrl.trim()) {
+                                      updateContentsCropMeta((prev) => removeImageCropMeta(prev, slot.imageUrl));
+                                    }
+                                    updateShowcaseProductSlot(key, { imageUrl: "" });
+                                  }}
+                                  className="mt-2 w-full text-center text-[11px] text-[#4A0E0E] uppercase tracking-widest"
+                                  style={{ fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.12em" }}
+                                >
+                                  Clear image
+                                </button>
+                              </>
                             )}
                           </div>
 
@@ -5078,6 +5243,7 @@ export function AdminPage() {
           />
         )}
       </AnimatePresence>
+      {contentsCrop.cropDialogNode}
     </main>
   );
 }

@@ -2,12 +2,19 @@ import React, { useCallback, useEffect, useState } from "react";
 import Cropper, { type Area } from "react-easy-crop";
 import { X } from "lucide-react";
 import { getCroppedImageBlob } from "../../utils/cropImage";
-import type { CropResultSettings } from "../../utils/imageCropMeta";
+import {
+  clampCropZoom,
+  DEFAULT_PRODUCT_CARD_CROP_HINT,
+  MAX_CROP_ZOOM,
+  MIN_CROP_ZOOM,
+  type CropResultSettings,
+} from "../../utils/imageCropMeta";
 
 type Props = {
   imageSrc: string;
   aspect?: number;
   title?: string;
+  hintText?: string;
   initialCroppedAreaPixels?: Area;
   initialZoom?: number;
   initialCrop?: { x: number; y: number };
@@ -20,6 +27,7 @@ export function ImageCropDialog({
   imageSrc,
   aspect = 3 / 4,
   title = "Crop for product card",
+  hintText = DEFAULT_PRODUCT_CARD_CROP_HINT,
   initialCroppedAreaPixels,
   initialZoom,
   initialCrop,
@@ -32,14 +40,14 @@ export function ImageCropDialog({
     else onClose();
   };
   const [crop, setCrop] = useState(initialCrop ?? { x: 0, y: 0 });
-  const [zoom, setZoom] = useState(initialZoom ?? 1);
+  const [zoom, setZoom] = useState(() => clampCropZoom(initialZoom));
   const [croppedAreaPixels, setCroppedAreaPixels] = useState<Area | null>(initialCroppedAreaPixels ?? null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     setCrop(initialCrop ?? { x: 0, y: 0 });
-    setZoom(initialZoom ?? 1);
+    setZoom(clampCropZoom(initialZoom));
     setCroppedAreaPixels(initialCroppedAreaPixels ?? null);
     setError(null);
   }, [imageSrc, initialCrop, initialZoom, initialCroppedAreaPixels]);
@@ -124,16 +132,18 @@ export function ImageCropDialog({
           </label>
           <input
             type="range"
-            min={1}
-            max={3}
+            min={MIN_CROP_ZOOM}
+            max={MAX_CROP_ZOOM}
             step={0.05}
             value={zoom}
             onChange={(e) => setZoom(Number(e.target.value))}
             className="w-full"
           />
-          <p className="text-xs text-[#2D241E]/45" style={{ fontFamily: "'DM Sans', sans-serif" }}>
-            Crop ratio matches the storefront product card (3:4). Re-crop opens the original photo so you can zoom out and show more of the image.
-          </p>
+          {hintText ? (
+            <p className="text-xs text-[#2D241E]/45" style={{ fontFamily: "'DM Sans', sans-serif" }}>
+              {hintText}
+            </p>
+          ) : null}
           {error && (
             <p className="text-sm text-[#4A0E0E]" style={{ fontFamily: "'DM Sans', sans-serif" }}>
               {error}
