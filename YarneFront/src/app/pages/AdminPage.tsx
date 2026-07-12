@@ -6,6 +6,7 @@ import { CropCancelledError, useCropDialog } from "../hooks/useCropDialog";
 import { useApp } from "../context/AppContext";
 import { uploadImage } from "../api/images";
 import { uploadCroppedWithOriginal, toUploadableCroppedFile } from "../utils/uploadCropPair";
+import { purgeUploadIfOrphaned } from "../utils/purgeUpload";
 import { AdminColorPicker, sanitizeColorHex } from "../components/admin/AdminColorPicker";
 import { ImageCropDialog } from "../components/admin/ImageCropDialog";
 import { ProductCardPreviewPanel } from "../components/admin/ProductCardPreviewPanel";
@@ -691,6 +692,7 @@ function ProductModal({
       const removed = p.imageUrls[i];
       if (removed?.trim()) {
         updateCropMeta((prev) => removeImageCropMeta(prev, removed));
+        purgeUploadIfOrphaned(removed);
       }
       return { ...p, imageUrls: p.imageUrls.filter((_, idx) => idx !== i) };
     });
@@ -794,6 +796,7 @@ function ProductModal({
       const file = toUploadableCroppedFile(blob, "cropped");
       const newUrl = await uploadImage(file);
       updateCropMeta((prev) => transferImageCropMeta(prev, url, newUrl, settings));
+      purgeUploadIfOrphaned(url);
       onReplace(newUrl);
     } catch (err) {
       if (err instanceof CropCancelledError) return;
@@ -1470,6 +1473,7 @@ function ProductModal({
                                 onRemove={() => {
                                   if (url.trim()) {
                                     updateCropMeta((prev) => removeImageCropMeta(prev, url));
+                                    purgeUploadIfOrphaned(url);
                                   }
                                   setForm((p) => {
                                     const next = { ...p.colorSizeVariants };
@@ -2620,6 +2624,7 @@ export function AdminPage() {
       const oldUrl = homePageMedia[field];
       if (oldUrl.trim()) {
         updateContentsCropMeta((prev) => removeImageCropMeta(prev, oldUrl));
+        purgeUploadIfOrphaned(oldUrl);
       }
       updateContentsCropMeta((prev) =>
         setImageCropMeta(prev, normalizedDisplayUrl, buildCropMetaEntry(sourceUrl, settings)),
@@ -2649,6 +2654,7 @@ export function AdminPage() {
       const file = toUploadableCroppedFile(blob, "cropped");
       const newUrl = normalizeStoredMediaUrl(await uploadImage(file));
       updateContentsCropMeta((prev) => transferImageCropMeta(prev, url, newUrl, settings));
+      purgeUploadIfOrphaned(url);
       updateHomePageMedia({ [field]: newUrl });
     } catch (err) {
       if (err instanceof CropCancelledError) return;
@@ -2679,6 +2685,7 @@ export function AdminPage() {
       const oldUrl = featuredShowcaseSelection[slotKey].imageUrl;
       if (oldUrl.trim()) {
         updateContentsCropMeta((prev) => removeImageCropMeta(prev, oldUrl));
+        purgeUploadIfOrphaned(oldUrl);
       }
       updateContentsCropMeta((prev) =>
         setImageCropMeta(prev, normalizedDisplayUrl, buildCropMetaEntry(sourceUrl, settings)),
@@ -2711,6 +2718,7 @@ export function AdminPage() {
       const file = toUploadableCroppedFile(blob, "cropped");
       const newUrl = normalizeStoredMediaUrl(await uploadImage(file));
       updateContentsCropMeta((prev) => transferImageCropMeta(prev, url, newUrl, settings));
+      purgeUploadIfOrphaned(url);
       updateShowcaseProductSlot(slotKey, { imageUrl: newUrl });
     } catch (err) {
       if (err instanceof CropCancelledError) return;
@@ -3489,6 +3497,7 @@ export function AdminPage() {
                                   const oldUrl = homePageMedia[field];
                                   if (oldUrl.trim()) {
                                     updateContentsCropMeta((prev) => removeImageCropMeta(prev, oldUrl));
+                                    purgeUploadIfOrphaned(oldUrl);
                                   }
                                   updateHomePageMedia({ [field]: "" });
                                 }}
@@ -3859,6 +3868,7 @@ export function AdminPage() {
                                   onClick={() => {
                                     if (slot.imageUrl.trim()) {
                                       updateContentsCropMeta((prev) => removeImageCropMeta(prev, slot.imageUrl));
+                                      purgeUploadIfOrphaned(slot.imageUrl);
                                     }
                                     updateShowcaseProductSlot(key, { imageUrl: "" });
                                   }}

@@ -9,3 +9,6 @@ dockerfilePath = "Dockerfile"
 healthcheckPath = "/healthz"
 healthcheckTimeout = 120
 restartPolicyType = "ON_FAILURE"
+
+# Persistent uploads: in Railway UI → API service → Volumes → mount path:
+# /app/wwwroot/uploads

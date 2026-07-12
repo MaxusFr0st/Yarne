@@ -158,6 +158,8 @@ To **re-run catalog seed** on an empty catalog: ensure `Product` table is empty,
 
 Rebuild/redeploy frontend after changing any `VITE_*` variable (baked into the Docker build via `YarneFront/Dockerfile` `ARG`/`ENV`).
 
+At container start, `scripts/docker-entrypoint.sh` also writes `dist/config.js` from the runtime `VITE_API_URL` variable and regenerates `dist/serve.json` CSP headers. That means uploads and API calls work even if the build-time `VITE_API_URL` was missing, as long as the Railway variable is set on the **frontend** service at runtime.
+
 **Example:** if API is `https://mindful-flexibility-production.up.railway.app`, set exactly that on the **Yarne** frontend service (not on Postgres).
 
 **Health check**: `GET /` (static index).
@@ -186,6 +188,8 @@ Uploaded images are stored under `wwwroot/uploads` on the API container. **Railw
 2. Redeploy the API after adding the volume.
 
 Without a volume, uploads disappear after redeploy and are **not shared** across multiple API instances.
+
+When you remove images in Admin, the API now deletes unreferenced files from disk (`DELETE /api/images?path=/uploads/...`) and drops DB references on product/settings save. Orphan files no longer survive redeploy on a mounted volume.
 
 **Storefront layout** (carousel, home sections, featured showcase / “Editorial Picks”) is stored in Postgres via `AppSetting` and syncs across devices after admin saves.
 

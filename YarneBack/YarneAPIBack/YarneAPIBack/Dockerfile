@@ -14,5 +14,8 @@ ENV ASPNETCORE_ENVIRONMENT=Production
 # Railway injects PORT at runtime — Program.cs binds to it.
 # Do NOT set ASPNETCORE_URLS or ASPNETCORE_HTTP_PORTS here; they conflict with PORT.
 
+RUN mkdir -p /app/wwwroot/uploads
+VOLUME ["/app/wwwroot/uploads"]
+
 COPY --from=build /app/publish .
 ENTRYPOINT ["dotnet", "YarneAPIBack.dll"]

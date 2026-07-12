@@ -22,6 +22,9 @@ WORKDIR /app
 
 RUN npm install -g serve
 COPY --from=build /app/dist ./dist
+COPY scripts/generate-serve-headers.mjs ./scripts/generate-serve-headers.mjs
+COPY scripts/docker-entrypoint.sh ./scripts/docker-entrypoint.sh
+RUN chmod +x ./scripts/docker-entrypoint.sh
 
 EXPOSE 8080
-CMD ["serve", "-s", "dist", "-l", "8080"]
+CMD ["./scripts/docker-entrypoint.sh"]

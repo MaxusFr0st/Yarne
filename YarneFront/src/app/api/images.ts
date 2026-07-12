@@ -1,6 +1,6 @@
 import { buildApiUrl, resolveApiBase } from "./base";
+import { normalizeStoredMediaUrl } from "../utils/storefrontMedia";
 
-const API_BASE = resolveApiBase();
 const UPLOAD_TIMEOUT_MS = 60_000;
 
 function getAuthToken(): string | null {
@@ -52,7 +52,7 @@ function formatUploadError(err: unknown, res?: Response): string {
     return "Upload timed out. Check your connection and try again.";
   }
   if (err instanceof TypeError) {
-    return `Could not reach the upload API (${API_BASE}). Check backend status and CORS settings, then try again.`;
+    return `Could not reach the upload API (${resolveApiBase()}). Check backend status and CORS settings, then try again.`;
   }
   if (err instanceof Error) return err.message;
   if (res) return `Upload failed: ${res.status} ${res.statusText}`;
@@ -86,7 +86,7 @@ export async function uploadImage(file: File, options?: UploadImageOptions): Pro
 
   let res: Response;
   try {
-    res = await fetch(buildApiUrl(API_BASE, "/api/images/upload"), {
+    res = await fetch(buildApiUrl(resolveApiBase(), "/api/images/upload"), {
       method: "POST",
       headers,
       body: formData,
@@ -122,5 +122,50 @@ export async function uploadImage(file: File, options?: UploadImageOptions): Pro
     return parseUploadUrl(data);
   } catch (err) {
     throw new Error(formatUploadError(err, res));
+  }
+}
+
+export async function deleteUploadedImage(url: string): Promise<void> {
+  const path = normalizeStoredMediaUrl(url);
+  if (!path.startsWith("/uploads/")) return;
+
+  assertTokenPresent();
+
+  const token = getAuthToken();
+  const headers: HeadersInit = {};
+  if (token) {
+    (headers as Record<string, string>)["Authorization"] = `Bearer ${token}`;
+  }
+
+  const endpoint = `/api/images?path=${encodeURIComponent(path)}`;
+  let res: Response;
+  try {
+    res = await fetch(buildApiUrl(resolveApiBase(), endpoint), {
+      method: "DELETE",
+      headers,
+      signal: AbortSignal.timeout(15_000),
+    });
+  } catch (err) {
+    throw new Error(formatUploadError(err));
+  }
+
+  if (res.status === 401) {
+    handleUnauthorized();
+    throw new Error("Delete failed: session expired or not authorized. Log in again as admin.");
+  }
+
+  if (res.status === 404) return;
+
+  if (!res.ok) {
+    let message = `Delete failed: ${res.status}`;
+    try {
+      const err = await res.json();
+      const raw = (err as { message?: string; Message?: string })?.message
+        ?? (err as { message?: string; Message?: string })?.Message;
+      if (typeof raw === "string" && raw.trim()) message = raw.trim();
+    } catch {
+      // ignore JSON parse errors
+    }
+    throw new Error(message);
   }
 }

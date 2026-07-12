@@ -12,10 +12,12 @@ public class ProductService : IProductService
     private const int MaxSuggestedProductCount = 10;
 
     private readonly YarneDbContext _context;
+    private readonly IUploadFileStorageService _uploadStorage;
 
-    public ProductService(YarneDbContext context)
+    public ProductService(YarneDbContext context, IUploadFileStorageService uploadStorage)
     {
         _context = context;
+        _uploadStorage = uploadStorage;
     }
 
     public async Task<IReadOnlyList<ProductDto>> GetProductsAsync(string? category = null, bool? isNew = null, int? collectionId = null, bool includeInactive = false, CancellationToken ct = default)
@@ -254,6 +256,8 @@ public class ProductService : IProductService
             .FirstOrDefaultAsync(p => p.Id == id, ct);
         if (product == null) return null;
 
+        var previousUploadUrls = CollectProductUploadUrls(product);
+
         product.ProductCode = request.ProductCode;
         product.Name = request.Name;
         product.Description = request.Description;
@@ -348,6 +352,12 @@ public class ProductService : IProductService
                     .ThenInclude(vs => vs.ProductSize)
                         .ThenInclude(ps => ps.Size)
             .FirstAsync(p => p.Id == id, ct);
+
+        await _uploadStorage.DeleteRemovedIfUnreferencedAsync(
+            previousUploadUrls,
+            CollectProductUploadUrls(updated),
+            ct);
+
         return MapToProductDto(updated);
     }
 
@@ -371,8 +381,15 @@ public class ProductService : IProductService
     {
         var product = await _context.Products
             .Include(p => p.Countries)
+            .Include(p => p.ProductImages)
+            .Include(p => p.ProductColors)
+                .ThenInclude(pc => pc.Images)
+            .Include(p => p.ProductColors)
+                .ThenInclude(pc => pc.SizeImages)
             .FirstOrDefaultAsync(p => p.Id == id, ct);
         if (product == null) return false;
+
+        var previousUploadUrls = CollectProductUploadUrls(product);
 
         var hasOrderItems = await _context.OrderItems.AnyAsync(oi => oi.ProductId == id, ct);
         if (hasOrderItems)
@@ -414,7 +431,26 @@ public class ProductService : IProductService
         product.Countries.Clear();
         _context.Products.Remove(product);
         await _context.SaveChangesAsync(ct);
+
+        await _uploadStorage.DeleteRemovedIfUnreferencedAsync(previousUploadUrls, Array.Empty<string>(), ct);
         return true;
+    }
+
+    private static IEnumerable<string?> CollectProductUploadUrls(Models.Product product)
+    {
+        yield return product.ImageUrl;
+
+        foreach (var image in product.ProductImages)
+            yield return image.ImageUrl;
+
+        foreach (var color in product.ProductColors)
+        {
+            foreach (var image in color.Images)
+                yield return image.ImageUrl;
+
+            foreach (var sizeImage in color.SizeImages)
+                yield return sizeImage.ImageUrl;
+        }
     }
 
     private static ProductDto MapToProductDto(Models.Product p)
