@@ -7,6 +7,7 @@ import {
   type ProductDto,
   type CreateProductRequest,
   type UpdateProductRequest,
+  type ColorVariantDto,
 } from "../api/products";
 import {
   fetchCategories,
@@ -34,10 +35,11 @@ import {
 } from "../api/admin";
 import { register } from "../api/auth";
 import { fetchAdminOrders, fetchAdminOrdersSummary, updateOrderStatus, type OrderDto, type AdminOrdersSummaryDto, type OrderItemDto, type OrderStatus } from "../api/orders";
-import type { ProductDto, ColorVariantDto } from "../api/products";
+import { ApiRequestError } from "../api/errors";
 import type { Product } from "../types/product";
 import { normalizeLaceVariants } from "../utils/variantStock";
 import { invalidateProductsCache } from "../utils/productsCache";
+import { useApp } from "../context/AppContext";
 
 function mapColorVariant(c: ColorVariantDto) {
   const seen = new Set<string>();
@@ -141,7 +143,27 @@ function mapOrderDtoToAdminOrder(o: OrderDto): {
   };
 }
 
+const EMPTY_ORDERS_SUMMARY: AdminOrdersSummaryDto = {
+  totalOrders: 0,
+  totalRevenue: 0,
+  pendingOrders: 0,
+};
+
+function formatLoadError(label: string, reason: unknown): string {
+  if (reason instanceof ApiRequestError) {
+    if (reason.status === 401 || reason.status === 403) {
+      return `${label}: sign in again or confirm your account has Admin access.`;
+    }
+    return `${label}: ${reason.message}`;
+  }
+  if (reason instanceof Error) {
+    return `${label}: ${reason.message}`;
+  }
+  return `${label}: request failed.`;
+}
+
 export function useAdminData() {
+  const { isAdmin } = useApp();
   const [products, setProducts] = useState<(Product & { idNum: number; sku: string; stock: number })[]>([]);
   const [users, setUsers] = useState<ReturnType<typeof mapUserDtoToAdminUser>[]>([]);
   const [categories, setCategories] = useState<CategoryDto[]>([]);
@@ -149,48 +171,102 @@ export function useAdminData() {
   const [colors, setColors] = useState<ColorDto[]>([]);
   const [sizes, setSizes] = useState<SizeDto[]>([]);
   const [orders, setOrders] = useState<ReturnType<typeof mapOrderDtoToAdminOrder>[]>([]);
-  const [ordersSummary, setOrdersSummary] = useState<AdminOrdersSummaryDto>({ totalOrders: 0, totalRevenue: 0, pendingOrders: 0 });
+  const [ordersSummary, setOrdersSummary] = useState<AdminOrdersSummaryDto>(EMPTY_ORDERS_SUMMARY);
   const [loading, setLoading] = useState(true);
   const [apiAvailable, setApiAvailable] = useState(false);
+  const [loadWarnings, setLoadWarnings] = useState<string[]>([]);
 
   const load = useCallback(async () => {
     setLoading(true);
-    try {
-      const [prods, usrs, cats, ctrys, cols, szs, ords, ordSummary] = await Promise.all([
-        fetchProducts({ includeInactive: true }),
+    const warnings: string[] = [];
+
+    const catalogResults = await Promise.allSettled([
+      fetchProducts({ includeInactive: true }),
+      fetchCategories(),
+      fetchCountries(),
+      fetchColors(),
+      fetchSizes(),
+    ]);
+
+    const [prodsResult, catsResult, ctrysResult, colsResult, szsResult] = catalogResults;
+
+    if (prodsResult.status === "fulfilled") {
+      setProducts(prodsResult.value.map(mapProductDtoToProduct));
+      setApiAvailable(true);
+    } else {
+      setProducts([]);
+      setApiAvailable(false);
+      warnings.push(formatLoadError("Products", prodsResult.reason));
+    }
+
+    if (catsResult.status === "fulfilled") {
+      setCategories(catsResult.value);
+    } else {
+      setCategories([]);
+      warnings.push(formatLoadError("Categories", catsResult.reason));
+    }
+
+    if (ctrysResult.status === "fulfilled") {
+      setCountries(ctrysResult.value);
+    } else {
+      setCountries([]);
+      warnings.push(formatLoadError("Countries", ctrysResult.reason));
+    }
+
+    if (colsResult.status === "fulfilled") {
+      setColors(colsResult.value);
+    } else {
+      setColors([]);
+      warnings.push(formatLoadError("Colors", colsResult.reason));
+    }
+
+    if (szsResult.status === "fulfilled") {
+      setSizes(szsResult.value);
+    } else {
+      setSizes([]);
+      warnings.push(formatLoadError("Sizes", szsResult.reason));
+    }
+
+    if (isAdmin) {
+      const adminResults = await Promise.allSettled([
         fetchUsers(),
-        fetchCategories(),
-        fetchCountries(),
-        fetchColors(),
-        fetchSizes(),
         fetchAdminOrders(),
         fetchAdminOrdersSummary(),
       ]);
-      setProducts(prods.map(mapProductDtoToProduct));
-      setUsers(usrs.map(mapUserDtoToAdminUser));
-      setCategories(cats);
-      setCountries(ctrys);
-      setColors(cols);
-      setSizes(szs);
-      setOrders(ords.map(mapOrderDtoToAdminOrder));
-      setOrdersSummary(ordSummary);
-      setApiAvailable(true);
-    } catch {
-      setProducts([]);
+      const [usrsResult, ordsResult, ordSummaryResult] = adminResults;
+
+      if (usrsResult.status === "fulfilled") {
+        setUsers(usrsResult.value.map(mapUserDtoToAdminUser));
+      } else {
+        setUsers([]);
+        warnings.push(formatLoadError("Users", usrsResult.reason));
+      }
+
+      if (ordsResult.status === "fulfilled") {
+        setOrders(ordsResult.value.map(mapOrderDtoToAdminOrder));
+      } else {
+        setOrders([]);
+        warnings.push(formatLoadError("Orders", ordsResult.reason));
+      }
+
+      if (ordSummaryResult.status === "fulfilled") {
+        setOrdersSummary(ordSummaryResult.value);
+      } else {
+        setOrdersSummary(EMPTY_ORDERS_SUMMARY);
+        warnings.push(formatLoadError("Order summary", ordSummaryResult.reason));
+      }
+    } else {
       setUsers([]);
-      setCategories([]);
-      setCountries([]);
-      setColors([]);
-      setSizes([]);
       setOrders([]);
-      setOrdersSummary({ totalOrders: 0, totalRevenue: 0, pendingOrders: 0 });
-      setApiAvailable(false);
-    } finally {
-      setLoading(false);
+      setOrdersSummary(EMPTY_ORDERS_SUMMARY);
     }
-  }, []);
+
+    setLoadWarnings(warnings);
+    setLoading(false);
+  }, [isAdmin]);
 
   const refetchOrders = useCallback(async () => {
+    if (!isAdmin) return;
     try {
       const [ords, ordSummary] = await Promise.all([
         fetchAdminOrders(),
@@ -198,10 +274,12 @@ export function useAdminData() {
       ]);
       setOrders(ords.map(mapOrderDtoToAdminOrder));
       setOrdersSummary(ordSummary);
-    } catch {
-      // keep current UI state; caller can show an error if needed
+      setLoadWarnings((prev) => prev.filter((w) => !w.startsWith("Orders:") && !w.startsWith("Order summary:")));
+    } catch (e) {
+      const msg = formatLoadError("Orders", e);
+      setLoadWarnings((prev) => [...prev.filter((w) => !w.startsWith("Orders:") && !w.startsWith("Order summary:")), msg]);
     }
-  }, []);
+  }, [isAdmin]);
 
   useEffect(() => {
     load();
@@ -212,6 +290,7 @@ export function useAdminData() {
       const created = await createProduct(data);
       invalidateProductsCache();
       setProducts((prev) => [mapProductDtoToProduct(created), ...prev]);
+      setApiAvailable(true);
       return created;
     },
     []
@@ -224,6 +303,7 @@ export function useAdminData() {
       setProducts((prev) =>
         prev.map((p) => (p.idNum === id ? mapProductDtoToProduct(updated) : p))
       );
+      setApiAvailable(true);
       return updated;
     },
     []
@@ -331,6 +411,7 @@ export function useAdminData() {
     countries,
     loading,
     apiAvailable,
+    loadWarnings,
     refetch: load,
     refetchOrders,
     addProduct,
