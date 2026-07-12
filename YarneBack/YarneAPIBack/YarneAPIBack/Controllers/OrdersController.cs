@@ -96,7 +96,7 @@ public class OrdersController : ControllerBase
     [ProducesResponseType(typeof(IEnumerable<OrderDto>), StatusCodes.Status200OK)]
     public async Task<ActionResult<IEnumerable<OrderDto>>> GetAllOrders(CancellationToken ct = default)
     {
-        var orders = await BuildOrderQuery()
+        var orders = await BuildAdminOrderListQuery()
             .OrderByDescending(o => o.OrderDate)
             .ToListAsync(ct);
 
@@ -401,25 +401,37 @@ public class OrdersController : ControllerBase
         return Ok(MapOrder(updatedOrder));
     }
 
+    private IQueryable<Order> BuildAdminOrderListQuery()
+    {
+        return _context.Orders
+            .AsNoTracking()
+            .AsSplitQuery()
+            .Include(o => o.Customer)
+            .Include(o => o.PaymentMethod)
+            .Include(o => o.OrderItems)
+                .ThenInclude(oi => oi.Country);
+    }
+
     private IQueryable<Order> BuildOrderQuery()
     {
         return _context.Orders
             .AsNoTracking()
+            .AsSplitQuery()
             .Include(o => o.Customer)
             .Include(o => o.PaymentMethod)
             .Include(o => o.OrderItems)
-                .ThenInclude(oi => oi.Product)
-                    .ThenInclude(p => p.ProductImages)
+                .ThenInclude(oi => oi.Country)
             .Include(o => o.OrderItems)
                 .ThenInclude(oi => oi.Product)
-                    .ThenInclude(p => p.ProductColors)
+                    .ThenInclude(p => p!.ProductImages)
+            .Include(o => o.OrderItems)
+                .ThenInclude(oi => oi.Product)
+                    .ThenInclude(p => p!.ProductColors)
                         .ThenInclude(pc => pc.Images)
             .Include(o => o.OrderItems)
                 .ThenInclude(oi => oi.Product)
-                    .ThenInclude(p => p.ProductColors)
-                        .ThenInclude(pc => pc.SizeImages)
-            .Include(o => o.OrderItems)
-                .ThenInclude(oi => oi.Country);
+                    .ThenInclude(p => p!.ProductColors)
+                        .ThenInclude(pc => pc.SizeImages);
     }
 
     private int? GetCurrentCustomerId()
