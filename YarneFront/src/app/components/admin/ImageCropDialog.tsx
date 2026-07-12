@@ -2,20 +2,27 @@ import React, { useCallback, useEffect, useState } from "react";
 import Cropper, { type Area } from "react-easy-crop";
 import { X } from "lucide-react";
 import { getCroppedImageBlob } from "../../utils/cropImage";
+import type { CropResultSettings } from "../../utils/imageCropMeta";
 
 type Props = {
   imageSrc: string;
   aspect?: number;
   title?: string;
+  initialCroppedAreaPixels?: Area;
+  initialZoom?: number;
+  initialCrop?: { x: number; y: number };
   onClose: () => void;
   onCancel?: () => void;
-  onComplete: (blob: Blob) => void | Promise<void>;
+  onComplete: (blob: Blob, settings: CropResultSettings) => void | Promise<void>;
 };
 
 export function ImageCropDialog({
   imageSrc,
   aspect = 3 / 4,
   title = "Crop for product card",
+  initialCroppedAreaPixels,
+  initialZoom,
+  initialCrop,
   onClose,
   onCancel,
   onComplete,
@@ -24,18 +31,18 @@ export function ImageCropDialog({
     if (onCancel) onCancel();
     else onClose();
   };
-  const [crop, setCrop] = useState({ x: 0, y: 0 });
-  const [zoom, setZoom] = useState(1);
-  const [croppedAreaPixels, setCroppedAreaPixels] = useState<Area | null>(null);
+  const [crop, setCrop] = useState(initialCrop ?? { x: 0, y: 0 });
+  const [zoom, setZoom] = useState(initialZoom ?? 1);
+  const [croppedAreaPixels, setCroppedAreaPixels] = useState<Area | null>(initialCroppedAreaPixels ?? null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    setCrop({ x: 0, y: 0 });
-    setZoom(1);
-    setCroppedAreaPixels(null);
+    setCrop(initialCrop ?? { x: 0, y: 0 });
+    setZoom(initialZoom ?? 1);
+    setCroppedAreaPixels(initialCroppedAreaPixels ?? null);
     setError(null);
-  }, [imageSrc]);
+  }, [imageSrc, initialCrop, initialZoom, initialCroppedAreaPixels]);
 
   const onCropComplete = useCallback((_: Area, pixels: Area) => {
     setCroppedAreaPixels(pixels);
@@ -50,7 +57,7 @@ export function ImageCropDialog({
     setError(null);
     try {
       const blob = await getCroppedImageBlob(imageSrc, croppedAreaPixels);
-      await onComplete(blob);
+      await onComplete(blob, { croppedAreaPixels, zoom, crop });
       onClose();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to crop image");
@@ -107,6 +114,7 @@ export function ImageCropDialog({
             onZoomChange={setZoom}
             onCropComplete={onCropComplete}
             onCropAreaChange={(_, pixels) => setCroppedAreaPixels(pixels)}
+            initialCroppedAreaPixels={initialCroppedAreaPixels}
           />
         </div>
 
@@ -124,7 +132,7 @@ export function ImageCropDialog({
             className="w-full"
           />
           <p className="text-xs text-[#2D241E]/45" style={{ fontFamily: "'DM Sans', sans-serif" }}>
-            Crop ratio matches the storefront product card (3:4).
+            Crop ratio matches the storefront product card (3:4). Re-crop opens the original photo so you can zoom out and show more of the image.
           </p>
           {error && (
             <p className="text-sm text-[#4A0E0E]" style={{ fontFamily: "'DM Sans', sans-serif" }}>
