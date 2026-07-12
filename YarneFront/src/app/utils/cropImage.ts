@@ -8,15 +8,26 @@ function getAuthToken(): string | null {
 export async function resolveImageSrcForCrop(src: string): Promise<string> {
   if (src.startsWith("data:") || src.startsWith("blob:")) return src;
 
+  const isPublicUpload = /\/uploads\//i.test(src);
   const headers: HeadersInit = {};
-  const token = getAuthToken();
-  if (token) {
-    (headers as Record<string, string>)["Authorization"] = `Bearer ${token}`;
+  if (!isPublicUpload) {
+    const token = getAuthToken();
+    if (token) {
+      (headers as Record<string, string>)["Authorization"] = `Bearer ${token}`;
+    }
   }
 
-  const res = await fetch(src, { credentials: "include", mode: "cors", headers });
+  const res = await fetch(src, {
+    mode: "cors",
+    credentials: "omit",
+    ...(Object.keys(headers).length ? { headers } : {}),
+  });
   if (!res.ok) {
-    throw new Error(`Could not load image for cropping (${res.status}).`);
+    throw new Error(
+      res.status === 0 || res.type === "opaque"
+        ? "This image host does not allow cropping. Re-upload from device instead."
+        : `Could not load image for cropping (${res.status}).`,
+    );
   }
   return URL.createObjectURL(await res.blob());
 }

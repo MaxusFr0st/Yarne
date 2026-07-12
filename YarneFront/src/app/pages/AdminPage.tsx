@@ -1063,7 +1063,7 @@ function ProductModal({
                 <button
                   type="button"
                   onClick={() => { setUploadError(null); fileInputRef.current?.click(); }}
-                  disabled={uploading || imagesLockedByColors}
+                  disabled={uploading || imagesLockedByColors || cropBusy}
                   className="flex items-center gap-1.5 px-3 py-2 rounded-[12px] text-xs border transition-all hover:bg-[#2D241E]/5 disabled:opacity-50"
                   style={{ fontFamily: "'DM Sans', sans-serif", borderColor: "rgba(45,36,30,0.2)", color: "#2D241E" }}
                 >
@@ -1348,7 +1348,7 @@ function ProductModal({
                               <button
                                 type="button"
                                 onClick={() => triggerPerColorUpload(colorId, sizeId, lace)}
-                                disabled={uploadingColorId === colorId}
+                                disabled={uploadingColorId === colorId || cropBusy}
                                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-[10px] text-xs border transition-all hover:bg-[#2D241E]/5 disabled:opacity-50"
                                 style={{ fontFamily: "'DM Sans', sans-serif", borderColor: "rgba(45,36,30,0.2)", color: "#2D241E" }}
                               >
