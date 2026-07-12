@@ -667,13 +667,8 @@ function ProductModal({
     setForm((prev) => ({ ...prev, [key]: value }));
   };
 
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const quickFileInputRef = useRef<HTMLInputElement>(null);
-  const perColorFileInputRef = useRef<HTMLInputElement>(null);
-  const perColorQuickFileInputRef = useRef<HTMLInputElement>(null);
-  const uploadTargetVariantRef = useRef<{ colorId: number; sizeId: number; lace: boolean } | null>(null);
   const [uploading, setUploading] = useState(false);
-  const [uploadingColorId, setUploadingColorId] = useState<number | null>(null);
+  const [uploadingVariantKey, setUploadingVariantKey] = useState<string | null>(null);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [formErrors, setFormErrors] = useState<{
     name?: string;
@@ -704,6 +699,81 @@ function ProductModal({
     next[i] = url;
     return { ...p, imageUrls: next };
   });
+
+  const appendVariantPhoto = (colorId: number, sizeId: number, lace: boolean, displayUrl: string) => {
+    setForm((p) => {
+      const next = { ...p.colorSizeVariants };
+      const rowKey = variantKey(colorId, sizeId, lace);
+      const arr = [...(next[rowKey] ?? []).filter((u) => u.trim() && !u.startsWith("Upload failed:")), displayUrl];
+      next[rowKey] = arr;
+      return { ...p, colorSizeVariants: next };
+    });
+  };
+
+  const handleVariantQuickUpload = async (
+    colorId: number,
+    sizeId: number,
+    lace: boolean,
+    e: React.ChangeEvent<HTMLInputElement>,
+  ) => {
+    const files = e.target.files;
+    e.target.value = "";
+    if (!files?.length) return;
+
+    const rowKey = variantKey(colorId, sizeId, lace);
+    setUploadError(null);
+    try {
+      setUploadingVariantKey(rowKey);
+      for (let i = 0; i < files.length; i++) {
+        const displayUrl = await uploadRawMediaFile(files[i]);
+        appendVariantPhoto(colorId, sizeId, lace, displayUrl);
+      }
+    } catch (err) {
+      console.error("Upload failed:", err);
+      setUploadError(err instanceof Error ? err.message : "Upload failed.");
+    } finally {
+      setUploadingVariantKey(null);
+    }
+  };
+
+  const handleVariantCropUpload = async (
+    colorId: number,
+    sizeId: number,
+    lace: boolean,
+    e: React.ChangeEvent<HTMLInputElement>,
+  ) => {
+    const files = e.target.files;
+    e.target.value = "";
+    if (!files?.length) return;
+
+    const rowKey = variantKey(colorId, sizeId, lace);
+    setUploadError(null);
+    try {
+      setUploadingVariantKey(rowKey);
+      for (let i = 0; i < files.length; i++) {
+        try {
+          const { croppedFile, settings, originalFile } = await promptCropForUpload(
+            files[i],
+            files.length > 1 ? `Crop image ${i + 1} of ${files.length}` : "Crop for product card",
+          );
+          const { displayUrl, sourceUrl } = await uploadCroppedWithOriginal(croppedFile, originalFile);
+          updateCropMeta((prev) =>
+            setImageCropMeta(prev, displayUrl, buildCropMetaEntry(sourceUrl, settings)),
+          );
+          appendVariantPhoto(colorId, sizeId, lace, displayUrl);
+        } catch (err) {
+          if (err instanceof CropCancelledError) continue;
+          throw err;
+        }
+      }
+    } catch (err) {
+      console.error("Upload failed:", err);
+      setUploadError(err instanceof Error ? err.message : "Upload failed.");
+    } finally {
+      setUploadingVariantKey(null);
+      closeCropDialog();
+    }
+  };
 
   const handleQuickFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
@@ -763,82 +833,6 @@ function ProductModal({
     }
   };
 
-  const handleQuickPerColorFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    const target = uploadTargetVariantRef.current;
-    if (!files?.length || !target) {
-      e.target.value = "";
-      uploadTargetVariantRef.current = null;
-      return;
-    }
-    const { colorId, sizeId, lace } = target;
-    e.target.value = "";
-    uploadTargetVariantRef.current = null;
-    try {
-      setUploadingColorId(colorId);
-      for (let i = 0; i < files.length; i++) {
-        const displayUrl = await uploadRawMediaFile(files[i]);
-        setForm((p) => {
-          const next = { ...p.colorSizeVariants };
-          const key = variantKey(colorId, sizeId, lace);
-          const arr = [...(next[key] ?? []).filter((u) => u.trim() && !u.startsWith("Upload failed:")), displayUrl];
-          next[key] = arr;
-          return { ...p, colorSizeVariants: next };
-        });
-      }
-    } catch (err) {
-      console.error("Upload failed:", err);
-      setUploadError(err instanceof Error ? err.message : "Unknown error");
-    } finally {
-      setUploadingColorId(null);
-    }
-  };
-
-  const handlePerColorFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    const target = uploadTargetVariantRef.current;
-    if (!files?.length || !target) {
-      e.target.value = "";
-      uploadTargetVariantRef.current = null;
-      return;
-    }
-    const { colorId, sizeId, lace } = target;
-    e.target.value = "";
-    try {
-      for (let i = 0; i < files.length; i++) {
-        try {
-          setUploadingColorId(colorId);
-          const { croppedFile, settings, originalFile } = await promptCropForUpload(
-            files[i],
-            files.length > 1 ? `Crop image ${i + 1} of ${files.length}` : "Crop for product card",
-          );
-          const { displayUrl, sourceUrl } = await uploadCroppedWithOriginal(croppedFile, originalFile);
-          updateCropMeta((prev) =>
-            setImageCropMeta(prev, displayUrl, buildCropMetaEntry(sourceUrl, settings)),
-          );
-          setForm((p) => {
-            const next = { ...p.colorSizeVariants };
-            const key = variantKey(colorId, sizeId, lace);
-            const arr = [...(next[key] ?? []).filter((u) => u.trim() && !u.startsWith("Upload failed:")), displayUrl];
-            next[key] = arr;
-            return { ...p, colorSizeVariants: next };
-          });
-        } catch (err) {
-          if (err instanceof CropCancelledError) continue;
-          throw err;
-        } finally {
-          setUploadingColorId(null);
-        }
-      }
-    } catch (err) {
-      console.error("Upload failed:", err);
-      setUploadError(err instanceof Error ? err.message : "Unknown error");
-    } finally {
-      uploadTargetVariantRef.current = null;
-      closeCropDialog();
-    }
-  };
-
   const handleRecropImageUrl = async (url: string, onReplace: (newUrl: string) => void) => {
     if (cropInFlightRef.current || cropDialog) {
       setUploadError("Finish or cancel the open crop dialog first.");
@@ -860,12 +854,6 @@ function ProductModal({
       setUploading(false);
       closeCropDialog();
     }
-  };
-
-  const triggerPerColorUpload = (colorId: number, sizeId: number, lace: boolean, quick = false) => {
-    setUploadError(null);
-    uploadTargetVariantRef.current = { colorId, sizeId, lace };
-    (quick ? perColorQuickFileInputRef : perColorFileInputRef).current?.click();
   };
 
   const isEditing = !!product;
@@ -1168,59 +1156,53 @@ function ProductModal({
                   Product-level images are auto-derived from each color's first image.
                 </p>
               )}
-              <div className="flex gap-2">
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/*"
-                  multiple
-                  className="hidden"
-                  onChange={handleFileSelect}
-                />
-                <input
-                  ref={quickFileInputRef}
-                  type="file"
-                  accept="image/*"
-                  multiple
-                  className="hidden"
-                  onChange={handleQuickFileSelect}
-                />
+              <div className="flex flex-wrap gap-2 items-center">
                 {uploadError && (
-                  <p className="text-sm text-[#4A0E0E] mr-2" style={{ fontFamily: "'DM Sans', sans-serif" }}>
+                  <p className="text-sm text-[#4A0E0E] w-full" style={{ fontFamily: "'DM Sans', sans-serif" }}>
                     {uploadError}
                   </p>
                 )}
-                <button
-                  type="button"
-                  onClick={() => {
-                    setUploadError(null);
-                    if (imagesLockedByColors) {
-                      setUploadError(
-                        "Colors are selected — add photos in the Constructor section below (per color & size).",
-                      );
-                      return;
-                    }
-                    fileInputRef.current?.click();
-                  }}
-                  disabled={uploading || cropBusy}
-                  className="flex items-center gap-1.5 px-3 py-2 rounded-[12px] text-xs border transition-all hover:bg-[#2D241E]/5 disabled:opacity-50"
-                  style={{ fontFamily: "'DM Sans', sans-serif", borderColor: "rgba(45,36,30,0.2)", color: "#2D241E" }}
-                >
-                  <ImagePlus size={14} />
-                  {uploading ? (cropBusy ? "Crop image…" : "Uploading…") : "Add & crop"}
-                </button>
                 {!imagesLockedByColors && (
+                  <>
+                    <label
+                      className={`flex items-center gap-1.5 px-3 py-2 rounded-[12px] text-xs border transition-all hover:bg-[#2D241E]/5 ${uploading || cropBusy ? "opacity-50 pointer-events-none" : "cursor-pointer"}`}
+                      style={{ fontFamily: "'DM Sans', sans-serif", borderColor: "rgba(45,36,30,0.2)", color: "#2D241E" }}
+                    >
+                      <ImagePlus size={14} />
+                      {uploading ? (cropBusy ? "Crop image…" : "Uploading…") : "Add & crop"}
+                      <input
+                        type="file"
+                        accept="image/*"
+                        multiple
+                        className="sr-only"
+                        disabled={uploading || cropBusy}
+                        onChange={handleFileSelect}
+                      />
+                    </label>
+                    <label
+                      className={`flex items-center gap-1.5 px-3 py-2 rounded-[12px] text-xs border transition-all hover:bg-[#2D241E]/5 ${uploading || cropBusy ? "opacity-50 pointer-events-none" : "cursor-pointer"}`}
+                      style={{ fontFamily: "'DM Sans', sans-serif", borderColor: "rgba(45,36,30,0.2)", color: "#2D241E" }}
+                    >
+                      Quick upload
+                      <input
+                        type="file"
+                        accept="image/*"
+                        multiple
+                        className="sr-only"
+                        disabled={uploading || cropBusy}
+                        onChange={handleQuickFileSelect}
+                      />
+                    </label>
+                  </>
+                )}
+                {imagesLockedByColors && (
                   <button
                     type="button"
-                    onClick={() => {
-                      setUploadError(null);
-                      quickFileInputRef.current?.click();
-                    }}
-                    disabled={uploading || cropBusy}
-                    className="flex items-center gap-1.5 px-3 py-2 rounded-[12px] text-xs border transition-all hover:bg-[#2D241E]/5 disabled:opacity-50"
-                    style={{ fontFamily: "'DM Sans', sans-serif", borderColor: "rgba(45,36,30,0.2)", color: "#2D241E" }}
+                    onClick={() => setUploadError("Add photos in the Constructor section below (per color & size).")}
+                    className="text-xs text-[#4A0E0E] underline"
+                    style={{ fontFamily: "'DM Sans', sans-serif" }}
                   >
-                    Quick upload
+                    Where do I upload?
                   </button>
                 )}
                 {!imagesLockedByColors && (
@@ -1446,11 +1428,9 @@ function ProductModal({
                   </div>
                   {uploadError && (
                     <p className="text-sm text-[#4A0E0E] mb-3 p-3 rounded-[12px] bg-[#4A0E0E]/8" style={{ fontFamily: "'DM Sans', sans-serif" }}>
-                      Upload failed: {uploadError}
+                      {uploadError}
                     </p>
                   )}
-                  <input ref={perColorFileInputRef} type="file" accept="image/*" multiple className="hidden" onChange={handlePerColorFileSelect} />
-                  <input ref={perColorQuickFileInputRef} type="file" accept="image/*" multiple className="hidden" onChange={handleQuickPerColorFileSelect} />
                   <div className="grid gap-3 sm:gap-4 lg:grid-cols-2">
                     {form.colorIds.flatMap((colorId) =>
                       (form.colorSizeIds[colorId] ?? []).flatMap((sizeId) =>
@@ -1459,6 +1439,7 @@ function ProductModal({
                         const size = sizes.find((s) => s.id === sizeId);
                         const key = variantKey(colorId, sizeId, lace);
                         const urls = form.colorSizeVariants[key] ?? [];
+                        const rowUploading = uploadingVariantKey === key;
                         return (
                         <div key={key} className="rounded-[16px] p-3 sm:p-4" style={{ backgroundColor: "rgba(45,36,30,0.03)", border: "1px solid rgba(45,36,30,0.08)" }}>
                           <div className="flex items-center justify-between mb-3">
@@ -1500,25 +1481,35 @@ function ProductModal({
                                 className="w-20 bg-white/60 border rounded-[10px] px-2.5 py-1.5 text-xs text-[#2D241E] focus:outline-none"
                                 style={{ fontFamily: "'DM Sans', sans-serif", borderColor: "rgba(45,36,30,0.15)" }}
                               />
-                              <button
-                                type="button"
-                                onClick={() => triggerPerColorUpload(colorId, sizeId, lace)}
-                                disabled={uploadingColorId === colorId || cropBusy}
-                                className="flex items-center gap-1.5 px-3 py-1.5 rounded-[10px] text-xs border transition-all hover:bg-[#2D241E]/5 disabled:opacity-50"
+                              <label
+                                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-[10px] text-xs border transition-all hover:bg-[#2D241E]/5 ${rowUploading || cropBusy ? "opacity-50 pointer-events-none" : "cursor-pointer"}`}
                                 style={{ fontFamily: "'DM Sans', sans-serif", borderColor: "rgba(45,36,30,0.2)", color: "#2D241E" }}
                               >
                                 <ImagePlus size={12} />
-                                {uploadingColorId === colorId ? (cropBusy ? "Crop…" : "Uploading…") : "Add & crop"}
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => triggerPerColorUpload(colorId, sizeId, lace, true)}
-                                disabled={uploadingColorId === colorId || cropBusy}
-                                className="px-3 py-1.5 rounded-[10px] text-xs border transition-all hover:bg-[#2D241E]/5 disabled:opacity-50"
+                                {rowUploading ? (cropBusy ? "Crop…" : "Uploading…") : "Add & crop"}
+                                <input
+                                  type="file"
+                                  accept="image/*"
+                                  multiple
+                                  className="sr-only"
+                                  disabled={rowUploading || cropBusy}
+                                  onChange={(e) => void handleVariantCropUpload(colorId, sizeId, lace, e)}
+                                />
+                              </label>
+                              <label
+                                className={`px-3 py-1.5 rounded-[10px] text-xs border transition-all hover:bg-[#2D241E]/5 ${rowUploading || cropBusy ? "opacity-50 pointer-events-none" : "cursor-pointer"}`}
                                 style={{ fontFamily: "'DM Sans', sans-serif", borderColor: "rgba(45,36,30,0.2)", color: "#2D241E" }}
                               >
-                                Quick
-                              </button>
+                                {rowUploading ? "Uploading…" : "Quick"}
+                                <input
+                                  type="file"
+                                  accept="image/*"
+                                  multiple
+                                  className="sr-only"
+                                  disabled={rowUploading || cropBusy}
+                                  onChange={(e) => void handleVariantQuickUpload(colorId, sizeId, lace, e)}
+                                />
+                              </label>
                             </div>
                           </div>
                           <div className="space-y-2">
@@ -1582,7 +1573,7 @@ function ProductModal({
                                     return { ...p, colorSizeVariants: next };
                                   });
                                 }}
-                                disabled={uploadingColorId === colorId || uploading || cropBusy}
+                                disabled={rowUploading || uploading || cropBusy}
                                 placeholder={`Image ${i + 1} URL or upload from device`}
                               />
                             ))}
