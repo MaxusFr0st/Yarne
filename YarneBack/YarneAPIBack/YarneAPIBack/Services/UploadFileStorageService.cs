@@ -130,10 +130,6 @@ public partial class UploadFileStorageService : IUploadFileStorageService
         if (await _context.Products.AsNoTracking().AnyAsync(p => p.ImageUrl == normalizedPath, ct))
             return true;
 
-        if (await _context.OrderItems.AsNoTracking()
-                .AnyAsync(oi => oi.ProductImageUrl != null && oi.ProductImageUrl.Contains(normalizedPath, StringComparison.OrdinalIgnoreCase), ct))
-            return true;
-
         var settings = await _context.AppSettings.AsNoTracking()
             .Select(s => s.ValueJson)
             .ToListAsync(ct);

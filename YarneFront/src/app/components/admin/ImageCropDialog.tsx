@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import Cropper, { type Area } from "react-easy-crop";
 import { X } from "lucide-react";
 import { getCroppedImageBlob } from "../../utils/cropImage";
@@ -74,9 +75,9 @@ export function ImageCropDialog({
     }
   };
 
-  return (
+  return createPortal(
     <div
-      className="fixed inset-0 z-[60] flex items-center justify-center p-4"
+      className="fixed inset-0 z-[200] flex items-center justify-center p-4"
       style={{ backgroundColor: "rgba(45,36,30,0.65)", backdropFilter: "blur(8px)" }}
       onWheel={(e) => e.stopPropagation()}
     >
@@ -170,6 +171,7 @@ export function ImageCropDialog({
           </div>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

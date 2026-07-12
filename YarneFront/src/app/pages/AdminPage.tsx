@@ -5,7 +5,7 @@ import { useBodyScrollLock } from "../hooks/useBodyScrollLock";
 import { CropCancelledError, useCropDialog } from "../hooks/useCropDialog";
 import { useApp } from "../context/AppContext";
 import { uploadImage } from "../api/images";
-import { uploadCroppedWithOriginal, toUploadableCroppedFile } from "../utils/uploadCropPair";
+import { uploadCroppedWithOriginal, uploadRawMediaFile, toUploadableCroppedFile } from "../utils/uploadCropPair";
 import { purgeUploadIfOrphaned } from "../utils/purgeUpload";
 import { AdminColorPicker, sanitizeColorHex } from "../components/admin/AdminColorPicker";
 import { ImageCropDialog } from "../components/admin/ImageCropDialog";
@@ -668,7 +668,9 @@ function ProductModal({
   };
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const quickFileInputRef = useRef<HTMLInputElement>(null);
   const perColorFileInputRef = useRef<HTMLInputElement>(null);
+  const perColorQuickFileInputRef = useRef<HTMLInputElement>(null);
   const uploadTargetVariantRef = useRef<{ colorId: number; sizeId: number; lace: boolean } | null>(null);
   const [uploading, setUploading] = useState(false);
   const [uploadingColorId, setUploadingColorId] = useState<number | null>(null);
@@ -703,6 +705,28 @@ function ProductModal({
     return { ...p, imageUrls: next };
   });
 
+  const handleQuickFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files?.length) return;
+    setUploadError(null);
+    e.target.value = "";
+    try {
+      setUploading(true);
+      for (let i = 0; i < files.length; i++) {
+        const displayUrl = await uploadRawMediaFile(files[i]);
+        setForm((p) => ({
+          ...p,
+          imageUrls: [...p.imageUrls.filter((u) => u.trim() && !u.startsWith("Upload failed:")), displayUrl],
+        }));
+      }
+    } catch (err) {
+      console.error("Upload failed:", err);
+      setUploadError(err instanceof Error ? err.message : "Unknown error");
+    } finally {
+      setUploading(false);
+    }
+  };
+
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files?.length) return;
@@ -711,11 +735,11 @@ function ProductModal({
     try {
       for (let i = 0; i < files.length; i++) {
         try {
+          setUploading(true);
           const { croppedFile, settings, originalFile } = await promptCropForUpload(
             files[i],
             files.length > 1 ? `Crop image ${i + 1} of ${files.length}` : "Crop for product card",
           );
-          setUploading(true);
           const { displayUrl, sourceUrl } = await uploadCroppedWithOriginal(croppedFile, originalFile);
           updateCropMeta((prev) =>
             setImageCropMeta(prev, displayUrl, buildCropMetaEntry(sourceUrl, settings)),
@@ -739,6 +763,37 @@ function ProductModal({
     }
   };
 
+  const handleQuickPerColorFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    const target = uploadTargetVariantRef.current;
+    if (!files?.length || !target) {
+      e.target.value = "";
+      uploadTargetVariantRef.current = null;
+      return;
+    }
+    const { colorId, sizeId, lace } = target;
+    e.target.value = "";
+    uploadTargetVariantRef.current = null;
+    try {
+      setUploadingColorId(colorId);
+      for (let i = 0; i < files.length; i++) {
+        const displayUrl = await uploadRawMediaFile(files[i]);
+        setForm((p) => {
+          const next = { ...p.colorSizeVariants };
+          const key = variantKey(colorId, sizeId, lace);
+          const arr = [...(next[key] ?? []).filter((u) => u.trim() && !u.startsWith("Upload failed:")), displayUrl];
+          next[key] = arr;
+          return { ...p, colorSizeVariants: next };
+        });
+      }
+    } catch (err) {
+      console.error("Upload failed:", err);
+      setUploadError(err instanceof Error ? err.message : "Unknown error");
+    } finally {
+      setUploadingColorId(null);
+    }
+  };
+
   const handlePerColorFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     const target = uploadTargetVariantRef.current;
@@ -752,11 +807,11 @@ function ProductModal({
     try {
       for (let i = 0; i < files.length; i++) {
         try {
+          setUploadingColorId(colorId);
           const { croppedFile, settings, originalFile } = await promptCropForUpload(
             files[i],
             files.length > 1 ? `Crop image ${i + 1} of ${files.length}` : "Crop for product card",
           );
-          setUploadingColorId(colorId);
           const { displayUrl, sourceUrl } = await uploadCroppedWithOriginal(croppedFile, originalFile);
           updateCropMeta((prev) =>
             setImageCropMeta(prev, displayUrl, buildCropMetaEntry(sourceUrl, settings)),
@@ -807,10 +862,10 @@ function ProductModal({
     }
   };
 
-  const triggerPerColorUpload = (colorId: number, sizeId: number, lace: boolean) => {
+  const triggerPerColorUpload = (colorId: number, sizeId: number, lace: boolean, quick = false) => {
     setUploadError(null);
     uploadTargetVariantRef.current = { colorId, sizeId, lace };
-    perColorFileInputRef.current?.click();
+    (quick ? perColorQuickFileInputRef : perColorFileInputRef).current?.click();
   };
 
   const isEditing = !!product;
@@ -1117,26 +1172,57 @@ function ProductModal({
                 <input
                   ref={fileInputRef}
                   type="file"
-                  accept="image/jpeg,image/png,image/gif,image/webp"
+                  accept="image/*"
                   multiple
                   className="hidden"
                   onChange={handleFileSelect}
                 />
+                <input
+                  ref={quickFileInputRef}
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  className="hidden"
+                  onChange={handleQuickFileSelect}
+                />
                 {uploadError && (
                   <p className="text-sm text-[#4A0E0E] mr-2" style={{ fontFamily: "'DM Sans', sans-serif" }}>
-                    Upload failed: {uploadError}
+                    {uploadError}
                   </p>
                 )}
                 <button
                   type="button"
-                  onClick={() => { setUploadError(null); fileInputRef.current?.click(); }}
-                  disabled={uploading || imagesLockedByColors || cropBusy}
+                  onClick={() => {
+                    setUploadError(null);
+                    if (imagesLockedByColors) {
+                      setUploadError(
+                        "Colors are selected — add photos in the Constructor section below (per color & size).",
+                      );
+                      return;
+                    }
+                    fileInputRef.current?.click();
+                  }}
+                  disabled={uploading || cropBusy}
                   className="flex items-center gap-1.5 px-3 py-2 rounded-[12px] text-xs border transition-all hover:bg-[#2D241E]/5 disabled:opacity-50"
                   style={{ fontFamily: "'DM Sans', sans-serif", borderColor: "rgba(45,36,30,0.2)", color: "#2D241E" }}
                 >
                   <ImagePlus size={14} />
-                  {uploading ? "Uploading..." : "Add from device"}
+                  {uploading ? (cropBusy ? "Crop image…" : "Uploading…") : "Add & crop"}
                 </button>
+                {!imagesLockedByColors && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setUploadError(null);
+                      quickFileInputRef.current?.click();
+                    }}
+                    disabled={uploading || cropBusy}
+                    className="flex items-center gap-1.5 px-3 py-2 rounded-[12px] text-xs border transition-all hover:bg-[#2D241E]/5 disabled:opacity-50"
+                    style={{ fontFamily: "'DM Sans', sans-serif", borderColor: "rgba(45,36,30,0.2)", color: "#2D241E" }}
+                  >
+                    Quick upload
+                  </button>
+                )}
                 {!imagesLockedByColors && (
                   <button type="button" onClick={addImageUrl} className="text-xs text-[#4A0E0E] hover:underline" style={{ fontFamily: "'DM Sans', sans-serif" }}>+ Add URL</button>
                 )}
@@ -1351,10 +1437,11 @@ function ProductModal({
                     <label className="block text-xs tracking-widest uppercase" style={{ fontFamily: "'DM Sans', sans-serif", color: "rgba(45,36,30,0.4)", letterSpacing: "0.14em" }}>
                       Constructor (Color + Size + Photos + Stock)
                     </label>
-                    <p className="text-xs text-[#2D241E]/55" style={{ fontFamily: "'DM Sans', sans-serif" }}>
+                    <p className="text-xs text-[#2D241E]/55 mb-2" style={{ fontFamily: "'DM Sans', sans-serif" }}>
                       {form.lace
                         ? "Every color-size pair has a Without lace and With lace record. Minimum 3 photos per record."
                         : "Every selected color-size pair is shown below. Minimum 3 photos per pair."}
+                      {" "}Photos are saved as <code>/uploads/…</code> on the API server and linked per color-size in the database.
                     </p>
                   </div>
                   {uploadError && (
@@ -1362,7 +1449,8 @@ function ProductModal({
                       Upload failed: {uploadError}
                     </p>
                   )}
-                  <input ref={perColorFileInputRef} type="file" accept="image/jpeg,image/png,image/gif,image/webp" multiple className="hidden" onChange={handlePerColorFileSelect} />
+                  <input ref={perColorFileInputRef} type="file" accept="image/*" multiple className="hidden" onChange={handlePerColorFileSelect} />
+                  <input ref={perColorQuickFileInputRef} type="file" accept="image/*" multiple className="hidden" onChange={handleQuickPerColorFileSelect} />
                   <div className="grid gap-3 sm:gap-4 lg:grid-cols-2">
                     {form.colorIds.flatMap((colorId) =>
                       (form.colorSizeIds[colorId] ?? []).flatMap((sizeId) =>
@@ -1420,7 +1508,16 @@ function ProductModal({
                                 style={{ fontFamily: "'DM Sans', sans-serif", borderColor: "rgba(45,36,30,0.2)", color: "#2D241E" }}
                               >
                                 <ImagePlus size={12} />
-                                {uploadingColorId === colorId ? "Uploading..." : "Add from device"}
+                                {uploadingColorId === colorId ? (cropBusy ? "Crop…" : "Uploading…") : "Add & crop"}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => triggerPerColorUpload(colorId, sizeId, lace, true)}
+                                disabled={uploadingColorId === colorId || cropBusy}
+                                className="px-3 py-1.5 rounded-[10px] text-xs border transition-all hover:bg-[#2D241E]/5 disabled:opacity-50"
+                                style={{ fontFamily: "'DM Sans', sans-serif", borderColor: "rgba(45,36,30,0.2)", color: "#2D241E" }}
+                              >
+                                Quick
                               </button>
                             </div>
                           </div>
@@ -2608,6 +2705,26 @@ export function AdminPage() {
   const homeMediaPreview = (field: HomeMediaField): string =>
     resolveMediaUrl(homePageMedia[field]);
 
+  const handleHomeMediaQuickUpload = async (field: HomeMediaField, file: File | null, label: string) => {
+    if (!file || contentsCrop.cropBusy) return;
+    setHomeMediaUploadError(null);
+    try {
+      setHomeMediaUploading((prev) => ({ ...prev, [field]: true }));
+      const normalizedDisplayUrl = await uploadRawMediaFile(file);
+      const oldUrl = homePageMedia[field];
+      if (oldUrl.trim()) {
+        updateContentsCropMeta((prev) => removeImageCropMeta(prev, oldUrl));
+      }
+      updateHomePageMedia({ [field]: normalizedDisplayUrl });
+    } catch (err) {
+      setHomeMediaUploadError(
+        err instanceof Error ? err.message : `Failed to upload ${label.toLowerCase()}.`,
+      );
+    } finally {
+      setHomeMediaUploading((prev) => ({ ...prev, [field]: false }));
+    }
+  };
+
   const handleHomeMediaUpload = async (field: HomeMediaField, file: File | null, label: string) => {
     if (!file || contentsCrop.cropBusy) return;
     setHomeMediaUploadError(null);
@@ -2735,7 +2852,9 @@ export function AdminPage() {
   };
 
   const sanitizeImageUrls = (urls: string[] | undefined) =>
-    (urls ?? []).map((url) => url.trim()).filter((url) => url && !url.startsWith("Upload failed:"));
+    (urls ?? [])
+      .map((url) => normalizeStoredMediaUrl(url))
+      .filter((url) => url && !url.startsWith("Upload failed:"));
 
   const unique = (items: string[]) => {
     const seen = new Set<string>();
@@ -2808,12 +2927,15 @@ export function AdminPage() {
           ? parsedTotalStock
           : 0;
 
-      const nextPrimaryImageUrls = unique(
+      const variantPrimaryUrls = unique(
         colorSizeVariants
           .filter((v) => v.sizeId === normalizedDefaultSizeId && v.lace === false)
           .map((v) => v.imageUrls[0])
           .filter((url): url is string => Boolean(url))
       );
+      const nextPrimaryImageUrls = variantPrimaryUrls.length > 0
+        ? variantPrimaryUrls
+        : unique(sanitizeImageUrls(data.imageUrls));
 
       const payload = {
         productCode: data.sku.trim() ? data.sku.trim() : undefined,
@@ -3465,11 +3587,35 @@ export function AdminPage() {
                             </span>
                             <input
                               type="file"
-                              accept="image/jpeg,image/png,image/webp,image/gif"
+                              accept="image/*"
                               className="hidden"
                               disabled={cropDisabled}
                               onChange={(e) => {
                                 void handleHomeMediaUpload(field, e.target.files?.[0] ?? null, label);
+                                e.target.value = "";
+                              }}
+                            />
+                          </label>
+                          <label
+                            className={`mt-2 flex items-center justify-center gap-2 rounded-full px-4 py-2 border transition-all duration-300 hover:opacity-85 ${cropDisabled ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}`}
+                            style={{
+                              borderColor: "rgba(45,36,30,0.2)",
+                              color: "#2D241E",
+                              fontFamily: "'DM Sans', sans-serif",
+                              fontSize: "0.7rem",
+                              letterSpacing: "0.12em",
+                            }}
+                          >
+                            <span className="uppercase tracking-widest">
+                              {isUploading ? "Uploading…" : "Quick upload"}
+                            </span>
+                            <input
+                              type="file"
+                              accept="image/*"
+                              className="hidden"
+                              disabled={cropDisabled}
+                              onChange={(e) => {
+                                void handleHomeMediaQuickUpload(field, e.target.files?.[0] ?? null, label);
                                 e.target.value = "";
                               }}
                             />
