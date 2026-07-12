@@ -23,8 +23,7 @@ public static class OrderItemSchemaPatches
 
             UPDATE "OrderItem" oi
             SET "ProductName" = p."Name",
-                "ProductCode" = p."ProductCode",
-                "ProductImageUrl" = NULLIF(p."ImageUrl", '')
+                "ProductCode" = p."ProductCode"
             FROM "Product" p
             WHERE oi."ProductId" = p."Id"
               AND (oi."ProductName" = '' OR oi."ProductCode" = '');
@@ -65,6 +64,42 @@ public static class OrderItemSchemaPatches
         END $$;
         """;
 
+    internal const string BackfillMissingSnapshotImagesSql =
+        """
+        UPDATE "OrderItem" oi
+        SET "ProductImageUrl" = resolved.url
+        FROM "Product" p
+        CROSS JOIN LATERAL (
+            SELECT COALESCE(
+                (
+                    SELECT pi."ImageUrl"
+                    FROM "ProductImage" pi
+                    WHERE pi."ProductId" = p."Id"
+                    ORDER BY pi."IsPrimary" DESC, pi."SortOrder", pi."Id"
+                    LIMIT 1
+                ),
+                (
+                    SELECT pci."ImageUrl"
+                    FROM "ProductColorImage" pci
+                    WHERE pci."ProductId" = p."Id"
+                    ORDER BY pci."SortOrder", pci."Id"
+                    LIMIT 1
+                ),
+                (
+                    SELECT pcsi."ImageUrl"
+                    FROM "ProductColorSizeImage" pcsi
+                    WHERE pcsi."ProductId" = p."Id"
+                    ORDER BY pcsi."SortOrder", pcsi."Id"
+                    LIMIT 1
+                ),
+                NULLIF(p."ImageUrl", '')
+            ) AS url
+        ) resolved
+        WHERE oi."ProductId" = p."Id"
+          AND (oi."ProductImageUrl" IS NULL OR oi."ProductImageUrl" = '')
+          AND resolved.url IS NOT NULL;
+        """;
+
     public static async Task EnsureSnapshotColumnsAsync(
         YarneDbContext db,
         ILogger logger,
@@ -79,7 +114,8 @@ public static class OrderItemSchemaPatches
         try
         {
             await db.Database.ExecuteSqlRawAsync(EnsureSnapshotSql, cancellationToken);
-            logger.LogInformation("Verified OrderItem product snapshot columns.");
+            await db.Database.ExecuteSqlRawAsync(BackfillMissingSnapshotImagesSql, cancellationToken);
+            logger.LogInformation("Verified OrderItem product snapshot columns and backfilled missing images.");
         }
         catch (Exception ex)
         {

@@ -424,7 +424,18 @@ public class OrdersController : ControllerBase
             .Include(o => o.Customer)
             .Include(o => o.PaymentMethod)
             .Include(o => o.OrderItems)
-                .ThenInclude(oi => oi.Country);
+                .ThenInclude(oi => oi.Country)
+            .Include(o => o.OrderItems)
+                .ThenInclude(oi => oi.Product)
+                    .ThenInclude(p => p!.ProductImages)
+            .Include(o => o.OrderItems)
+                .ThenInclude(oi => oi.Product)
+                    .ThenInclude(p => p!.ProductColors)
+                        .ThenInclude(pc => pc.Images)
+            .Include(o => o.OrderItems)
+                .ThenInclude(oi => oi.Product)
+                    .ThenInclude(p => p!.ProductColors)
+                        .ThenInclude(pc => pc.SizeImages);
     }
 
     private IQueryable<Order> BuildOrderQuery()
