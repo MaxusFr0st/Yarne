@@ -1,24 +1,72 @@
 import type { Area } from "react-easy-crop";
+import { buildApiUrl, resolveApiBase } from "../api/base";
 
 function getAuthToken(): string | null {
   return sessionStorage.getItem("auth_token") ?? localStorage.getItem("auth_token");
 }
 
-async function fetchAsBlobUrl(src: string): Promise<string> {
-  const isPublicUpload = /\/uploads\//i.test(src);
-  const headers: HeadersInit = {};
-  if (!isPublicUpload) {
-    const token = getAuthToken();
-    if (token) {
-      (headers as Record<string, string>)["Authorization"] = `Bearer ${token}`;
-    }
+/** Extract `/uploads/...` from a stored path or absolute URL. */
+export function extractUploadPath(src: string): string | null {
+  const trimmed = src.trim();
+  if (trimmed.startsWith("/uploads/")) return trimmed;
+  try {
+    const parsed = new URL(trimmed);
+    if (parsed.pathname.startsWith("/uploads/")) return parsed.pathname;
+  } catch {
+    return null;
+  }
+  return null;
+}
+
+async function fetchUploadPathViaApi(uploadPath: string): Promise<string> {
+  const token = getAuthToken();
+  if (!token) {
+    throw new Error("You are not signed in. Log in as admin and try again.");
   }
 
-  const res = await fetch(src, {
-    mode: "cors",
-    credentials: "omit",
-    ...(Object.keys(headers).length ? { headers } : {}),
-  });
+  const apiUrl = buildApiUrl(
+    resolveApiBase(),
+    `/api/images/file?path=${encodeURIComponent(uploadPath)}`,
+  );
+
+  let res: Response;
+  try {
+    res = await fetch(apiUrl, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+  } catch {
+    throw new Error(
+      "Could not reach the API to load this image. Check your connection and that the backend allows this site in CORS.",
+    );
+  }
+
+  if (!res.ok) {
+    throw new Error(`Could not load image for cropping (${res.status}).`);
+  }
+
+  return URL.createObjectURL(await res.blob());
+}
+
+async function fetchRemoteAsBlobUrl(src: string): Promise<string> {
+  const headers: HeadersInit = {};
+  const token = getAuthToken();
+  if (token) {
+    (headers as Record<string, string>)["Authorization"] = `Bearer ${token}`;
+  }
+
+  let res: Response;
+  try {
+    res = await fetch(src, {
+      mode: "cors",
+      credentials: "omit",
+      ...(Object.keys(headers).length ? { headers } : {}),
+    });
+  } catch {
+    throw new Error(
+      "Could not load this image for cropping (network or CORS). Re-upload from device instead.",
+    );
+  }
+
   if (!res.ok) {
     throw new Error(
       res.status === 0 || res.type === "opaque"
@@ -32,7 +80,13 @@ async function fetchAsBlobUrl(src: string): Promise<string> {
 /** Loads remote images as blob URLs so canvas crop works across origins. */
 export async function resolveImageSrcForCrop(src: string): Promise<string> {
   if (src.startsWith("data:") || src.startsWith("blob:")) return src;
-  return fetchAsBlobUrl(src);
+
+  const uploadPath = extractUploadPath(src);
+  if (uploadPath) {
+    return fetchUploadPathViaApi(uploadPath);
+  }
+
+  return fetchRemoteAsBlobUrl(src);
 }
 
 export function revokeCropImageSrc(src: string | undefined) {
@@ -56,11 +110,11 @@ async function toCanvasSafeSrc(imageSrc: string): Promise<{ src: string; revoke?
   if (imageSrc.startsWith("data:") || imageSrc.startsWith("blob:")) {
     return { src: imageSrc };
   }
-  if (/^https?:\/\//i.test(imageSrc)) {
-    const blobUrl = await fetchAsBlobUrl(imageSrc);
-    return { src: blobUrl, revoke: blobUrl };
-  }
-  return { src: imageSrc };
+  const safeSrc = await resolveImageSrcForCrop(imageSrc);
+  return {
+    src: safeSrc,
+    revoke: safeSrc.startsWith("blob:") ? safeSrc : undefined,
+  };
 }
 
 export async function getCroppedImageBlob(
