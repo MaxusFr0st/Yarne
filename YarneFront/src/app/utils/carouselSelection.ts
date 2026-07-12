@@ -44,6 +44,7 @@ export async function loadCarouselSelection(): Promise<{ configured: boolean; pr
   return { configured: false, productCodes: [] };
 }
 
+/** Admin: server is source of truth. Never push stale localStorage back to the API. */
 export async function loadCarouselSelectionForAdmin(): Promise<{ configured: boolean; productCodes: string[] }> {
   try {
     const remote = await fetchStorefrontSetting<string[]>(CAROUSEL_PRODUCT_CODES_KEY);
@@ -53,7 +54,7 @@ export async function loadCarouselSelectionForAdmin(): Promise<{ configured: boo
       return { configured: true, productCodes };
     }
   } catch {
-    // continue
+    // API unavailable — show local draft only; do not overwrite server.
   }
 
   const local = readLocalCarousel();
@@ -61,8 +62,7 @@ export async function loadCarouselSelectionForAdmin(): Promise<{ configured: boo
     return { configured: false, productCodes: [] };
   }
 
-  await saveStorefrontSetting(CAROUSEL_PRODUCT_CODES_KEY, local.productCodes);
-  return local;
+  return { configured: true, productCodes: normalizeCodes(local.productCodes) };
 }
 
 export async function persistCarouselSelection(productCodes: string[]): Promise<string[]> {
