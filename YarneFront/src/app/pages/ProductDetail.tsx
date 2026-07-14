@@ -537,20 +537,25 @@ export function ProductDetail() {
                   {t("product.sizeGuide")}
                 </button>
               </div>
-              <div className="flex flex-wrap gap-2">
+              <div className={`flex flex-wrap gap-2 ${displaySizes.length === 1 ? "justify-start" : ""}`}>
                 {displaySizes.map((size) => {
                   const sizeMeta = product?.sizes.find((s) => s.name === size);
                   const sizeLabel = localizedCatalogName(size, sizeMeta?.nameUk, locale);
+                  const single = displaySizes.length === 1;
                   return (
                   <motion.button
                     key={size}
+                    type="button"
                     onClick={() => { setActiveSize(size); setSizeError(false); }}
-                    className="min-w-[52px] py-2.5 rounded-full text-xs cursor-pointer"
+                    className="rounded-full text-sm cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2D241E]/35"
                     animate={{ scale: activeSize === size ? 1.03 : 1 }}
                     transition={{ duration: 0.2, ease: easing }}
                     style={{
                       fontFamily: "'DM Sans', sans-serif",
                       letterSpacing: "0.08em",
+                      minHeight: "44px",
+                      minWidth: single ? undefined : "52px",
+                      padding: single ? "10px 22px" : "10px 14px",
                       backgroundColor: activeSize === size ? "#2D241E" : "transparent",
                       color: activeSize === size ? "#F5F2ED" : "#2D241E",
                       border: activeSize === size
@@ -592,14 +597,15 @@ export function ProductDetail() {
             {/* Add to Bag */}
             <div className="flex gap-3">
               <motion.button
+                type="button"
                 onClick={handleAddToBag}
                 disabled={outOfStock}
-                className="flex-1 py-4 rounded-full flex items-center justify-center gap-3 text-white transition-all duration-300 disabled:opacity-40 disabled:cursor-not-allowed"
+                className="flex-1 min-h-[48px] py-3.5 rounded-full flex items-center justify-center gap-3 text-white transition-colors duration-200 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2D241E]/35"
                 style={{
                   backgroundColor: outOfStock ? "#9A9088" : addedToBag ? "#2D5928" : "#2D241E",
                   fontFamily: "'DM Sans', sans-serif",
-                  fontSize: "0.78rem",
-                  letterSpacing: "0.14em",
+                  fontSize: "0.8rem",
+                  letterSpacing: "0.12em",
                 }}
                 whileTap={{ scale: 0.98 }}
               >

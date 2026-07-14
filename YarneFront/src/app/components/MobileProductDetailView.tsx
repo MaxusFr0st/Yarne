@@ -219,7 +219,7 @@ export function MobileProductDetailView({
             style={{
               fontFamily: "'DM Sans', sans-serif",
               letterSpacing: "0.18em",
-              fontSize: "clamp(0.58rem, 2.3vw, 0.68rem)",
+              fontSize: "clamp(0.64rem, 2.4vw, 0.74rem)",
             }}
           >
             {product.category}
@@ -252,7 +252,7 @@ export function MobileProductDetailView({
                   className="text-[#2D241E]/60"
                   style={{
                     fontFamily: "'DM Sans', sans-serif",
-                    fontSize: "clamp(0.7rem, 2.7vw, 0.8rem)",
+                    fontSize: "clamp(0.76rem, 2.85vw, 0.88rem)",
                     lineHeight: 1.45,
                   }}
                 >
@@ -264,7 +264,7 @@ export function MobileProductDetailView({
                   className="text-[#2D241E]/65"
                   style={{
                     fontFamily: "'DM Sans', sans-serif",
-                    fontSize: "clamp(0.72rem, 2.9vw, 0.84rem)",
+                    fontSize: "clamp(0.78rem, 3vw, 0.9rem)",
                     lineHeight: 1.5,
                   }}
                 >
@@ -287,7 +287,7 @@ export function MobileProductDetailView({
                     className="flex items-start gap-[clamp(8px,2vw,10px)] text-[#2D241E]/60"
                     style={{
                       fontFamily: "'DM Sans', sans-serif",
-                      fontSize: "clamp(0.72rem, 2.9vw, 0.84rem)",
+                      fontSize: "clamp(0.78rem, 3vw, 0.9rem)",
                       lineHeight: 1.5,
                     }}
                   >
@@ -301,7 +301,7 @@ export function MobileProductDetailView({
                     className="flex items-start gap-[clamp(8px,2vw,10px)] text-[#2D241E]/60"
                     style={{
                       fontFamily: "'DM Sans', sans-serif",
-                      fontSize: "clamp(0.72rem, 2.9vw, 0.84rem)",
+                      fontSize: "clamp(0.78rem, 3vw, 0.9rem)",
                       lineHeight: 1.5,
                     }}
                   >
@@ -320,7 +320,7 @@ export function MobileProductDetailView({
                 style={{
                   fontFamily: "'DM Sans', sans-serif",
                   letterSpacing: "0.14em",
-                  fontSize: "clamp(0.58rem, 2.3vw, 0.68rem)",
+                  fontSize: "clamp(0.64rem, 2.4vw, 0.74rem)",
                 }}
               >
                 {t("product.colour")}
@@ -329,7 +329,7 @@ export function MobileProductDetailView({
                 className="text-[#2D241E]/55"
                 style={{
                   fontFamily: "'DM Sans', sans-serif",
-                  fontSize: "clamp(0.7rem, 2.7vw, 0.8rem)",
+                  fontSize: "clamp(0.76rem, 2.85vw, 0.88rem)",
                 }}
               >
                   <AnimatePresence mode="wait">
@@ -394,7 +394,7 @@ export function MobileProductDetailView({
                   style={{
                     fontFamily: "'DM Sans', sans-serif",
                     letterSpacing: "0.14em",
-                    fontSize: "clamp(0.58rem, 2.3vw, 0.68rem)",
+                    fontSize: "clamp(0.64rem, 2.4vw, 0.74rem)",
                   }}
                 >
                   {t("product.furniture")}
@@ -403,7 +403,7 @@ export function MobileProductDetailView({
                   className="text-[#2D241E]/55"
                   style={{
                     fontFamily: "'DM Sans', sans-serif",
-                    fontSize: "clamp(0.7rem, 2.7vw, 0.8rem)",
+                    fontSize: "clamp(0.76rem, 2.85vw, 0.88rem)",
                   }}
                 >
                   <AnimatePresence mode="wait">
@@ -468,7 +468,7 @@ export function MobileProductDetailView({
                 style={{
                   fontFamily: "'DM Sans', sans-serif",
                   letterSpacing: "0.14em",
-                  fontSize: "clamp(0.58rem, 2.3vw, 0.68rem)",
+                  fontSize: "clamp(0.64rem, 2.4vw, 0.74rem)",
                 }}
               >
                 {t("product.lace.label")}
@@ -521,7 +521,7 @@ export function MobileProductDetailView({
                   style={{
                     fontFamily: "'DM Sans', sans-serif",
                     letterSpacing: "0.14em",
-                    fontSize: "clamp(0.58rem, 2.3vw, 0.68rem)",
+                    fontSize: "clamp(0.64rem, 2.4vw, 0.74rem)",
                   }}
                 >
                   {t("product.size")}
@@ -531,7 +531,7 @@ export function MobileProductDetailView({
                     className={displayStock <= 0 ? "text-[#4A0E0E]/75" : "text-[#2D241E]/50"}
                     style={{
                       fontFamily: "'DM Sans', sans-serif",
-                      fontSize: "clamp(0.62rem, 2.3vw, 0.72rem)",
+                      fontSize: "clamp(0.68rem, 2.45vw, 0.78rem)",
                     }}
                   >
                     {displayStock <= 0
@@ -541,10 +541,9 @@ export function MobileProductDetailView({
                 )}
               </div>
               <div
-                className="grid gap-[clamp(5px,1.2vw,7px)] px-[2px] py-[2px]"
-                style={{
-                  gridTemplateColumns: `repeat(${Math.min(displaySizes.length, 5)}, minmax(0, 1fr))`,
-                }}
+                className={`flex flex-wrap gap-[clamp(6px,1.4vw,8px)] ${
+                  displaySizes.length === 1 ? "justify-start" : ""
+                }`}
               >
                 {displaySizes.map((size) => {
                   const isActive = activeSize === size;
@@ -552,9 +551,14 @@ export function MobileProductDetailView({
                   const sizeLabel = localizedCatalogName(size, sizeMeta?.nameUk, locale);
                   const sizeStyle = {
                     fontFamily: "'DM Sans', sans-serif",
-                    fontSize: "clamp(0.66rem, 2.5vw, 0.76rem)",
-                    letterSpacing: "0.04em",
-                    padding: "clamp(6px, 1.6vw, 8px) clamp(4px, 1vw, 6px)",
+                    fontSize: "clamp(0.72rem, 2.7vw, 0.82rem)",
+                    letterSpacing: "0.06em",
+                    padding:
+                      displaySizes.length === 1
+                        ? "clamp(9px, 2.2vw, 11px) clamp(18px, 5vw, 28px)"
+                        : "clamp(9px, 2.2vw, 11px) clamp(10px, 2.4vw, 14px)",
+                    minHeight: "44px",
+                    minWidth: displaySizes.length === 1 ? "auto" : "clamp(44px, 12vw, 56px)",
                     backgroundColor: isActive ? "#2D241E" : "transparent",
                     color: isActive ? "#F5F2ED" : "#2D241E",
                     border: isActive
@@ -571,7 +575,7 @@ export function MobileProductDetailView({
                         key={size}
                         type="button"
                         onClick={() => onSizeChange(size)}
-                        className="relative w-full rounded-full cursor-pointer"
+                        className="relative rounded-full cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2D241E]/35"
                         style={sizeStyle}
                       >
                         {sizeLabel}
@@ -584,7 +588,7 @@ export function MobileProductDetailView({
                       key={size}
                       type="button"
                       onClick={() => onSizeChange(size)}
-                      className="relative w-full rounded-full cursor-pointer"
+                      className="relative rounded-full cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2D241E]/35"
                       animate={{ scale: isActive ? 1.02 : 1 }}
                       transition={{ duration: 0.2, ease: transitionEase }}
                       style={sizeStyle}
@@ -614,13 +618,14 @@ export function MobileProductDetailView({
             type="button"
             onClick={onAddToBag}
             disabled={outOfStock}
-            className="shrink-0 mt-[clamp(6px,1.4svh,10px)] w-full flex items-center justify-center gap-2 rounded-full text-white disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+            className="shrink-0 mt-[clamp(6px,1.4svh,10px)] w-full min-h-[48px] flex items-center justify-center gap-2 rounded-full text-white disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40"
           style={{
             backgroundColor: outOfStock ? "#9A9088" : addedToBag ? "#2D5928" : "#2D241E",
             fontFamily: "'DM Sans', sans-serif",
-            fontSize: "clamp(0.66rem, 2.6vw, 0.78rem)",
-            letterSpacing: "0.12em",
-            padding: "clamp(11px, 2.6svh, 14px) clamp(16px, 4vw, 20px)",
+            fontSize: "clamp(0.74rem, 2.8vw, 0.86rem)",
+            letterSpacing: "0.11em",
+            padding: "clamp(12px, 2.8svh, 14px) clamp(16px, 4vw, 20px)",
+            transition: "background-color 0.22s ease, opacity 0.22s ease",
           }}
           whileTap={motionEnabled ? { scale: 0.98 } : undefined}
         >
@@ -653,7 +658,7 @@ export function MobileProductDetailView({
 const accordionHeaderStyle = {
   fontFamily: "'DM Sans', sans-serif",
   letterSpacing: "0.14em",
-  fontSize: "clamp(0.58rem, 2.3vw, 0.68rem)",
+  fontSize: "clamp(0.64rem, 2.4vw, 0.74rem)",
 } as const;
 
 type MobileAccordionSectionProps = {
