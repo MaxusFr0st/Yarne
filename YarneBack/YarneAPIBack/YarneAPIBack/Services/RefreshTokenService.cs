@@ -15,21 +15,35 @@ public sealed class RefreshTokenService : IRefreshTokenService
     private readonly YarneDbContext _context;
     private readonly JwtSettings _jwtSettings;
     private readonly IAccessTokenIssuer _accessTokens;
+    private readonly ILogger<RefreshTokenService> _logger;
 
     public RefreshTokenService(
         YarneDbContext context,
         IOptions<JwtSettings> jwtSettings,
-        IAccessTokenIssuer accessTokens)
+        IAccessTokenIssuer accessTokens,
+        ILogger<RefreshTokenService> logger)
     {
         _context = context;
         _jwtSettings = jwtSettings.Value;
         _accessTokens = accessTokens;
+        _logger = logger;
     }
 
     public async Task AttachNewRefreshAsync(AuthResponse access, CancellationToken ct = default)
     {
         if (access.CustomerId <= 0)
             throw new InvalidOperationException("AuthResponse.CustomerId is required to issue a refresh token.");
+
+        // Self-heal if bootstrap missed creating the table on a prior deploy.
+        try
+        {
+            await RefreshTokenSchemaPatches.ForceEnsureAsync(_context, _logger, ct);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Could not ensure RefreshToken table before issuing refresh cookie.");
+            throw;
+        }
 
         var raw = CreateRawToken();
         var expires = DateTime.UtcNow.Add(_jwtSettings.RefreshExpiration);

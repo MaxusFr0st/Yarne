@@ -25,6 +25,16 @@ public static class DatabaseBootstrap
 
         await OrderItemSchemaPatches.ForceEnsureSnapshotColumnsAsync(db, logger, cancellationToken);
 
+        // RefreshToken is required by cookie auth login/refresh — ensure before other work.
+        try
+        {
+            await RefreshTokenSchemaPatches.ForceEnsureAsync(db, logger, cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "RefreshToken schema not ready at bootstrap start; will retry after migrations.");
+        }
+
         // Catalog columns/tables are required by Product EF queries (NameUk, furniture).
         const int catalogAttempts = 8;
         for (var attempt = 1; attempt <= catalogAttempts; attempt++)
@@ -60,6 +70,14 @@ public static class DatabaseBootstrap
             {
                 logger.LogError(catalogEx, "Catalog schema re-apply failed after migration failure.");
             }
+            try
+            {
+                await RefreshTokenSchemaPatches.ForceEnsureAsync(db, logger, cancellationToken);
+            }
+            catch (Exception refreshEx)
+            {
+                logger.LogError(refreshEx, "RefreshToken schema re-apply failed after migration failure.");
+            }
         }
 
         // Final guarantee before marking bootstrap ready — products crash without this.
@@ -70,6 +88,15 @@ public static class DatabaseBootstrap
         catch (Exception catalogEx)
         {
             logger.LogError(catalogEx, "Catalog schema still missing after bootstrap; /api/products will 500 until fixed.");
+        }
+
+        try
+        {
+            await RefreshTokenSchemaPatches.ForceEnsureAsync(db, logger, cancellationToken);
+        }
+        catch (Exception refreshEx)
+        {
+            logger.LogError(refreshEx, "RefreshToken schema still missing after bootstrap; /api/auth/login will 500 until fixed.");
         }
 
         if (runStartupDbPatches)
