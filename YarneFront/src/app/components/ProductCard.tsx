@@ -55,7 +55,7 @@ function ProductCardInner({
   };
   const { addToCart } = useCart();
   const { wishlist, toggleWishlist } = useWishlist();
-  const { disabled: motionDisabled, opacityOnly } = useMotionEntrance();
+  const { disabled: motionDisabled } = useMotionEntrance();
   const touchMobile = useTouchMobileLayout();
   const [mobilePeek, setMobilePeek] = useState(false);
 
@@ -154,17 +154,11 @@ function ProductCardInner({
   const useCarouselViewport = inCarousel && viewportRoot;
   const viewport = useCarouselViewport
     ? { root: viewportRoot, margin: "0px 80px", amount: 0.2, once: true }
-    : { once: true, margin: "-60px" };
-  const entranceInitial = motionDisabled
-    ? false
-    : opacityOnly || subtleEntrance || useCarouselViewport || inCarousel
-      ? { opacity: 0 }
-      : { opacity: 0, y: 40 };
-  const entranceAnimate = motionDisabled
-    ? undefined
-    : opacityOnly || subtleEntrance || useCarouselViewport || inCarousel
-      ? { opacity: 1 }
-      : { opacity: 1, y: 0 };
+    : { once: true, margin: touchMobile ? "-24px" : "-60px" };
+  // Soft slide-up everywhere — smaller travel on phone / carousel so it glides, not jumps
+  const entranceY = touchMobile || subtleEntrance || useCarouselViewport || inCarousel ? 16 : 40;
+  const entranceInitial = motionDisabled ? false : { opacity: 0, y: entranceY };
+  const entranceAnimate = motionDisabled ? undefined : { opacity: 1, y: 0 };
 
   const cardBody = (
     <>
@@ -331,7 +325,11 @@ function ProductCardInner({
       initial={entranceInitial}
       whileInView={entranceAnimate}
       viewport={motionDisabled ? undefined : (useCarouselViewport || !inCarousel ? viewport : undefined)}
-      transition={{ duration: 0.5, delay: inCarousel ? 0 : index * 0.08, ease: [0.25, 0.1, 0.25, 1] }}
+      transition={{
+        duration: touchMobile ? 0.72 : 0.5,
+        delay: inCarousel || touchMobile ? 0 : index * 0.08,
+        ease: [0.25, 0.1, 0.25, 1],
+      }}
       className={`group/card ${isCarouselCard ? "overflow-visible" : ""}`}
       data-product-card={product.id}
     >

@@ -4,21 +4,27 @@ import { useRef } from "react";
 import type { CSSProperties, ReactNode } from "react";
 import { useTouchMobileLayout } from "../hooks/useTouchMobileLayout";
 
+/** Soft settle — a touch longer on mobile so the slide reads continuous, not snappy. */
 const EASE_OUT = [0.22, 1, 0.36, 1] as const;
+const EASE_MOBILE = [0.25, 0.1, 0.25, 1] as const;
 
 type ScrollRevealProps = {
   children: ReactNode;
   className?: string;
   style?: CSSProperties;
-  /** Stagger delay in seconds */
+  /** Stagger delay in seconds — capped on touch to avoid cascading pops */
   delay?: number;
-  /** Vertical offset in px — opacity-only on touch */
+  /** Vertical offset in px — shorter on touch for a calmer glide */
   y?: number;
   once?: boolean;
   amount?: number;
 };
 
-/** Scroll-triggered reveal — useInView + animate (reliable on mobile Safari). */
+/**
+ * Scroll-triggered reveal.
+ * Desktop: fade + rise.
+ * Touch: same idea but smoother — short slide up, soft opacity, tiny/no stagger.
+ */
 export function ScrollReveal({
   children,
   className = "",
@@ -33,8 +39,9 @@ export function ScrollReveal({
   const ref = useRef<HTMLDivElement>(null);
   const inView = useInView(ref, {
     once,
-    amount,
-    margin: touch ? "0px 0px -8% 0px" : "0px 0px -40px 0px",
+    // Start a bit earlier on phones so the slide is underway before the block is fully on screen
+    amount: touch ? 0.06 : amount,
+    margin: touch ? "0px 0px -4% 0px" : "0px 0px -40px 0px",
   });
 
   if (reduced) {
@@ -45,16 +52,25 @@ export function ScrollReveal({
     );
   }
 
-  const shiftY = touch ? 0 : y;
+  const shiftY = touch ? Math.min(y, 14) : y;
+  const animDelay = touch ? Math.min(delay, 0.04) : delay;
 
   return (
     <motion.div
       ref={ref}
       className={className}
-      style={style}
+      style={{
+        ...style,
+        // Promote to compositor layer for smoother transform/opacity on mobile GPUs
+        willChange: inView ? "auto" : "transform, opacity",
+      }}
       initial={{ opacity: 0, y: shiftY }}
       animate={inView ? { opacity: 1, y: 0 } : { opacity: 0, y: shiftY }}
-      transition={{ duration: touch ? 0.5 : 0.55, delay: touch ? delay * 0.5 : delay, ease: EASE_OUT }}
+      transition={{
+        duration: touch ? 0.7 : 0.55,
+        delay: animDelay,
+        ease: touch ? EASE_MOBILE : EASE_OUT,
+      }}
     >
       {children}
     </motion.div>

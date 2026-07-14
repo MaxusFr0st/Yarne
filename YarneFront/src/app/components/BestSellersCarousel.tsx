@@ -13,7 +13,7 @@ const easing = [0.25, 0.1, 0.25, 1] as const;
 
 export function BestSellersCarousel() {
   const copy = useHomePageCopy();
-  const { disabled: motionDisabled, opacityOnly } = useMotionEntrance();
+  const { disabled: motionDisabled } = useMotionEntrance();
   const touchMobile = useTouchMobileLayout();
   const reduceMotion = useReducedMotion();
   const viewportRef = useRef<HTMLDivElement>(null);
@@ -79,10 +79,10 @@ export function BestSellersCarousel() {
         {/* Sticky section header — pins below the main header while the
             carousel scrolls past, then releases when the section ends. */}
         <motion.div
-          initial={motionDisabled ? false : opacityOnly ? { opacity: 0 } : { opacity: 0, y: 20 }}
-          whileInView={motionDisabled ? undefined : opacityOnly ? { opacity: 1 } : { opacity: 1, y: 0 }}
-          viewport={motionDisabled ? undefined : { once: true, margin: "-80px" }}
-          transition={{ duration: 0.7, ease: easing }}
+          initial={motionDisabled ? false : { opacity: 0, y: touchMobile ? 14 : 20 }}
+          whileInView={motionDisabled ? undefined : { opacity: 1, y: 0 }}
+          viewport={motionDisabled ? undefined : { once: true, margin: touchMobile ? "-24px" : "-80px" }}
+          transition={{ duration: touchMobile ? 0.75 : 0.7, ease: easing }}
           className="md:sticky z-30 mb-3 sm:mb-4 md:mb-10 -mx-6 md:-mx-10 px-6 md:px-10 py-2 md:py-4"
           style={{
             top: "var(--main-header-h)",
@@ -165,10 +165,10 @@ export function BestSellersCarousel() {
               (viewportRef as React.MutableRefObject<HTMLDivElement | null>).current = el;
             }}
             className="bestsellers-carousel relative overflow-x-hidden overflow-y-visible pt-2 pb-3 sm:pt-3 sm:pb-4 md:pt-5 md:pb-6 lg:pt-8 lg:pb-10 px-3 min-[600px]:px-5 md:px-6 lg:px-8"
-            initial={motionDisabled ? false : opacityOnly ? { opacity: 0 } : { opacity: 0, y: 20 }}
-            whileInView={motionDisabled ? undefined : opacityOnly ? { opacity: 1 } : { opacity: 1, y: 0 }}
-            viewport={motionDisabled ? undefined : { once: true, margin: "-60px" }}
-            transition={{ duration: 0.7, delay: 0.1, ease: easing }}
+            initial={motionDisabled ? false : { opacity: 0, y: touchMobile ? 14 : 20 }}
+            whileInView={motionDisabled ? undefined : { opacity: 1, y: 0 }}
+            viewport={motionDisabled ? undefined : { once: true, margin: touchMobile ? "-24px" : "-60px" }}
+            transition={{ duration: touchMobile ? 0.75 : 0.7, delay: touchMobile ? 0 : 0.1, ease: easing }}
           >
             <div
               className="flex items-start pt-2 [touch-action:pan-y_pinch-zoom]"
