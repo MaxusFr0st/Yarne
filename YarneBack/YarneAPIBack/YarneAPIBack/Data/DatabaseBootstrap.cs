@@ -25,14 +25,51 @@ public static class DatabaseBootstrap
 
         await OrderItemSchemaPatches.ForceEnsureSnapshotColumnsAsync(db, logger, cancellationToken);
 
+        // Catalog columns/tables are required by Product EF queries (NameUk, furniture).
+        const int catalogAttempts = 8;
+        for (var attempt = 1; attempt <= catalogAttempts; attempt++)
+        {
+            try
+            {
+                await CatalogSchemaPatches.ForceEnsureAsync(db, logger, cancellationToken);
+                break;
+            }
+            catch (Exception ex) when (attempt < catalogAttempts)
+            {
+                var delay = TimeSpan.FromSeconds(Math.Min(15, attempt * 2));
+                logger.LogWarning(ex,
+                    "Catalog schema not ready. Attempt {Attempt}/{Max}. Retrying in {Delay}s.",
+                    attempt, catalogAttempts, delay.TotalSeconds);
+                await Task.Delay(delay, cancellationToken);
+            }
+        }
+
         try
         {
             await DatabaseStartup.ApplyMigrationsWithRetryAsync(db, logger, cancellationToken: cancellationToken);
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "EF migrations failed. Re-applying critical OrderItem schema patches before continuing.");
+            logger.LogError(ex, "EF migrations failed. Re-applying critical schema patches before continuing.");
             await OrderItemSchemaPatches.ForceEnsureSnapshotColumnsAsync(db, logger, cancellationToken);
+            try
+            {
+                await CatalogSchemaPatches.ForceEnsureAsync(db, logger, cancellationToken);
+            }
+            catch (Exception catalogEx)
+            {
+                logger.LogError(catalogEx, "Catalog schema re-apply failed after migration failure.");
+            }
+        }
+
+        // Final guarantee before marking bootstrap ready — products crash without this.
+        try
+        {
+            await CatalogSchemaPatches.ForceEnsureAsync(db, logger, cancellationToken);
+        }
+        catch (Exception catalogEx)
+        {
+            logger.LogError(catalogEx, "Catalog schema still missing after bootstrap; /api/products will 500 until fixed.");
         }
 
         if (runStartupDbPatches)
