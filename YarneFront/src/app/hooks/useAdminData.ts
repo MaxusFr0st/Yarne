@@ -88,7 +88,15 @@ function mapProductDtoToProduct(d: ProductDto): Product & { idNum: number; sku: 
     isNew: d.isNew ?? false,
     isBestseller: d.isBestseller ?? false,
     lace: d.lace ?? false,
-    sizes: d.sizes?.length ? d.sizes : ["XS", "S", "M", "L", "XL"],
+    sizes: d.sizes?.length
+      ? d.sizes.map((s) => ({ name: s.name, nameUk: s.nameUk ?? null }))
+      : [
+          { name: "XS" },
+          { name: "S" },
+          { name: "M" },
+          { name: "L" },
+          { name: "XL" },
+        ],
     defaultSize: d.defaultSize ?? undefined,
     defaultColor: d.defaultColor ?? undefined,
     defaultFurnitureColor: d.defaultFurnitureColor ?? undefined,
@@ -415,14 +423,14 @@ export function useAdminData() {
     setFurnitureColors((prev) => prev.filter((c) => c.id !== id));
   }, []);
 
-  const addSize = useCallback(async (name: string) => {
-    const created = await createSize(name);
+  const addSize = useCallback(async (name: string, nameUk?: string) => {
+    const created = await createSize(name, nameUk);
     setSizes((prev) => [...prev, created].sort((a, b) => a.name.localeCompare(b.name)));
     return created;
   }, []);
 
-  const editSize = useCallback(async (id: number, name: string) => {
-    const updated = await updateSize(id, name);
+  const editSize = useCallback(async (id: number, name: string, nameUk?: string) => {
+    const updated = await updateSize(id, name, nameUk);
     setSizes((prev) =>
       prev.map((s) => (s.id === id ? updated : s)).sort((a, b) => a.name.localeCompare(b.name))
     );

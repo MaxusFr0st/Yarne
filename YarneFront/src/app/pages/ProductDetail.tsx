@@ -104,7 +104,10 @@ export function ProductDetail() {
         ])
       )
     : [];
-  const displaySizes = colorScopedSizes.length > 0 ? colorScopedSizes : (product?.sizes ?? []);
+  const displaySizes =
+    colorScopedSizes.length > 0
+      ? colorScopedSizes
+      : (product?.sizes ?? []).map((s) => s.name);
 
   useEffect(() => {
     if (!product) return;
@@ -535,7 +538,10 @@ export function ProductDetail() {
                 </button>
               </div>
               <div className="flex flex-wrap gap-2">
-                {displaySizes.map((size) => (
+                {displaySizes.map((size) => {
+                  const sizeMeta = product?.sizes.find((s) => s.name === size);
+                  const sizeLabel = localizedCatalogName(size, sizeMeta?.nameUk, locale);
+                  return (
                   <motion.button
                     key={size}
                     onClick={() => { setActiveSize(size); setSizeError(false); }}
@@ -555,9 +561,10 @@ export function ProductDetail() {
                       transition: "background-color 0.22s ease, color 0.22s ease, border-color 0.22s ease",
                     }}
                   >
-                    {size}
+                    {sizeLabel}
                   </motion.button>
-                ))}
+                  );
+                })}
               </div>
               <AnimatePresence>
                 {sizeError && (

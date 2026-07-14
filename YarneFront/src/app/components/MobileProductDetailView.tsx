@@ -548,6 +548,8 @@ export function MobileProductDetailView({
               >
                 {displaySizes.map((size) => {
                   const isActive = activeSize === size;
+                  const sizeMeta = product.sizes.find((s) => s.name === size);
+                  const sizeLabel = localizedCatalogName(size, sizeMeta?.nameUk, locale);
                   const sizeStyle = {
                     fontFamily: "'DM Sans', sans-serif",
                     fontSize: "clamp(0.66rem, 2.5vw, 0.76rem)",
@@ -572,7 +574,7 @@ export function MobileProductDetailView({
                         className="relative w-full rounded-full cursor-pointer"
                         style={sizeStyle}
                       >
-                        {size}
+                        {sizeLabel}
                       </button>
                     );
                   }
@@ -587,7 +589,7 @@ export function MobileProductDetailView({
                       transition={{ duration: 0.2, ease: transitionEase }}
                       style={sizeStyle}
                     >
-                      {size}
+                      {sizeLabel}
                     </motion.button>
                   );
                 })}

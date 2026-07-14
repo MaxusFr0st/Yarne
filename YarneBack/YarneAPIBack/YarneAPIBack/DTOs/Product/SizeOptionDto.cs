@@ -1,8 +1,8 @@
-namespace YarneAPIBack.DTOs.Size;
+namespace YarneAPIBack.DTOs.Product;
 
-public class SizeDto
+public class SizeOptionDto
 {
-    public int Id { get; set; }
     public string Name { get; set; } = null!;
+
     public string? NameUk { get; set; }
 }

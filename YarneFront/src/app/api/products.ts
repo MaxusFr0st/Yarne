@@ -24,6 +24,11 @@ export interface FurnitureColorVariantDto {
   hex: string;
 }
 
+export interface SizeOptionDto {
+  name: string;
+  nameUk?: string | null;
+}
+
 export interface ProductDto {
   id: number;
   productCode: string;
@@ -36,7 +41,7 @@ export interface ProductDto {
   imageUrls: string[];
   colors?: ColorVariantDto[];
   furnitureColors?: FurnitureColorVariantDto[];
-  sizes?: string[];
+  sizes?: SizeOptionDto[];
   defaultSize?: string | null;
   defaultColor?: string | null;
   defaultFurnitureColor?: string | null;
@@ -54,7 +59,7 @@ export interface ProductDetailDto extends ProductDto {
   subtitle: string | null;
   isNew: boolean;
   isBestseller: boolean;
-  sizes: string[];
+  sizes: SizeOptionDto[];
   details: string[];
   colors: ColorVariantDto[];
   suggestedProductCodes: string[];

@@ -8,6 +8,12 @@ import { uploadImage } from "../api/images";
 import { uploadCroppedWithOriginal, uploadRawMediaFile, toUploadableCroppedFile } from "../utils/uploadCropPair";
 import { purgeUploadIfOrphaned } from "../utils/purgeUpload";
 import { AdminColorPicker, sanitizeColorHex } from "../components/admin/AdminColorPicker";
+import {
+  AdminModalShell,
+  AdminModalCancelButton,
+  AdminModalPrimaryButton,
+  adminBilingualLabel,
+} from "../components/admin/AdminModalShell";
 import { ImageCropDialog } from "../components/admin/ImageCropDialog";
 import { ProductCardPreviewPanel } from "../components/admin/ProductCardPreviewPanel";
 import { fileToDataUrl, extractUploadPath, resolveImageSrcForCrop, revokeCropImageSrc } from "../utils/cropImage";
@@ -98,6 +104,15 @@ import { OrderLineDetails, orderItemDtoToLineDetails } from "../components/Order
 
 const easing = [0.25, 0.1, 0.25, 1] as const;
 const CONTENTS_CROP_META_ID = "admin-contents";
+
+const ADMIN_ADD_BTN =
+  "flex items-center gap-2 px-6 py-3 rounded-full text-[#F5F2ED] transition-all hover:opacity-90 flex-shrink-0 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2D241E]/30 focus-visible:ring-offset-2 focus-visible:ring-offset-[#F5F2ED]";
+const ADMIN_ROW =
+  "grid items-center px-6 py-4 hover:bg-[#2D241E]/[0.03] transition-colors";
+const ADMIN_ICON_BTN =
+  "w-8 h-8 rounded-full flex items-center justify-center transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2D241E]/30";
+const ADMIN_ICON_EDIT = `${ADMIN_ICON_BTN} hover:bg-[#2D241E]/8`;
+const ADMIN_ICON_DELETE = `${ADMIN_ICON_BTN} hover:bg-[#4A0E0E]/8`;
 
 /* ─────────────────────────────────────────────
    TYPES
@@ -373,7 +388,7 @@ function ProductModal({
   categories: { id: number; name: string }[];
   colors: { id: number; name: string; nameUk?: string | null; hexCode: string }[];
   furnitureColors: { id: number; name: string; nameUk?: string | null; hexCode: string }[];
-  sizes: { id: number; name: string }[];
+  sizes: { id: number; name: string; nameUk?: string | null }[];
   saveError?: string | null;
   onClose: () => void;
   onSave: (data: ProductFormData) => void;
@@ -1514,7 +1529,7 @@ function ProductModal({
                                 className="px-3 py-1.5 rounded-full border text-xs"
                                 style={{ fontFamily: "'DM Sans', sans-serif", borderColor: selected ? "#2D241E" : "rgba(45,36,30,0.2)", backgroundColor: selected ? "rgba(45,36,30,0.06)" : "transparent" }}
                               >
-                                {s.name}
+                                {adminBilingualLabel(s.name, s.nameUk)}
                               </button>
                             );
                           })}
@@ -1981,80 +1996,60 @@ function UserModal({
 
   const isEditing = false;
 
+  const fieldLabel =
+    "block text-xs mb-2 tracking-widest uppercase";
+  const fieldLabelStyle: React.CSSProperties = {
+    fontFamily: "'DM Sans', sans-serif",
+    color: "rgba(45,36,30,0.4)",
+    letterSpacing: "0.14em",
+  };
+  const fieldInput =
+    "w-full bg-transparent border rounded-[14px] px-4 py-3 text-[#2D241E] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#2D241E]/20 placeholder:text-[#2D241E]/20";
+  const fieldInputStyle: React.CSSProperties = {
+    fontFamily: "'DM Sans', sans-serif",
+    fontSize: "0.9rem",
+    borderColor: "rgba(45,36,30,0.15)",
+  };
+
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4"
-      style={{ backgroundColor: "rgba(45,36,30,0.5)", backdropFilter: "blur(8px)" }}
+    <AdminModalShell
+      eyebrow="New User"
+      title="Register Customer"
+      onClose={onClose}
+      maxWidth="lg"
+      bodyClassName="p-8 space-y-5"
+      footer={
+        <>
+          <AdminModalCancelButton onClick={onClose} />
+          <AdminModalPrimaryButton onClick={() => onSave(form)}>
+            {isEditing ? "Save Changes" : "Add User"}
+          </AdminModalPrimaryButton>
+        </>
+      }
     >
-      <motion.div
-        className="w-full max-w-lg rounded-[32px] overflow-hidden"
-        style={{ backgroundColor: "#F5F2ED" }}
-        initial={{ opacity: 0, scale: 0.95, y: 20 }}
-        animate={{ opacity: 1, scale: 1, y: 0 }}
-        exit={{ opacity: 0, scale: 0.95, y: 20 }}
-        transition={{ duration: 0.3, ease: easing }}
-      >
-        <div
-          className="flex items-center justify-between p-8 pb-6"
-          style={{ borderBottom: "1px solid rgba(45,36,30,0.08)" }}
-        >
-          <div>
-            <p
-              className="text-[#2D241E]/40 tracking-widest uppercase text-xs mb-1"
-              style={{ fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.18em" }}
-            >
-              New User
-            </p>
-            <h3
-              className="text-[#2D241E]"
-              style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "1.4rem", fontWeight: 400 }}
-            >
-              Register Customer
-            </h3>
-          </div>
-          <button
-            onClick={onClose}
-            className="w-9 h-9 rounded-full flex items-center justify-center hover:bg-[#2D241E]/5 transition-colors"
-          >
-            <X size={18} style={{ color: "#2D241E" }} />
-          </button>
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <label className={fieldLabel} style={fieldLabelStyle}>First Name</label>
+          <input type="text" value={form.firstName} onChange={(e) => setForm((p) => ({ ...p, firstName: e.target.value }))} placeholder="Sophie" className={fieldInput} style={fieldInputStyle} />
         </div>
-
-        <div className="p-8 space-y-5">
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-xs mb-2 tracking-widest uppercase" style={{ fontFamily: "'DM Sans', sans-serif", color: "rgba(45,36,30,0.4)", letterSpacing: "0.14em" }}>First Name</label>
-              <input type="text" value={form.firstName} onChange={(e) => setForm((p) => ({ ...p, firstName: e.target.value }))} placeholder="Sophie" className="w-full bg-transparent border rounded-[14px] px-4 py-3 text-[#2D241E] focus:outline-none placeholder:text-[#2D241E]/20" style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "0.9rem", borderColor: "rgba(45,36,30,0.15)" }} />
-            </div>
-            <div>
-              <label className="block text-xs mb-2 tracking-widest uppercase" style={{ fontFamily: "'DM Sans', sans-serif", color: "rgba(45,36,30,0.4)", letterSpacing: "0.14em" }}>Last Name</label>
-              <input type="text" value={form.lastName} onChange={(e) => setForm((p) => ({ ...p, lastName: e.target.value }))} placeholder="Laurent" className="w-full bg-transparent border rounded-[14px] px-4 py-3 text-[#2D241E] focus:outline-none placeholder:text-[#2D241E]/20" style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "0.9rem", borderColor: "rgba(45,36,30,0.15)" }} />
-            </div>
-          </div>
-          <div>
-            <label className="block text-xs mb-2 tracking-widest uppercase" style={{ fontFamily: "'DM Sans', sans-serif", color: "rgba(45,36,30,0.4)", letterSpacing: "0.14em" }}>Username</label>
-            <input type="text" value={form.userName} onChange={(e) => setForm((p) => ({ ...p, userName: e.target.value }))} placeholder="sophie.laurent" className="w-full bg-transparent border rounded-[14px] px-4 py-3 text-[#2D241E] focus:outline-none placeholder:text-[#2D241E]/20" style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "0.9rem", borderColor: "rgba(45,36,30,0.15)" }} />
-          </div>
-          <div>
-            <label className="block text-xs mb-2 tracking-widest uppercase" style={{ fontFamily: "'DM Sans', sans-serif", color: "rgba(45,36,30,0.4)", letterSpacing: "0.14em" }}>Email</label>
-            <input type="email" value={form.email} onChange={(e) => setForm((p) => ({ ...p, email: e.target.value }))} placeholder="sophie@example.com" className="w-full bg-transparent border rounded-[14px] px-4 py-3 text-[#2D241E] focus:outline-none placeholder:text-[#2D241E]/20" style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "0.9rem", borderColor: "rgba(45,36,30,0.15)" }} />
-          </div>
-          <div>
-            <label className="block text-xs mb-2 tracking-widest uppercase" style={{ fontFamily: "'DM Sans', sans-serif", color: "rgba(45,36,30,0.4)", letterSpacing: "0.14em" }}>Password</label>
-            <input type="password" value={form.password} onChange={(e) => setForm((p) => ({ ...p, password: e.target.value }))} placeholder="Min 8 characters" className="w-full bg-transparent border rounded-[14px] px-4 py-3 text-[#2D241E] focus:outline-none placeholder:text-[#2D241E]/20" style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "0.9rem", borderColor: "rgba(45,36,30,0.15)" }} />
-          </div>
+        <div>
+          <label className={fieldLabel} style={fieldLabelStyle}>Last Name</label>
+          <input type="text" value={form.lastName} onChange={(e) => setForm((p) => ({ ...p, lastName: e.target.value }))} placeholder="Laurent" className={fieldInput} style={fieldInputStyle} />
         </div>
-
-        <div className="flex items-center justify-end gap-3 px-8 py-6" style={{ borderTop: "1px solid rgba(45,36,30,0.08)" }}>
-          <button onClick={onClose} className="px-6 py-3 rounded-full border transition-all duration-300 hover:bg-[#2D241E]/5" style={{ borderColor: "rgba(45,36,30,0.2)", fontFamily: "'DM Sans', sans-serif", fontSize: "0.78rem", letterSpacing: "0.12em", color: "rgba(45,36,30,0.6)" }}>
-            <span className="uppercase tracking-widest">Cancel</span>
-          </button>
-          <button onClick={() => onSave(form)} className="px-8 py-3 rounded-full text-[#F5F2ED] transition-all duration-300 hover:opacity-90" style={{ backgroundColor: "#2D241E", fontFamily: "'DM Sans', sans-serif", fontSize: "0.78rem", letterSpacing: "0.12em" }}>
-            <span className="uppercase tracking-widest">{isEditing ? "Save Changes" : "Add User"}</span>
-          </button>
-        </div>
-      </motion.div>
-    </div>
+      </div>
+      <div>
+        <label className={fieldLabel} style={fieldLabelStyle}>Username</label>
+        <input type="text" value={form.userName} onChange={(e) => setForm((p) => ({ ...p, userName: e.target.value }))} placeholder="sophie.laurent" className={fieldInput} style={fieldInputStyle} />
+      </div>
+      <div>
+        <label className={fieldLabel} style={fieldLabelStyle}>Email</label>
+        <input type="email" value={form.email} onChange={(e) => setForm((p) => ({ ...p, email: e.target.value }))} placeholder="sophie@example.com" className={fieldInput} style={fieldInputStyle} />
+      </div>
+      <div>
+        <label className={fieldLabel} style={fieldLabelStyle}>Password</label>
+        <input type="password" value={form.password} onChange={(e) => setForm((p) => ({ ...p, password: e.target.value }))} placeholder="Min 8 characters" className={fieldInput} style={fieldInputStyle} />
+      </div>
+    </AdminModalShell>
   );
 }
 
@@ -2074,32 +2069,20 @@ function CategoryModal({
   useEffect(() => { setName(editing?.name ?? ""); }, [editing?.id, editing?.name]);
   const isEditing = !!editing;
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ backgroundColor: "rgba(45,36,30,0.5)", backdropFilter: "blur(8px)" }}>
-      <motion.div
-        className="w-full max-w-md rounded-[32px] overflow-hidden"
-        style={{ backgroundColor: "#F5F2ED" }}
-        initial={{ opacity: 0, scale: 0.95, y: 20 }}
-        animate={{ opacity: 1, scale: 1, y: 0 }}
-        exit={{ opacity: 0, scale: 0.95, y: 20 }}
-        transition={{ duration: 0.3, ease: easing }}
-      >
-        <div className="flex items-center justify-between p-8 pb-6" style={{ borderBottom: "1px solid rgba(45,36,30,0.08)" }}>
-          <div>
-            <p className="text-[#2D241E]/40 tracking-widest uppercase text-xs mb-1" style={{ fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.18em" }}>{isEditing ? "Edit Category" : "New Category"}</p>
-            <h3 className="text-[#2D241E]" style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "1.4rem", fontWeight: 400 }}>{isEditing ? editing.name : "Add Category"}</h3>
-          </div>
-          <button onClick={onClose} className="w-9 h-9 rounded-full flex items-center justify-center hover:bg-[#2D241E]/5"><X size={18} style={{ color: "#2D241E" }} /></button>
-        </div>
-        <div className="p-8">
-          <label className="block text-xs mb-2 tracking-widest uppercase" style={{ fontFamily: "'DM Sans', sans-serif", color: "rgba(45,36,30,0.4)", letterSpacing: "0.14em" }}>Category Name</label>
-          <input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Sweaters" className="w-full bg-transparent border rounded-[14px] px-4 py-3 text-[#2D241E] focus:outline-none placeholder:text-[#2D241E]/20" style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "0.9rem", borderColor: "rgba(45,36,30,0.15)" }} />
-        </div>
-        <div className="flex items-center justify-end gap-3 px-8 py-6" style={{ borderTop: "1px solid rgba(45,36,30,0.08)" }}>
-          <button onClick={onClose} className="px-6 py-3 rounded-full border transition-all duration-300 hover:bg-[#2D241E]/5" style={{ borderColor: "rgba(45,36,30,0.2)", fontFamily: "'DM Sans', sans-serif", fontSize: "0.78rem", letterSpacing: "0.12em", color: "rgba(45,36,30,0.6)" }}><span className="uppercase tracking-widest">Cancel</span></button>
-          <button onClick={() => onSave(name)} className="px-8 py-3 rounded-full text-[#F5F2ED] transition-all duration-300 hover:opacity-90" style={{ backgroundColor: "#2D241E", fontFamily: "'DM Sans', sans-serif", fontSize: "0.78rem", letterSpacing: "0.12em" }}><span className="uppercase tracking-widest">{isEditing ? "Save" : "Add"}</span></button>
-        </div>
-      </motion.div>
-    </div>
+    <AdminModalShell
+      eyebrow={isEditing ? "Edit Category" : "New Category"}
+      title={isEditing ? editing.name : "Add Category"}
+      onClose={onClose}
+      footer={
+        <>
+          <AdminModalCancelButton onClick={onClose} />
+          <AdminModalPrimaryButton onClick={() => onSave(name)}>{isEditing ? "Save" : "Add"}</AdminModalPrimaryButton>
+        </>
+      }
+    >
+      <label className="block text-xs mb-2 tracking-widest uppercase" style={{ fontFamily: "'DM Sans', sans-serif", color: "rgba(45,36,30,0.4)", letterSpacing: "0.14em" }}>Category Name</label>
+      <input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Sweaters" className="w-full bg-transparent border rounded-[14px] px-4 py-3 text-[#2D241E] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#2D241E]/20 placeholder:text-[#2D241E]/20" style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "0.9rem", borderColor: "rgba(45,36,30,0.15)" }} />
+    </AdminModalShell>
   );
 }
 
@@ -2121,8 +2104,6 @@ function ColorModal({
     titleNew?: string;
   };
 }) {
-  useBodyScrollLock(true);
-
   const [name, setName] = useState(editing?.name ?? "");
   const [nameUk, setNameUk] = useState(editing?.nameUk ?? "");
   const [hexCode, setHexCode] = useState(editing?.hexCode ?? "#2D241E");
@@ -2135,47 +2116,46 @@ function ColorModal({
   const eyebrowNew = labels?.eyebrowNew ?? "New Color";
   const eyebrowEdit = labels?.eyebrowEdit ?? "Edit Color";
   const titleNew = labels?.titleNew ?? "Add Color";
+  const fieldLabelStyle: React.CSSProperties = {
+    fontFamily: "'DM Sans', sans-serif",
+    color: "rgba(45,36,30,0.4)",
+    letterSpacing: "0.14em",
+  };
+  const fieldInput =
+    "w-full bg-transparent border rounded-[14px] px-4 py-3 text-[#2D241E] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#2D241E]/20 placeholder:text-[#2D241E]/20";
+  const fieldInputStyle: React.CSSProperties = {
+    fontFamily: "'DM Sans', sans-serif",
+    fontSize: "0.9rem",
+    borderColor: "rgba(45,36,30,0.15)",
+  };
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4"
-      style={{ backgroundColor: "rgba(45,36,30,0.5)", backdropFilter: "blur(8px)" }}
-      onWheel={(e) => e.stopPropagation()}
+    <AdminModalShell
+      eyebrow={isEditing ? eyebrowEdit : eyebrowNew}
+      title={isEditing ? editing.name : titleNew}
+      onClose={onClose}
+      bodyClassName="p-8 space-y-5"
+      footer={
+        <>
+          <AdminModalCancelButton onClick={onClose} />
+          <AdminModalPrimaryButton onClick={() => onSave(name, sanitizeColorHex(hexCode), nameUk.trim() || undefined)}>
+            {isEditing ? "Save" : "Add"}
+          </AdminModalPrimaryButton>
+        </>
+      }
     >
-      <motion.div
-        className="w-full max-w-md rounded-[32px] overflow-hidden"
-        style={{ backgroundColor: "#F5F2ED" }}
-        initial={{ opacity: 0, scale: 0.95, y: 20 }}
-        animate={{ opacity: 1, scale: 1, y: 0 }}
-        exit={{ opacity: 0, scale: 0.95, y: 20 }}
-        transition={{ duration: 0.3, ease: easing }}
-      >
-        <div className="flex items-center justify-between p-8 pb-6" style={{ borderBottom: "1px solid rgba(45,36,30,0.08)" }}>
-          <div>
-            <p className="text-[#2D241E]/40 tracking-widest uppercase text-xs mb-1" style={{ fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.18em" }}>{isEditing ? eyebrowEdit : eyebrowNew}</p>
-            <h3 className="text-[#2D241E]" style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "1.4rem", fontWeight: 400 }}>{isEditing ? editing.name : titleNew}</h3>
-          </div>
-          <button onClick={onClose} className="w-9 h-9 rounded-full flex items-center justify-center hover:bg-[#2D241E]/5"><X size={18} style={{ color: "#2D241E" }} /></button>
-        </div>
-        <div className="p-8 space-y-5">
-          <div>
-            <label className="block text-xs mb-2 tracking-widest uppercase" style={{ fontFamily: "'DM Sans', sans-serif", color: "rgba(45,36,30,0.4)", letterSpacing: "0.14em" }}>English name</label>
-            <input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Black" className="w-full bg-transparent border rounded-[14px] px-4 py-3 text-[#2D241E] focus:outline-none placeholder:text-[#2D241E]/20" style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "0.9rem", borderColor: "rgba(45,36,30,0.15)" }} />
-          </div>
-          <div>
-            <label className="block text-xs mb-2 tracking-widest uppercase" style={{ fontFamily: "'DM Sans', sans-serif", color: "rgba(45,36,30,0.4)", letterSpacing: "0.14em" }}>Ukrainian name</label>
-            <input type="text" value={nameUk} onChange={(e) => setNameUk(e.target.value)} placeholder="напр. Чорний" className="w-full bg-transparent border rounded-[14px] px-4 py-3 text-[#2D241E] focus:outline-none placeholder:text-[#2D241E]/20" style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "0.9rem", borderColor: "rgba(45,36,30,0.15)" }} />
-          </div>
-          <div>
-            <label className="block text-xs mb-2 tracking-widest uppercase" style={{ fontFamily: "'DM Sans', sans-serif", color: "rgba(45,36,30,0.4)", letterSpacing: "0.14em" }}>Color</label>
-            <AdminColorPicker value={hexCode} onChange={setHexCode} />
-          </div>
-        </div>
-        <div className="flex items-center justify-end gap-3 px-8 py-6" style={{ borderTop: "1px solid rgba(45,36,30,0.08)" }}>
-          <button onClick={onClose} className="px-6 py-3 rounded-full border transition-all duration-300 hover:bg-[#2D241E]/5" style={{ borderColor: "rgba(45,36,30,0.2)", fontFamily: "'DM Sans', sans-serif", fontSize: "0.78rem", letterSpacing: "0.12em", color: "rgba(45,36,30,0.6)" }}><span className="uppercase tracking-widest">Cancel</span></button>
-          <button onClick={() => onSave(name, sanitizeColorHex(hexCode), nameUk.trim() || undefined)} className="px-8 py-3 rounded-full text-[#F5F2ED] transition-all duration-300 hover:opacity-90" style={{ backgroundColor: "#2D241E", fontFamily: "'DM Sans', sans-serif", fontSize: "0.78rem", letterSpacing: "0.12em" }}><span className="uppercase tracking-widest">{isEditing ? "Save" : "Add"}</span></button>
-        </div>
-      </motion.div>
-    </div>
+      <div>
+        <label className="block text-xs mb-2 tracking-widest uppercase" style={fieldLabelStyle}>English name</label>
+        <input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Black" className={fieldInput} style={fieldInputStyle} />
+      </div>
+      <div>
+        <label className="block text-xs mb-2 tracking-widest uppercase" style={fieldLabelStyle}>Ukrainian name</label>
+        <input type="text" value={nameUk} onChange={(e) => setNameUk(e.target.value)} placeholder="напр. Чорний" className={fieldInput} style={fieldInputStyle} />
+      </div>
+      <div>
+        <label className="block text-xs mb-2 tracking-widest uppercase" style={fieldLabelStyle}>Color</label>
+        <AdminColorPicker value={hexCode} onChange={setHexCode} />
+      </div>
+    </AdminModalShell>
   );
 }
 
@@ -2195,32 +2175,20 @@ function CountryModal({
   useEffect(() => { setName(editing?.name ?? ""); }, [editing?.id, editing?.name]);
   const isEditing = !!editing;
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ backgroundColor: "rgba(45,36,30,0.5)", backdropFilter: "blur(8px)" }}>
-      <motion.div
-        className="w-full max-w-md rounded-[32px] overflow-hidden"
-        style={{ backgroundColor: "#F5F2ED" }}
-        initial={{ opacity: 0, scale: 0.95, y: 20 }}
-        animate={{ opacity: 1, scale: 1, y: 0 }}
-        exit={{ opacity: 0, scale: 0.95, y: 20 }}
-        transition={{ duration: 0.3, ease: easing }}
-      >
-        <div className="flex items-center justify-between p-8 pb-6" style={{ borderBottom: "1px solid rgba(45,36,30,0.08)" }}>
-          <div>
-            <p className="text-[#2D241E]/40 tracking-widest uppercase text-xs mb-1" style={{ fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.18em" }}>{isEditing ? "Edit Country" : "New Country"}</p>
-            <h3 className="text-[#2D241E]" style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "1.4rem", fontWeight: 400 }}>{isEditing ? editing.name : "Add Country"}</h3>
-          </div>
-          <button onClick={onClose} className="w-9 h-9 rounded-full flex items-center justify-center hover:bg-[#2D241E]/5"><X size={18} style={{ color: "#2D241E" }} /></button>
-        </div>
-        <div className="p-8">
-          <label className="block text-xs mb-2 tracking-widest uppercase" style={{ fontFamily: "'DM Sans', sans-serif", color: "rgba(45,36,30,0.4)", letterSpacing: "0.14em" }}>Country Name</label>
-          <input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Ukraine" className="w-full bg-transparent border rounded-[14px] px-4 py-3 text-[#2D241E] focus:outline-none placeholder:text-[#2D241E]/20" style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "0.9rem", borderColor: "rgba(45,36,30,0.15)" }} />
-        </div>
-        <div className="flex items-center justify-end gap-3 px-8 py-6" style={{ borderTop: "1px solid rgba(45,36,30,0.08)" }}>
-          <button onClick={onClose} className="px-6 py-3 rounded-full border transition-all duration-300 hover:bg-[#2D241E]/5" style={{ borderColor: "rgba(45,36,30,0.2)", fontFamily: "'DM Sans', sans-serif", fontSize: "0.78rem", letterSpacing: "0.12em", color: "rgba(45,36,30,0.6)" }}><span className="uppercase tracking-widest">Cancel</span></button>
-          <button onClick={() => onSave(name)} className="px-8 py-3 rounded-full text-[#F5F2ED] transition-all duration-300 hover:opacity-90" style={{ backgroundColor: "#2D241E", fontFamily: "'DM Sans', sans-serif", fontSize: "0.78rem", letterSpacing: "0.12em" }}><span className="uppercase tracking-widest">{isEditing ? "Save" : "Add"}</span></button>
-        </div>
-      </motion.div>
-    </div>
+    <AdminModalShell
+      eyebrow={isEditing ? "Edit Country" : "New Country"}
+      title={isEditing ? editing.name : "Add Country"}
+      onClose={onClose}
+      footer={
+        <>
+          <AdminModalCancelButton onClick={onClose} />
+          <AdminModalPrimaryButton onClick={() => onSave(name)}>{isEditing ? "Save" : "Add"}</AdminModalPrimaryButton>
+        </>
+      }
+    >
+      <label className="block text-xs mb-2 tracking-widest uppercase" style={{ fontFamily: "'DM Sans', sans-serif", color: "rgba(45,36,30,0.4)", letterSpacing: "0.14em" }}>Country Name</label>
+      <input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Ukraine" className="w-full bg-transparent border rounded-[14px] px-4 py-3 text-[#2D241E] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#2D241E]/20 placeholder:text-[#2D241E]/20" style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "0.9rem", borderColor: "rgba(45,36,30,0.15)" }} />
+    </AdminModalShell>
   );
 }
 
@@ -2229,40 +2197,53 @@ function SizeModal({
   onClose,
   onSave,
 }: {
-  editing: { id: number; name: string } | null;
+  editing: { id: number; name: string; nameUk?: string | null } | null;
   onClose: () => void;
-  onSave: (name: string) => void;
+  onSave: (name: string, nameUk?: string) => void;
 }) {
   const [name, setName] = useState(editing?.name ?? "");
-  useEffect(() => { setName(editing?.name ?? ""); }, [editing?.id, editing?.name]);
+  const [nameUk, setNameUk] = useState(editing?.nameUk ?? "");
+  useEffect(() => {
+    setName(editing?.name ?? "");
+    setNameUk(editing?.nameUk ?? "");
+  }, [editing?.id, editing?.name, editing?.nameUk]);
   const isEditing = !!editing;
+  const fieldLabelStyle: React.CSSProperties = {
+    fontFamily: "'DM Sans', sans-serif",
+    color: "rgba(45,36,30,0.4)",
+    letterSpacing: "0.14em",
+  };
+  const fieldInput =
+    "w-full bg-transparent border rounded-[14px] px-4 py-3 text-[#2D241E] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#2D241E]/20 placeholder:text-[#2D241E]/20";
+  const fieldInputStyle: React.CSSProperties = {
+    fontFamily: "'DM Sans', sans-serif",
+    fontSize: "0.9rem",
+    borderColor: "rgba(45,36,30,0.15)",
+  };
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ backgroundColor: "rgba(45,36,30,0.5)", backdropFilter: "blur(8px)" }}>
-      <motion.div
-        className="w-full max-w-md rounded-[32px] overflow-hidden"
-        style={{ backgroundColor: "#F5F2ED" }}
-        initial={{ opacity: 0, scale: 0.95, y: 20 }}
-        animate={{ opacity: 1, scale: 1, y: 0 }}
-        exit={{ opacity: 0, scale: 0.95, y: 20 }}
-        transition={{ duration: 0.3, ease: easing }}
-      >
-        <div className="flex items-center justify-between p-8 pb-6" style={{ borderBottom: "1px solid rgba(45,36,30,0.08)" }}>
-          <div>
-            <p className="text-[#2D241E]/40 tracking-widest uppercase text-xs mb-1" style={{ fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.18em" }}>{isEditing ? "Edit Size" : "New Size"}</p>
-            <h3 className="text-[#2D241E]" style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "1.4rem", fontWeight: 400 }}>{isEditing ? editing.name : "Add Size"}</h3>
-          </div>
-          <button onClick={onClose} className="w-9 h-9 rounded-full flex items-center justify-center hover:bg-[#2D241E]/5"><X size={18} style={{ color: "#2D241E" }} /></button>
-        </div>
-        <div className="p-8">
-          <label className="block text-xs mb-2 tracking-widest uppercase" style={{ fontFamily: "'DM Sans', sans-serif", color: "rgba(45,36,30,0.4)", letterSpacing: "0.14em" }}>Size Name</label>
-          <input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. M" className="w-full bg-transparent border rounded-[14px] px-4 py-3 text-[#2D241E] focus:outline-none placeholder:text-[#2D241E]/20" style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "0.9rem", borderColor: "rgba(45,36,30,0.15)" }} />
-        </div>
-        <div className="flex items-center justify-end gap-3 px-8 py-6" style={{ borderTop: "1px solid rgba(45,36,30,0.08)" }}>
-          <button onClick={onClose} className="px-6 py-3 rounded-full border transition-all duration-300 hover:bg-[#2D241E]/5" style={{ borderColor: "rgba(45,36,30,0.2)", fontFamily: "'DM Sans', sans-serif", fontSize: "0.78rem", letterSpacing: "0.12em", color: "rgba(45,36,30,0.6)" }}><span className="uppercase tracking-widest">Cancel</span></button>
-          <button onClick={() => onSave(name)} className="px-8 py-3 rounded-full text-[#F5F2ED] transition-all duration-300 hover:opacity-90" style={{ backgroundColor: "#2D241E", fontFamily: "'DM Sans', sans-serif", fontSize: "0.78rem", letterSpacing: "0.12em" }}><span className="uppercase tracking-widest">{isEditing ? "Save" : "Add"}</span></button>
-        </div>
-      </motion.div>
-    </div>
+    <AdminModalShell
+      eyebrow={isEditing ? "Edit Size" : "New Size"}
+      title={isEditing ? editing.name : "Add Size"}
+      onClose={onClose}
+      bodyClassName="p-8 space-y-5"
+      footer={
+        <>
+          <AdminModalCancelButton onClick={onClose} />
+          <AdminModalPrimaryButton onClick={() => onSave(name, nameUk.trim() || undefined)}>
+            {isEditing ? "Save" : "Add"}
+          </AdminModalPrimaryButton>
+        </>
+      }
+    >
+      <div>
+        <label className="block text-xs mb-2 tracking-widest uppercase" style={fieldLabelStyle}>English name</label>
+        <input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. M" className={fieldInput} style={fieldInputStyle} />
+      </div>
+      <div>
+        <label className="block text-xs mb-2 tracking-widest uppercase" style={fieldLabelStyle}>Ukrainian name</label>
+        <input type="text" value={nameUk} onChange={(e) => setNameUk(e.target.value)} placeholder="напр. М" className={fieldInput} style={fieldInputStyle} />
+      </div>
+    </AdminModalShell>
   );
 }
 
@@ -2281,35 +2262,34 @@ function DeleteModal({
   onConfirm: () => void;
 }) {
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ backgroundColor: "rgba(45,36,30,0.5)", backdropFilter: "blur(8px)" }}>
-      <motion.div
-        className="w-full max-w-sm rounded-[28px] p-8 text-center"
-        style={{ backgroundColor: "#F5F2ED" }}
-        initial={{ opacity: 0, scale: 0.9 }}
-        animate={{ opacity: 1, scale: 1 }}
-        exit={{ opacity: 0, scale: 0.9 }}
-        transition={{ duration: 0.25, ease: easing }}
-      >
-        <div className="w-14 h-14 rounded-full flex items-center justify-center mx-auto mb-6" style={{ backgroundColor: "rgba(74,14,14,0.08)" }}>
-          <AlertTriangle size={22} style={{ color: "#4A0E0E" }} />
-        </div>
-        <h3 className="text-[#2D241E] mb-3" style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "1.3rem", fontWeight: 400 }}>Delete "{name}"?</h3>
-        <p className="text-[#2D241E]/50 mb-8 text-sm" style={{ fontFamily: "'DM Sans', sans-serif", lineHeight: 1.6 }}>This action cannot be undone. This record will be permanently removed.</p>
-        {error && (
-          <p className="text-sm text-[#4A0E0E] mb-6 p-3 rounded-[12px] bg-[#4A0E0E]/8 text-left" style={{ fontFamily: "'DM Sans', sans-serif", lineHeight: 1.5 }}>
-            {error}
-          </p>
-        )}
-        <div className="flex gap-3">
-          <button onClick={onClose} className="flex-1 py-3 rounded-full border transition-all hover:bg-[#2D241E]/5" style={{ borderColor: "rgba(45,36,30,0.2)", fontFamily: "'DM Sans', sans-serif", fontSize: "0.78rem", letterSpacing: "0.12em", color: "rgba(45,36,30,0.6)" }}>
-            <span className="uppercase tracking-widest">Cancel</span>
-          </button>
-          <button onClick={onConfirm} className="flex-1 py-3 rounded-full text-white transition-all hover:opacity-90" style={{ backgroundColor: "#4A0E0E", fontFamily: "'DM Sans', sans-serif", fontSize: "0.78rem", letterSpacing: "0.12em" }}>
-            <span className="uppercase tracking-widest">Delete</span>
-          </button>
-        </div>
-      </motion.div>
-    </div>
+    <AdminModalShell
+      eyebrow="Confirm"
+      title={`Delete “${name}”?`}
+      onClose={onClose}
+      maxWidth="sm"
+      bodyClassName="px-8 pt-6 pb-2 text-center"
+      footerClassName="flex gap-3 px-8 py-6"
+      footer={
+        <>
+          <AdminModalCancelButton onClick={onClose} className="flex-1" />
+          <AdminModalPrimaryButton onClick={onConfirm} variant="danger" className="flex-1">
+            Delete
+          </AdminModalPrimaryButton>
+        </>
+      }
+    >
+      <div className="w-14 h-14 rounded-full flex items-center justify-center mx-auto mb-5" style={{ backgroundColor: "rgba(74,14,14,0.08)" }}>
+        <AlertTriangle size={22} style={{ color: "#4A0E0E" }} />
+      </div>
+      <p className="text-[#2D241E]/50 text-sm" style={{ fontFamily: "'DM Sans', sans-serif", lineHeight: 1.6 }}>
+        This action cannot be undone. This record will be permanently removed.
+      </p>
+      {error && (
+        <p className="text-sm text-[#4A0E0E] mt-5 p-3 rounded-[12px] bg-[#4A0E0E]/8 text-left" style={{ fontFamily: "'DM Sans', sans-serif", lineHeight: 1.5 }}>
+          {error}
+        </p>
+      )}
+    </AdminModalShell>
   );
 }
 
@@ -2594,7 +2574,7 @@ export function AdminPage() {
   const [countryModal, setCountryModal] = useState<{ open: boolean; editing: { id: number; name: string } | null }>({ open: false, editing: null });
   const [colorModal, setColorModal] = useState<{ open: boolean; editing: { id: number; name: string; nameUk?: string | null; hexCode: string } | null }>({ open: false, editing: null });
   const [furnitureModal, setFurnitureModal] = useState<{ open: boolean; editing: { id: number; name: string; nameUk?: string | null; hexCode: string } | null }>({ open: false, editing: null });
-  const [sizeModal, setSizeModal] = useState<{ open: boolean; editing: { id: number; name: string } | null }>({ open: false, editing: null });
+  const [sizeModal, setSizeModal] = useState<{ open: boolean; editing: { id: number; name: string; nameUk?: string | null } | null }>({ open: false, editing: null });
   const [deleteModal, setDeleteModal] = useState<{ open: boolean; type: "product" | "user" | "category" | "country" | "color" | "furniture" | "size"; id: string; idNum?: number; name: string } | null>(null);
   const [deleteModalError, setDeleteModalError] = useState<string | null>(null);
 
@@ -3233,13 +3213,13 @@ export function AdminPage() {
     }
   };
 
-  const handleSaveSize = async (name: string) => {
+  const handleSaveSize = async (name: string, nameUk?: string) => {
     setSaveError(null);
     try {
       if (sizeModal.editing) {
-        await editSize(sizeModal.editing.id, name);
+        await editSize(sizeModal.editing.id, name, nameUk);
       } else {
-        await addSize(name);
+        await addSize(name, nameUk);
       }
       setSizeModal({ open: false, editing: null });
       refetch();
@@ -3474,7 +3454,7 @@ export function AdminPage() {
         }}
       >
         <div className="max-w-[1400px] mx-auto px-6 md:px-10">
-          <div className="flex gap-8 overflow-x-auto scrollbar-hide">
+          <div className="flex flex-wrap gap-x-5 gap-y-1">
             {([
               { key: "dashboard" as AdminTab, label: "Dashboard", icon: <LayoutDashboard size={14} /> },
               { key: "contents" as AdminTab, label: "Contents", icon: <ImagePlus size={14} /> },
@@ -3492,13 +3472,14 @@ export function AdminPage() {
             ]).map((tab) => (
               <button
                 key={tab.key}
+                type="button"
                 onClick={() => setActiveTab(tab.key)}
-                className="py-5 relative flex items-center gap-2 whitespace-nowrap transition-colors duration-300"
+                className="py-4 relative flex items-center gap-2 whitespace-nowrap transition-colors duration-300 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2D241E]/30 rounded-sm hover:text-[#2D241E]"
                 style={{
                   fontFamily: "'DM Sans', sans-serif",
                   fontSize: "0.78rem",
                   letterSpacing: "0.12em",
-                  color: activeTab === tab.key ? "#2D241E" : "rgba(45,36,30,0.4)",
+                  color: activeTab === tab.key ? "#2D241E" : "rgba(45,36,30,0.42)",
                 }}
               >
                 {tab.icon}
@@ -5190,8 +5171,9 @@ export function AdminPage() {
               <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-8">
                 <p className="text-[#2D241E]/50 text-sm" style={{ fontFamily: "'DM Sans', sans-serif" }}>{categories.length} categories</p>
                 <button
+                  type="button"
                   onClick={() => setCategoryModal({ open: true, editing: null })}
-                  className="flex items-center gap-2 px-6 py-3 rounded-full text-[#F5F2ED] transition-all hover:opacity-90 flex-shrink-0"
+                  className={ADMIN_ADD_BTN}
                   style={{ backgroundColor: "#2D241E", fontFamily: "'DM Sans', sans-serif", fontSize: "0.78rem", letterSpacing: "0.12em" }}
                 >
                   <Plus size={15} />
@@ -5218,11 +5200,11 @@ export function AdminPage() {
                     <p className="py-12 text-center text-[#2D241E]/40 px-6" style={{ fontFamily: "'DM Sans', sans-serif" }}>No categories yet</p>
                   ) : (
                     categories.map((c) => (
-                      <div key={c.id} className="grid items-center px-6 py-4 hover:bg-[#2D241E]/[0.02] transition-colors" style={{ gridTemplateColumns: "1fr 100px" }}>
-                        <p className="text-[#2D241E]" style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "1.1rem" }}>{c.name}</p>
+                      <div key={c.id} className={ADMIN_ROW} style={{ gridTemplateColumns: "1fr 100px" }}>
+                        <p className="text-[#2D241E]" style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "1.15rem" }}>{c.name}</p>
                         <div className="flex items-center justify-end gap-2">
-                          <button onClick={() => setCategoryModal({ open: true, editing: c })} className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-[#2D241E]/8 transition-colors" title="Edit"><Pencil size={13} style={{ color: "#2D241E", opacity: 0.5 }} /></button>
-                          <button onClick={() => setDeleteModal({ open: true, type: "category", id: String(c.id), idNum: c.id, name: c.name })} className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-[#4A0E0E]/8 transition-colors" title="Delete"><Trash2 size={13} style={{ color: "#4A0E0E", opacity: 0.6 }} /></button>
+                          <button type="button" onClick={() => setCategoryModal({ open: true, editing: c })} className={ADMIN_ICON_EDIT} title="Edit" aria-label={`Edit ${c.name}`}><Pencil size={13} style={{ color: "#2D241E", opacity: 0.5 }} /></button>
+                          <button type="button" onClick={() => setDeleteModal({ open: true, type: "category", id: String(c.id), idNum: c.id, name: c.name })} className={ADMIN_ICON_DELETE} title="Delete" aria-label={`Delete ${c.name}`}><Trash2 size={13} style={{ color: "#4A0E0E", opacity: 0.6 }} /></button>
                         </div>
                       </div>
                     ))
@@ -5256,8 +5238,9 @@ export function AdminPage() {
               <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-8">
                 <p className="text-[#2D241E]/50 text-sm" style={{ fontFamily: "'DM Sans', sans-serif" }}>{countries.length} countries</p>
                 <button
+                  type="button"
                   onClick={() => setCountryModal({ open: true, editing: null })}
-                  className="flex items-center gap-2 px-6 py-3 rounded-full text-[#F5F2ED] transition-all hover:opacity-90 flex-shrink-0"
+                  className={ADMIN_ADD_BTN}
                   style={{ backgroundColor: "#2D241E", fontFamily: "'DM Sans', sans-serif", fontSize: "0.78rem", letterSpacing: "0.12em" }}
                 >
                   <Plus size={15} />
@@ -5284,11 +5267,11 @@ export function AdminPage() {
                     <p className="py-12 text-center text-[#2D241E]/40 px-6" style={{ fontFamily: "'DM Sans', sans-serif" }}>No countries yet</p>
                   ) : (
                     countries.map((c) => (
-                      <div key={c.id} className="grid items-center px-6 py-4 hover:bg-[#2D241E]/[0.02] transition-colors" style={{ gridTemplateColumns: "1fr 100px" }}>
-                        <p className="text-[#2D241E]" style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "1.1rem" }}>{c.name}</p>
+                      <div key={c.id} className={ADMIN_ROW} style={{ gridTemplateColumns: "1fr 100px" }}>
+                        <p className="text-[#2D241E]" style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "1.15rem" }}>{c.name}</p>
                         <div className="flex items-center justify-end gap-2">
-                          <button onClick={() => setCountryModal({ open: true, editing: c })} className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-[#2D241E]/8 transition-colors" title="Edit"><Pencil size={13} style={{ color: "#2D241E", opacity: 0.5 }} /></button>
-                          <button onClick={() => setDeleteModal({ open: true, type: "country", id: String(c.id), idNum: c.id, name: c.name })} className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-[#4A0E0E]/8 transition-colors" title="Delete"><Trash2 size={13} style={{ color: "#4A0E0E", opacity: 0.6 }} /></button>
+                          <button type="button" onClick={() => setCountryModal({ open: true, editing: c })} className={ADMIN_ICON_EDIT} title="Edit" aria-label={`Edit ${c.name}`}><Pencil size={13} style={{ color: "#2D241E", opacity: 0.5 }} /></button>
+                          <button type="button" onClick={() => setDeleteModal({ open: true, type: "country", id: String(c.id), idNum: c.id, name: c.name })} className={ADMIN_ICON_DELETE} title="Delete" aria-label={`Delete ${c.name}`}><Trash2 size={13} style={{ color: "#4A0E0E", opacity: 0.6 }} /></button>
                         </div>
                       </div>
                     ))
@@ -5310,8 +5293,9 @@ export function AdminPage() {
               <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-8">
                 <p className="text-[#2D241E]/50 text-sm" style={{ fontFamily: "'DM Sans', sans-serif" }}>{colors.length} colors</p>
                 <button
+                  type="button"
                   onClick={() => setColorModal({ open: true, editing: null })}
-                  className="flex items-center gap-2 px-6 py-3 rounded-full text-[#F5F2ED] transition-all hover:opacity-90 flex-shrink-0"
+                  className={ADMIN_ADD_BTN}
                   style={{ backgroundColor: "#2D241E", fontFamily: "'DM Sans', sans-serif", fontSize: "0.78rem", letterSpacing: "0.12em" }}
                 >
                   <Plus size={15} />
@@ -5339,17 +5323,17 @@ export function AdminPage() {
                     <p className="py-12 text-center text-[#2D241E]/40 px-6" style={{ fontFamily: "'DM Sans', sans-serif" }}>No colors yet</p>
                   ) : (
                     colors.map((c) => (
-                      <div key={c.id} className="grid items-center px-6 py-4 hover:bg-[#2D241E]/[0.02] transition-colors" style={{ gridTemplateColumns: "1fr 1fr 100px" }}>
-                        <p className="text-[#2D241E]" style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "1.1rem" }}>
-                          {c.nameUk ? `${c.name} · ${c.nameUk}` : c.name}
+                      <div key={c.id} className={ADMIN_ROW} style={{ gridTemplateColumns: "1fr 1fr 100px" }}>
+                        <p className="text-[#2D241E]" style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "1.15rem" }}>
+                          {adminBilingualLabel(c.name, c.nameUk)}
                         </p>
                         <div className="flex items-center gap-2">
-                          <span className="w-6 h-6 rounded-full border" style={{ backgroundColor: c.hexCode || "#2D241E", borderColor: "rgba(45,36,30,0.2)" }} />
-                          <span className="text-[#2D241E]/50 text-sm" style={{ fontFamily: "'DM Sans', sans-serif" }}>{c.hexCode}</span>
+                          <span className="w-6 h-6 rounded-full border shadow-sm" style={{ backgroundColor: c.hexCode || "#2D241E", borderColor: "rgba(45,36,30,0.2)" }} />
+                          <span className="text-[#2D241E]/50 text-sm uppercase tracking-wider" style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "0.75rem" }}>{c.hexCode}</span>
                         </div>
                         <div className="flex items-center justify-end gap-2">
-                          <button onClick={() => setColorModal({ open: true, editing: c })} className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-[#2D241E]/8 transition-colors" title="Edit"><Pencil size={13} style={{ color: "#2D241E", opacity: 0.5 }} /></button>
-                          <button onClick={() => { setDeleteModalError(null); setDeleteModal({ open: true, type: "color", id: String(c.id), idNum: c.id, name: c.name }); }} className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-[#4A0E0E]/8 transition-colors" title="Delete"><Trash2 size={13} style={{ color: "#4A0E0E", opacity: 0.6 }} /></button>
+                          <button type="button" onClick={() => setColorModal({ open: true, editing: c })} className={ADMIN_ICON_EDIT} title="Edit" aria-label={`Edit ${c.name}`}><Pencil size={13} style={{ color: "#2D241E", opacity: 0.5 }} /></button>
+                          <button type="button" onClick={() => { setDeleteModalError(null); setDeleteModal({ open: true, type: "color", id: String(c.id), idNum: c.id, name: c.name }); }} className={ADMIN_ICON_DELETE} title="Delete" aria-label={`Delete ${c.name}`}><Trash2 size={13} style={{ color: "#4A0E0E", opacity: 0.6 }} /></button>
                         </div>
                       </div>
                     ))
@@ -5371,8 +5355,9 @@ export function AdminPage() {
               <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-8">
                 <p className="text-[#2D241E]/50 text-sm" style={{ fontFamily: "'DM Sans', sans-serif" }}>{furnitureColors.length} furniture colors</p>
                 <button
+                  type="button"
                   onClick={() => setFurnitureModal({ open: true, editing: null })}
-                  className="flex items-center gap-2 px-6 py-3 rounded-full text-[#F5F2ED] transition-all hover:opacity-90 flex-shrink-0"
+                  className={ADMIN_ADD_BTN}
                   style={{ backgroundColor: "#2D241E", fontFamily: "'DM Sans', sans-serif", fontSize: "0.78rem", letterSpacing: "0.12em" }}
                 >
                   <Plus size={15} />
@@ -5400,17 +5385,17 @@ export function AdminPage() {
                     <p className="py-12 text-center text-[#2D241E]/40 px-6" style={{ fontFamily: "'DM Sans', sans-serif" }}>No furniture colors yet</p>
                   ) : (
                     furnitureColors.map((c) => (
-                      <div key={c.id} className="grid items-center px-6 py-4 hover:bg-[#2D241E]/[0.02] transition-colors" style={{ gridTemplateColumns: "1fr 1fr 100px" }}>
-                        <p className="text-[#2D241E]" style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "1.1rem" }}>
-                          {c.nameUk ? `${c.name} · ${c.nameUk}` : c.name}
+                      <div key={c.id} className={ADMIN_ROW} style={{ gridTemplateColumns: "1fr 1fr 100px" }}>
+                        <p className="text-[#2D241E]" style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "1.15rem" }}>
+                          {adminBilingualLabel(c.name, c.nameUk)}
                         </p>
                         <div className="flex items-center gap-2">
-                          <span className="w-6 h-6 rounded-full border" style={{ backgroundColor: c.hexCode || "#2D241E", borderColor: "rgba(45,36,30,0.2)" }} />
-                          <span className="text-[#2D241E]/50 text-sm" style={{ fontFamily: "'DM Sans', sans-serif" }}>{c.hexCode}</span>
+                          <span className="w-6 h-6 rounded-full border shadow-sm" style={{ backgroundColor: c.hexCode || "#2D241E", borderColor: "rgba(45,36,30,0.2)" }} />
+                          <span className="text-[#2D241E]/50 text-sm uppercase tracking-wider" style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "0.75rem" }}>{c.hexCode}</span>
                         </div>
                         <div className="flex items-center justify-end gap-2">
-                          <button onClick={() => setFurnitureModal({ open: true, editing: c })} className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-[#2D241E]/8 transition-colors" title="Edit"><Pencil size={13} style={{ color: "#2D241E", opacity: 0.5 }} /></button>
-                          <button onClick={() => { setDeleteModalError(null); setDeleteModal({ open: true, type: "furniture", id: String(c.id), idNum: c.id, name: c.name }); }} className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-[#4A0E0E]/8 transition-colors" title="Delete"><Trash2 size={13} style={{ color: "#4A0E0E", opacity: 0.6 }} /></button>
+                          <button type="button" onClick={() => setFurnitureModal({ open: true, editing: c })} className={ADMIN_ICON_EDIT} title="Edit" aria-label={`Edit ${c.name}`}><Pencil size={13} style={{ color: "#2D241E", opacity: 0.5 }} /></button>
+                          <button type="button" onClick={() => { setDeleteModalError(null); setDeleteModal({ open: true, type: "furniture", id: String(c.id), idNum: c.id, name: c.name }); }} className={ADMIN_ICON_DELETE} title="Delete" aria-label={`Delete ${c.name}`}><Trash2 size={13} style={{ color: "#4A0E0E", opacity: 0.6 }} /></button>
                         </div>
                       </div>
                     ))
@@ -5590,8 +5575,9 @@ export function AdminPage() {
               <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-8">
                 <p className="text-[#2D241E]/50 text-sm" style={{ fontFamily: "'DM Sans', sans-serif" }}>{sizes.length} sizes</p>
                 <button
+                  type="button"
                   onClick={() => setSizeModal({ open: true, editing: null })}
-                  className="flex items-center gap-2 px-6 py-3 rounded-full text-[#F5F2ED] transition-all hover:opacity-90 flex-shrink-0"
+                  className={ADMIN_ADD_BTN}
                   style={{ backgroundColor: "#2D241E", fontFamily: "'DM Sans', sans-serif", fontSize: "0.78rem", letterSpacing: "0.12em" }}
                 >
                   <Plus size={15} />
@@ -5608,11 +5594,13 @@ export function AdminPage() {
                     <p className="py-12 text-center text-[#2D241E]/40 px-6" style={{ fontFamily: "'DM Sans', sans-serif" }}>No sizes yet</p>
                   ) : (
                     sizes.map((s) => (
-                      <div key={s.id} className="grid items-center px-6 py-4 hover:bg-[#2D241E]/[0.02] transition-colors" style={{ gridTemplateColumns: "1fr 100px" }}>
-                        <p className="text-[#2D241E]" style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "1.1rem" }}>{s.name}</p>
+                      <div key={s.id} className={ADMIN_ROW} style={{ gridTemplateColumns: "1fr 100px" }}>
+                        <p className="text-[#2D241E]" style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "1.15rem" }}>
+                          {adminBilingualLabel(s.name, s.nameUk)}
+                        </p>
                         <div className="flex items-center justify-end gap-2">
-                          <button onClick={() => setSizeModal({ open: true, editing: s })} className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-[#2D241E]/8 transition-colors" title="Edit"><Pencil size={13} style={{ color: "#2D241E", opacity: 0.5 }} /></button>
-                          <button onClick={() => setDeleteModal({ open: true, type: "size", id: String(s.id), idNum: s.id, name: s.name })} className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-[#4A0E0E]/8 transition-colors" title="Delete"><Trash2 size={13} style={{ color: "#4A0E0E", opacity: 0.6 }} /></button>
+                          <button type="button" onClick={() => setSizeModal({ open: true, editing: s })} className={ADMIN_ICON_EDIT} title="Edit" aria-label={`Edit ${s.name}`}><Pencil size={13} style={{ color: "#2D241E", opacity: 0.5 }} /></button>
+                          <button type="button" onClick={() => setDeleteModal({ open: true, type: "size", id: String(s.id), idNum: s.id, name: s.name })} className={ADMIN_ICON_DELETE} title="Delete" aria-label={`Delete ${s.name}`}><Trash2 size={13} style={{ color: "#4A0E0E", opacity: 0.6 }} /></button>
                         </div>
                       </div>
                     ))

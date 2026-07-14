@@ -21,7 +21,7 @@ export const PRODUCTS: Product[] = [
     price: 285,
     category: "Sweaters",
     isNew: true,
-    sizes: ["XS", "S", "M", "L", "XL"],
+    sizes: [{ name: "XS" }, { name: "S" }, { name: "M" }, { name: "L" }, { name: "XL" }],
     description:
       "Draped in the spirit of southern France, the Arles Cocoon wraps you in a cloud of extra-fine merino. Its oversized silhouette and deep dropped shoulders create a languid, effortless luxury that moves with you.",
     details: [
@@ -44,7 +44,7 @@ export const PRODUCTS: Product[] = [
     price: 360,
     category: "Sweaters",
     isBestseller: true,
-    sizes: ["XS", "S", "M", "L", "XL"],
+    sizes: [{ name: "XS" }, { name: "S" }, { name: "M" }, { name: "L" }, { name: "XL" }],
     description:
       "The Mistral is our purest expression of effortless warmth. Knit from grade-A Scottish cashmere, its elongated turtleneck can be worn high and folded or draped loosely around the décolletage.",
     details: [
@@ -65,7 +65,7 @@ export const PRODUCTS: Product[] = [
     subtitle: "Lambswool & Linen",
     price: 195,
     category: "Vests",
-    sizes: ["XS", "S", "M", "L"],
+    sizes: [{ name: "XS" }, { name: "S" }, { name: "M" }, { name: "L" }],
     description:
       "A warm-weather essential reimagined. The Provence Vest is knit from a breathable lambswool-linen blend, offering texture and weight without warmth—ideal for layering through the seasons.",
     details: [
@@ -87,7 +87,7 @@ export const PRODUCTS: Product[] = [
     price: 320,
     category: "Sweaters",
     isNew: true,
-    sizes: ["XS", "S", "M", "L", "XL"],
+    sizes: [{ name: "XS" }, { name: "S" }, { name: "M" }, { name: "L" }, { name: "XL" }],
     description:
       "Named for the rugged coast of Brittany, the Bretagne is constructed from a sculptural bouclé wool that catches the light and holds its shape beautifully. A statement piece that becomes a staple.",
     details: [
@@ -109,7 +109,7 @@ export const PRODUCTS: Product[] = [
     price: 245,
     category: "Cardigans",
     isBestseller: true,
-    sizes: ["XS", "S", "M", "L", "XL"],
+    sizes: [{ name: "XS" }, { name: "S" }, { name: "M" }, { name: "L" }, { name: "XL" }],
     description:
       "The Riviera is the cardigan of a quiet, sun-drenched afternoon. Its fine-gauge merino drapes in a long, lean silhouette with mother-of-pearl buttons and deep side pockets for effortless carry.",
     details: [
@@ -130,7 +130,7 @@ export const PRODUCTS: Product[] = [
     subtitle: "Structured Bouclé",
     price: 395,
     category: "Jackets",
-    sizes: ["XS", "S", "M", "L"],
+    sizes: [{ name: "XS" }, { name: "S" }, { name: "M" }, { name: "L" }],
     description:
       "Our most refined outerwear piece. The Côte is constructed in a dense bouclé weave, then lined in a whisper-soft satin for a jacket that is as comfortable from inside as it is striking from outside.",
     details: [

@@ -14,6 +14,19 @@ import {
 
 const PLACEHOLDER = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='400' viewBox='0 0 400 400'%3E%3Crect fill='%23EDE9E2' width='400' height='400'/%3E%3Cpath fill='%232D241E' fill-opacity='0.3' d='M80 200h240M200 80v240' stroke='%232D241E' stroke-opacity='0.2'/%3E%3C/svg%3E";
 
+const FALLBACK_SIZES = [
+  { name: "XS" },
+  { name: "S" },
+  { name: "M" },
+  { name: "L" },
+  { name: "XL" },
+];
+
+function mapSizes(sizes?: { name: string; nameUk?: string | null }[] | null) {
+  if (!sizes?.length) return FALLBACK_SIZES;
+  return sizes.map((s) => ({ name: s.name, nameUk: s.nameUk ?? null }));
+}
+
 function toColorVariant(c: ColorVariantDto): ColorVariant {
   const seen = new Set<string>();
   const imgs: string[] = [];
@@ -58,7 +71,7 @@ function mapToFrontendProduct(d: ProductDto): Product {
     isBestseller: d.isBestseller ?? false,
     createdAt: d.createdAt,
     lace: d.lace ?? false,
-    sizes: d.sizes?.length ? d.sizes : ["XS", "S", "M", "L", "XL"],
+    sizes: mapSizes(d.sizes),
     defaultSize: d.defaultSize ?? undefined,
     defaultColor: d.defaultColor ?? undefined,
     defaultFurnitureColor: d.defaultFurnitureColor ?? undefined,
@@ -83,7 +96,7 @@ function mapSuggestedToProduct(s: SuggestedProductDto): Product {
     category: s.categoryName,
     isNew: s.isNew,
     isBestseller: s.isBestseller,
-    sizes: ["XS", "S", "M", "L", "XL"],
+    sizes: FALLBACK_SIZES,
     description: "",
     details: [],
     colors: [{ name: "Default", hex: "#2D241E", image, images: [image] }],
@@ -106,7 +119,7 @@ function mapDetailToFrontend(d: ProductDetailDto): Product {
     isNew: d.isNew,
     isBestseller: d.isBestseller,
     lace: d.lace ?? false,
-    sizes: d.sizes?.length ? d.sizes : ["XS", "S", "M", "L", "XL"],
+    sizes: mapSizes(d.sizes),
     defaultSize: d.defaultSize ?? undefined,
     defaultColor: d.defaultColor ?? undefined,
     defaultFurnitureColor: d.defaultFurnitureColor ?? undefined,

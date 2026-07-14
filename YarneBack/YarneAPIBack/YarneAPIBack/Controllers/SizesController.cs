@@ -27,7 +27,7 @@ public class SizesController : ControllerBase
     {
         var sizes = await _context.Sizes
             .OrderBy(s => s.Name)
-            .Select(s => new SizeDto { Id = s.Id, Name = s.Name })
+            .Select(s => new SizeDto { Id = s.Id, Name = s.Name, NameUk = s.NameUk })
             .ToListAsync(ct);
 
         return Ok(sizes);
@@ -44,7 +44,11 @@ public class SizesController : ControllerBase
         if (await _context.Sizes.AnyAsync(s => s.Name == normalized, ct))
             return BadRequest(new { message = "Size with this name already exists" });
 
-        var size = new Models.Size { Name = normalized };
+        var size = new Models.Size
+        {
+            Name = normalized,
+            NameUk = string.IsNullOrWhiteSpace(request.NameUk) ? null : request.NameUk.Trim(),
+        };
         _context.Sizes.Add(size);
         await _context.SaveChangesAsync(ct);
 
@@ -55,12 +59,12 @@ public class SizesController : ControllerBase
             $"Created size \"{size.Name}\"",
             size.Id.ToString(),
             size.Name,
-            new { catalogType = "size", size.Id, size.Name },
+            new { catalogType = "size", size.Id, size.Name, size.NameUk },
             actorUserId,
             actorEmail,
             ct);
 
-        return Created($"/api/sizes/{size.Id}", new SizeDto { Id = size.Id, Name = size.Name });
+        return Created($"/api/sizes/{size.Id}", new SizeDto { Id = size.Id, Name = size.Name, NameUk = size.NameUk });
     }
 
     [HttpPut("{id}")]
@@ -80,6 +84,7 @@ public class SizesController : ControllerBase
 
         var previousName = size.Name;
         size.Name = normalized;
+        size.NameUk = string.IsNullOrWhiteSpace(request.NameUk) ? null : request.NameUk.Trim();
         await _context.SaveChangesAsync(ct);
 
         var (actorUserId, actorEmail) = AdminActivityLogHelper.GetActor(HttpContext);
@@ -89,12 +94,12 @@ public class SizesController : ControllerBase
             $"Updated size: {previousName} → {size.Name}",
             size.Id.ToString(),
             size.Name,
-            new { catalogType = "size", size.Id, previousName, newName = size.Name },
+            new { catalogType = "size", size.Id, previousName, newName = size.Name, nameUk = size.NameUk },
             actorUserId,
             actorEmail,
             ct);
 
-        return Ok(new SizeDto { Id = size.Id, Name = size.Name });
+        return Ok(new SizeDto { Id = size.Id, Name = size.Name, NameUk = size.NameUk });
     }
 
     [HttpDelete("{id}")]

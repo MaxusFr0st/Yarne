@@ -91,7 +91,7 @@ function PrimaryButton({
       type="button"
       onClick={onClick}
       disabled={disabled}
-      className="flex items-center justify-center gap-2 px-5 py-2.5 rounded-full text-[#F5F2ED] transition-opacity duration-200 hover:opacity-90 disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed flex-shrink-0"
+      className="flex items-center justify-center gap-2 px-5 py-2.5 rounded-full text-[#F5F2ED] transition-opacity duration-200 hover:opacity-90 disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed flex-shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2D241E]/30 focus-visible:ring-offset-2 focus-visible:ring-offset-[#F5F2ED]"
       style={{ backgroundColor: "#2D241E", fontFamily: "'DM Sans', sans-serif", fontSize: "0.72rem", letterSpacing: "0.1em" }}
     >
       {children}
@@ -109,7 +109,7 @@ function GhostButton({
       type="button"
       onClick={onClick}
       disabled={disabled}
-      className="flex items-center justify-center gap-2 px-5 py-2.5 rounded-full transition-colors duration-200 hover:bg-[#2D241E]/5 disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
+      className="flex items-center justify-center gap-2 px-5 py-2.5 rounded-full transition-colors duration-200 hover:bg-[#2D241E]/5 disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2D241E]/30"
       style={{ ...cardBorder, fontFamily: "'DM Sans', sans-serif", fontSize: "0.72rem", letterSpacing: "0.1em", color: "#2D241E" }}
     >
       {children}
@@ -124,7 +124,7 @@ function KpiCard({
 }) {
   return (
     <div
-      className="rounded-[20px] p-5 md:p-6 transition-colors duration-200"
+      className="rounded-[20px] p-5 md:p-6 transition-colors duration-200 hover:bg-white/55"
       style={{ ...cardBorder, backgroundColor: "rgba(255,255,255,0.45)" }}
     >
       <div className="flex items-start justify-between gap-3 mb-3">
@@ -152,32 +152,53 @@ function KpiCard({
 }
 
 function ModalShell({
-  title, onClose, children, wide,
+  title, eyebrow, onClose, children, wide,
 }: {
-  title: string; onClose: () => void; children: React.ReactNode; wide?: boolean;
+  title: string; eyebrow?: string; onClose: () => void; children: React.ReactNode; wide?: boolean;
 }) {
   return (
-    <div className="fixed inset-0 z-[200] flex items-end sm:items-center justify-center p-0 sm:p-6" role="dialog" aria-modal="true">
-      <button type="button" className="absolute inset-0 bg-[#2D241E]/40 cursor-pointer" onClick={onClose} aria-label="Close" />
+    <div
+      className="fixed inset-0 z-[200] flex items-end sm:items-center justify-center p-0 sm:p-6"
+      role="dialog"
+      aria-modal="true"
+      style={{ overscrollBehavior: "contain" }}
+    >
+      <button
+        type="button"
+        className="absolute inset-0 cursor-pointer"
+        style={{ backgroundColor: "rgba(45,36,30,0.48)", backdropFilter: "blur(10px)", WebkitBackdropFilter: "blur(10px)" }}
+        onClick={onClose}
+        aria-label="Close"
+      />
       <motion.div
         initial={{ opacity: 0, y: 24 }}
         animate={{ opacity: 1, y: 0 }}
         exit={{ opacity: 0, y: 16 }}
         transition={{ duration: 0.25, ease: easing }}
-        className={`relative w-full ${wide ? "sm:max-w-2xl" : "sm:max-w-lg"} max-h-[92vh] overflow-y-auto rounded-t-[28px] sm:rounded-[28px] p-6 md:p-8`}
+        className={`relative w-full ${wide ? "sm:max-w-2xl" : "sm:max-w-lg"} max-h-[min(92dvh,720px)] overflow-y-auto overscroll-contain rounded-t-[28px] sm:rounded-[32px] p-6 md:p-8`}
         style={{ backgroundColor: "#F5F2ED", ...cardBorder }}
       >
-        <div className="flex items-center justify-between mb-6">
-          <h3
-            className="text-[#2D241E]"
-            style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "1.5rem", fontWeight: 400 }}
-          >
-            {title}
-          </h3>
+        <div className="flex items-start justify-between gap-4 mb-6">
+          <div className="min-w-0">
+            {eyebrow ? (
+              <p
+                className="text-[#2D241E]/40 tracking-widest uppercase text-xs mb-1"
+                style={{ fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.18em" }}
+              >
+                {eyebrow}
+              </p>
+            ) : null}
+            <h3
+              className="text-[#2D241E]"
+              style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "1.5rem", fontWeight: 400 }}
+            >
+              {title}
+            </h3>
+          </div>
           <button
             type="button"
             onClick={onClose}
-            className="w-9 h-9 rounded-full flex items-center justify-center hover:bg-[#2D241E]/8 transition-colors cursor-pointer"
+            className="w-9 h-9 rounded-full flex items-center justify-center hover:bg-[#2D241E]/8 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2D241E]/30 flex-shrink-0"
             aria-label="Close"
           >
             <X size={18} style={{ color: "#2D241E", opacity: 0.6 }} />
@@ -266,16 +287,18 @@ function ActionButtons({ onEdit, onDelete, compact }: { onEdit: () => void; onDe
       <button
         type="button"
         onClick={onEdit}
-        className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-[#2D241E]/8 transition-colors duration-200 cursor-pointer"
+        className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-[#2D241E]/8 transition-colors duration-200 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2D241E]/30"
         title="Edit"
+        aria-label="Edit"
       >
         <Pencil size={13} style={{ color: "#2D241E", opacity: 0.5 }} />
       </button>
       <button
         type="button"
         onClick={onDelete}
-        className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-[#4A0E0E]/8 transition-colors duration-200 cursor-pointer"
+        className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-[#4A0E0E]/8 transition-colors duration-200 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2D241E]/30"
         title="Delete"
+        aria-label="Delete"
       >
         <Trash2 size={13} style={{ color: "#4A0E0E", opacity: 0.6 }} />
       </button>
@@ -884,13 +907,13 @@ export function AdminAccountingTab() {
       </div>
 
       {/* Pill navigation */}
-      <div className="flex gap-2 overflow-x-auto scrollbar-hide mb-8 pb-1 -mx-1 px-1">
+      <div className="flex flex-wrap gap-2 mb-8">
         {TABS.map((t) => (
           <button
             key={t.key}
             type="button"
             onClick={() => setTab(t.key)}
-            className="flex items-center gap-2 px-4 py-2.5 rounded-full whitespace-nowrap transition-colors duration-200 cursor-pointer flex-shrink-0"
+            className="flex items-center gap-2 px-4 py-2.5 rounded-full whitespace-nowrap transition-colors duration-200 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2D241E]/30"
             style={{
               fontFamily: "'DM Sans', sans-serif",
               fontSize: "0.72rem",
@@ -974,7 +997,7 @@ export function AdminAccountingTab() {
                 soldOrders.map((o) => (
                   <div
                     key={o.orderId}
-                    className="grid items-center px-6 py-4 hover:bg-[#2D241E]/[0.02] transition-colors duration-200 text-sm"
+                    className="grid items-center px-6 py-4 hover:bg-[#2D241E]/[0.03] transition-colors duration-200 text-sm"
                     style={{ gridTemplateColumns: "0.6fr 1fr 1.5fr 0.8fr 0.8fr", fontFamily: "'DM Sans', sans-serif" }}
                   >
                     <span className="text-[#2D241E]/60">#{o.orderId}</span>
@@ -1028,7 +1051,7 @@ export function AdminAccountingTab() {
                 materials.map((m) => (
                   <div
                     key={m.id}
-                    className="grid items-center px-6 py-4 hover:bg-[#2D241E]/[0.02] transition-colors duration-200"
+                    className="grid items-center px-6 py-4 hover:bg-[#2D241E]/[0.03] transition-colors duration-200"
                     style={{ gridTemplateColumns: "1.5fr 1fr 0.8fr 0.6fr 100px", fontFamily: "'DM Sans', sans-serif" }}
                   >
                     <div>
@@ -1102,7 +1125,7 @@ export function AdminAccountingTab() {
                   return (
                     <div key={imp.id}>
                       <div
-                        className="grid items-center px-6 py-4 hover:bg-[#2D241E]/[0.02] transition-colors duration-200 text-sm"
+                        className="grid items-center px-6 py-4 hover:bg-[#2D241E]/[0.03] transition-colors duration-200 text-sm"
                         style={{ gridTemplateColumns: "0.9fr 1.2fr 1fr 0.5fr 0.8fr 100px 40px", fontFamily: "'DM Sans', sans-serif" }}
                       >
                         <span className="text-[#2D241E]/60">{formatDate(imp.transactionDate)}</span>
@@ -1214,7 +1237,7 @@ export function AdminAccountingTab() {
                 usageRecords.map((u) => (
                   <div
                     key={u.id}
-                    className="grid items-center px-6 py-4 hover:bg-[#2D241E]/[0.02] transition-colors duration-200 text-sm"
+                    className="grid items-center px-6 py-4 hover:bg-[#2D241E]/[0.03] transition-colors duration-200 text-sm"
                     style={{ gridTemplateColumns: "1.4fr 0.9fr 0.5fr 1.1fr 1.5fr 100px", fontFamily: "'DM Sans', sans-serif" }}
                   >
                     <span className="text-[#2D241E]">{u.materialName}</span>
@@ -1330,7 +1353,7 @@ export function AdminAccountingTab() {
                 expenses.map((ex) => (
                   <div
                     key={ex.id}
-                    className="grid items-center px-6 py-4 hover:bg-[#2D241E]/[0.02] transition-colors duration-200 text-sm"
+                    className="grid items-center px-6 py-4 hover:bg-[#2D241E]/[0.03] transition-colors duration-200 text-sm"
                     style={{ gridTemplateColumns: "1.4fr 1fr 0.9fr 0.8fr 1.4fr 100px", fontFamily: "'DM Sans', sans-serif" }}
                   >
                     <span className="text-[#2D241E]">{ex.name}</span>
@@ -1387,7 +1410,7 @@ export function AdminAccountingTab() {
                   return (
                     <div
                       key={s.materialId}
-                      className="grid items-center px-6 py-4 hover:bg-[#2D241E]/[0.02] transition-colors duration-200 text-sm"
+                      className="grid items-center px-6 py-4 hover:bg-[#2D241E]/[0.03] transition-colors duration-200 text-sm"
                       style={{ gridTemplateColumns: "1.4fr 0.8fr 0.6fr 0.7fr 0.7fr 0.7fr 0.8fr 0.9fr", fontFamily: "'DM Sans', sans-serif" }}
                     >
                       <span className="text-[#2D241E] font-medium">{s.name}</span>

@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { motion } from "motion/react";
-import { Pencil, Plus, Trash2, X } from "lucide-react";
+import { Pencil, Plus, Trash2 } from "lucide-react";
 import {
   createCollection,
   deleteCollection,
@@ -11,8 +11,18 @@ import {
   type CollectionDto,
 } from "../../api/collections";
 import { invalidateProductsCache } from "../../utils/productsCache";
+import {
+  AdminModalShell,
+  AdminModalCancelButton,
+  AdminModalPrimaryButton,
+} from "./AdminModalShell";
 
 const easing = [0.25, 0.1, 0.25, 1] as const;
+
+const ADD_BTN =
+  "flex items-center gap-2 px-6 py-3 rounded-full text-[#F5F2ED] transition-all hover:opacity-90 flex-shrink-0 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2D241E]/30 focus-visible:ring-offset-2 focus-visible:ring-offset-[#F5F2ED]";
+const ICON_BTN =
+  "w-8 h-8 rounded-full flex items-center justify-center transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2D241E]/30";
 
 type ProductOption = { idNum: number; name: string; sku: string };
 
@@ -170,6 +180,18 @@ export function AdminCollectionsTab({ products, onError }: Props) {
     });
   };
 
+  const fieldLabelStyle: React.CSSProperties = {
+    fontFamily: "'DM Sans', sans-serif",
+    color: "rgba(45,36,30,0.45)",
+    letterSpacing: "0.1em",
+  };
+  const fieldInput =
+    "w-full rounded-[14px] border bg-transparent px-4 py-2.5 text-[#2D241E] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#2D241E]/20";
+  const fieldInputStyle: React.CSSProperties = {
+    borderColor: "rgba(45,36,30,0.15)",
+    fontFamily: "'DM Sans', sans-serif",
+  };
+
   return (
     <motion.div
       key="collections"
@@ -183,8 +205,9 @@ export function AdminCollectionsTab({ products, onError }: Props) {
           {loading ? "Loading…" : `${collections.length} collections`}
         </p>
         <button
+          type="button"
           onClick={openCreate}
-          className="flex items-center gap-2 px-6 py-3 rounded-full text-[#F5F2ED] transition-all hover:opacity-90 flex-shrink-0"
+          className={ADD_BTN}
           style={{ backgroundColor: "#2D241E", fontFamily: "'DM Sans', sans-serif", fontSize: "0.78rem", letterSpacing: "0.12em" }}
         >
           <Plus size={15} />
@@ -218,10 +241,10 @@ export function AdminCollectionsTab({ products, onError }: Props) {
             collections.map((collection) => (
               <div
                 key={collection.id}
-                className="grid items-center px-6 py-4 hover:bg-[#2D241E]/[0.02] transition-colors gap-3"
+                className="grid items-center px-6 py-4 hover:bg-[#2D241E]/[0.03] transition-colors gap-3"
                 style={{ gridTemplateColumns: "1.5fr 1fr 1fr 140px" }}
               >
-                <p className="text-[#2D241E]" style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "1.1rem" }}>
+                <p className="text-[#2D241E]" style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "1.15rem" }}>
                   {collection.name}
                 </p>
                 <p className="text-[#2D241E]/55 text-sm" style={{ fontFamily: "'DM Sans', sans-serif" }}>
@@ -234,16 +257,29 @@ export function AdminCollectionsTab({ products, onError }: Props) {
                 </p>
                 <div className="flex items-center justify-end gap-2">
                   <button
+                    type="button"
                     onClick={() => void openProducts(collection)}
-                    className="px-3 py-1.5 rounded-full text-[10px] uppercase tracking-widest border hover:bg-[#2D241E]/5"
+                    className="px-3 py-1.5 rounded-full text-[10px] uppercase tracking-widest border hover:bg-[#2D241E]/5 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2D241E]/30"
                     style={{ borderColor: "rgba(45,36,30,0.15)", fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.1em" }}
                   >
                     Items
                   </button>
-                  <button onClick={() => openEdit(collection)} className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-[#2D241E]/8 transition-colors" title="Edit">
+                  <button
+                    type="button"
+                    onClick={() => openEdit(collection)}
+                    className={`${ICON_BTN} hover:bg-[#2D241E]/8`}
+                    title="Edit"
+                    aria-label={`Edit ${collection.name}`}
+                  >
                     <Pencil size={13} style={{ color: "#2D241E", opacity: 0.5 }} />
                   </button>
-                  <button onClick={() => setDeleteTarget(collection)} className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-[#4A0E0E]/8 transition-colors" title="Delete">
+                  <button
+                    type="button"
+                    onClick={() => setDeleteTarget(collection)}
+                    className={`${ICON_BTN} hover:bg-[#4A0E0E]/8`}
+                    title="Delete"
+                    aria-label={`Delete ${collection.name}`}
+                  >
                     <Trash2 size={13} style={{ color: "#4A0E0E", opacity: 0.6 }} />
                   </button>
                 </div>
@@ -254,161 +290,138 @@ export function AdminCollectionsTab({ products, onError }: Props) {
       </div>
 
       {collectionModal.open && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ backgroundColor: "rgba(45,36,30,0.45)" }}>
-          <div className="w-full max-w-md rounded-[24px] p-6" style={{ backgroundColor: "#F5F2ED" }}>
-            <div className="flex items-center justify-between mb-5">
-              <p className="text-[#2D241E]" style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "1.4rem" }}>
-                {collectionModal.editing ? "Edit Collection" : "New Collection"}
-              </p>
-              <button onClick={() => setCollectionModal({ open: false })} className="text-[#2D241E]/40 hover:text-[#2D241E]">
-                <X size={18} />
-              </button>
+        <AdminModalShell
+          eyebrow={collectionModal.editing ? "Edit Collection" : "New Collection"}
+          title={collectionModal.editing ? collectionModal.editing.name : "Add Collection"}
+          onClose={() => setCollectionModal({ open: false })}
+          bodyClassName="p-8 space-y-4"
+          footer={
+            <>
+              <AdminModalCancelButton onClick={() => setCollectionModal({ open: false })} />
+              <AdminModalPrimaryButton onClick={() => void saveCollection()} disabled={saving}>
+                {saving ? "Saving…" : "Save"}
+              </AdminModalPrimaryButton>
+            </>
+          }
+        >
+          <div>
+            <label className="block text-xs uppercase mb-1.5" style={fieldLabelStyle}>Name</label>
+            <input
+              value={collectionModal.name}
+              onChange={(e) => setCollectionModal((prev) => (prev.open ? { ...prev, name: e.target.value } : prev))}
+              className={fieldInput}
+              style={fieldInputStyle}
+              placeholder="e.g. Summer Collection"
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs uppercase mb-1.5" style={fieldLabelStyle}>Start date</label>
+              <input
+                type="date"
+                value={collectionModal.startDate}
+                onChange={(e) => setCollectionModal((prev) => (prev.open ? { ...prev, startDate: e.target.value } : prev))}
+                className={`${fieldInput} px-3`}
+                style={fieldInputStyle}
+              />
             </div>
-            <div className="space-y-4">
-              <div>
-                <label className="block text-xs text-[#2D241E]/50 mb-1.5" style={{ fontFamily: "'DM Sans', sans-serif" }}>Name</label>
-                <input
-                  value={collectionModal.name}
-                  onChange={(e) => setCollectionModal((prev) => (prev.open ? { ...prev, name: e.target.value } : prev))}
-                  className="w-full rounded-[14px] border bg-transparent px-4 py-2.5 text-[#2D241E] focus:outline-none"
-                  style={{ borderColor: "rgba(45,36,30,0.15)", fontFamily: "'DM Sans', sans-serif" }}
-                  placeholder="e.g. Summer Collection"
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs text-[#2D241E]/50 mb-1.5" style={{ fontFamily: "'DM Sans', sans-serif" }}>Start date</label>
-                  <input
-                    type="date"
-                    value={collectionModal.startDate}
-                    onChange={(e) => setCollectionModal((prev) => (prev.open ? { ...prev, startDate: e.target.value } : prev))}
-                    className="w-full rounded-[14px] border bg-transparent px-3 py-2.5 text-[#2D241E] focus:outline-none"
-                    style={{ borderColor: "rgba(45,36,30,0.15)", fontFamily: "'DM Sans', sans-serif" }}
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs text-[#2D241E]/50 mb-1.5" style={{ fontFamily: "'DM Sans', sans-serif" }}>End date</label>
-                  <input
-                    type="date"
-                    value={collectionModal.endDate}
-                    onChange={(e) => setCollectionModal((prev) => (prev.open ? { ...prev, endDate: e.target.value } : prev))}
-                    className="w-full rounded-[14px] border bg-transparent px-3 py-2.5 text-[#2D241E] focus:outline-none"
-                    style={{ borderColor: "rgba(45,36,30,0.15)", fontFamily: "'DM Sans', sans-serif" }}
-                  />
-                </div>
-              </div>
-            </div>
-            <div className="flex justify-end gap-3 mt-6">
-              <button onClick={() => setCollectionModal({ open: false })} className="px-5 py-2.5 rounded-full text-sm text-[#2D241E]/60" style={{ fontFamily: "'DM Sans', sans-serif" }}>
-                Cancel
-              </button>
-              <button
-                onClick={() => void saveCollection()}
-                disabled={saving}
-                className="px-6 py-2.5 rounded-full text-[#F5F2ED] disabled:opacity-50"
-                style={{ backgroundColor: "#2D241E", fontFamily: "'DM Sans', sans-serif", fontSize: "0.78rem", letterSpacing: "0.1em" }}
-              >
-                <span className="uppercase tracking-widest">{saving ? "Saving…" : "Save"}</span>
-              </button>
+            <div>
+              <label className="block text-xs uppercase mb-1.5" style={fieldLabelStyle}>End date</label>
+              <input
+                type="date"
+                value={collectionModal.endDate}
+                onChange={(e) => setCollectionModal((prev) => (prev.open ? { ...prev, endDate: e.target.value } : prev))}
+                className={`${fieldInput} px-3`}
+                style={fieldInputStyle}
+              />
             </div>
           </div>
-        </div>
+        </AdminModalShell>
       )}
 
       {productsModal.open && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ backgroundColor: "rgba(45,36,30,0.45)" }}>
-          <div className="w-full max-w-lg rounded-[24px] p-6 max-h-[85vh] flex flex-col" style={{ backgroundColor: "#F5F2ED" }}>
-            <div className="flex items-center justify-between mb-4">
-              <div>
-                <p className="text-[#2D241E]" style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "1.4rem" }}>
-                  {productsModal.collection.name}
-                </p>
-                <p className="text-[#2D241E]/45 text-xs mt-1" style={{ fontFamily: "'DM Sans', sans-serif" }}>
-                  {productsModal.selectedIds.size} products selected
-                </p>
-              </div>
-              <button onClick={() => setProductsModal({ open: false })} className="text-[#2D241E]/40 hover:text-[#2D241E]">
-                <X size={18} />
-              </button>
-            </div>
-            <input
-              type="search"
-              value={productSearch}
-              onChange={(e) => setProductSearch(e.target.value)}
-              placeholder="Search products…"
-              className="w-full rounded-[14px] border bg-transparent px-4 py-2.5 mb-4 text-[#2D241E] focus:outline-none"
-              style={{ borderColor: "rgba(45,36,30,0.15)", fontFamily: "'DM Sans', sans-serif", fontSize: "0.85rem" }}
-            />
-            <div className="flex-1 overflow-y-auto divide-y rounded-[16px] border" style={{ borderColor: "rgba(45,36,30,0.08)" }}>
-              {visibleProducts.map((product) => {
-                const selected = productsModal.selectedIds.has(product.idNum);
-                return (
-                  <button
-                    key={product.idNum}
-                    type="button"
-                    onClick={() => toggleProduct(product.idNum)}
-                    className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-[#2D241E]/[0.03] transition-colors"
+        <AdminModalShell
+          eyebrow="Collection products"
+          title={productsModal.collection.name}
+          onClose={() => setProductsModal({ open: false })}
+          maxWidth="lg"
+          bodyClassName="px-8 pb-4 pt-6 flex flex-col min-h-0 gap-4"
+          footer={
+            <>
+              <AdminModalCancelButton onClick={() => setProductsModal({ open: false })} />
+              <AdminModalPrimaryButton onClick={() => void saveProducts()} disabled={saving}>
+                {saving ? "Saving…" : "Save Products"}
+              </AdminModalPrimaryButton>
+            </>
+          }
+        >
+          <p className="text-[#2D241E]/45 text-xs -mt-2" style={{ fontFamily: "'DM Sans', sans-serif" }}>
+            {productsModal.selectedIds.size} products selected
+          </p>
+          <input
+            type="search"
+            value={productSearch}
+            onChange={(e) => setProductSearch(e.target.value)}
+            placeholder="Search products…"
+            className={fieldInput}
+            style={{ ...fieldInputStyle, fontSize: "0.85rem" }}
+          />
+          <div
+            className="flex-1 min-h-0 overflow-y-auto divide-y rounded-[16px] border max-h-[40vh]"
+            style={{ borderColor: "rgba(45,36,30,0.08)" }}
+          >
+            {visibleProducts.map((product) => {
+              const selected = productsModal.selectedIds.has(product.idNum);
+              return (
+                <button
+                  key={product.idNum}
+                  type="button"
+                  onClick={() => toggleProduct(product.idNum)}
+                  className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-[#2D241E]/[0.03] transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#2D241E]/20"
+                >
+                  <div>
+                    <p className="text-[#2D241E] text-sm" style={{ fontFamily: "'DM Sans', sans-serif" }}>{product.name}</p>
+                    <p className="text-[#2D241E]/40 text-xs" style={{ fontFamily: "'DM Sans', sans-serif" }}>{product.sku}</p>
+                  </div>
+                  <span
+                    className="px-3 py-1 rounded-full text-[10px] uppercase tracking-widest"
+                    style={{
+                      fontFamily: "'DM Sans', sans-serif",
+                      letterSpacing: "0.1em",
+                      backgroundColor: selected ? "rgba(74,14,14,0.1)" : "rgba(45,36,30,0.06)",
+                      color: selected ? "#4A0E0E" : "rgba(45,36,30,0.45)",
+                    }}
                   >
-                    <div>
-                      <p className="text-[#2D241E] text-sm" style={{ fontFamily: "'DM Sans', sans-serif" }}>{product.name}</p>
-                      <p className="text-[#2D241E]/40 text-xs" style={{ fontFamily: "'DM Sans', sans-serif" }}>{product.sku}</p>
-                    </div>
-                    <span
-                      className="px-3 py-1 rounded-full text-[10px] uppercase tracking-widest"
-                      style={{
-                        fontFamily: "'DM Sans', sans-serif",
-                        letterSpacing: "0.1em",
-                        backgroundColor: selected ? "rgba(74,14,14,0.1)" : "rgba(45,36,30,0.06)",
-                        color: selected ? "#4A0E0E" : "rgba(45,36,30,0.45)",
-                      }}
-                    >
-                      {selected ? "In" : "Add"}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-            <div className="flex justify-end gap-3 mt-5">
-              <button onClick={() => setProductsModal({ open: false })} className="px-5 py-2.5 rounded-full text-sm text-[#2D241E]/60" style={{ fontFamily: "'DM Sans', sans-serif" }}>
-                Cancel
-              </button>
-              <button
-                onClick={() => void saveProducts()}
-                disabled={saving}
-                className="px-6 py-2.5 rounded-full text-[#F5F2ED] disabled:opacity-50"
-                style={{ backgroundColor: "#2D241E", fontFamily: "'DM Sans', sans-serif", fontSize: "0.78rem", letterSpacing: "0.1em" }}
-              >
-                <span className="uppercase tracking-widest">{saving ? "Saving…" : "Save Products"}</span>
-              </button>
-            </div>
+                    {selected ? "In" : "Add"}
+                  </span>
+                </button>
+              );
+            })}
           </div>
-        </div>
+        </AdminModalShell>
       )}
 
       {deleteTarget && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ backgroundColor: "rgba(45,36,30,0.45)" }}>
-          <div className="w-full max-w-sm rounded-[24px] p-6" style={{ backgroundColor: "#F5F2ED" }}>
-            <p className="text-[#2D241E] mb-2" style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "1.3rem" }}>
-              Delete collection?
-            </p>
-            <p className="text-[#2D241E]/55 text-sm mb-6" style={{ fontFamily: "'DM Sans', sans-serif", lineHeight: 1.6 }}>
-              “{deleteTarget.name}” will be removed. Products in this collection will be unassigned, not deleted.
-            </p>
-            <div className="flex justify-end gap-3">
-              <button onClick={() => setDeleteTarget(null)} className="px-5 py-2.5 rounded-full text-sm text-[#2D241E]/60" style={{ fontFamily: "'DM Sans', sans-serif" }}>
-                Cancel
-              </button>
-              <button
-                onClick={() => void confirmDelete()}
-                disabled={saving}
-                className="px-6 py-2.5 rounded-full text-[#F5F2ED] disabled:opacity-50"
-                style={{ backgroundColor: "#4A0E0E", fontFamily: "'DM Sans', sans-serif" }}
-              >
-                Delete
-              </button>
-            </div>
-          </div>
-        </div>
+        <AdminModalShell
+          eyebrow="Confirm"
+          title={`Delete “${deleteTarget.name}”?`}
+          onClose={() => setDeleteTarget(null)}
+          maxWidth="sm"
+          bodyClassName="px-8 pt-6 pb-2"
+          footerClassName="flex gap-3 px-8 py-6"
+          footer={
+            <>
+              <AdminModalCancelButton onClick={() => setDeleteTarget(null)} className="flex-1" />
+              <AdminModalPrimaryButton onClick={() => void confirmDelete()} variant="danger" disabled={saving} className="flex-1">
+                {saving ? "Deleting…" : "Delete"}
+              </AdminModalPrimaryButton>
+            </>
+          }
+        >
+          <p className="text-[#2D241E]/55 text-sm" style={{ fontFamily: "'DM Sans', sans-serif", lineHeight: 1.6 }}>
+            Products in this collection will be unassigned, not deleted.
+          </p>
+        </AdminModalShell>
       )}
     </motion.div>
   );

@@ -22,6 +22,11 @@ export interface FurnitureColorVariant {
   hex: string;
 }
 
+export interface SizeOption {
+  name: string;
+  nameUk?: string | null;
+}
+
 export interface Product {
   id: string;
   name: string;
@@ -33,7 +38,7 @@ export interface Product {
   isBestseller?: boolean;
   createdAt?: string;
   lace?: boolean;
-  sizes: string[];
+  sizes: SizeOption[];
   defaultSize?: string;
   defaultColor?: string;
   defaultFurnitureColor?: string;

@@ -10,6 +10,7 @@ public static class CatalogSchemaPatches
     private static readonly string[] EnsureStatements =
     [
         """ALTER TABLE "Color" ADD COLUMN IF NOT EXISTS "NameUk" character varying(100) NULL;""",
+        """ALTER TABLE "Size" ADD COLUMN IF NOT EXISTS "NameUk" character varying(100) NULL;""",
         """
         CREATE TABLE IF NOT EXISTS "FurnitureColor" (
             "Id" serial PRIMARY KEY,
@@ -86,6 +87,6 @@ public static class CatalogSchemaPatches
         }
 
         Interlocked.Exchange(ref _ensured, 1);
-        logger.LogInformation("Verified catalog columns (Color.NameUk, FurnitureColor).");
+        logger.LogInformation("Verified catalog columns (Color.NameUk, Size.NameUk, FurnitureColor).");
     }
 }

@@ -119,7 +119,9 @@ export function buildDraftProduct(
     isNew: form.isNew,
     isBestseller: form.isBestseller,
     lace: form.lace,
-    sizes: selectedSizeNames.length > 0 ? selectedSizeNames : sizes.map((s) => s.name).slice(0, 4),
+    sizes: selectedSizeNames.length > 0
+      ? selectedSizeNames.map((name) => ({ name }))
+      : sizes.map((s) => ({ name: s.name })).slice(0, 4),
     defaultSize: defaultSizeName,
     defaultColor: defaultColorName,
     description: "",

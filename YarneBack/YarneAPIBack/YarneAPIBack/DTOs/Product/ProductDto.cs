@@ -24,7 +24,7 @@ public class ProductDto
 
     public List<FurnitureColorVariantDto> FurnitureColors { get; set; } = new();
 
-    public List<string> Sizes { get; set; } = new();
+    public List<SizeOptionDto> Sizes { get; set; } = new();
 
     public string? DefaultSize { get; set; }
 

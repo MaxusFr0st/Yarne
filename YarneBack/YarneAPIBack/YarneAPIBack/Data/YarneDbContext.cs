@@ -477,6 +477,7 @@ public partial class YarneDbContext : DbContext
             entity.HasKey(e => e.Id);
             entity.ToTable("Size");
             entity.Property(e => e.Name).HasMaxLength(50);
+            entity.Property(e => e.NameUk).HasMaxLength(100);
             entity.HasIndex(e => e.Name).IsUnique();
         });
 

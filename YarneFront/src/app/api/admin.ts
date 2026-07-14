@@ -27,6 +27,7 @@ export interface FurnitureColorDto {
 export interface SizeDto {
   id: number;
   name: string;
+  nameUk?: string | null;
 }
 
 export interface UserDto {
@@ -137,24 +138,22 @@ export async function deleteFurnitureColor(id: number): Promise<void> {
 }
 
 export async function fetchSizes(): Promise<SizeDto[]> {
-  const data = await apiRequest<{ id: number; name: string }[]>("/api/sizes");
+  const data = await apiRequest<SizeDto[]>("/api/sizes");
   return Array.isArray(data) ? data : [];
 }
 
-export async function createSize(name: string): Promise<SizeDto> {
-  const data = await apiRequest<{ id: number; name: string }>("/api/sizes", {
+export async function createSize(name: string, nameUk?: string): Promise<SizeDto> {
+  return apiRequest<SizeDto>("/api/sizes", {
     method: "POST",
-    body: JSON.stringify({ name }),
+    body: JSON.stringify({ name, nameUk: nameUk || null }),
   });
-  return data;
 }
 
-export async function updateSize(id: number, name: string): Promise<SizeDto> {
-  const data = await apiRequest<{ id: number; name: string }>(`/api/sizes/${id}`, {
+export async function updateSize(id: number, name: string, nameUk?: string): Promise<SizeDto> {
+  return apiRequest<SizeDto>(`/api/sizes/${id}`, {
     method: "PUT",
-    body: JSON.stringify({ name }),
+    body: JSON.stringify({ name, nameUk: nameUk || null }),
   });
-  return data;
 }
 
 export async function deleteSize(id: number): Promise<void> {

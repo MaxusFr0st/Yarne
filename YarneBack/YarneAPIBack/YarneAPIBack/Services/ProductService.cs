@@ -504,9 +504,13 @@ public class ProductService : IProductService
         var images = GetOrderedImageUrls(p);
         var sizes = p.ProductSizes
             .OrderBy(ps => ps.SortOrder)
-            .Select(ps => ps.Size.Name)
+            .Select(ps => new SizeOptionDto
+            {
+                Name = ps.Size.Name,
+                NameUk = ps.Size.NameUk,
+            })
             .ToList();
-        var defaultSize = p.DefaultSize?.Name ?? sizes.FirstOrDefault();
+        var defaultSize = p.DefaultSize?.Name ?? sizes.FirstOrDefault()?.Name;
 
         var colors = p.ProductColors.Count > 0
             ? p.ProductColors.OrderBy(pc => pc.SortOrder).Select((pc, i) =>
