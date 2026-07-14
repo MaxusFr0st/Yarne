@@ -45,7 +45,10 @@ const EMPTY_SLOT_2: ShowcaseProductSlot = {
   ctaLabel: "",
 };
 
-const OUR_HISTORY_PATH = "/pages/our-history";
+/** Story-card destination is always the in-app history page. */
+export const SHOWCASE_STORY_HREF = "/pages/our-history";
+
+const OUR_HISTORY_PATH = SHOWCASE_STORY_HREF;
 
 const EMPTY_SLOT_3: ShowcaseTextSlot = {
   ctaHref: OUR_HISTORY_PATH,
@@ -53,37 +56,39 @@ const EMPTY_SLOT_3: ShowcaseTextSlot = {
   uk: { ...EMPTY_LOCALE_COPY },
 };
 
-/** Keep story-card CTAs on the in-app history route (not external yarne-acc URLs). */
+/**
+ * Keep story-card CTAs on `/pages/our-history`.
+ * Maps truncated/typo paths like `/abou`, `/about`, and old absolute yarne-acc URLs.
+ */
 export function normalizeShowcaseCtaHref(value: unknown, fallback = OUR_HISTORY_PATH): string {
   const raw = typeof value === "string" ? value.trim() : "";
   if (!raw) return fallback;
 
-  const lower = raw.toLowerCase();
+  let path = raw;
+  if (/^[a-z][a-z0-9+\-.]*:/i.test(raw) || raw.startsWith("//")) {
+    try {
+      path = new URL(raw.startsWith("//") ? `https:${raw}` : raw).pathname;
+    } catch {
+      return fallback;
+    }
+  }
+
+  const lower = path.toLowerCase();
+  // /about, /abou, /abou*, /pages/about, …our-history
   if (
     lower.includes("our-history") ||
-    lower === "/about" ||
-    lower === "about" ||
-    lower.endsWith("/about") ||
+    /(^|\/)abou/.test(lower) ||
     lower.includes("/pages/about")
   ) {
     return OUR_HISTORY_PATH;
   }
 
+  // Absolute unrelated URL — rare; story tile ignores this and still uses history.
   if (/^[a-z][a-z0-9+\-.]*:/i.test(raw) || raw.startsWith("//")) {
-    try {
-      const url = new URL(raw.startsWith("//") ? `https:${raw}` : raw);
-      const path = url.pathname.toLowerCase();
-      if (path.includes("our-history") || path.endsWith("/about") || path.includes("/pages/about")) {
-        return OUR_HISTORY_PATH;
-      }
-    } catch {
-      return fallback;
-    }
-    // Unrelated absolute URL — leave as entered (TextTile will open via <a>).
-    return raw;
+    return fallback;
   }
 
-  return raw.startsWith("/") ? raw : `/${raw}`;
+  return OUR_HISTORY_PATH;
 }
 
 const EMPTY_SLOT_4: ShowcaseProductSlot = {
@@ -230,6 +235,7 @@ export async function persistFeaturedShowcaseSelection(
   selection: FeaturedShowcaseSelection
 ): Promise<FeaturedShowcaseSelection> {
   const normalized = normalizeFeaturedShowcaseSelection(selection);
+  normalized.slot3.ctaHref = OUR_HISTORY_PATH;
   await saveStorefrontSetting(FEATURED_SHOWCASE_SELECTION_KEY, normalized);
   writeLocalFeaturedShowcase(normalized);
   return normalized;

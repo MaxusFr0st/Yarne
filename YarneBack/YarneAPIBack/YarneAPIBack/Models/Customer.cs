@@ -34,4 +34,6 @@ public partial class Customer
     public virtual ICollection<CustomerRole> CustomerRoles { get; set; } = new List<CustomerRole>();
 
     public virtual ICollection<Order> Orders { get; set; } = new List<Order>();
+
+    public virtual ICollection<RefreshToken> RefreshTokens { get; set; } = new List<RefreshToken>();
 }

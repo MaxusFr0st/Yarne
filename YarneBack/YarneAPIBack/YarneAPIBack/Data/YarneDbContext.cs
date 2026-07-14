@@ -31,6 +31,8 @@ public partial class YarneDbContext : DbContext
 
     public virtual DbSet<CustomerRole> CustomerRoles { get; set; }
 
+    public virtual DbSet<RefreshToken> RefreshTokens { get; set; }
+
     public virtual DbSet<Order> Orders { get; set; }
 
     public virtual DbSet<OrderItem> OrderItems { get; set; }
@@ -662,6 +664,25 @@ public partial class YarneDbContext : DbContext
                 .OnDelete(DeleteBehavior.Cascade);
             entity.HasIndex(e => e.StockReportId);
             entity.HasIndex(e => e.MaterialId);
+        });
+
+        modelBuilder.Entity<RefreshToken>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.ToTable("RefreshToken");
+            entity.Property(e => e.TokenHash).HasMaxLength(128).IsRequired();
+            entity.Property(e => e.CreatedAtUtc).HasDefaultValueSql("CURRENT_TIMESTAMP");
+            entity.HasIndex(e => e.TokenHash).IsUnique();
+            entity.HasIndex(e => e.CustomerId);
+            entity.HasIndex(e => e.ExpiresAtUtc);
+            entity.HasOne(e => e.Customer)
+                .WithMany(c => c.RefreshTokens)
+                .HasForeignKey(e => e.CustomerId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(e => e.ReplacedByToken)
+                .WithMany()
+                .HasForeignKey(e => e.ReplacedByTokenId)
+                .OnDelete(DeleteBehavior.SetNull);
         });
 
         OnModelCreatingPartial(modelBuilder);

@@ -18,7 +18,7 @@ import {
   type ShowcaseProductSlot,
   type ShowcaseTextSlot,
   getShowcaseTextForLocale,
-  normalizeShowcaseCtaHref,
+  SHOWCASE_STORY_HREF,
 } from "../utils/featuredShowcaseSelection";
 import { useTouchMobileLayout } from "../hooks/useTouchMobileLayout";
 import { useShowcaseSpreadLayout } from "../hooks/useCompactTabletLayout";
@@ -85,18 +85,19 @@ function ProductTile({ slot, product, fallbackTitle, variant, showWishlist = fal
   const href = product ? `/product/${product.id}` : "/collection";
 
   const isLarge = variant === "large";
-  /** Fixed crop on touch — no width breakpoints (they jump when browser chrome resizes). */
-  const mobileImageFrameClass = touch
+  /** Crop only — hover zoom is a separate transform so it stays smooth. */
+  const cropClass = touch
     ? isLarge
-      ? "max-md:object-[center_28%]"
+      ? "object-[center_28%]"
       : variant === "wide"
-        ? "max-md:object-[center_30%]"
-        : "max-md:object-[center_26%]"
+        ? "object-[center_30%]"
+        : "object-[center_26%]"
     : isLarge
-      ? "max-md:scale-[1.16] max-md:object-[center_32%] md:object-[center_42%] md:group-hover:scale-[1.03] lg:group-hover:scale-[1.04]"
+      ? "object-[center_42%] max-md:object-[center_32%]"
       : variant === "wide"
-        ? "max-md:scale-[1.12] max-md:object-[center_34%] md:object-[center_40%] md:group-hover:scale-[1.03] lg:group-hover:scale-[1.04]"
-        : "max-md:scale-[1.18] max-md:object-[center_30%] md:object-[center_38%] md:group-hover:scale-[1.03] lg:group-hover:scale-[1.04]";
+        ? "object-[center_40%] max-md:object-[center_34%]"
+        : "object-[center_38%] max-md:object-[center_30%]";
+
   const isWishlisted = product ? wishlist.includes(product.id) : false;
   const eyebrow = slot.eyebrow.trim();
   const ctaLabel = slot.ctaLabel.trim();
@@ -110,23 +111,32 @@ function ProductTile({ slot, product, fallbackTitle, variant, showWishlist = fal
   return (
     <LangLink
       to={href}
-      className="group relative block w-full h-full overflow-hidden rounded-[clamp(18px,4.5vw,28px)] md:rounded-[32px] bg-[#EDE9E2]"
+      className="group relative block w-full h-full overflow-hidden rounded-[clamp(18px,4.5vw,28px)] md:rounded-[32px] bg-[#EDE9E2] cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2D241E]/35"
       aria-label={t("showcase.openProduct", { title })}
     >
       <Img
         src={imageSrc}
         alt={title}
         priority={priority}
-        className={`absolute inset-0 w-full h-full object-cover ${touch ? "" : "transition-opacity duration-500 ease-out"} ${mobileImageFrameClass} md:group-hover:scale-[1.04] ${touch || imageReady ? "opacity-100" : "opacity-0"}`}
+        className={`absolute inset-0 h-full w-full object-cover ${cropClass} ${
+          touch
+            ? ""
+            : "origin-center will-change-transform transition-transform duration-700 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none motion-reduce:transform-none group-hover:scale-[1.04] motion-reduce:group-hover:scale-100"
+        } ${touch || imageReady ? "opacity-100" : "opacity-0"} ${
+          touch ? "" : "transition-opacity duration-500 ease-out"
+        }`}
       />
 
       <div
-        className="absolute inset-0"
+        className={`absolute inset-0 pointer-events-none transition-opacity duration-500 ease-out motion-reduce:transition-none ${
+          touch ? "" : "group-hover:opacity-90"
+        }`}
         style={{
           background: isLarge
             ? "linear-gradient(to top, rgba(45,36,30,0.72) 0%, rgba(45,36,30,0.2) 42%, transparent 72%)"
             : "linear-gradient(to top, rgba(45,36,30,0.55) 0%, rgba(45,36,30,0.08) 45%, transparent 100%)",
         }}
+        aria-hidden="true"
       />
 
       <div
@@ -239,12 +249,25 @@ function TextTile({ slot }: TextTileProps) {
   const eyebrow = text.eyebrow.trim();
   const heading = text.heading.trim();
   const ctaLabel = text.ctaLabel.trim();
-  const ctaHref = normalizeShowcaseCtaHref(slot.ctaHref);
-  const isExternal = /^[a-z][a-z0-9+\-.]*:/i.test(ctaHref) || ctaHref.startsWith("//");
+  // Always in-app history — ignore truncated admin typos like `/abou`.
+  const ctaHref = SHOWCASE_STORY_HREF;
 
-  const className =
-    "group relative block w-full h-full overflow-hidden rounded-[clamp(18px,4.5vw,28px)] md:rounded-[32px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#F5F2ED]/40";
-  const body = (
+  return (
+    <LangLink
+      to={ctaHref}
+      className="group relative block w-full h-full overflow-hidden rounded-[clamp(18px,4.5vw,28px)] md:rounded-[32px] cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#F5F2ED]/40"
+      style={{ backgroundColor: "#2D241E" }}
+    >
+      <div
+        className={`absolute inset-0 opacity-0 transition-opacity duration-500 ease-out motion-reduce:transition-none ${
+          "group-hover:opacity-100"
+        }`}
+        style={{
+          background:
+            "radial-gradient(120% 80% at 20% 0%, rgba(245,242,237,0.08) 0%, transparent 55%)",
+        }}
+        aria-hidden="true"
+      />
       <div className="relative z-10 h-full flex flex-col justify-between p-[clamp(10px,2.5vw,18px)] md:p-7">
         <div className="min-h-0">
           {eyebrow.length > 0 && (
@@ -277,7 +300,7 @@ function TextTile({ slot }: TextTileProps) {
 
         {ctaLabel.length > 0 && (
           <span
-            className="inline-flex items-center gap-1 text-white/85 group-hover:text-white transition-colors duration-200 mt-2 md:mt-6"
+            className="inline-flex items-center gap-1 text-white/85 group-hover:text-white transition-colors duration-300 mt-2 md:mt-6"
             style={{
               fontFamily: "'DM Sans', sans-serif",
               fontSize: "clamp(0.62rem, 2.4vw, 0.8rem)",
@@ -287,30 +310,12 @@ function TextTile({ slot }: TextTileProps) {
             <span className="line-clamp-1">{ctaLabel}</span>
             <ArrowUpRight
               size={13}
-              className="shrink-0 transition-transform duration-200 group-hover:translate-x-0.5 group-hover:-translate-y-0.5"
+              className="shrink-0 transition-transform duration-300 ease-out group-hover:translate-x-0.5 group-hover:-translate-y-0.5 motion-reduce:transform-none"
               aria-hidden="true"
             />
           </span>
         )}
       </div>
-  );
-
-  if (isExternal) {
-    return (
-      <a
-        href={ctaHref}
-        className={className}
-        style={{ backgroundColor: "#2D241E" }}
-        rel="noopener noreferrer"
-      >
-        {body}
-      </a>
-    );
-  }
-
-  return (
-    <LangLink to={ctaHref} className={className} style={{ backgroundColor: "#2D241E" }}>
-      {body}
     </LangLink>
   );
 }

@@ -4368,16 +4368,18 @@ export function AdminPage() {
                       </div>
                       <div className="sm:col-span-2">
                         <p className="text-[#2D241E]/45 text-xs uppercase tracking-widest mb-1.5" style={{ fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.1em" }}>
-                          CTA link (path or URL)
+                          CTA destination (fixed)
                         </p>
                         <input
                           type="text"
-                          value={featuredShowcaseSelection.slot3.ctaHref}
-                          onChange={(e) => updateShowcaseTextSlot({ ctaHref: e.target.value })}
-                          placeholder="/pages/our-history"
-                          className="w-full rounded-[14px] border bg-transparent px-3 py-2.5 text-[#2D241E] focus:outline-none"
+                          value="/pages/our-history"
+                          readOnly
+                          className="w-full rounded-[14px] border bg-transparent px-3 py-2.5 text-[#2D241E]/55 focus:outline-none cursor-default"
                           style={{ borderColor: "rgba(45,36,30,0.15)", fontFamily: "'DM Sans', sans-serif", fontSize: "0.85rem" }}
                         />
+                        <p className="text-[#2D241E]/40 text-[0.7rem] mt-1.5" style={{ fontFamily: "'DM Sans', sans-serif" }}>
+                          Story card always opens the in-app Our History page.
+                        </p>
                       </div>
                     </div>
                   </div>

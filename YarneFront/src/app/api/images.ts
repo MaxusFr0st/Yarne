@@ -1,38 +1,12 @@
 import { buildApiUrl, resolveApiBase } from "./base";
+import { clearLegacyAuthStorage } from "./client";
 import { normalizeStoredMediaUrl } from "../utils/storefrontMedia";
 
 const UPLOAD_TIMEOUT_MS = 60_000;
 
-function getAuthToken(): string | null {
-  return sessionStorage.getItem("auth_token") ?? localStorage.getItem("auth_token");
-}
-
 function handleUnauthorized() {
-  sessionStorage.removeItem("auth_token");
-  sessionStorage.removeItem("auth_user");
-  localStorage.removeItem("auth_token");
-  localStorage.removeItem("auth_user");
+  clearLegacyAuthStorage();
   window.dispatchEvent(new CustomEvent("auth-expired"));
-}
-
-function assertTokenPresent(): void {
-  const token = getAuthToken();
-  if (!token) {
-    throw new Error("You are not signed in. Log in as admin and try again.");
-  }
-
-  const userData = sessionStorage.getItem("auth_user") ?? localStorage.getItem("auth_user");
-  if (!userData) return;
-
-  try {
-    const u = JSON.parse(userData) as { expiresAt?: string };
-    if (u.expiresAt && new Date(u.expiresAt) <= new Date()) {
-      handleUnauthorized();
-      throw new Error("Your session expired. Log in again as admin, then upload.");
-    }
-  } catch (e) {
-    if (e instanceof Error && e.message.includes("session expired")) throw e;
-  }
 }
 
 function parseUploadUrl(data: unknown): string {
@@ -64,20 +38,12 @@ type UploadImageOptions = {
 };
 
 export async function uploadImage(file: File, options?: UploadImageOptions): Promise<string> {
-  assertTokenPresent();
-
   if (file.size === 0) {
     throw new Error("Image file is empty. Choose a different photo and try again.");
   }
 
   const formData = new FormData();
   formData.append("file", file, file.name);
-
-  const token = getAuthToken();
-  const headers: HeadersInit = {};
-  if (token) {
-    (headers as Record<string, string>)["Authorization"] = `Bearer ${token}`;
-  }
 
   const controller = new AbortController();
   const timeout = window.setTimeout(() => controller.abort(), UPLOAD_TIMEOUT_MS);
@@ -88,8 +54,8 @@ export async function uploadImage(file: File, options?: UploadImageOptions): Pro
   try {
     res = await fetch(buildApiUrl(resolveApiBase(), "/api/images/upload"), {
       method: "POST",
-      headers,
       body: formData,
+      credentials: "include",
       signal: controller.signal,
     });
   } catch (err) {
@@ -129,20 +95,12 @@ export async function deleteUploadedImage(url: string): Promise<void> {
   const path = normalizeStoredMediaUrl(url);
   if (!path.startsWith("/uploads/")) return;
 
-  assertTokenPresent();
-
-  const token = getAuthToken();
-  const headers: HeadersInit = {};
-  if (token) {
-    (headers as Record<string, string>)["Authorization"] = `Bearer ${token}`;
-  }
-
   const endpoint = `/api/images?path=${encodeURIComponent(path)}`;
   let res: Response;
   try {
     res = await fetch(buildApiUrl(resolveApiBase(), endpoint), {
       method: "DELETE",
-      headers,
+      credentials: "include",
       signal: AbortSignal.timeout(15_000),
     });
   } catch (err) {

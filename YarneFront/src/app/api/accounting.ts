@@ -1,11 +1,7 @@
-import { apiRequest } from "./client";
+import { apiRequest, clearLegacyAuthStorage } from "./client";
 import { buildApiUrl, resolveApiBase } from "./base";
 
 const API_BASE = resolveApiBase();
-
-function getAuthToken(): string | null {
-  return sessionStorage.getItem("auth_token") ?? localStorage.getItem("auth_token");
-}
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -424,14 +420,12 @@ export async function fetchAccountingReport(params: AccountingReportParams): Pro
 }
 
 export async function downloadAccountingReportPdf(params: AccountingReportParams): Promise<void> {
-  const token = getAuthToken();
   const res = await fetch(buildApiUrl(API_BASE, `/api/accounting/report/pdf${buildReportQuery(params)}`), {
-    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    credentials: "include",
     signal: AbortSignal.timeout(60_000),
   });
   if (res.status === 401) {
-    sessionStorage.removeItem("auth_token");
-    localStorage.removeItem("auth_token");
+    clearLegacyAuthStorage();
     window.dispatchEvent(new CustomEvent("auth-expired"));
     throw new Error("Session expired.");
   }

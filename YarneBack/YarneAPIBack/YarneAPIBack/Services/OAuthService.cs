@@ -17,10 +17,11 @@ namespace YarneAPIBack.Services;
 public class OAuthService : IOAuthService
 {
     private readonly YarneDbContext _context;
-    private readonly JwtSettings _jwtSettings;
     private readonly IConfiguration _configuration;
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly ILogger<OAuthService> _logger;
+    private readonly IAccessTokenIssuer _accessTokens;
+    private readonly IRefreshTokenService _refreshTokens;
 
     private static readonly SemaphoreSlim _appleKeysCacheLock = new(1, 1);
     private static IList<JsonWebKey>? _cachedAppleKeys;
@@ -28,16 +29,18 @@ public class OAuthService : IOAuthService
 
     public OAuthService(
         YarneDbContext context,
-        IOptions<JwtSettings> jwtSettings,
         IConfiguration configuration,
         IHttpClientFactory httpClientFactory,
-        ILogger<OAuthService> logger)
+        ILogger<OAuthService> logger,
+        IAccessTokenIssuer accessTokens,
+        IRefreshTokenService refreshTokens)
     {
         _context = context;
-        _jwtSettings = jwtSettings.Value;
         _configuration = configuration;
         _httpClientFactory = httpClientFactory;
         _logger = logger;
+        _accessTokens = accessTokens;
+        _refreshTokens = refreshTokens;
     }
 
     public async Task<AuthResponse> HandleGoogleAsync(string accessToken, CancellationToken ct = default)
@@ -247,7 +250,7 @@ public class OAuthService : IOAuthService
             await _context.SaveChangesAsync(ct);
         }
 
-        return await GenerateTokenAsync(customer, ct);
+        return await IssueSessionAsync(customer, ct);
     }
 
     private async Task<string> EnsureUniqueUserNameAsync(string baseUserName, CancellationToken ct)
@@ -267,47 +270,10 @@ public class OAuthService : IOAuthService
         return candidate;
     }
 
-    private async Task<AuthResponse> GenerateTokenAsync(Customer customer, CancellationToken ct)
+    private async Task<AuthResponse> IssueSessionAsync(Customer customer, CancellationToken ct)
     {
-        var roleName = "Customer";
-        var roles = await _context.CustomerRoles
-            .Where(cr => cr.CustomerId == customer.Id)
-            .Select(cr => cr.Role.Name)
-            .ToListAsync(ct);
-        if (roles.Contains("Admin"))
-            roleName = "Admin";
-        else if (roles.Count > 0)
-            roleName = roles[0];
-
-        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_jwtSettings.Secret));
-        var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
-        var expires = DateTime.UtcNow.Add(_jwtSettings.GetExpirationForRole(roleName));
-
-        var claims = new List<Claim>
-        {
-            new(ClaimTypes.NameIdentifier, customer.Id.ToString()),
-            new(ClaimTypes.Email, customer.Email),
-            new(ClaimTypes.Name, customer.UserName),
-            new(ClaimTypes.Role, roleName),
-            new(JwtRegisteredClaimNames.Sub, customer.Id.ToString()),
-            new(JwtRegisteredClaimNames.Email, customer.Email),
-        };
-
-        var token = new JwtSecurityToken(
-            issuer: _jwtSettings.Issuer,
-            audience: _jwtSettings.Audience,
-            claims: claims,
-            expires: expires,
-            signingCredentials: creds);
-
-        return new AuthResponse
-        {
-            Token = new JwtSecurityTokenHandler().WriteToken(token),
-            Email = customer.Email,
-            UserName = customer.UserName,
-            FullName = $"{customer.FirstName} {customer.LastName}".Trim(),
-            Role = roleName,
-            ExpiresAt = expires,
-        };
+        var access = await _accessTokens.IssueAsync(customer, ct);
+        await _refreshTokens.AttachNewRefreshAsync(access, ct);
+        return access;
     }
 }

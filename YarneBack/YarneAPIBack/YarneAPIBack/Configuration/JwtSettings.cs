@@ -17,6 +17,9 @@ public class JwtSettings
 
     public TimeSpan CustomerExpiration { get; set; } = TimeSpan.FromMinutes(45);
 
+    /// <summary>Sliding refresh-cookie lifetime (re-issued on each successful /refresh).</summary>
+    public TimeSpan RefreshExpiration { get; set; } = TimeSpan.FromDays(14);
+
     public TimeSpan GetExpirationForRole(string roleName) =>
         string.Equals(roleName, "Admin", StringComparison.OrdinalIgnoreCase)
             ? AdminExpiration

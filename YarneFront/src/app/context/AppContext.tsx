@@ -7,7 +7,16 @@ import React, {
   useMemo,
   startTransition,
 } from "react";
-import { login as apiLogin, register as apiRegister, loginWithGoogle as apiLoginWithGoogle, loginWithApple as apiLoginWithApple } from "../api/auth";
+import {
+  login as apiLogin,
+  register as apiRegister,
+  loginWithGoogle as apiLoginWithGoogle,
+  loginWithApple as apiLoginWithApple,
+  logout as apiLogout,
+  fetchAuthSession,
+} from "../api/auth";
+import { clearLegacyAuthStorage, tryRefreshSession } from "../api/client";
+import { ApiRequestError } from "../api/errors";
 
 export interface CartItem {
   cartId: string;
@@ -52,6 +61,7 @@ interface OverlayContextType {
 
 interface AuthContextType {
   isLoggedIn: boolean;
+  authHydrated: boolean;
   user: { name: string; email: string; role: string } | null;
   isAdmin: boolean;
   login: (email: string, password: string) => Promise<{ ok: boolean; error?: string }>;
@@ -68,96 +78,133 @@ const OverlayContext = createContext<OverlayContextType | null>(null);
 const AuthContext = createContext<AuthContextType | null>(null);
 const AppContext = createContext<AppContextType | null>(null);
 
-const AUTH_TOKEN_KEY = "auth_token";
-const AUTH_USER_KEY = "auth_user";
-
-function readSessionAuth() {
-  return {
-    token: sessionStorage.getItem(AUTH_TOKEN_KEY),
-    user: sessionStorage.getItem(AUTH_USER_KEY),
-  };
-}
-
-function migrateLegacyLocalAuthIfNeeded() {
-  const hasSessionToken = sessionStorage.getItem(AUTH_TOKEN_KEY);
-  const hasSessionUser = sessionStorage.getItem(AUTH_USER_KEY);
-  if (hasSessionToken || hasSessionUser) return;
-
-  const legacyToken = localStorage.getItem(AUTH_TOKEN_KEY);
-  const legacyUser = localStorage.getItem(AUTH_USER_KEY);
-  if (legacyToken) sessionStorage.setItem(AUTH_TOKEN_KEY, legacyToken);
-  if (legacyUser) sessionStorage.setItem(AUTH_USER_KEY, legacyUser);
-  if (legacyToken || legacyUser) {
-    localStorage.removeItem(AUTH_TOKEN_KEY);
-    localStorage.removeItem(AUTH_USER_KEY);
-  }
-}
-
-function writeSessionAuth(token: string, user: string) {
-  sessionStorage.setItem(AUTH_TOKEN_KEY, token);
-  sessionStorage.setItem(AUTH_USER_KEY, user);
-  localStorage.removeItem(AUTH_TOKEN_KEY);
-  localStorage.removeItem(AUTH_USER_KEY);
-}
-
-function clearAuthStorage() {
-  sessionStorage.removeItem(AUTH_TOKEN_KEY);
-  sessionStorage.removeItem(AUTH_USER_KEY);
-  localStorage.removeItem(AUTH_TOKEN_KEY);
-  localStorage.removeItem(AUTH_USER_KEY);
-}
-
 export function AppProvider({ children }: { children: React.ReactNode }) {
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
   const [cartOpen, setCartOpen] = useState(false);
   const [loginOpen, setLoginOpen] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [authHydrated, setAuthHydrated] = useState(false);
   const [user, setUser] = useState<{ name: string; email: string; role: string } | null>(null);
   const [wishlist, setWishlist] = useState<string[]>([]);
+  const [sessionExpiresAt, setSessionExpiresAt] = useState<string | null>(null);
 
-  const logout = useCallback(() => {
-    clearAuthStorage();
+  const clearClientAuth = useCallback(() => {
+    clearLegacyAuthStorage();
     setUser(null);
     setIsLoggedIn(false);
+    setSessionExpiresAt(null);
   }, []);
 
-  useEffect(() => {
-    migrateLegacyLocalAuthIfNeeded();
-    const { token, user: userData } = readSessionAuth();
-    if (token && userData) {
-      try {
-        const u = JSON.parse(userData);
-        setUser({ name: u.fullName || u.email, email: u.email, role: u.role ?? "Customer" });
-        setIsLoggedIn(true);
-      } catch {
-        logout();
-      }
-    }
-  }, [logout]);
+  /** Clears httpOnly cookie via API, then local UI state. Used for explicit + soft logout. */
+  const endSession = useCallback(() => {
+    void apiLogout().catch(() => {
+      /* cookie may already be gone */
+    });
+    clearClientAuth();
+  }, [clearClientAuth]);
+
+  const logout = endSession;
 
   useEffect(() => {
-    const onAuthExpired = () => logout();
-    window.addEventListener("auth-expired", onAuthExpired);
-    return () => window.removeEventListener("auth-expired", onAuthExpired);
-  }, [logout]);
+    clearLegacyAuthStorage();
+    let cancelled = false;
 
-  useEffect(() => {
-    const checkExpiry = () => {
-      const userData = sessionStorage.getItem(AUTH_USER_KEY);
-      if (!userData) return;
-      try {
-        const u = JSON.parse(userData);
-        if (u.expiresAt && new Date(u.expiresAt) <= new Date()) {
-          logout();
+    const hydrate = async () => {
+      const delaysMs = [0, 500, 1200];
+      for (let attempt = 0; attempt < delaysMs.length; attempt++) {
+        if (delaysMs[attempt] > 0) {
+          await new Promise((r) => setTimeout(r, delaysMs[attempt]));
         }
-      } catch {
-        logout();
+        if (cancelled) return;
+        try {
+          const session = await fetchAuthSession();
+          if (cancelled) return;
+          setUser({
+            name: session.fullName || session.email,
+            email: session.email,
+            role: session.role ?? "Customer",
+          });
+          setSessionExpiresAt(session.expiresAt);
+          setIsLoggedIn(true);
+          setAuthHydrated(true);
+          return;
+        } catch (e) {
+          if (cancelled) return;
+          if (e instanceof ApiRequestError && e.status === 401) {
+            // Access may be expired while refresh cookie is still valid.
+            const refreshed = await tryRefreshSession();
+            if (cancelled) return;
+            if (refreshed) {
+              try {
+                const session = await fetchAuthSession();
+                if (cancelled) return;
+                setUser({
+                  name: session.fullName || session.email,
+                  email: session.email,
+                  role: session.role ?? "Customer",
+                });
+                setSessionExpiresAt(session.expiresAt);
+                setIsLoggedIn(true);
+                setAuthHydrated(true);
+                return;
+              } catch {
+                /* fall through to anonymous */
+              }
+            }
+            clearClientAuth();
+            setAuthHydrated(true);
+            return;
+          }
+          // Network / 5xx — retry; on last attempt stay logged-out UI without assuming cookie is void.
+          if (attempt === delaysMs.length - 1) {
+            setAuthHydrated(true);
+          }
+        }
       }
     };
+
+    void hydrate();
+    return () => {
+      cancelled = true;
+    };
+  }, [clearClientAuth]);
+
+  useEffect(() => {
+    const onAuthExpired = () => endSession();
+    window.addEventListener("auth-expired", onAuthExpired);
+    return () => window.removeEventListener("auth-expired", onAuthExpired);
+  }, [endSession]);
+
+  useEffect(() => {
+    if (!sessionExpiresAt) return;
+    const refreshSkewMs = 120_000; // renew ~2 minutes before access JWT expires
+    let busy = false;
+    const checkExpiry = () => {
+      const expires = new Date(sessionExpiresAt).getTime();
+      if (Number.isNaN(expires) || busy) return;
+      if (Date.now() < expires - refreshSkewMs) return;
+
+      busy = true;
+      void (async () => {
+        try {
+          const ok = await tryRefreshSession();
+          if (!ok) {
+            logout();
+            return;
+          }
+          const session = await fetchAuthSession();
+          setSessionExpiresAt(session.expiresAt);
+        } catch {
+          logout();
+        } finally {
+          busy = false;
+        }
+      })();
+    };
     checkExpiry();
-    const id = setInterval(checkExpiry, 60000);
+    const id = setInterval(checkExpiry, 60_000);
     return () => clearInterval(id);
-  }, [logout]);
+  }, [sessionExpiresAt, logout]);
 
   const cartTotal = cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
   const cartCount = cartItems.reduce((sum, item) => sum + item.quantity, 0);
@@ -232,9 +279,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     try {
       const res = await apiLogin({ email, password });
       const role = res.role ?? "Customer";
-      const userPayload = { email: res.email, fullName: res.fullName, userName: res.userName, role, expiresAt: res.expiresAt };
-      writeSessionAuth(res.token, JSON.stringify(userPayload));
+      clearLegacyAuthStorage();
       setUser({ name: res.fullName, email: res.email, role });
+      setSessionExpiresAt(res.expiresAt);
       setIsLoggedIn(true);
       setLoginOpen(false);
       return { ok: true };
@@ -248,9 +295,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     try {
       const res = provider === "google" ? await apiLoginWithGoogle(idToken) : await apiLoginWithApple(idToken);
       const role = res.role ?? "Customer";
-      const userPayload = { email: res.email, fullName: res.fullName, userName: res.userName, role, expiresAt: res.expiresAt };
-      writeSessionAuth(res.token, JSON.stringify(userPayload));
+      clearLegacyAuthStorage();
       setUser({ name: res.fullName, email: res.email, role });
+      setSessionExpiresAt(res.expiresAt);
       setIsLoggedIn(true);
       setLoginOpen(false);
       return { ok: true };
@@ -264,9 +311,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     try {
       const res = await apiRegister(data);
       const role = res.role ?? "Customer";
-      const userPayload = { email: res.email, fullName: res.fullName, userName: res.userName, role, expiresAt: res.expiresAt };
-      writeSessionAuth(res.token, JSON.stringify(userPayload));
+      clearLegacyAuthStorage();
       setUser({ name: res.fullName, email: res.email, role });
+      setSessionExpiresAt(res.expiresAt);
       setIsLoggedIn(true);
       setLoginOpen(false);
       return { ok: true };
@@ -305,6 +352,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const authValue = useMemo(
     () => ({
       isLoggedIn,
+      authHydrated,
       user,
       isAdmin: user?.role === "Admin",
       login,
@@ -312,7 +360,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       register,
       logout,
     }),
-    [isLoggedIn, user, login, loginWithOAuth, register, logout]
+    [isLoggedIn, authHydrated, user, login, loginWithOAuth, register, logout]
   );
 
   const appValue = useMemo<AppContextType>(

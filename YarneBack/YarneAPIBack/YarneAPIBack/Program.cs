@@ -7,6 +7,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using YarneAPIBack.Configuration;
 using YarneAPIBack.Data;
+using YarneAPIBack.Auth;
 using YarneAPIBack.Accounting.Services;
 using YarneAPIBack.Accounting.Services.Contracts;
 using YarneAPIBack.Services;
@@ -70,6 +71,25 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSettings.Secret)),
             ClockSkew = TimeSpan.Zero,
         };
+        options.Events = new JwtBearerEvents
+        {
+            OnMessageReceived = context =>
+            {
+                // Prefer Authorization Bearer (tools / migration); else httpOnly cookie.
+                var header = context.Request.Headers.Authorization.ToString();
+                if (string.IsNullOrWhiteSpace(header)
+                    || !header.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
+                {
+                    if (context.Request.Cookies.TryGetValue(AuthCookie.Name, out var cookieToken)
+                        && !string.IsNullOrWhiteSpace(cookieToken))
+                    {
+                        context.Token = cookieToken;
+                    }
+                }
+
+                return Task.CompletedTask;
+            },
+        };
     });
 
 builder.Services.AddAuthorization();
@@ -109,6 +129,8 @@ builder.Services.AddRateLimiter(options =>
 
 // Services (SOLID - dependency injection)
 builder.Services.AddHttpClient();
+builder.Services.AddScoped<IAccessTokenIssuer, AccessTokenIssuer>();
+builder.Services.AddScoped<IRefreshTokenService, RefreshTokenService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IOAuthService, OAuthService>();
 builder.Services.AddScoped<IProductService, ProductService>();
@@ -170,7 +192,8 @@ builder.Services.AddCors(options =>
                 return isLocalHost && (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps);
             })
             .AllowAnyHeader()
-            .AllowAnyMethod();
+            .AllowAnyMethod()
+            .AllowCredentials();
     });
 });
 
@@ -262,6 +285,7 @@ app.Use(async (context, next) =>
     await next();
 });
 app.UseCors();
+app.UseMiddleware<CookieAuthCsrfMiddleware>();
 app.UseRateLimiter();
 app.UseAuthentication();
 app.UseAuthorization();
