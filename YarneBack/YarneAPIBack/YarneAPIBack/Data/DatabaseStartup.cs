@@ -24,6 +24,7 @@ public static class DatabaseStartup
                 await AccountingUnlockImportLocksSchemaPatches.EnsureAsync(db, logger, cancellationToken);
                 await OrderStatusSchemaPatches.EnsureOrderStatusesAsync(db, logger, cancellationToken);
                 await OrderItemSchemaPatches.EnsureSnapshotColumnsAsync(db, logger, cancellationToken);
+                await CatalogSchemaPatches.EnsureAsync(db, logger, cancellationToken);
                 return;
             }
             catch (Exception ex) when (attempt < maxAttempts)

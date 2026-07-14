@@ -7,7 +7,7 @@ import { useLocale } from "../i18n/useLocale";
 import { PriceTag } from "../components/PriceTag";
 import { useProduct, useProducts } from "../hooks/useProducts";
 import { useCart, useWishlist } from "../context/AppContext";
-import { getDefaultColorIndex } from "../utils/productColorIndex";
+import { getDefaultColorIndex, getDefaultFurnitureColorIndex } from "../utils/productColorIndex";
 import { ImageWithFallback } from "../components/figma/ImageWithFallback";
 import { CrossfadeImage } from "../components/figma/CrossfadeImage";
 import { ProductCard } from "../components/ProductCard";
@@ -21,6 +21,7 @@ import { resolveDisplayStock } from "../utils/variantStock";
 import { resolveMediaUrl } from "../utils/storefrontMedia";
 import { scrollToPageTop } from "../utils/scrollToTop";
 import { clearScrollForRoute } from "../utils/scrollRestoration";
+import { localizedCatalogName } from "../utils/localizedName";
 import {
   getEmptyProductGuaranteeContent,
   loadProductGuaranteeContent,
@@ -59,6 +60,7 @@ export function ProductDetail() {
   }, [product, products, id]);
 
   const [activeColor, setActiveColor] = useState(0);
+  const [activeFurniture, setActiveFurniture] = useState(0);
   const [activeSize, setActiveSize] = useState<string | null>(null);
   const [activeImage, setActiveImage] = useState(0);
   const [activeLace, setActiveLace] = useState(false);
@@ -107,6 +109,7 @@ export function ProductDetail() {
   useEffect(() => {
     if (!product) return;
     setActiveColor(getDefaultColorIndex(product));
+    setActiveFurniture(getDefaultFurnitureColorIndex(product));
     setActiveImage(0);
   }, [product?.id]);
 
@@ -169,6 +172,14 @@ export function ProductDetail() {
 
   const isWishlisted = product ? wishlist.includes(product.id) : false;
   const selectedColor = product?.colors[activeColor];
+  const selectedColorLabel = selectedColor
+    ? localizedCatalogName(selectedColor.name, selectedColor.nameUk, locale)
+    : "";
+  const furnitureList = product?.furnitureColors ?? [];
+  const selectedFurniture = furnitureList[activeFurniture];
+  const selectedFurnitureLabel = selectedFurniture
+    ? localizedCatalogName(selectedFurniture.name, selectedFurniture.nameUk, locale)
+    : "";
   const displayStock = product && selectedColor
     ? resolveDisplayStock(selectedColor, activeSize, activeLace, product.stock)
     : 0;
@@ -180,6 +191,10 @@ export function ProductDetail() {
   const handleColorChange = (i: number) => {
     setActiveColor(i);
     setActiveImage(0);
+  };
+
+  const handleFurnitureChange = (i: number) => {
+    setActiveFurniture(i);
   };
 
   const handleLaceChange = (next: boolean) => {
@@ -202,6 +217,8 @@ export function ProductDetail() {
       price: product.price,
       color: selectedColor.name,
       colorHex: selectedColor.hex,
+      furnitureColor: selectedFurniture?.name,
+      furnitureColorHex: selectedFurniture?.hex,
       size: activeSize,
       withLace: product.lace ? activeLace : null,
       quantity: 1,
@@ -225,6 +242,7 @@ export function ProductDetail() {
         images={images}
         locale={locale}
         activeColor={activeColor}
+        activeFurniture={activeFurniture}
         activeSize={activeSize}
         displaySizes={displaySizes}
         isWishlisted={isWishlisted}
@@ -238,6 +256,7 @@ export function ProductDetail() {
         onBack={() => navigate(-1)}
         onToggleWishlist={() => toggleWishlist(product.id)}
         onColorChange={handleColorChange}
+        onFurnitureChange={handleFurnitureChange}
         onSizeChange={(size) => { setActiveSize(size); setSizeError(false); }}
         onAddToBag={handleAddToBag}
         guaranteeContent={guaranteeContent}
@@ -267,7 +286,7 @@ export function ProductDetail() {
               {images.length > 0 && (
                 <CrossfadeImage
                   src={images[safeImageIndex]}
-                  alt={`${product!.name} – ${product!.colors[activeColor].name}`}
+                  alt={`${product!.name} – ${selectedColorLabel}`}
                   className="object-[center_25%]"
                   priority
                 />
@@ -309,7 +328,7 @@ export function ProductDetail() {
                 >
                   <ImageWithFallback
                     src={img}
-                    alt={`${product.colors[activeColor]?.name} - ${i + 1}`}
+                    alt={`${selectedColorLabel} - ${i + 1}`}
                     className="w-full h-full object-cover"
                     style={{ objectPosition: "center center" }}
                   />
@@ -363,24 +382,26 @@ export function ProductDetail() {
                 >
                   <AnimatePresence mode="wait">
                     <motion.span
-                      key={product.colors[activeColor].name}
+                      key={selectedColorLabel}
                       initial={reduceMotion ? false : { opacity: 0, y: 4 }}
                       animate={{ opacity: 1, y: 0 }}
                       exit={reduceMotion ? undefined : { opacity: 0, y: -4 }}
                       transition={{ duration: 0.2, ease: easing }}
                     >
-                      {product.colors[activeColor].name}
+                      {selectedColorLabel}
                     </motion.span>
                   </AnimatePresence>
                 </p>
               </div>
               <div className="flex gap-3">
-                {product.colors.map((color, i) => (
+                {product.colors.map((color, i) => {
+                  const colorLabel = localizedCatalogName(color.name, color.nameUk, locale);
+                  return (
                   <motion.button
                     key={color.name}
                     onClick={() => handleColorChange(i)}
-                    title={color.name}
-                    className="cursor-pointer"
+                    title={colorLabel}
+                    className="cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2D241E]/40 focus-visible:ring-offset-2 focus-visible:ring-offset-[#F5F2ED] transition-colors duration-200"
                     animate={{ scale: i === activeColor ? 1.08 : 1 }}
                     transition={{ duration: 0.22, ease: easing }}
                     style={{
@@ -392,9 +413,64 @@ export function ProductDetail() {
                       boxShadow: i === activeColor ? "0 0 0 3px #F5F2ED, 0 0 0 5px #2D241E" : "none",
                     }}
                   />
-                ))}
+                  );
+                })}
               </div>
             </div>
+
+            {/* Furniture / Hardware Selection */}
+            {furnitureList.length > 0 && (
+              <div>
+                <div className="flex items-center justify-between mb-3">
+                  <p
+                    className="text-[#2D241E] text-xs tracking-widest uppercase"
+                    style={{ fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.14em" }}
+                  >
+                    {t("product.furniture")}
+                  </p>
+                  <p
+                    className="text-[#2D241E]/60 text-xs"
+                    style={{ fontFamily: "'DM Sans', sans-serif" }}
+                  >
+                    <AnimatePresence mode="wait">
+                      <motion.span
+                        key={selectedFurnitureLabel}
+                        initial={reduceMotion ? false : { opacity: 0, y: 4 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={reduceMotion ? undefined : { opacity: 0, y: -4 }}
+                        transition={{ duration: 0.2, ease: easing }}
+                      >
+                        {selectedFurnitureLabel}
+                      </motion.span>
+                    </AnimatePresence>
+                  </p>
+                </div>
+                <div className="flex gap-3">
+                  {furnitureList.map((fc, i) => {
+                    const furnitureLabel = localizedCatalogName(fc.name, fc.nameUk, locale);
+                    return (
+                      <motion.button
+                        key={fc.name}
+                        type="button"
+                        onClick={() => handleFurnitureChange(i)}
+                        title={furnitureLabel}
+                        className="cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2D241E]/40 focus-visible:ring-offset-2 focus-visible:ring-offset-[#F5F2ED] transition-colors duration-200"
+                        animate={{ scale: i === activeFurniture ? 1.08 : 1 }}
+                        transition={{ duration: 0.22, ease: easing }}
+                        style={{
+                          width: 32,
+                          height: 32,
+                          borderRadius: "50%",
+                          backgroundColor: fc.hex,
+                          border: i === activeFurniture ? "2px solid #2D241E" : "1.5px solid rgba(45,36,30,0.2)",
+                          boxShadow: i === activeFurniture ? "0 0 0 3px #F5F2ED, 0 0 0 5px #2D241E" : "none",
+                        }}
+                      />
+                    );
+                  })}
+                </div>
+              </div>
+            )}
 
             {/* Lace Selection */}
             {product.lace === true && (

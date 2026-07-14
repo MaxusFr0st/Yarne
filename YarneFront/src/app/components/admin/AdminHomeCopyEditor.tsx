@@ -88,7 +88,7 @@ type Props = {
 export function AdminHomeCopyEditor({ onError }: Props) {
   const [copy, setCopy] = useState<HomePageCopy>(DEFAULT_HOME_PAGE_COPY);
   const [savedCopy, setSavedCopy] = useState<HomePageCopy>(DEFAULT_HOME_PAGE_COPY);
-  const [activeLocale, setActiveLocale] = useState<Locale>("en");
+  const [activeLocale, setActiveLocale] = useState<Locale>("uk");
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
 

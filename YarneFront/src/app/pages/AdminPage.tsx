@@ -42,8 +42,10 @@ import {
   persistFeaturedShowcaseSelection,
   type FeaturedShowcaseSelection,
   type ShowcaseProductSlot,
+  type ShowcaseTextLocaleCopy,
   type ShowcaseTextSlot,
 } from "../utils/featuredShowcaseSelection";
+import type { Locale } from "../i18n/config";
 import {
   getDefaultHomePageMediaSelection,
   loadHomePageMediaSelectionForAdmin,
@@ -338,6 +340,8 @@ interface ProductFormData {
   defaultSizeId: number | null;
   defaultColorId: number | null;
   colorIds: number[];
+  furnitureColorIds: number[];
+  defaultFurnitureColorId: number | null;
   /** Per-color available sizes: colorId -> sizeIds */
   colorSizeIds: Record<number, number[]>;
   /** Per color+size+lace image sets: `${colorId}:${sizeId}:${lace}` -> image URLs */
@@ -358,6 +362,7 @@ function ProductModal({
   allProducts,
   categories,
   colors,
+  furnitureColors,
   sizes,
   saveError,
   onClose,
@@ -366,7 +371,8 @@ function ProductModal({
   product: AdminProduct | null;
   allProducts: AdminProduct[];
   categories: { id: number; name: string }[];
-  colors: { id: number; name: string; hexCode: string }[];
+  colors: { id: number; name: string; nameUk?: string | null; hexCode: string }[];
+  furnitureColors: { id: number; name: string; nameUk?: string | null; hexCode: string }[];
   sizes: { id: number; name: string }[];
   saveError?: string | null;
   onClose: () => void;
@@ -513,6 +519,9 @@ function ProductModal({
           defaultColorId: product.defaultColor
             ? colors.find((c) => c.name === product.defaultColor)?.id ?? null
             : null,
+          defaultFurnitureColorId: product.defaultFurnitureColor
+            ? furnitureColors.find((c) => c.name === product.defaultFurnitureColor)?.id ?? null
+            : null,
         }
       : {
           name: "",
@@ -528,6 +537,7 @@ function ProductModal({
           imageUrls: [""],
           defaultSizeId: null,
           defaultColorId: null,
+          defaultFurnitureColorId: null,
         };
     const preferredSizeId = sizes.find((s) => s.name === "M")?.id ?? sizes[0]?.id ?? null;
     const productLace = product?.lace ?? false;
@@ -535,6 +545,11 @@ function ProductModal({
       ? product.colors
           .map((c) => colors.find((col) => col.name === c.name)?.id)
           .filter((id): id is number => id != null) ?? []
+      : [];
+    const furnitureColorIds = product?.furnitureColors
+      ? product.furnitureColors
+          .map((c) => furnitureColors.find((fc) => fc.name === c.name)?.id)
+          .filter((id): id is number => id != null)
       : [];
     const colorSizeIds: Record<number, number[]> = {};
     const colorSizeVariants: Record<string, string[]> = {};
@@ -588,7 +603,19 @@ function ProductModal({
         colorSizeIds[colorId] = Array.from(new Set(collectedSizeIds));
       }
     });
-    return { ...base, colorIds, colorSizeIds, colorSizeVariants, variantStocks, defaultColorId: base.defaultColorId ?? colorIds[0] ?? null, suggestedProductCodes: [], suggestionsHydrated: !product, suggestionsTouched: false };
+    return {
+      ...base,
+      colorIds,
+      furnitureColorIds,
+      colorSizeIds,
+      colorSizeVariants,
+      variantStocks,
+      defaultColorId: base.defaultColorId ?? colorIds[0] ?? null,
+      defaultFurnitureColorId: base.defaultFurnitureColorId ?? furnitureColorIds[0] ?? null,
+      suggestedProductCodes: [],
+      suggestionsHydrated: !product,
+      suggestionsTouched: false,
+    };
   });
 
   const [activeTab, setActiveTab] = useState<ProductModalTab>("details");
@@ -890,6 +917,17 @@ function ProductModal({
     if (form.defaultColorId != null && form.colorIds.includes(form.defaultColorId)) return;
     setForm((p) => ({ ...p, defaultColorId: p.colorIds[0] ?? null }));
   }, [form.colorIds, form.defaultColorId]);
+
+  useEffect(() => {
+    if (form.furnitureColorIds.length === 0) {
+      if (form.defaultFurnitureColorId != null) {
+        setForm((p) => ({ ...p, defaultFurnitureColorId: null }));
+      }
+      return;
+    }
+    if (form.defaultFurnitureColorId != null && form.furnitureColorIds.includes(form.defaultFurnitureColorId)) return;
+    setForm((p) => ({ ...p, defaultFurnitureColorId: p.furnitureColorIds[0] ?? null }));
+  }, [form.furnitureColorIds, form.defaultFurnitureColorId]);
 
   const validateAndSubmit = () => {
     const errors: typeof formErrors = {};
@@ -1350,6 +1388,80 @@ function ProductModal({
                         >
                           <span className="w-4 h-4 rounded-full border border-[#2D241E]/30" style={{ backgroundColor: color?.hexCode ?? "#2D241E" }} />
                           {color?.name ?? colorId}
+                          {isDefault && <Star size={12} className="text-[#4A0E0E]" fill="currentColor" />}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              <div>
+                <label className="block text-xs mb-2 tracking-widest uppercase" style={{ fontFamily: "'DM Sans', sans-serif", color: "rgba(45,36,30,0.4)", letterSpacing: "0.14em" }}>
+                  Furniture / Фурнітура
+                </label>
+                <p className="text-xs text-[#2D241E]/45 mb-2" style={{ fontFamily: "'DM Sans', sans-serif" }}>
+                  Optional hardware colors for this product.
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {furnitureColors.length === 0 ? (
+                    <p className="text-xs text-[#2D241E]/40" style={{ fontFamily: "'DM Sans', sans-serif" }}>No furniture colors in catalog yet.</p>
+                  ) : (
+                    furnitureColors.map((fc) => {
+                      const isSelected = form.furnitureColorIds.includes(fc.id);
+                      return (
+                        <button
+                          key={fc.id}
+                          type="button"
+                          onClick={() => {
+                            setForm((p) => {
+                              const nextIds = isSelected
+                                ? p.furnitureColorIds.filter((id) => id !== fc.id)
+                                : [...p.furnitureColorIds, fc.id];
+                              const nextDefault =
+                                p.defaultFurnitureColorId != null && nextIds.includes(p.defaultFurnitureColorId)
+                                  ? p.defaultFurnitureColorId
+                                  : nextIds[0] ?? null;
+                              return { ...p, furnitureColorIds: nextIds, defaultFurnitureColorId: nextDefault };
+                            });
+                          }}
+                          className="flex items-center gap-2 px-3 py-2 rounded-full border transition-all cursor-pointer"
+                          style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "0.85rem", borderColor: isSelected ? "#2D241E" : "rgba(45,36,30,0.2)", backgroundColor: isSelected ? "rgba(45,36,30,0.06)" : "transparent", color: "#2D241E" }}
+                        >
+                          <span className="w-4 h-4 rounded-full border border-[#2D241E]/30" style={{ backgroundColor: fc.hexCode || "#2D241E" }} />
+                          {fc.nameUk ? `${fc.name} · ${fc.nameUk}` : fc.name}
+                        </button>
+                      );
+                    })
+                  )}
+                </div>
+              </div>
+
+              {form.furnitureColorIds.length > 0 && (
+                <div>
+                  <label className="block text-xs mb-2 tracking-widest uppercase" style={{ fontFamily: "'DM Sans', sans-serif", color: "rgba(45,36,30,0.4)", letterSpacing: "0.14em" }}>
+                    Default furniture color
+                  </label>
+                  <div className="flex flex-wrap gap-2">
+                    {form.furnitureColorIds.map((fcId) => {
+                      const fc = furnitureColors.find((c) => c.id === fcId);
+                      const isDefault = form.defaultFurnitureColorId === fcId;
+                      return (
+                        <button
+                          key={`default-furniture-${fcId}`}
+                          type="button"
+                          onClick={() => setForm((p) => ({ ...p, defaultFurnitureColorId: fcId }))}
+                          className="flex items-center gap-2 px-3 py-2 rounded-full border transition-all cursor-pointer"
+                          style={{
+                            fontFamily: "'DM Sans', sans-serif",
+                            fontSize: "0.85rem",
+                            borderColor: isDefault ? "#4A0E0E" : "rgba(45,36,30,0.2)",
+                            backgroundColor: isDefault ? "rgba(74,14,14,0.08)" : "transparent",
+                            color: "#2D241E",
+                          }}
+                        >
+                          <span className="w-4 h-4 rounded-full border border-[#2D241E]/30" style={{ backgroundColor: fc?.hexCode ?? "#2D241E" }} />
+                          {fc?.name ?? fcId}
                           {isDefault && <Star size={12} className="text-[#4A0E0E]" fill="currentColor" />}
                         </button>
                       );
@@ -1998,20 +2110,31 @@ function ColorModal({
   editing,
   onClose,
   onSave,
+  labels,
 }: {
-  editing: { id: number; name: string; hexCode: string } | null;
+  editing: { id: number; name: string; nameUk?: string | null; hexCode: string } | null;
   onClose: () => void;
-  onSave: (name: string, hexCode?: string) => void;
+  onSave: (name: string, hexCode?: string, nameUk?: string) => void;
+  labels?: {
+    eyebrowNew?: string;
+    eyebrowEdit?: string;
+    titleNew?: string;
+  };
 }) {
   useBodyScrollLock(true);
 
   const [name, setName] = useState(editing?.name ?? "");
+  const [nameUk, setNameUk] = useState(editing?.nameUk ?? "");
   const [hexCode, setHexCode] = useState(editing?.hexCode ?? "#2D241E");
   useEffect(() => {
     setName(editing?.name ?? "");
+    setNameUk(editing?.nameUk ?? "");
     setHexCode(editing?.hexCode ?? "#2D241E");
-  }, [editing?.id, editing?.name, editing?.hexCode]);
+  }, [editing?.id, editing?.name, editing?.nameUk, editing?.hexCode]);
   const isEditing = !!editing;
+  const eyebrowNew = labels?.eyebrowNew ?? "New Color";
+  const eyebrowEdit = labels?.eyebrowEdit ?? "Edit Color";
+  const titleNew = labels?.titleNew ?? "Add Color";
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center p-4"
@@ -2028,15 +2151,19 @@ function ColorModal({
       >
         <div className="flex items-center justify-between p-8 pb-6" style={{ borderBottom: "1px solid rgba(45,36,30,0.08)" }}>
           <div>
-            <p className="text-[#2D241E]/40 tracking-widest uppercase text-xs mb-1" style={{ fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.18em" }}>{isEditing ? "Edit Color" : "New Color"}</p>
-            <h3 className="text-[#2D241E]" style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "1.4rem", fontWeight: 400 }}>{isEditing ? editing.name : "Add Color"}</h3>
+            <p className="text-[#2D241E]/40 tracking-widest uppercase text-xs mb-1" style={{ fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.18em" }}>{isEditing ? eyebrowEdit : eyebrowNew}</p>
+            <h3 className="text-[#2D241E]" style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "1.4rem", fontWeight: 400 }}>{isEditing ? editing.name : titleNew}</h3>
           </div>
           <button onClick={onClose} className="w-9 h-9 rounded-full flex items-center justify-center hover:bg-[#2D241E]/5"><X size={18} style={{ color: "#2D241E" }} /></button>
         </div>
         <div className="p-8 space-y-5">
           <div>
-            <label className="block text-xs mb-2 tracking-widest uppercase" style={{ fontFamily: "'DM Sans', sans-serif", color: "rgba(45,36,30,0.4)", letterSpacing: "0.14em" }}>Color Name</label>
+            <label className="block text-xs mb-2 tracking-widest uppercase" style={{ fontFamily: "'DM Sans', sans-serif", color: "rgba(45,36,30,0.4)", letterSpacing: "0.14em" }}>English name</label>
             <input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Black" className="w-full bg-transparent border rounded-[14px] px-4 py-3 text-[#2D241E] focus:outline-none placeholder:text-[#2D241E]/20" style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "0.9rem", borderColor: "rgba(45,36,30,0.15)" }} />
+          </div>
+          <div>
+            <label className="block text-xs mb-2 tracking-widest uppercase" style={{ fontFamily: "'DM Sans', sans-serif", color: "rgba(45,36,30,0.4)", letterSpacing: "0.14em" }}>Ukrainian name</label>
+            <input type="text" value={nameUk} onChange={(e) => setNameUk(e.target.value)} placeholder="напр. Чорний" className="w-full bg-transparent border rounded-[14px] px-4 py-3 text-[#2D241E] focus:outline-none placeholder:text-[#2D241E]/20" style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "0.9rem", borderColor: "rgba(45,36,30,0.15)" }} />
           </div>
           <div>
             <label className="block text-xs mb-2 tracking-widest uppercase" style={{ fontFamily: "'DM Sans', sans-serif", color: "rgba(45,36,30,0.4)", letterSpacing: "0.14em" }}>Color</label>
@@ -2045,7 +2172,7 @@ function ColorModal({
         </div>
         <div className="flex items-center justify-end gap-3 px-8 py-6" style={{ borderTop: "1px solid rgba(45,36,30,0.08)" }}>
           <button onClick={onClose} className="px-6 py-3 rounded-full border transition-all duration-300 hover:bg-[#2D241E]/5" style={{ borderColor: "rgba(45,36,30,0.2)", fontFamily: "'DM Sans', sans-serif", fontSize: "0.78rem", letterSpacing: "0.12em", color: "rgba(45,36,30,0.6)" }}><span className="uppercase tracking-widest">Cancel</span></button>
-          <button onClick={() => onSave(name, sanitizeColorHex(hexCode))} className="px-8 py-3 rounded-full text-[#F5F2ED] transition-all duration-300 hover:opacity-90" style={{ backgroundColor: "#2D241E", fontFamily: "'DM Sans', sans-serif", fontSize: "0.78rem", letterSpacing: "0.12em" }}><span className="uppercase tracking-widest">{isEditing ? "Save" : "Add"}</span></button>
+          <button onClick={() => onSave(name, sanitizeColorHex(hexCode), nameUk.trim() || undefined)} className="px-8 py-3 rounded-full text-[#F5F2ED] transition-all duration-300 hover:opacity-90" style={{ backgroundColor: "#2D241E", fontFamily: "'DM Sans', sans-serif", fontSize: "0.78rem", letterSpacing: "0.12em" }}><span className="uppercase tracking-widest">{isEditing ? "Save" : "Add"}</span></button>
         </div>
       </motion.div>
     </div>
@@ -2189,7 +2316,7 @@ function DeleteModal({
 /* ─────────────────────────────────────────────
    MAIN ADMIN PAGE
 ───────────────────────────────────────────── */
-type AdminTab = "dashboard" | "contents" | "products" | "users" | "orders" | "logs" | "accounting" | "categories" | "collections" | "countries" | "colors" | "sizes";
+type AdminTab = "dashboard" | "contents" | "products" | "users" | "orders" | "logs" | "accounting" | "categories" | "collections" | "countries" | "colors" | "furniture" | "sizes";
 type LogsSubTab = "all" | "product" | "user" | "push" | "order" | "catalog" | "image";
 
 function formatLogTimestamp(iso: string) {
@@ -2399,6 +2526,10 @@ export function AdminPage() {
     addColor,
     editColor,
     removeColor,
+    furnitureColors,
+    addFurnitureColor,
+    editFurnitureColor,
+    removeFurnitureColor,
     sizes,
     addSize,
     editSize,
@@ -2429,6 +2560,7 @@ export function AdminPage() {
     useState<FeaturedShowcaseSelection>(getDefaultFeaturedShowcaseSelection);
   const [showcaseUploading, setShowcaseUploading] = useState<Record<string, boolean>>({});
   const [showcaseUploadError, setShowcaseUploadError] = useState<string | null>(null);
+  const [showcaseTextLocale, setShowcaseTextLocale] = useState<Locale>("uk");
   const [homePageMedia, setHomePageMedia] = useState<HomePageMediaSelection>(
     getDefaultHomePageMediaSelection
   );
@@ -2460,9 +2592,10 @@ export function AdminPage() {
   const [userModal, setUserModal] = useState<{ open: boolean }>({ open: false });
   const [categoryModal, setCategoryModal] = useState<{ open: boolean; editing: { id: number; name: string } | null }>({ open: false, editing: null });
   const [countryModal, setCountryModal] = useState<{ open: boolean; editing: { id: number; name: string } | null }>({ open: false, editing: null });
-  const [colorModal, setColorModal] = useState<{ open: boolean; editing: { id: number; name: string; hexCode: string } | null }>({ open: false, editing: null });
+  const [colorModal, setColorModal] = useState<{ open: boolean; editing: { id: number; name: string; nameUk?: string | null; hexCode: string } | null }>({ open: false, editing: null });
+  const [furnitureModal, setFurnitureModal] = useState<{ open: boolean; editing: { id: number; name: string; nameUk?: string | null; hexCode: string } | null }>({ open: false, editing: null });
   const [sizeModal, setSizeModal] = useState<{ open: boolean; editing: { id: number; name: string } | null }>({ open: false, editing: null });
-  const [deleteModal, setDeleteModal] = useState<{ open: boolean; type: "product" | "user" | "category" | "country" | "color" | "size"; id: string; idNum?: number; name: string } | null>(null);
+  const [deleteModal, setDeleteModal] = useState<{ open: boolean; type: "product" | "user" | "category" | "country" | "color" | "furniture" | "size"; id: string; idNum?: number; name: string } | null>(null);
   const [deleteModalError, setDeleteModalError] = useState<string | null>(null);
 
   const filteredProducts = useMemo(
@@ -2663,10 +2796,19 @@ export function AdminPage() {
     });
   };
 
-  const updateShowcaseTextSlot = (patch: Partial<ShowcaseTextSlot>) => {
+  /** Shared `ctaHref` and/or a partial locale copy merge for `en` / `uk`. */
+  const updateShowcaseTextSlot = (
+    patch: Partial<Pick<ShowcaseTextSlot, "ctaHref">> &
+      Partial<Record<Locale, Partial<ShowcaseTextLocaleCopy>>>
+  ) => {
+    const prev = featuredShowcaseSelection.slot3;
     updateFeaturedShowcaseSelection({
       ...featuredShowcaseSelection,
-      slot3: { ...featuredShowcaseSelection.slot3, ...patch },
+      slot3: {
+        ctaHref: patch.ctaHref ?? prev.ctaHref,
+        en: patch.en ? { ...prev.en, ...patch.en } : prev.en,
+        uk: patch.uk ? { ...prev.uk, ...patch.uk } : prev.uk,
+      },
     });
   };
 
@@ -2893,6 +3035,7 @@ export function AdminPage() {
         ? data.defaultSizeId
         : (fallbackSizeId && sizeIds.includes(fallbackSizeId) ? fallbackSizeId : sizeIds[0] ?? null);
       const colorIds = normalizeIds(data.colorIds ?? []);
+      const furnitureColorIds = normalizeIds(data.furnitureColorIds ?? []);
       const colorSizeVariants = Object.entries(data.colorSizeVariants ?? {})
         .map(([key, urls]) => {
           const [colorIdRaw, sizeIdRaw, laceRaw] = key.split(":");
@@ -2960,9 +3103,13 @@ export function AdminPage() {
         defaultColorId: data.defaultColorId && colorIds.includes(data.defaultColorId)
           ? data.defaultColorId
           : colorIds[0] ?? undefined,
+        defaultFurnitureColorId: data.defaultFurnitureColorId && furnitureColorIds.includes(data.defaultFurnitureColorId)
+          ? data.defaultFurnitureColorId
+          : furnitureColorIds[0] ?? undefined,
         sizeIds,
         imageUrls: nextPrimaryImageUrls,
         colorIds,
+        furnitureColorIds,
         colorSizeVariants,
         variantStocks,
         isNew: data.isNew,
@@ -3056,18 +3203,33 @@ export function AdminPage() {
     }
   };
 
-  const handleSaveColor = async (name: string, hexCode?: string) => {
+  const handleSaveColor = async (name: string, hexCode?: string, nameUk?: string) => {
     setSaveError(null);
     try {
       if (colorModal.editing) {
-        await editColor(colorModal.editing.id, name, hexCode);
+        await editColor(colorModal.editing.id, name, hexCode, nameUk);
       } else {
-        await addColor(name, hexCode);
+        await addColor(name, hexCode, nameUk);
       }
       setColorModal({ open: false, editing: null });
       refetch();
     } catch (e) {
       setSaveError(e instanceof Error ? e.message : "Failed to save color");
+    }
+  };
+
+  const handleSaveFurnitureColor = async (name: string, hexCode?: string, nameUk?: string) => {
+    setSaveError(null);
+    try {
+      if (furnitureModal.editing) {
+        await editFurnitureColor(furnitureModal.editing.id, name, hexCode, nameUk);
+      } else {
+        await addFurnitureColor(name, hexCode, nameUk);
+      }
+      setFurnitureModal({ open: false, editing: null });
+      refetch();
+    } catch (e) {
+      setSaveError(e instanceof Error ? e.message : "Failed to save furniture color");
     }
   };
 
@@ -3113,6 +3275,24 @@ export function AdminPage() {
       refetch();
     } catch (e) {
       const message = e instanceof Error ? e.message : "Failed to delete color";
+      setDeleteModalError(message);
+      setSaveError(message);
+    }
+  };
+
+  const handleDeleteFurnitureColor = async () => {
+    if (!deleteModal || deleteModal.type !== "furniture") return;
+    const id = deleteModal.idNum ?? parseInt(deleteModal.id);
+    if (isNaN(id)) return;
+    setSaveError(null);
+    setDeleteModalError(null);
+    try {
+      await removeFurnitureColor(id);
+      setDeleteModal(null);
+      setDeleteModalError(null);
+      refetch();
+    } catch (e) {
+      const message = e instanceof Error ? e.message : "Failed to delete furniture color";
       setDeleteModalError(message);
       setSaveError(message);
     }
@@ -3307,6 +3487,7 @@ export function AdminPage() {
               { key: "collections" as AdminTab, label: "Collections", icon: <Star size={14} /> },
               { key: "countries" as AdminTab, label: "Countries", icon: <Globe size={14} /> },
               { key: "colors" as AdminTab, label: "Colors", icon: <Palette size={14} /> },
+              { key: "furniture" as AdminTab, label: "Furniture", icon: <Palette size={14} /> },
               { key: "sizes" as AdminTab, label: "Sizes", icon: <Tag size={14} /> },
             ]).map((tab) => (
               <button
@@ -4134,6 +4315,26 @@ export function AdminPage() {
                       </span>
                     </div>
 
+                    <div className="flex items-center gap-2 mb-3">
+                      {(["en", "uk"] as const).map((locale) => (
+                        <button
+                          key={locale}
+                          type="button"
+                          onClick={() => setShowcaseTextLocale(locale)}
+                          className="px-4 py-2 rounded-full text-xs uppercase tracking-widest transition-all"
+                          style={{
+                            fontFamily: "'DM Sans', sans-serif",
+                            letterSpacing: "0.1em",
+                            backgroundColor: showcaseTextLocale === locale ? "#2D241E" : "transparent",
+                            color: showcaseTextLocale === locale ? "#F5F2ED" : "#2D241E",
+                            border: showcaseTextLocale === locale ? "1.5px solid #2D241E" : "1.5px solid rgba(45,36,30,0.2)",
+                          }}
+                        >
+                          {locale === "en" ? "English" : "Ukrainian"}
+                        </button>
+                      ))}
+                    </div>
+
                     <div className="grid sm:grid-cols-2 gap-3">
                       <div>
                         <p className="text-[#2D241E]/45 text-xs uppercase tracking-widest mb-1.5" style={{ fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.1em" }}>
@@ -4141,8 +4342,10 @@ export function AdminPage() {
                         </p>
                         <input
                           type="text"
-                          value={featuredShowcaseSelection.slot3.eyebrow}
-                          onChange={(e) => updateShowcaseTextSlot({ eyebrow: e.target.value })}
+                          value={featuredShowcaseSelection.slot3[showcaseTextLocale].eyebrow}
+                          onChange={(e) =>
+                            updateShowcaseTextSlot({ [showcaseTextLocale]: { eyebrow: e.target.value } })
+                          }
                           placeholder="The Craft"
                           className="w-full rounded-[14px] border bg-transparent px-3 py-2.5 text-[#2D241E] focus:outline-none"
                           style={{ borderColor: "rgba(45,36,30,0.15)", fontFamily: "'DM Sans', sans-serif", fontSize: "0.85rem" }}
@@ -4154,8 +4357,10 @@ export function AdminPage() {
                         </p>
                         <input
                           type="text"
-                          value={featuredShowcaseSelection.slot3.ctaLabel}
-                          onChange={(e) => updateShowcaseTextSlot({ ctaLabel: e.target.value })}
+                          value={featuredShowcaseSelection.slot3[showcaseTextLocale].ctaLabel}
+                          onChange={(e) =>
+                            updateShowcaseTextSlot({ [showcaseTextLocale]: { ctaLabel: e.target.value } })
+                          }
                           placeholder="Read our story"
                           className="w-full rounded-[14px] border bg-transparent px-3 py-2.5 text-[#2D241E] focus:outline-none"
                           style={{ borderColor: "rgba(45,36,30,0.15)", fontFamily: "'DM Sans', sans-serif", fontSize: "0.85rem" }}
@@ -4166,8 +4371,10 @@ export function AdminPage() {
                           Heading
                         </p>
                         <textarea
-                          value={featuredShowcaseSelection.slot3.heading}
-                          onChange={(e) => updateShowcaseTextSlot({ heading: e.target.value })}
+                          value={featuredShowcaseSelection.slot3[showcaseTextLocale].heading}
+                          onChange={(e) =>
+                            updateShowcaseTextSlot({ [showcaseTextLocale]: { heading: e.target.value } })
+                          }
                           placeholder="Every stitch tells a story of patience and precision."
                           rows={2}
                           className="w-full rounded-[14px] border bg-transparent px-3 py-2.5 text-[#2D241E] focus:outline-none resize-y"
@@ -5133,7 +5340,9 @@ export function AdminPage() {
                   ) : (
                     colors.map((c) => (
                       <div key={c.id} className="grid items-center px-6 py-4 hover:bg-[#2D241E]/[0.02] transition-colors" style={{ gridTemplateColumns: "1fr 1fr 100px" }}>
-                        <p className="text-[#2D241E]" style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "1.1rem" }}>{c.name}</p>
+                        <p className="text-[#2D241E]" style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "1.1rem" }}>
+                          {c.nameUk ? `${c.name} · ${c.nameUk}` : c.name}
+                        </p>
                         <div className="flex items-center gap-2">
                           <span className="w-6 h-6 rounded-full border" style={{ backgroundColor: c.hexCode || "#2D241E", borderColor: "rgba(45,36,30,0.2)" }} />
                           <span className="text-[#2D241E]/50 text-sm" style={{ fontFamily: "'DM Sans', sans-serif" }}>{c.hexCode}</span>
@@ -5141,6 +5350,67 @@ export function AdminPage() {
                         <div className="flex items-center justify-end gap-2">
                           <button onClick={() => setColorModal({ open: true, editing: c })} className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-[#2D241E]/8 transition-colors" title="Edit"><Pencil size={13} style={{ color: "#2D241E", opacity: 0.5 }} /></button>
                           <button onClick={() => { setDeleteModalError(null); setDeleteModal({ open: true, type: "color", id: String(c.id), idNum: c.id, name: c.name }); }} className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-[#4A0E0E]/8 transition-colors" title="Delete"><Trash2 size={13} style={{ color: "#4A0E0E", opacity: 0.6 }} /></button>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            </motion.div>
+          )}
+
+          {/* ── FURNITURE COLORS ── */}
+          {activeTab === "furniture" && (
+            <motion.div
+              key="furniture"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              transition={{ duration: 0.4, ease: easing }}
+            >
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-8">
+                <p className="text-[#2D241E]/50 text-sm" style={{ fontFamily: "'DM Sans', sans-serif" }}>{furnitureColors.length} furniture colors</p>
+                <button
+                  onClick={() => setFurnitureModal({ open: true, editing: null })}
+                  className="flex items-center gap-2 px-6 py-3 rounded-full text-[#F5F2ED] transition-all hover:opacity-90 flex-shrink-0"
+                  style={{ backgroundColor: "#2D241E", fontFamily: "'DM Sans', sans-serif", fontSize: "0.78rem", letterSpacing: "0.12em" }}
+                >
+                  <Plus size={15} />
+                  <span className="uppercase tracking-widest">Add Furniture Color</span>
+                </button>
+              </div>
+              <div className="rounded-[28px] overflow-hidden" style={{ border: "1px solid rgba(45,36,30,0.08)" }}>
+                <div
+                  className="grid px-6 py-4 text-xs tracking-widest uppercase"
+                  style={{
+                    gridTemplateColumns: "1fr 1fr 100px",
+                    fontFamily: "'DM Sans', sans-serif",
+                    letterSpacing: "0.12em",
+                    color: "rgba(45,36,30,0.4)",
+                    backgroundColor: "rgba(45,36,30,0.03)",
+                    borderBottom: "1px solid rgba(45,36,30,0.06)",
+                  }}
+                >
+                  <span>Furniture Color</span>
+                  <span>Preview</span>
+                  <span className="text-right">Actions</span>
+                </div>
+                <div className="divide-y" style={{ borderColor: "rgba(45,36,30,0.06)" }}>
+                  {furnitureColors.length === 0 ? (
+                    <p className="py-12 text-center text-[#2D241E]/40 px-6" style={{ fontFamily: "'DM Sans', sans-serif" }}>No furniture colors yet</p>
+                  ) : (
+                    furnitureColors.map((c) => (
+                      <div key={c.id} className="grid items-center px-6 py-4 hover:bg-[#2D241E]/[0.02] transition-colors" style={{ gridTemplateColumns: "1fr 1fr 100px" }}>
+                        <p className="text-[#2D241E]" style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "1.1rem" }}>
+                          {c.nameUk ? `${c.name} · ${c.nameUk}` : c.name}
+                        </p>
+                        <div className="flex items-center gap-2">
+                          <span className="w-6 h-6 rounded-full border" style={{ backgroundColor: c.hexCode || "#2D241E", borderColor: "rgba(45,36,30,0.2)" }} />
+                          <span className="text-[#2D241E]/50 text-sm" style={{ fontFamily: "'DM Sans', sans-serif" }}>{c.hexCode}</span>
+                        </div>
+                        <div className="flex items-center justify-end gap-2">
+                          <button onClick={() => setFurnitureModal({ open: true, editing: c })} className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-[#2D241E]/8 transition-colors" title="Edit"><Pencil size={13} style={{ color: "#2D241E", opacity: 0.5 }} /></button>
+                          <button onClick={() => { setDeleteModalError(null); setDeleteModal({ open: true, type: "furniture", id: String(c.id), idNum: c.id, name: c.name }); }} className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-[#4A0E0E]/8 transition-colors" title="Delete"><Trash2 size={13} style={{ color: "#4A0E0E", opacity: 0.6 }} /></button>
                         </div>
                       </div>
                     ))
@@ -5363,6 +5633,7 @@ export function AdminPage() {
             allProducts={products}
             categories={categories}
             colors={colors}
+            furnitureColors={furnitureColors}
             sizes={sizes}
             onClose={() => {
               setProductModal({ open: false, editing: null });
@@ -5389,6 +5660,18 @@ export function AdminPage() {
         {colorModal.open && (
           <ColorModal editing={colorModal.editing} onClose={() => setColorModal({ open: false, editing: null })} onSave={handleSaveColor} />
         )}
+        {furnitureModal.open && (
+          <ColorModal
+            editing={furnitureModal.editing}
+            onClose={() => setFurnitureModal({ open: false, editing: null })}
+            onSave={handleSaveFurnitureColor}
+            labels={{
+              eyebrowNew: "New Furniture Color",
+              eyebrowEdit: "Edit Furniture Color",
+              titleNew: "Add Furniture Color",
+            }}
+          />
+        )}
         {sizeModal.open && (
           <SizeModal editing={sizeModal.editing} onClose={() => setSizeModal({ open: false, editing: null })} onSave={handleSaveSize} />
         )}
@@ -5404,6 +5687,7 @@ export function AdminPage() {
               else if (deleteModal.type === "category") handleDeleteCategory();
               else if (deleteModal.type === "country") handleDeleteCountry();
               else if (deleteModal.type === "color") handleDeleteColor();
+              else if (deleteModal.type === "furniture") handleDeleteFurnitureColor();
               else if (deleteModal.type === "size") handleDeleteSize();
             }}
           />

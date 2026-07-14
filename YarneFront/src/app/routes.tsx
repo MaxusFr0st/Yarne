@@ -22,8 +22,7 @@ import {
   type Locale,
 } from "./i18n/config";
 
-// Resolve preferred locale synchronously: stored choice > navigator language >
-// default.
+// Resolve preferred locale: stored choice → Ukrainian absolute default.
 function resolvePreferredLocaleSync(): Locale {
   if (typeof window === "undefined") return DEFAULT_LOCALE;
   try {
@@ -32,11 +31,6 @@ function resolvePreferredLocaleSync(): Locale {
   } catch {
     // ignore — storage may be disabled
   }
-  const nav = (
-    typeof navigator !== "undefined" ? navigator.language : ""
-  ).toLowerCase();
-  if (nav.startsWith("uk")) return "uk";
-  if (nav.startsWith("en")) return "en";
   return DEFAULT_LOCALE;
 }
 

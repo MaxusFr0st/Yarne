@@ -86,6 +86,7 @@ export function CheckoutPage() {
           quantity: item.quantity,
           productSubtitle: item.subtitle,
           colorName: item.color,
+          furnitureColorName: item.furnitureColor ?? undefined,
           sizeName: item.size,
           withLace: item.withLace ?? undefined,
         })),

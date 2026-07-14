@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
 import { useLocale } from "../i18n/useLocale";
 import {
-  getDefaultHomePageCopy,
   getHomePageCopyForLocale,
+  getInitialHomePageCopy,
   loadHomePageCopy,
   type HomePageCopy,
   type HomePageCopyLocale,
@@ -10,7 +10,7 @@ import {
 
 export function useHomePageCopy(): HomePageCopyLocale {
   const locale = useLocale();
-  const [copy, setCopy] = useState<HomePageCopy>(getDefaultHomePageCopy);
+  const [copy, setCopy] = useState<HomePageCopy>(getInitialHomePageCopy);
 
   useEffect(() => {
     let cancelled = false;

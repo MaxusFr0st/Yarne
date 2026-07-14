@@ -17,6 +17,8 @@ export interface CartItem {
   price: number;
   color: string;
   colorHex: string;
+  furnitureColor?: string;
+  furnitureColorHex?: string;
   size: string;
   withLace?: boolean | null;
   quantity: number;
@@ -179,6 +181,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         (i) =>
           i.productId === item.productId &&
           i.color === item.color &&
+          (i.furnitureColor ?? null) === (item.furnitureColor ?? null) &&
           i.size === item.size &&
           i.withLace === item.withLace
       );
@@ -196,7 +199,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           ...item,
           quantity,
           maxQuantity: maxQty,
-          cartId: `${item.productId}-${item.color}-${item.size}-${item.withLace ?? "na"}-${Date.now()}`,
+          cartId: `${item.productId}-${item.color}-${item.furnitureColor ?? "na"}-${item.size}-${item.withLace ?? "na"}-${Date.now()}`,
         },
       ];
     });

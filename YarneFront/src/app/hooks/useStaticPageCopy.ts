@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useLocale } from "../i18n/useLocale";
 import {
-  getDefaultStaticPagesCopy,
+  getInitialStaticPagesCopy,
   getStaticPageContentForLocale,
   loadStaticPagesCopy,
   type StaticPageLocaleContent,
@@ -10,7 +10,7 @@ import {
 
 export function useStaticPageCopy(pageKey: keyof StaticPagesCopy): StaticPageLocaleContent {
   const locale = useLocale();
-  const [copy, setCopy] = useState<StaticPagesCopy>(getDefaultStaticPagesCopy);
+  const [copy, setCopy] = useState<StaticPagesCopy>(getInitialStaticPagesCopy);
 
   useEffect(() => {
     let cancelled = false;

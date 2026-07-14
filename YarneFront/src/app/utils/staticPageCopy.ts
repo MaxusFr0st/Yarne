@@ -105,6 +105,11 @@ function readLocalStaticPagesCopy(): StaticPagesCopy {
   }
 }
 
+/** Synchronous localStorage peek for first paint (avoids CMS hardcoded-default flash). */
+export function getInitialStaticPagesCopy(): StaticPagesCopy {
+  return readLocalStaticPagesCopy();
+}
+
 function writeLocalStaticPagesCopy(copy: StaticPagesCopy) {
   if (typeof window === "undefined") return;
   window.localStorage.setItem(STATIC_PAGE_COPY_KEY, JSON.stringify(copy));
@@ -121,7 +126,7 @@ export async function loadStaticPagesCopy(): Promise<StaticPagesCopy> {
   } catch {
     // API unavailable
   }
-  return getDefaultStaticPagesCopy();
+  return readLocalStaticPagesCopy();
 }
 
 export async function loadStaticPagesCopyForAdmin(): Promise<StaticPagesCopy> {
@@ -150,7 +155,7 @@ export function getStaticPageContentForLocale(
   pageKey: keyof StaticPagesCopy,
   locale: Locale,
 ): StaticPageLocaleContent {
-  return copy[pageKey][locale] ?? copy[pageKey].en;
+  return copy[pageKey][locale] ?? copy[pageKey].uk;
 }
 
 export function paragraphsToText(paragraphs: string[]): string {

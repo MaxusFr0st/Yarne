@@ -17,7 +17,7 @@ type Props = {
 export function AdminOurHistoryEditor({ onError }: Props) {
   const [copy, setCopy] = useState<StaticPagesCopy>(DEFAULT_STATIC_PAGES_COPY);
   const [savedCopy, setSavedCopy] = useState<StaticPagesCopy>(DEFAULT_STATIC_PAGES_COPY);
-  const [activeLocale, setActiveLocale] = useState<Locale>("en");
+  const [activeLocale, setActiveLocale] = useState<Locale>("uk");
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
 

@@ -12,12 +12,14 @@ import { ProductGuaranteeBlock } from "./ProductGuaranteeBlock";
 import type { ProductGuaranteeContent } from "../utils/productGuaranteeContent";
 import { getSupplementaryProductDetails, hasSupplementaryProductDetails } from "../utils/productDetails";
 import { useTouchMobileLayout } from "../hooks/useTouchMobileLayout";
+import { localizedCatalogName } from "../utils/localizedName";
 
 type MobileProductDetailViewProps = {
   product: Product;
   images: string[];
   locale: Locale;
   activeColor: number;
+  activeFurniture: number;
   activeSize: string | null;
   displaySizes: string[];
   isWishlisted: boolean;
@@ -31,6 +33,7 @@ type MobileProductDetailViewProps = {
   onBack: () => void;
   onToggleWishlist: () => void;
   onColorChange: (index: number) => void;
+  onFurnitureChange: (index: number) => void;
   onSizeChange: (size: string) => void;
   onAddToBag: () => void;
   guaranteeContent: ProductGuaranteeContent;
@@ -41,6 +44,7 @@ export function MobileProductDetailView({
   images,
   locale,
   activeColor,
+  activeFurniture,
   activeSize,
   displaySizes,
   isWishlisted,
@@ -54,6 +58,7 @@ export function MobileProductDetailView({
   onBack,
   onToggleWishlist,
   onColorChange,
+  onFurnitureChange,
   onSizeChange,
   onAddToBag,
   guaranteeContent,
@@ -107,6 +112,21 @@ export function MobileProductDetailView({
     [product.details]
   );
   const showDetailsAccordion = hasSupplementaryProductDetails(product);
+  const activeColorLabel = product.colors[activeColor]
+    ? localizedCatalogName(
+        product.colors[activeColor].name,
+        product.colors[activeColor].nameUk,
+        locale
+      )
+    : "";
+  const furnitureList = product.furnitureColors ?? [];
+  const activeFurnitureLabel = furnitureList[activeFurniture]
+    ? localizedCatalogName(
+        furnitureList[activeFurniture].name,
+        furnitureList[activeFurniture].nameUk,
+        locale
+      )
+    : "";
 
   return (
     <div className="md:hidden relative pt-[var(--main-header-h)]">
@@ -126,7 +146,7 @@ export function MobileProductDetailView({
                 {src ? (
                   <CrossfadeImage
                     src={src}
-                    alt={`${product.name} – ${product.colors[activeColor]?.name ?? ""} – ${i + 1}`}
+                    alt={`${product.name} – ${activeColorLabel} – ${i + 1}`}
                     className="object-[center_25%]"
                     objectPosition="center 25%"
                     priority={i === 0}
@@ -312,15 +332,15 @@ export function MobileProductDetailView({
                   fontSize: "clamp(0.7rem, 2.7vw, 0.8rem)",
                 }}
               >
-                <AnimatePresence mode="wait">
+                  <AnimatePresence mode="wait">
                   <motion.span
-                    key={product.colors[activeColor]?.name}
+                    key={activeColorLabel}
                     initial={reduceMotion ? false : { opacity: 0, y: 4 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={reduceMotion ? undefined : { opacity: 0, y: -4 }}
                     transition={{ duration: 0.2, ease: transitionEase }}
                   >
-                    {product.colors[activeColor]?.name}
+                    {activeColorLabel}
                   </motion.span>
                 </AnimatePresence>
               </p>
@@ -328,6 +348,7 @@ export function MobileProductDetailView({
             <div className="flex flex-wrap gap-[clamp(8px,2vw,10px)] pl-[6px] pr-[4px] py-[4px]">
               {product.colors.map((color, i) => {
                 const isActive = i === activeColor;
+                const colorLabel = localizedCatalogName(color.name, color.nameUk, locale);
                 const colorStyle = {
                   width: "clamp(28px, 7vw, 34px)",
                   height: "clamp(28px, 7vw, 34px)",
@@ -342,8 +363,8 @@ export function MobileProductDetailView({
                       key={color.name}
                       type="button"
                       onClick={() => onColorChange(i)}
-                      title={color.name}
-                      className="relative shrink-0 rounded-full cursor-pointer"
+                      title={colorLabel}
+                      className="relative shrink-0 rounded-full cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2D241E]/40 transition-colors duration-200"
                       style={colorStyle}
                     />
                   );
@@ -354,8 +375,8 @@ export function MobileProductDetailView({
                     key={color.name}
                     type="button"
                     onClick={() => onColorChange(i)}
-                    title={color.name}
-                    className="relative shrink-0 rounded-full cursor-pointer"
+                    title={colorLabel}
+                    className="relative shrink-0 rounded-full cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2D241E]/40 transition-colors duration-200"
                     animate={{ scale: isActive ? 1.08 : 1 }}
                     transition={{ duration: 0.22, ease: transitionEase }}
                     style={colorStyle}
@@ -364,6 +385,81 @@ export function MobileProductDetailView({
               })}
             </div>
           </div>
+
+          {furnitureList.length > 0 && (
+            <div className="shrink-0">
+              <div className="flex items-center justify-between mb-[clamp(4px,1vw,6px)]">
+                <p
+                  className="text-[#2D241E] uppercase"
+                  style={{
+                    fontFamily: "'DM Sans', sans-serif",
+                    letterSpacing: "0.14em",
+                    fontSize: "clamp(0.58rem, 2.3vw, 0.68rem)",
+                  }}
+                >
+                  {t("product.furniture")}
+                </p>
+                <p
+                  className="text-[#2D241E]/55"
+                  style={{
+                    fontFamily: "'DM Sans', sans-serif",
+                    fontSize: "clamp(0.7rem, 2.7vw, 0.8rem)",
+                  }}
+                >
+                  <AnimatePresence mode="wait">
+                    <motion.span
+                      key={activeFurnitureLabel}
+                      initial={reduceMotion ? false : { opacity: 0, y: 4 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={reduceMotion ? undefined : { opacity: 0, y: -4 }}
+                      transition={{ duration: 0.2, ease: transitionEase }}
+                    >
+                      {activeFurnitureLabel}
+                    </motion.span>
+                  </AnimatePresence>
+                </p>
+              </div>
+              <div className="flex flex-wrap gap-[clamp(8px,2vw,10px)] pl-[6px] pr-[4px] py-[4px]">
+                {furnitureList.map((fc, i) => {
+                  const isActive = i === activeFurniture;
+                  const furnitureLabel = localizedCatalogName(fc.name, fc.nameUk, locale);
+                  const furnitureStyle = {
+                    width: "clamp(28px, 7vw, 34px)",
+                    height: "clamp(28px, 7vw, 34px)",
+                    backgroundColor: fc.hex,
+                    border: isActive ? "2px solid #2D241E" : "1.5px solid rgba(45,36,30,0.18)",
+                    boxShadow: isActive ? "0 0 0 2px #FAF8F5, 0 0 0 4px #2D241E" : "none",
+                  } as const;
+
+                  if (!motionEnabled) {
+                    return (
+                      <button
+                        key={fc.name}
+                        type="button"
+                        onClick={() => onFurnitureChange(i)}
+                        title={furnitureLabel}
+                        className="relative shrink-0 rounded-full cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2D241E]/40 transition-colors duration-200"
+                        style={furnitureStyle}
+                      />
+                    );
+                  }
+
+                  return (
+                    <motion.button
+                      key={fc.name}
+                      type="button"
+                      onClick={() => onFurnitureChange(i)}
+                      title={furnitureLabel}
+                      className="relative shrink-0 rounded-full cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2D241E]/40 transition-colors duration-200"
+                      animate={{ scale: isActive ? 1.08 : 1 }}
+                      transition={{ duration: 0.22, ease: transitionEase }}
+                      style={furnitureStyle}
+                    />
+                  );
+                })}
+              </div>
+            </div>
+          )}
 
           {laceEnabled && (
             <div className="shrink-0">

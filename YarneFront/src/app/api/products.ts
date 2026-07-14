@@ -9,12 +9,19 @@ export interface LaceSizeVariantDto {
 
 export interface ColorVariantDto {
   name: string;
+  nameUk?: string | null;
   hex: string;
   imageUrl: string;
   imageUrls: string[];
   sizeImages?: Record<string, string[]>;
   sizeStocks?: Record<string, number>;
   laceVariants?: Record<string, LaceSizeVariantDto>;
+}
+
+export interface FurnitureColorVariantDto {
+  name: string;
+  nameUk?: string | null;
+  hex: string;
 }
 
 export interface ProductDto {
@@ -28,9 +35,11 @@ export interface ProductDto {
   primaryImageUrl: string | null;
   imageUrls: string[];
   colors?: ColorVariantDto[];
+  furnitureColors?: FurnitureColorVariantDto[];
   sizes?: string[];
   defaultSize?: string | null;
   defaultColor?: string | null;
+  defaultFurnitureColor?: string | null;
   categoryName: string;
   collectionName: string | null;
   producerName: string | null;
@@ -113,9 +122,11 @@ export interface CreateProductRequest {
   producerName?: string;
   defaultSizeId?: number;
   defaultColorId?: number;
+  defaultFurnitureColorId?: number;
   sizeIds?: number[];
   imageUrls?: string[];
   colorIds?: number[];
+  furnitureColorIds?: number[];
   colorVariants?: ColorVariantInput[];
   colorSizeVariants?: ColorSizeVariantInput[];
   variantStocks?: VariantStockInput[];
@@ -137,6 +148,7 @@ export async function createProduct(data: CreateProductRequest): Promise<Product
       ...data,
       imageUrls: data.imageUrls ?? [],
       colorIds: data.colorIds ?? [],
+      furnitureColorIds: data.furnitureColorIds ?? [],
       colorVariants: data.colorVariants ?? [],
     }),
   });

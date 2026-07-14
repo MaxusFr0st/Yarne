@@ -129,14 +129,23 @@ export function CartDrawer() {
                           </p>
                           <div className="flex items-center gap-2 mt-1.5">
                             <span
-                              className="w-3 h-3 rounded-full border border-[#2D241E]/20"
+                              className="w-3 h-3 rounded-full border border-[#2D241E]/20 shrink-0"
                               style={{ backgroundColor: item.colorHex }}
                             />
+                            {item.furnitureColorHex ? (
+                              <span
+                                className="w-3 h-3 rounded-full border border-[#2D241E]/20 shrink-0"
+                                style={{ backgroundColor: item.furnitureColorHex }}
+                              />
+                            ) : null}
                             <span
                               className="text-[#2D241E]/60 text-xs"
                               style={{ fontFamily: "'DM Sans', sans-serif" }}
                             >
-                              {item.color} · {t("cart.size")} {item.size}
+                              {item.color}
+                              {item.furnitureColor ? ` · ${item.furnitureColor}` : ""}
+                              {" · "}
+                              {t("cart.size")} {item.size}
                             </span>
                           </div>
                         </div>

@@ -10,11 +10,12 @@ export type ShowcaseProductSlot = {
   ctaLabel: string;
 };
 
+export type ShowcaseTextLocaleCopy = { eyebrow: string; heading: string; ctaLabel: string };
+
 export type ShowcaseTextSlot = {
-  eyebrow: string;
-  heading: string;
-  ctaLabel: string;
   ctaHref: string;
+  en: ShowcaseTextLocaleCopy;
+  uk: ShowcaseTextLocaleCopy;
 };
 
 export type FeaturedShowcaseSelection = {
@@ -22,6 +23,12 @@ export type FeaturedShowcaseSelection = {
   slot2: ShowcaseProductSlot;
   slot3: ShowcaseTextSlot;
   slot4: ShowcaseProductSlot;
+};
+
+const EMPTY_LOCALE_COPY: ShowcaseTextLocaleCopy = {
+  eyebrow: "",
+  heading: "",
+  ctaLabel: "",
 };
 
 const EMPTY_SLOT_1: ShowcaseProductSlot = {
@@ -39,10 +46,9 @@ const EMPTY_SLOT_2: ShowcaseProductSlot = {
 };
 
 const EMPTY_SLOT_3: ShowcaseTextSlot = {
-  eyebrow: "",
-  heading: "",
-  ctaLabel: "",
   ctaHref: "/about",
+  en: { ...EMPTY_LOCALE_COPY },
+  uk: { ...EMPTY_LOCALE_COPY },
 };
 
 const EMPTY_SLOT_4: ShowcaseProductSlot = {
@@ -66,14 +72,57 @@ function normalizeProductSlot(value: unknown, fallback: ShowcaseProductSlot): Sh
   };
 }
 
-function normalizeTextSlot(value: unknown, fallback: ShowcaseTextSlot): ShowcaseTextSlot {
+function normalizeLocaleCopy(value: unknown, fallback: ShowcaseTextLocaleCopy): ShowcaseTextLocaleCopy {
   const source = typeof value === "object" && value !== null ? (value as Record<string, unknown>) : {};
   return {
     eyebrow: normalizeString(source.eyebrow, fallback.eyebrow),
     heading: normalizeString(source.heading, fallback.heading),
     ctaLabel: normalizeString(source.ctaLabel, fallback.ctaLabel),
-    ctaHref: normalizeString(source.ctaHref, fallback.ctaHref) || "/about",
   };
+}
+
+function localeCopyHasContent(copy: ShowcaseTextLocaleCopy): boolean {
+  return Boolean(copy.eyebrow.trim() || copy.heading.trim() || copy.ctaLabel.trim());
+}
+
+function normalizeTextSlot(value: unknown, fallback: ShowcaseTextSlot): ShowcaseTextSlot {
+  const source = typeof value === "object" && value !== null ? (value as Record<string, unknown>) : {};
+  const ctaHref = normalizeString(source.ctaHref, fallback.ctaHref) || "/about";
+
+  const hasNested =
+    (typeof source.en === "object" && source.en !== null) ||
+    (typeof source.uk === "object" && source.uk !== null);
+
+  if (hasNested) {
+    return {
+      ctaHref,
+      en: normalizeLocaleCopy(source.en, fallback.en),
+      uk: normalizeLocaleCopy(source.uk, fallback.uk),
+    };
+  }
+
+  // Legacy flat `{ eyebrow, heading, ctaLabel, ctaHref }` → migrate into uk; leave en empty.
+  return {
+    ctaHref,
+    en: { ...EMPTY_LOCALE_COPY },
+    uk: {
+      eyebrow: normalizeString(source.eyebrow, fallback.uk.eyebrow),
+      heading: normalizeString(source.heading, fallback.uk.heading),
+      ctaLabel: normalizeString(source.ctaLabel, fallback.uk.ctaLabel),
+    },
+  };
+}
+
+/** Locale copy with fallback: requested → uk → en. */
+export function getShowcaseTextForLocale(
+  slot: ShowcaseTextSlot,
+  locale: string
+): ShowcaseTextLocaleCopy {
+  const requested = locale === "en" ? slot.en : slot.uk;
+  if (localeCopyHasContent(requested)) return requested;
+  if (localeCopyHasContent(slot.uk)) return slot.uk;
+  if (localeCopyHasContent(slot.en)) return slot.en;
+  return requested;
 }
 
 export function normalizeFeaturedShowcaseSelection(value: unknown): FeaturedShowcaseSelection {
@@ -123,7 +172,7 @@ export async function loadFeaturedShowcaseSelection(): Promise<FeaturedShowcaseS
   } catch {
     // API unavailable
   }
-  return getDefaultFeaturedShowcaseSelection();
+  return readLocalFeaturedShowcase();
 }
 
 /** Admin: load server config; empty defaults when nothing is saved yet. */

@@ -27,6 +27,9 @@ public class ProductService : IProductService
             .Include(p => p.Collection)
             .Include(p => p.DefaultSize)
             .Include(p => p.DefaultColor)
+            .Include(p => p.DefaultFurnitureColor)
+            .Include(p => p.ProductFurnitureColors)
+                .ThenInclude(pfc => pfc.FurnitureColor)
             .Include(p => p.ProductSizes)
                 .ThenInclude(ps => ps.Size)
             .Include(p => p.ProductImages)
@@ -68,6 +71,9 @@ public class ProductService : IProductService
             .Include(p => p.Collection)
             .Include(p => p.DefaultSize)
             .Include(p => p.DefaultColor)
+            .Include(p => p.DefaultFurnitureColor)
+            .Include(p => p.ProductFurnitureColors)
+                .ThenInclude(pfc => pfc.FurnitureColor)
             .Include(p => p.ProductSizes)
                 .ThenInclude(ps => ps.Size)
             .Include(p => p.ProductImages)
@@ -101,6 +107,9 @@ public class ProductService : IProductService
             .Include(p => p.Collection)
             .Include(p => p.DefaultSize)
             .Include(p => p.DefaultColor)
+            .Include(p => p.DefaultFurnitureColor)
+            .Include(p => p.ProductFurnitureColors)
+                .ThenInclude(pfc => pfc.FurnitureColor)
             .Include(p => p.ProductSizes)
                 .ThenInclude(ps => ps.Size)
             .Include(p => p.ProductImages)
@@ -166,6 +175,11 @@ public class ProductService : IProductService
         await ReplaceProductColorsAsync(product.Id, OrderColorIdsWithDefault(colorIds, defaultColorId), ct);
         product.DefaultColorId = defaultColorId;
 
+        var furnitureColorIds = (request.FurnitureColorIds ?? new List<int>()).Where(id => id > 0).Distinct().ToList();
+        var defaultFurnitureColorId = ResolveDefaultColorId(furnitureColorIds, request.DefaultFurnitureColorId);
+        await ReplaceProductFurnitureColorsAsync(product.Id, OrderColorIdsWithDefault(furnitureColorIds, defaultFurnitureColorId), ct);
+        product.DefaultFurnitureColorId = defaultFurnitureColorId;
+
         var fallbackImages = NormalizeUrls(request.ImageUrls);
         var colorSizeVariants = BuildColorSizeVariantsForWrite(
             request.ColorSizeVariants,
@@ -185,6 +199,9 @@ public class ProductService : IProductService
             .Include(p => p.Collection)
             .Include(p => p.DefaultSize)
             .Include(p => p.DefaultColor)
+            .Include(p => p.DefaultFurnitureColor)
+            .Include(p => p.ProductFurnitureColors)
+                .ThenInclude(pfc => pfc.FurnitureColor)
             .Include(p => p.ProductSizes)
                 .ThenInclude(ps => ps.Size)
             .Include(p => p.ProductImages)
@@ -250,9 +267,11 @@ public class ProductService : IProductService
                 .ThenInclude(pc => pc.SizeImages)
             .Include(p => p.ProductColors)
                 .ThenInclude(pc => pc.VariantStocks)
+            .Include(p => p.ProductFurnitureColors)
             .Include(p => p.ProductSizes)
             .Include(p => p.DefaultSize)
             .Include(p => p.DefaultColor)
+            .Include(p => p.DefaultFurnitureColor)
             .FirstOrDefaultAsync(p => p.Id == id, ct);
         if (product == null) return null;
 
@@ -305,6 +324,16 @@ public class ProductService : IProductService
             await ReplaceProductColorsAsync(product.Id, OrderColorIdsWithDefault(colorIds, defaultColorId), ct);
         }
 
+        if (request.FurnitureColorIds is not null || request.DefaultFurnitureColorId is not null)
+        {
+            var furnitureColorIds = request.FurnitureColorIds is not null
+                ? request.FurnitureColorIds.Where(id => id > 0).Distinct().ToList()
+                : product.ProductFurnitureColors.OrderBy(pc => pc.SortOrder).Select(pc => pc.FurnitureColorId).ToList();
+            var defaultFurnitureColorId = ResolveDefaultColorId(furnitureColorIds, request.DefaultFurnitureColorId ?? product.DefaultFurnitureColorId);
+            product.DefaultFurnitureColorId = defaultFurnitureColorId;
+            await ReplaceProductFurnitureColorsAsync(product.Id, OrderColorIdsWithDefault(furnitureColorIds, defaultFurnitureColorId), ct);
+        }
+
         var shouldUpdateColorSizeImages = request.ColorSizeVariants is not null || request.ColorVariants is not null || request.ColorIds is not null;
         if (shouldUpdateColorSizeImages)
         {
@@ -336,6 +365,9 @@ public class ProductService : IProductService
             .Include(p => p.Collection)
             .Include(p => p.DefaultSize)
             .Include(p => p.DefaultColor)
+            .Include(p => p.DefaultFurnitureColor)
+            .Include(p => p.ProductFurnitureColors)
+                .ThenInclude(pfc => pfc.FurnitureColor)
             .Include(p => p.ProductSizes)
                 .ThenInclude(ps => ps.Size)
             .Include(p => p.ProductImages)
@@ -532,6 +564,7 @@ public class ProductService : IProductService
                 return new ColorVariantDto
                 {
                     Name = pc.Color.Name,
+                    NameUk = pc.Color.NameUk,
                     Hex = pc.Color.HexCode,
                     ImageUrl = colorImages.Count > 0 ? colorImages[0] : fallback,
                     ImageUrls = colorImages.Count > 0 ? colorImages : new List<string> { fallback },
@@ -554,6 +587,16 @@ public class ProductService : IProductService
                 colors.Add(new ColorVariantDto { Name = "Default", Hex = "#2D241E", ImageUrl = legacy, ImageUrls = new List<string> { legacy } });
         }
 
+        var furnitureColors = p.ProductFurnitureColors
+            .OrderBy(pc => pc.SortOrder)
+            .Select(pc => new FurnitureColorVariantDto
+            {
+                Name = pc.FurnitureColor.Name,
+                NameUk = pc.FurnitureColor.NameUk,
+                Hex = pc.FurnitureColor.HexCode,
+            })
+            .ToList();
+
         return new ProductDto
         {
             Id = p.Id,
@@ -566,9 +609,11 @@ public class ProductService : IProductService
             PrimaryImageUrl = images.FirstOrDefault() ?? p.ImageUrl,
             ImageUrls = images,
             Colors = colors,
+            FurnitureColors = furnitureColors,
             Sizes = sizes,
             DefaultSize = defaultSize,
             DefaultColor = p.DefaultColor?.Name ?? colors.FirstOrDefault()?.Name,
+            DefaultFurnitureColor = p.DefaultFurnitureColor?.Name ?? furnitureColors.FirstOrDefault()?.Name,
             CategoryName = p.Category.Name,
             CollectionName = p.Collection?.Name,
             ProducerName = p.ProducerName,
@@ -915,6 +960,22 @@ public class ProductService : IProductService
             {
                 ProductId = productId,
                 ColorId = colorIds[i],
+                SortOrder = i,
+            });
+        }
+    }
+
+    private async Task ReplaceProductFurnitureColorsAsync(int productId, List<int> furnitureColorIds, CancellationToken ct)
+    {
+        var existing = await _context.ProductFurnitureColors.Where(pc => pc.ProductId == productId).ToListAsync(ct);
+        _context.ProductFurnitureColors.RemoveRange(existing);
+
+        for (var i = 0; i < furnitureColorIds.Count; i++)
+        {
+            _context.ProductFurnitureColors.Add(new Models.ProductFurnitureColor
+            {
+                ProductId = productId,
+                FurnitureColorId = furnitureColorIds[i],
                 SortOrder = i,
             });
         }

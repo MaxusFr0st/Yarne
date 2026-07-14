@@ -103,6 +103,7 @@ const uk: Translations = {
     back: "Назад",
     description: "Опис",
     colour: "Колір",
+    furniture: "Фурнітура",
     size: "Розмір",
     sizeGuide: "Розмірна сітка",
     selectSize: "Оберіть розмір, щоб продовжити.",

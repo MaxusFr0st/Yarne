@@ -45,6 +45,8 @@ public class OrderItemDto
 
     public string? ColorName { get; set; }
 
+    public string? FurnitureColorName { get; set; }
+
     public string? SizeName { get; set; }
 
     public bool? WithLace { get; set; }

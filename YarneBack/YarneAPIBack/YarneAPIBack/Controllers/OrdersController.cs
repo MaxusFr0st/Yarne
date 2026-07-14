@@ -282,6 +282,7 @@ public class OrdersController : ControllerBase
                 UnitPrice = product.Price,
                 ProductSubtitle = NormalizeOptional(item.ProductSubtitle),
                 ColorName = NormalizeOptional(item.ColorName),
+                FurnitureColorName = NormalizeOptional(item.FurnitureColorName),
                 SizeName = NormalizeOptional(item.SizeName),
                 WithLace = item.WithLace,
             };
@@ -503,6 +504,7 @@ public class OrdersController : ControllerBase
                     ProductImageUrl = OrderItemSnapshotHelper.ResolveProductImageUrl(i),
                     ProductSubtitle = i.ProductSubtitle,
                     ColorName = i.ColorName,
+                    FurnitureColorName = i.FurnitureColorName,
                     SizeName = i.SizeName,
                     WithLace = i.WithLace,
                     Quantity = i.Quantity,

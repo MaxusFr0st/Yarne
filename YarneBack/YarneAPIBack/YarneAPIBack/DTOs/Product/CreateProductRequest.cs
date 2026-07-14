@@ -35,6 +35,8 @@ public class CreateProductRequest
 
     public int? DefaultColorId { get; set; }
 
+    public int? DefaultFurnitureColorId { get; set; }
+
     public bool IsNew { get; set; }
 
     public bool IsBestseller { get; set; }
@@ -46,6 +48,8 @@ public class CreateProductRequest
     public List<string> ImageUrls { get; set; } = new();
 
     public List<int> ColorIds { get; set; } = new();
+
+    public List<int> FurnitureColorIds { get; set; } = new();
 
     /// <summary>Legacy per-color image sets (mapped to default size if provided).</summary>
     public List<ColorVariantInput> ColorVariants { get; set; } = new();

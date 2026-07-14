@@ -8,6 +8,7 @@ export interface OrderItemDto {
   productImageUrl: string | null;
   productSubtitle: string | null;
   colorName: string | null;
+  furnitureColorName: string | null;
   sizeName: string | null;
   withLace: boolean | null;
   quantity: number;
@@ -45,6 +46,7 @@ export interface CreateOrderItemRequest {
   countryId?: number;
   productSubtitle?: string;
   colorName?: string;
+  furnitureColorName?: string;
   sizeName?: string;
   withLace?: boolean | null;
 }

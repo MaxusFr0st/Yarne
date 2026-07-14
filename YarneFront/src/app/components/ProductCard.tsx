@@ -12,6 +12,7 @@ import { PriceTag } from "./PriceTag";
 import { useMotionEntrance } from "../hooks/useMotionEntrance";
 import { useTouchMobileLayout } from "../hooks/useTouchMobileLayout";
 import { getDefaultColorIndex } from "../utils/productColorIndex";
+import { localizedCatalogName } from "../utils/localizedName";
 
 interface ProductCardProps {
   product: Product;
@@ -112,6 +113,11 @@ function ProductCardInner({
     toggleWishlist(product.id);
   };
 
+  const activeColorVariant = product.colors[activeColor];
+  const activeColorLabel = activeColorVariant
+    ? localizedCatalogName(activeColorVariant.name, activeColorVariant.nameUk, locale)
+    : "";
+
   const handleCardClick = (e: MouseEvent<HTMLAnchorElement>) => {
     if (previewMode) {
       e.preventDefault();
@@ -174,7 +180,7 @@ function ProductCardInner({
                     ? previewImageOverride
                     : color.image
                 }
-                alt={`${product.name} in ${color.name}`}
+                alt={`${product.name} in ${localizedCatalogName(color.name, color.nameUk, locale)}`}
                 className={`product-card-image absolute inset-0 h-full w-full object-cover ${
                   isCarouselCard ? "object-[center_28%] md:object-[center_32%]" : "object-[center_30%]"
                 } ${i === activeColor ? "opacity-100" : "opacity-0"}`}
@@ -284,10 +290,12 @@ function ProductCardInner({
           <div
             className={`flex items-center gap-2 ${isCarouselCard ? "mt-2 py-1.5 pl-1 -ml-1" : "mt-3"} ${previewMode ? "overflow-x-auto pb-1 -mx-0.5 px-0.5" : ""}`}
           >
-            {product.colors.map((color, i) => (
+            {product.colors.map((color, i) => {
+              const colorLabel = localizedCatalogName(color.name, color.nameUk, locale);
+              return (
               <button
                 key={color.name}
-                title={color.name}
+                title={colorLabel}
                 onClick={(e) => {
                   e.preventDefault();
                   e.stopPropagation();
@@ -302,15 +310,16 @@ function ProductCardInner({
                   border: i === activeColor ? "2px solid #2D241E" : "1.5px solid rgba(45,36,30,0.2)",
                   boxShadow: i === activeColor ? "0 0 0 2px #F5F2ED, 0 0 0 4px #2D241E" : "none",
                 }}
-                aria-label={color.name}
+                aria-label={colorLabel}
                 aria-current={i === activeColor ? "true" : undefined}
               />
-            ))}
+              );
+            })}
             <span
               className="text-[#2D241E]/40 text-xs ml-1 shrink-0"
               style={{ fontFamily: "'DM Sans', sans-serif" }}
             >
-              {product.colors[activeColor]?.name}
+              {activeColorLabel}
             </span>
           </div>
         </div>

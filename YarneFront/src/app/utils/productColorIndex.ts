@@ -8,3 +8,15 @@ export function getDefaultColorIndex(product: Pick<Product, "colors" | "defaultC
   }
   return 0;
 }
+
+/** Index of the furniture/hardware color selected by default on PDP. */
+export function getDefaultFurnitureColorIndex(
+  product: Pick<Product, "furnitureColors" | "defaultFurnitureColor">,
+): number {
+  const list = product.furnitureColors ?? [];
+  if (product.defaultFurnitureColor) {
+    const idx = list.findIndex((c) => c.name === product.defaultFurnitureColor);
+    if (idx >= 0) return idx;
+  }
+  return 0;
+}

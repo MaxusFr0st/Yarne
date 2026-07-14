@@ -101,6 +101,7 @@ const en = {
     back: "Back",
     description: "Description",
     colour: "Colour",
+    furniture: "Hardware",
     size: "Size",
     sizeGuide: "Size guide",
     selectSize: "Please select a size to continue.",

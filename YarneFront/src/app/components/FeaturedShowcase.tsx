@@ -17,6 +17,7 @@ import {
   type FeaturedShowcaseSelection,
   type ShowcaseProductSlot,
   type ShowcaseTextSlot,
+  getShowcaseTextForLocale,
 } from "../utils/featuredShowcaseSelection";
 import { useTouchMobileLayout } from "../hooks/useTouchMobileLayout";
 import { useShowcaseSpreadLayout } from "../hooks/useCompactTabletLayout";
@@ -232,9 +233,11 @@ type TextTileProps = {
 };
 
 function TextTile({ slot }: TextTileProps) {
-  const eyebrow = slot.eyebrow.trim();
-  const heading = slot.heading.trim();
-  const ctaLabel = slot.ctaLabel.trim();
+  const locale = useLocale();
+  const text = getShowcaseTextForLocale(slot, locale);
+  const eyebrow = text.eyebrow.trim();
+  const heading = text.heading.trim();
+  const ctaLabel = text.ctaLabel.trim();
   const ctaHref = slot.ctaHref.trim() || "/about";
 
   return (

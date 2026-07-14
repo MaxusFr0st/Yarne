@@ -8,6 +8,8 @@ public class ColorVariantDto
 {
     public string Name { get; set; } = null!;
 
+    public string? NameUk { get; set; }
+
     public string Hex { get; set; } = null!;
 
     /// <summary>Primary/thumbnail image for product cards</summary>

@@ -22,11 +22,15 @@ public class ProductDto
 
     public List<ColorVariantDto> Colors { get; set; } = new();
 
+    public List<FurnitureColorVariantDto> FurnitureColors { get; set; } = new();
+
     public List<string> Sizes { get; set; } = new();
 
     public string? DefaultSize { get; set; }
 
     public string? DefaultColor { get; set; }
+
+    public string? DefaultFurnitureColor { get; set; }
 
     public string CategoryName { get; set; } = null!;
 

@@ -17,6 +17,10 @@ public partial class YarneDbContext : DbContext
 
     public virtual DbSet<Color> Colors { get; set; }
 
+    public virtual DbSet<FurnitureColor> FurnitureColors { get; set; }
+
+    public virtual DbSet<ProductFurnitureColor> ProductFurnitureColors { get; set; }
+
     public virtual DbSet<Collection> Collections { get; set; }
 
     public virtual DbSet<Country> Countries { get; set; }
@@ -124,6 +128,16 @@ public partial class YarneDbContext : DbContext
             entity.HasKey(e => e.Id);
             entity.ToTable("Color");
             entity.Property(e => e.Name).HasMaxLength(100);
+            entity.Property(e => e.NameUk).HasMaxLength(100);
+            entity.Property(e => e.HexCode).HasMaxLength(20);
+        });
+
+        modelBuilder.Entity<FurnitureColor>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.ToTable("FurnitureColor");
+            entity.Property(e => e.Name).HasMaxLength(100);
+            entity.Property(e => e.NameUk).HasMaxLength(100);
             entity.Property(e => e.HexCode).HasMaxLength(20);
         });
 
@@ -136,6 +150,18 @@ public partial class YarneDbContext : DbContext
                 .OnDelete(DeleteBehavior.Cascade);
             entity.HasOne(d => d.Color).WithMany(p => p.ProductColors)
                 .HasForeignKey(d => d.ColorId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<ProductFurnitureColor>(entity =>
+        {
+            entity.HasKey(e => new { e.ProductId, e.FurnitureColorId });
+            entity.ToTable("ProductFurnitureColor");
+            entity.HasOne(d => d.Product).WithMany(p => p.ProductFurnitureColors)
+                .HasForeignKey(d => d.ProductId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(d => d.FurnitureColor).WithMany(p => p.ProductFurnitureColors)
+                .HasForeignKey(d => d.FurnitureColorId)
                 .OnDelete(DeleteBehavior.Cascade);
         });
 
@@ -345,6 +371,7 @@ public partial class YarneDbContext : DbContext
             entity.Property(e => e.ProductImageUrl).HasMaxLength(500);
             entity.Property(e => e.ProductSubtitle).HasMaxLength(200);
             entity.Property(e => e.ColorName).HasMaxLength(100);
+            entity.Property(e => e.FurnitureColorName).HasMaxLength(100);
             entity.Property(e => e.SizeName).HasMaxLength(20);
 
             entity.HasOne(d => d.Country).WithMany(p => p.OrderItems)
@@ -422,6 +449,11 @@ public partial class YarneDbContext : DbContext
             entity.HasOne(d => d.DefaultColor)
                 .WithMany(c => c.ProductsAsDefaultColor)
                 .HasForeignKey(d => d.DefaultColorId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            entity.HasOne(d => d.DefaultFurnitureColor)
+                .WithMany(c => c.ProductsAsDefaultFurnitureColor)
+                .HasForeignKey(d => d.DefaultFurnitureColorId)
                 .OnDelete(DeleteBehavior.SetNull);
 
             entity.HasMany(d => d.Countries).WithMany(p => p.Products)

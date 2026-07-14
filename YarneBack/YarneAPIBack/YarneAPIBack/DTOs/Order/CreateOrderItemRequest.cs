@@ -19,6 +19,9 @@ public class CreateOrderItemRequest
     [StringLength(100)]
     public string? ColorName { get; set; }
 
+    [StringLength(100)]
+    public string? FurnitureColorName { get; set; }
+
     [StringLength(20)]
     public string? SizeName { get; set; }
 

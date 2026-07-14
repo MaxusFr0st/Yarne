@@ -44,6 +44,7 @@ interface Order {
     name: string;
     subtitle?: string | null;
     colorName?: string | null;
+    furnitureColorName?: string | null;
     sizeName?: string | null;
     withLace?: boolean | null;
     quantity: number;
@@ -89,6 +90,7 @@ function mapOrderDto(order: OrderDto): Order {
       name: item.productName,
       subtitle: item.productSubtitle,
       colorName: item.colorName,
+      furnitureColorName: item.furnitureColorName,
       sizeName: item.sizeName,
       withLace: item.withLace,
       quantity: item.quantity,

@@ -31,6 +31,8 @@ public partial class Product
 
     public int? DefaultColorId { get; set; }
 
+    public int? DefaultFurnitureColorId { get; set; }
+
     public bool IsActive { get; set; }
 
     public bool IsNew { get; set; }
@@ -51,6 +53,8 @@ public partial class Product
 
     public virtual Color? DefaultColor { get; set; }
 
+    public virtual FurnitureColor? DefaultFurnitureColor { get; set; }
+
     public virtual ICollection<OrderItem> OrderItems { get; set; } = new List<OrderItem>();
 
     public virtual ICollection<Country> Countries { get; set; } = new List<Country>();
@@ -58,6 +62,8 @@ public partial class Product
     public virtual ICollection<ProductImage> ProductImages { get; set; } = new List<ProductImage>();
 
     public virtual ICollection<ProductColor> ProductColors { get; set; } = new List<ProductColor>();
+
+    public virtual ICollection<ProductFurnitureColor> ProductFurnitureColors { get; set; } = new List<ProductFurnitureColor>();
 
     public virtual ICollection<ProductSize> ProductSizes { get; set; } = new List<ProductSize>();
 

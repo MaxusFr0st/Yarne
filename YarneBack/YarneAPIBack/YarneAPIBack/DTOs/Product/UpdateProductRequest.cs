@@ -46,6 +46,11 @@ public class UpdateProductRequest
     public int? DefaultColorId { get; set; }
 
     /// <summary>
+    /// Optional on update. Null = keep current default furniture color.
+    /// </summary>
+    public int? DefaultFurnitureColorId { get; set; }
+
+    /// <summary>
     /// Optional on update. Null = keep existing size assignments.
     /// </summary>
     public List<int>? SizeIds { get; set; }
@@ -60,6 +65,12 @@ public class UpdateProductRequest
     /// Null = keep existing colors unchanged.
     /// </summary>
     public List<int>? ColorIds { get; set; }
+
+    /// <summary>
+    /// Optional on update. Null = keep existing furniture colors unchanged.
+    /// Empty list = clear all furniture colors.
+    /// </summary>
+    public List<int>? FurnitureColorIds { get; set; }
 
     /// <summary>
     /// Optional on update. Null = keep existing color variants unchanged.

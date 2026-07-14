@@ -206,6 +206,11 @@ function readLocalHomePageCopy(): HomePageCopy {
   }
 }
 
+/** Synchronous localStorage peek for first paint (avoids CMS hardcoded-default flash). */
+export function getInitialHomePageCopy(): HomePageCopy {
+  return readLocalHomePageCopy();
+}
+
 function writeLocalHomePageCopy(copy: HomePageCopy) {
   if (typeof window === "undefined") return;
   window.localStorage.setItem(HOME_PAGE_COPY_KEY, JSON.stringify(copy));
@@ -222,7 +227,7 @@ export async function loadHomePageCopy(): Promise<HomePageCopy> {
   } catch {
     // API unavailable
   }
-  return getDefaultHomePageCopy();
+  return readLocalHomePageCopy();
 }
 
 export async function loadHomePageCopyForAdmin(): Promise<HomePageCopy> {
@@ -247,5 +252,5 @@ export async function persistHomePageCopy(copy: HomePageCopy): Promise<HomePageC
 }
 
 export function getHomePageCopyForLocale(copy: HomePageCopy, locale: Locale): HomePageCopyLocale {
-  return copy[locale] ?? copy.en;
+  return copy[locale] ?? copy.uk;
 }

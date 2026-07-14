@@ -28,6 +28,7 @@ function toColorVariant(c: ColorVariantDto): ColorVariant {
   if (imgs.length === 0) push(c.imageUrl);
   return {
     name: c.name,
+    nameUk: c.nameUk ?? null,
     hex: c.hex,
     image: imgs[0] ?? c.imageUrl,
     images: imgs,
@@ -60,9 +61,15 @@ function mapToFrontendProduct(d: ProductDto): Product {
     sizes: d.sizes?.length ? d.sizes : ["XS", "S", "M", "L", "XL"],
     defaultSize: d.defaultSize ?? undefined,
     defaultColor: d.defaultColor ?? undefined,
+    defaultFurnitureColor: d.defaultFurnitureColor ?? undefined,
     description: d.description ?? "",
     details: [],
     colors,
+    furnitureColors: (d.furnitureColors ?? []).map((fc) => ({
+      name: fc.name,
+      nameUk: fc.nameUk ?? null,
+      hex: fc.hex,
+    })),
   };
 }
 
@@ -102,9 +109,15 @@ function mapDetailToFrontend(d: ProductDetailDto): Product {
     sizes: d.sizes?.length ? d.sizes : ["XS", "S", "M", "L", "XL"],
     defaultSize: d.defaultSize ?? undefined,
     defaultColor: d.defaultColor ?? undefined,
+    defaultFurnitureColor: d.defaultFurnitureColor ?? undefined,
     description: d.description ?? "",
     details: d.details,
     colors,
+    furnitureColors: (d.furnitureColors ?? []).map((fc) => ({
+      name: fc.name,
+      nameUk: fc.nameUk ?? null,
+      hex: fc.hex,
+    })),
     suggestedProductCodes: d.suggestedProductCodes ?? [],
     suggestedProducts: (d.suggestedProducts ?? []).map(mapSuggestedToProduct),
     hasConfiguredSuggestions: d.hasConfiguredSuggestions ?? false,

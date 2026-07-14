@@ -9,79 +9,95 @@ using YarneAPIBack.Services.Contracts;
 namespace YarneAPIBack.Controllers;
 
 [ApiController]
-[Route("api/[controller]")]
-public class ColorsController : ControllerBase
+[Route("api/furniture-colors")]
+public class FurnitureColorsController : ControllerBase
 {
     private readonly YarneDbContext _context;
     private readonly IAdminActivityLogService _activityLogs;
 
-    public ColorsController(YarneDbContext context, IAdminActivityLogService activityLogs)
+    public FurnitureColorsController(YarneDbContext context, IAdminActivityLogService activityLogs)
     {
         _context = context;
         _activityLogs = activityLogs;
     }
 
     [HttpGet]
-    [ProducesResponseType(typeof(IEnumerable<ColorDto>), StatusCodes.Status200OK)]
-    public async Task<ActionResult<IEnumerable<ColorDto>>> GetColors(CancellationToken ct = default)
+    [ProducesResponseType(typeof(IEnumerable<FurnitureColorDto>), StatusCodes.Status200OK)]
+    public async Task<ActionResult<IEnumerable<FurnitureColorDto>>> GetFurnitureColors(CancellationToken ct = default)
     {
-        var colors = await _context.Colors
+        var colors = await _context.FurnitureColors
             .OrderBy(c => c.Name)
-            .Select(c => new ColorDto { Id = c.Id, Name = c.Name, NameUk = c.NameUk, HexCode = c.HexCode })
+            .Select(c => new FurnitureColorDto
+            {
+                Id = c.Id,
+                Name = c.Name,
+                NameUk = c.NameUk,
+                HexCode = c.HexCode,
+            })
             .ToListAsync(ct);
         return Ok(colors);
     }
 
     [HttpPost]
     [Authorize(Roles = "Admin")]
-    [ProducesResponseType(typeof(ColorDto), StatusCodes.Status201Created)]
+    [ProducesResponseType(typeof(FurnitureColorDto), StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
-    public async Task<ActionResult<ColorDto>> CreateColor([FromBody] CreateColorRequest request, CancellationToken ct = default)
+    public async Task<ActionResult<FurnitureColorDto>> CreateFurnitureColor(
+        [FromBody] CreateFurnitureColorRequest request,
+        CancellationToken ct = default)
     {
         if (request == null) return BadRequest();
-        if (await _context.Colors.AnyAsync(c => c.Name == request.Name, ct))
-            return BadRequest(new { message = "Color with this name already exists" });
+        if (await _context.FurnitureColors.AnyAsync(c => c.Name == request.Name, ct))
+            return BadRequest(new { message = "Furniture color with this English name already exists" });
 
-        var color = new Models.Color
+        var color = new Models.FurnitureColor
         {
             Name = request.Name.Trim(),
             NameUk = string.IsNullOrWhiteSpace(request.NameUk) ? null : request.NameUk.Trim(),
             HexCode = request.HexCode ?? "#2D241E",
         };
-        _context.Colors.Add(color);
+        _context.FurnitureColors.Add(color);
         await _context.SaveChangesAsync(ct);
 
         var (actorUserId, actorEmail) = AdminActivityLogHelper.GetActor(HttpContext);
         await _activityLogs.LogAsync(
             "catalog",
             "created",
-            $"Created color \"{color.Name}\"",
+            $"Created furniture color \"{color.Name}\"",
             color.Id.ToString(),
             color.Name,
-            new { catalogType = "color", color.Id, color.Name, color.NameUk, color.HexCode },
+            new { catalogType = "furnitureColor", color.Id, color.Name, color.NameUk, color.HexCode },
             actorUserId,
             actorEmail,
             ct);
 
-        return Created($"/api/colors/{color.Id}", new ColorDto { Id = color.Id, Name = color.Name, NameUk = color.NameUk, HexCode = color.HexCode });
+        return Created($"/api/furniture-colors/{color.Id}", new FurnitureColorDto
+        {
+            Id = color.Id,
+            Name = color.Name,
+            NameUk = color.NameUk,
+            HexCode = color.HexCode,
+        });
     }
 
     [HttpPut("{id}")]
     [Authorize(Roles = "Admin")]
-    [ProducesResponseType(typeof(ColorDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(FurnitureColorDto), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<ActionResult<ColorDto>> UpdateColor(int id, [FromBody] CreateColorRequest request, CancellationToken ct = default)
+    public async Task<ActionResult<FurnitureColorDto>> UpdateFurnitureColor(
+        int id,
+        [FromBody] CreateFurnitureColorRequest request,
+        CancellationToken ct = default)
     {
         if (request == null) return BadRequest();
-        var color = await _context.Colors.FindAsync([id], ct);
+        var color = await _context.FurnitureColors.FindAsync([id], ct);
         if (color == null) return NotFound();
 
-        if (await _context.Colors.AnyAsync(c => c.Name == request.Name && c.Id != id, ct))
-            return BadRequest(new { message = "Color with this name already exists" });
+        if (await _context.FurnitureColors.AnyAsync(c => c.Name == request.Name && c.Id != id, ct))
+            return BadRequest(new { message = "Furniture color with this English name already exists" });
 
         var previousName = color.Name;
-        var previousHex = color.HexCode;
         color.Name = request.Name.Trim();
         color.NameUk = string.IsNullOrWhiteSpace(request.NameUk) ? null : request.NameUk.Trim();
         color.HexCode = request.HexCode ?? "#2D241E";
@@ -91,24 +107,21 @@ public class ColorsController : ControllerBase
         await _activityLogs.LogAsync(
             "catalog",
             "updated",
-            $"Updated color: {previousName} → {color.Name}",
+            $"Updated furniture color: {previousName} → {color.Name}",
             color.Id.ToString(),
             color.Name,
-            new
-            {
-                catalogType = "color",
-                color.Id,
-                previousName,
-                newName = color.Name,
-                nameUk = color.NameUk,
-                previousHex,
-                newHex = color.HexCode,
-            },
+            new { catalogType = "furnitureColor", color.Id, previousName, newName = color.Name, color.NameUk, color.HexCode },
             actorUserId,
             actorEmail,
             ct);
 
-        return Ok(new ColorDto { Id = color.Id, Name = color.Name, NameUk = color.NameUk, HexCode = color.HexCode });
+        return Ok(new FurnitureColorDto
+        {
+            Id = color.Id,
+            Name = color.Name,
+            NameUk = color.NameUk,
+            HexCode = color.HexCode,
+        });
     }
 
     [HttpDelete("{id}")]
@@ -116,28 +129,26 @@ public class ColorsController : ControllerBase
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     [ProducesResponseType(StatusCodes.Status409Conflict)]
-    public async Task<ActionResult> DeleteColor(int id, CancellationToken ct = default)
+    public async Task<ActionResult> DeleteFurnitureColor(int id, CancellationToken ct = default)
     {
-        var color = await _context.Colors.FindAsync([id], ct);
+        var color = await _context.FurnitureColors.FindAsync([id], ct);
         if (color == null) return NotFound();
 
         var name = color.Name;
-
-        var affectedProductNames = await _context.ProductColors
-            .Where(pc => pc.ColorId == id)
+        var affectedProductNames = await _context.ProductFurnitureColors
+            .Where(pc => pc.FurnitureColorId == id)
             .Select(pc => pc.Product.Name)
             .Distinct()
             .OrderBy(n => n)
             .ToListAsync(ct);
 
-        // Product.DefaultColorId references Color without ON DELETE — must clear first.
-        var productsWithDefaultColor = await _context.Products
-            .Where(p => p.DefaultColorId == id)
+        var productsWithDefault = await _context.Products
+            .Where(p => p.DefaultFurnitureColorId == id)
             .ToListAsync(ct);
-        foreach (var product in productsWithDefaultColor)
-            product.DefaultColorId = null;
+        foreach (var product in productsWithDefault)
+            product.DefaultFurnitureColorId = null;
 
-        _context.Colors.Remove(color);
+        _context.FurnitureColors.Remove(color);
 
         try
         {
@@ -150,7 +161,7 @@ public class ColorsController : ControllerBase
                 : string.Empty;
             return Conflict(new
             {
-                message = $"Cannot delete color \"{name}\" because it is still in use.{productHint}",
+                message = $"Cannot delete furniture color \"{name}\" because it is still in use.{productHint}",
                 products = affectedProductNames,
             });
         }
@@ -159,12 +170,10 @@ public class ColorsController : ControllerBase
         await _activityLogs.LogAsync(
             "catalog",
             "deleted",
-            affectedProductNames.Count > 0
-                ? $"Deleted color \"{name}\" (removed from {affectedProductNames.Count} product(s))"
-                : $"Deleted color \"{name}\"",
+            $"Deleted furniture color \"{name}\"",
             id.ToString(),
             name,
-            new { catalogType = "color", id, name, affectedProductNames },
+            new { catalogType = "furnitureColor", id, name, affectedProductNames },
             actorUserId,
             actorEmail,
             ct);

@@ -29,9 +29,9 @@ void i18n
     interpolation: { escapeValue: false },
     returnNull: false,
     detection: {
-      // URL is authoritative; we only fall back here on first visit
-      // (Root.tsx handles the URL → i18n.changeLanguage sync).
-      order: ["localStorage", "navigator"],
+      // Absolute default is Ukrainian (`DEFAULT_LOCALE`) until the user picks a language.
+      // Do not use navigator — UA language must not override the site default.
+      order: ["localStorage"],
       caches: ["localStorage"],
       lookupLocalStorage: LOCALE_STORAGE_KEY,
     },

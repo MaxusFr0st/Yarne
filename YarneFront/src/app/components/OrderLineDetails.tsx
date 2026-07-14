@@ -8,6 +8,7 @@ export type OrderLineDetailsData = {
   productCode: string;
   subtitle?: string | null;
   color?: string | null;
+  furnitureColor?: string | null;
   size?: string | null;
   withLace?: boolean | null;
   quantity: number;
@@ -28,6 +29,7 @@ export function cartItemToLineDetails(item: CartItem): OrderLineDetailsData {
     productCode: item.productId,
     subtitle: item.subtitle,
     color: item.color,
+    furnitureColor: item.furnitureColor,
     size: item.size,
     withLace: item.withLace,
     quantity: item.quantity,
@@ -39,6 +41,7 @@ export function accountOrderItemToLineDetails(item: {
   productCode: string;
   subtitle?: string | null;
   colorName?: string | null;
+  furnitureColorName?: string | null;
   sizeName?: string | null;
   withLace?: boolean | null;
   quantity: number;
@@ -48,6 +51,7 @@ export function accountOrderItemToLineDetails(item: {
     productCode: item.productCode,
     subtitle: item.subtitle,
     color: item.colorName,
+    furnitureColor: item.furnitureColorName,
     size: item.sizeName,
     withLace: item.withLace,
     quantity: item.quantity,
@@ -60,6 +64,7 @@ export function orderItemDtoToLineDetails(item: OrderItemDto): OrderLineDetailsD
     productCode: item.productCode,
     subtitle: item.productSubtitle,
     colorName: item.colorName,
+    furnitureColorName: item.furnitureColorName,
     sizeName: item.sizeName,
     withLace: item.withLace,
     quantity: item.quantity,
@@ -90,6 +95,9 @@ export function OrderLineDetails({ line, locale, className = "" }: OrderLineDeta
       <DetailRow label={t("checkout.productCode")} value={line.productCode} />
       <DetailRow label={t("checkout.model")} value={line.subtitle?.trim() || "—"} />
       <DetailRow label={t("checkout.color")} value={line.color?.trim() || "—"} />
+      {Boolean(line.furnitureColor?.trim()) && (
+        <DetailRow label={t("product.furniture")} value={line.furnitureColor!.trim()} />
+      )}
       <DetailRow label={t("checkout.size")} value={line.size?.trim() || "—"} />
       <DetailRow label={t("checkout.lace")} value={laceLabel} />
       <DetailRow label={t("checkout.quantity")} value={String(line.quantity)} />

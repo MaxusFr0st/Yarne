@@ -13,6 +13,14 @@ export interface CountryDto {
 export interface ColorDto {
   id: number;
   name: string;
+  nameUk?: string | null;
+  hexCode: string;
+}
+
+export interface FurnitureColorDto {
+  id: number;
+  name: string;
+  nameUk?: string | null;
   hexCode: string;
 }
 
@@ -83,28 +91,49 @@ export async function deleteCountry(id: number): Promise<void> {
 }
 
 export async function fetchColors(): Promise<ColorDto[]> {
-  const data = await apiRequest<{ id: number; name: string; hexCode: string }[]>("/api/colors");
+  const data = await apiRequest<ColorDto[]>("/api/colors");
   return Array.isArray(data) ? data : [];
 }
 
-export async function createColor(name: string, hexCode?: string): Promise<ColorDto> {
-  const data = await apiRequest<{ id: number; name: string; hexCode: string }>("/api/colors", {
+export async function createColor(name: string, hexCode?: string, nameUk?: string): Promise<ColorDto> {
+  return apiRequest<ColorDto>("/api/colors", {
     method: "POST",
-    body: JSON.stringify({ name, hexCode: hexCode ?? "#2D241E" }),
+    body: JSON.stringify({ name, nameUk: nameUk || null, hexCode: hexCode ?? "#2D241E" }),
   });
-  return data;
 }
 
-export async function updateColor(id: number, name: string, hexCode?: string): Promise<ColorDto> {
-  const data = await apiRequest<{ id: number; name: string; hexCode: string }>(`/api/colors/${id}`, {
+export async function updateColor(id: number, name: string, hexCode?: string, nameUk?: string): Promise<ColorDto> {
+  return apiRequest<ColorDto>(`/api/colors/${id}`, {
     method: "PUT",
-    body: JSON.stringify({ name, hexCode: hexCode ?? "#2D241E" }),
+    body: JSON.stringify({ name, nameUk: nameUk || null, hexCode: hexCode ?? "#2D241E" }),
   });
-  return data;
 }
 
 export async function deleteColor(id: number): Promise<void> {
   await apiRequest(`/api/colors/${id}`, { method: "DELETE" });
+}
+
+export async function fetchFurnitureColors(): Promise<FurnitureColorDto[]> {
+  const data = await apiRequest<FurnitureColorDto[]>("/api/furniture-colors");
+  return Array.isArray(data) ? data : [];
+}
+
+export async function createFurnitureColor(name: string, hexCode?: string, nameUk?: string): Promise<FurnitureColorDto> {
+  return apiRequest<FurnitureColorDto>("/api/furniture-colors", {
+    method: "POST",
+    body: JSON.stringify({ name, nameUk: nameUk || null, hexCode: hexCode ?? "#2D241E" }),
+  });
+}
+
+export async function updateFurnitureColor(id: number, name: string, hexCode?: string, nameUk?: string): Promise<FurnitureColorDto> {
+  return apiRequest<FurnitureColorDto>(`/api/furniture-colors/${id}`, {
+    method: "PUT",
+    body: JSON.stringify({ name, nameUk: nameUk || null, hexCode: hexCode ?? "#2D241E" }),
+  });
+}
+
+export async function deleteFurnitureColor(id: number): Promise<void> {
+  await apiRequest(`/api/furniture-colors/${id}`, { method: "DELETE" });
 }
 
 export async function fetchSizes(): Promise<SizeDto[]> {
