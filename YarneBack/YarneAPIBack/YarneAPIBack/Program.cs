@@ -268,6 +268,7 @@ app.UseAuthorization();
 app.MapControllers();
 
 // Railway probes /healthz during startup while migrations run.
+// Keep this endpoint always-200 and listen BEFORE bootstrap so probes succeed.
 app.MapGet("/healthz", () => Results.Ok(new { status = "ok" }))
     .DisableRateLimiting()
     .AllowAnonymous();
@@ -290,6 +291,8 @@ var runStartupDbPatches = builder.Configuration.GetValue(
     "Database:RunStartupPatches",
     builder.Environment.IsDevelopment());
 
+await app.StartAsync();
+
 try
 {
     await DatabaseBootstrap.RunAsync(app, runStartupDbPatches);
@@ -301,4 +304,4 @@ catch (Exception ex)
     DatabaseReadiness.MarkFailed(ex.Message);
 }
 
-app.Run();
+await app.WaitForShutdownAsync();

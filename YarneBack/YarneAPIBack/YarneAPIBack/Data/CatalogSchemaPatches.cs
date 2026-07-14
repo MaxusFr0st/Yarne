@@ -49,9 +49,9 @@ public static class CatalogSchemaPatches
         }
         catch (Exception ex)
         {
+            // Soft-fail: never block API listen / Railway /healthz on catalog DDL.
             Interlocked.Exchange(ref _ensured, 0);
-            logger.LogError(ex, "Failed to ensure catalog schema patches.");
-            throw;
+            logger.LogError(ex, "Failed to ensure catalog schema patches. Continuing startup.");
         }
     }
 }
