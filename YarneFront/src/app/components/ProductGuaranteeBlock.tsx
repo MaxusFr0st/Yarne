@@ -51,13 +51,13 @@ export function ProductGuaranteeBlock({
       ) : null}
       <div className="flex-1 min-w-0">
         <p
-          className="text-[#2D241E] text-xs tracking-widest uppercase mb-1"
+          className="text-[#2D241E] text-[0.7rem] tracking-widest uppercase mb-1.5"
           style={{ fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.12em" }}
         >
           {title}
         </p>
         <p
-          className="text-[#2D241E]/50 text-xs leading-relaxed"
+          className="text-[#2D241E]/55 text-[0.8rem] leading-relaxed"
           style={{ fontFamily: "'DM Sans', sans-serif" }}
         >
           {description}

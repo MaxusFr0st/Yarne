@@ -364,7 +364,9 @@ export function MobileProductDetailView({
                       type="button"
                       onClick={() => onColorChange(i)}
                       title={colorLabel}
-                      className="relative shrink-0 rounded-full cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2D241E]/40 transition-colors duration-200"
+                      aria-label={colorLabel}
+                      aria-pressed={isActive}
+                      className="relative shrink-0 rounded-full cursor-pointer touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2D241E]/40"
                       style={colorStyle}
                     />
                   );
@@ -376,9 +378,11 @@ export function MobileProductDetailView({
                     type="button"
                     onClick={() => onColorChange(i)}
                     title={colorLabel}
-                    className="relative shrink-0 rounded-full cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2D241E]/40 transition-colors duration-200"
-                    animate={{ scale: isActive ? 1.08 : 1 }}
-                    transition={{ duration: 0.22, ease: transitionEase }}
+                    aria-label={colorLabel}
+                    aria-pressed={isActive}
+                    className="relative shrink-0 rounded-full cursor-pointer touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2D241E]/40"
+                    animate={{ scale: isActive ? 1.06 : 1 }}
+                    transition={{ duration: 0.2, ease: transitionEase }}
                     style={colorStyle}
                   />
                 );
@@ -438,7 +442,9 @@ export function MobileProductDetailView({
                         type="button"
                         onClick={() => onFurnitureChange(i)}
                         title={furnitureLabel}
-                        className="relative shrink-0 rounded-full cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2D241E]/40 transition-colors duration-200"
+                        aria-label={furnitureLabel}
+                        aria-pressed={isActive}
+                        className="relative shrink-0 rounded-full cursor-pointer touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2D241E]/40"
                         style={furnitureStyle}
                       />
                     );
@@ -450,9 +456,11 @@ export function MobileProductDetailView({
                       type="button"
                       onClick={() => onFurnitureChange(i)}
                       title={furnitureLabel}
-                      className="relative shrink-0 rounded-full cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2D241E]/40 transition-colors duration-200"
-                      animate={{ scale: isActive ? 1.08 : 1 }}
-                      transition={{ duration: 0.22, ease: transitionEase }}
+                      aria-label={furnitureLabel}
+                      aria-pressed={isActive}
+                      className="relative shrink-0 rounded-full cursor-pointer touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2D241E]/40"
+                      animate={{ scale: isActive ? 1.06 : 1 }}
+                      transition={{ duration: 0.2, ease: transitionEase }}
                       style={furnitureStyle}
                     />
                   );
@@ -541,7 +549,7 @@ export function MobileProductDetailView({
                 )}
               </div>
               <div
-                className={`flex flex-wrap gap-[clamp(6px,1.4vw,8px)] ${
+                className={`flex flex-wrap gap-2 ${
                   displaySizes.length === 1 ? "justify-start" : ""
                 }`}
               >
@@ -549,24 +557,31 @@ export function MobileProductDetailView({
                   const isActive = activeSize === size;
                   const sizeMeta = product.sizes.find((s) => s.name === size);
                   const sizeLabel = localizedCatalogName(size, sizeMeta?.nameUk, locale);
+                  const single = displaySizes.length === 1;
                   const sizeStyle = {
                     fontFamily: "'DM Sans', sans-serif",
-                    fontSize: "clamp(0.72rem, 2.7vw, 0.82rem)",
-                    letterSpacing: "0.06em",
-                    padding:
-                      displaySizes.length === 1
-                        ? "clamp(9px, 2.2vw, 11px) clamp(18px, 5vw, 28px)"
-                        : "clamp(9px, 2.2vw, 11px) clamp(10px, 2.4vw, 14px)",
+                    fontSize: "clamp(0.72rem, 2.7vw, 0.8rem)",
+                    letterSpacing: "0.05em",
+                    padding: single
+                      ? "clamp(8px, 2vw, 10px) clamp(16px, 4.5vw, 22px)"
+                      : "clamp(8px, 2vw, 10px) clamp(12px, 3vw, 16px)",
                     minHeight: "44px",
-                    minWidth: displaySizes.length === 1 ? "auto" : "clamp(44px, 12vw, 56px)",
-                    backgroundColor: isActive ? "#2D241E" : "transparent",
-                    color: isActive ? "#F5F2ED" : "#2D241E",
-                    border: isActive
-                      ? "1.5px solid #2D241E"
-                      : sizeError
-                        ? "1.5px solid rgba(74,14,14,0.5)"
-                        : "1.5px solid rgba(45,36,30,0.2)",
-                    transition: "background-color 0.22s ease, color 0.22s ease, border-color 0.22s ease",
+                    minWidth: single ? "auto" : "clamp(44px, 12vw, 52px)",
+                    // Quiet chip when only one size — ATC keeps the solid ink
+                    backgroundColor: single
+                      ? "rgba(45,36,30,0.06)"
+                      : isActive
+                        ? "#2D241E"
+                        : "transparent",
+                    color: single || !isActive ? "#2D241E" : "#F5F2ED",
+                    border: single
+                      ? "1px solid rgba(45,36,30,0.14)"
+                      : isActive
+                        ? "1.5px solid #2D241E"
+                        : sizeError
+                          ? "1.5px solid rgba(74,14,14,0.5)"
+                          : "1.5px solid rgba(45,36,30,0.2)",
+                    transition: "background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease",
                   } as const;
 
                   if (!motionEnabled) {
@@ -575,7 +590,8 @@ export function MobileProductDetailView({
                         key={size}
                         type="button"
                         onClick={() => onSizeChange(size)}
-                        className="relative rounded-full cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2D241E]/35"
+                        aria-pressed={isActive}
+                        className="relative rounded-full cursor-pointer touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2D241E]/35"
                         style={sizeStyle}
                       >
                         {sizeLabel}
@@ -588,8 +604,9 @@ export function MobileProductDetailView({
                       key={size}
                       type="button"
                       onClick={() => onSizeChange(size)}
-                      className="relative rounded-full cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2D241E]/35"
-                      animate={{ scale: isActive ? 1.02 : 1 }}
+                      aria-pressed={isActive}
+                      className="relative rounded-full cursor-pointer touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2D241E]/35"
+                      animate={{ scale: isActive && !single ? 1.02 : 1 }}
                       transition={{ duration: 0.2, ease: transitionEase }}
                       style={sizeStyle}
                     >
@@ -618,25 +635,24 @@ export function MobileProductDetailView({
             type="button"
             onClick={onAddToBag}
             disabled={outOfStock}
-            className="shrink-0 mt-[clamp(6px,1.4svh,10px)] w-full min-h-[48px] flex items-center justify-center gap-2 rounded-full text-white disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40"
+            className="shrink-0 mt-[clamp(8px,1.8svh,12px)] w-full h-12 flex items-center justify-center gap-2 rounded-full text-white touch-manipulation disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2D241E]/35"
           style={{
             backgroundColor: outOfStock ? "#9A9088" : addedToBag ? "#2D5928" : "#2D241E",
             fontFamily: "'DM Sans', sans-serif",
-            fontSize: "clamp(0.74rem, 2.8vw, 0.86rem)",
-            letterSpacing: "0.11em",
-            padding: "clamp(12px, 2.8svh, 14px) clamp(16px, 4vw, 20px)",
-            transition: "background-color 0.22s ease, opacity 0.22s ease",
+            fontSize: "clamp(0.7rem, 2.6vw, 0.8rem)",
+            letterSpacing: "0.12em",
+            transition: "background-color 0.2s ease, opacity 0.2s ease",
           }}
           whileTap={motionEnabled ? { scale: 0.98 } : undefined}
         >
           {addedToBag ? (
             <>
-              <Check size={14} />
+              <Check size={14} aria-hidden="true" />
               <span className="uppercase tracking-widest">{t("product.addedToBag")}</span>
             </>
           ) : (
             <>
-              <ShoppingBag size={14} strokeWidth={1.5} />
+              <ShoppingBag size={14} strokeWidth={1.5} aria-hidden="true" />
               <span className="uppercase tracking-widest">
                 {outOfStock ? t("product.outOfStock") : t("product.addToBag")}
               </span>

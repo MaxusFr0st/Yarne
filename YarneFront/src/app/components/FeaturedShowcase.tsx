@@ -18,6 +18,7 @@ import {
   type ShowcaseProductSlot,
   type ShowcaseTextSlot,
   getShowcaseTextForLocale,
+  normalizeShowcaseCtaHref,
 } from "../utils/featuredShowcaseSelection";
 import { useTouchMobileLayout } from "../hooks/useTouchMobileLayout";
 import { useShowcaseSpreadLayout } from "../hooks/useCompactTabletLayout";
@@ -238,14 +239,12 @@ function TextTile({ slot }: TextTileProps) {
   const eyebrow = text.eyebrow.trim();
   const heading = text.heading.trim();
   const ctaLabel = text.ctaLabel.trim();
-  const ctaHref = slot.ctaHref.trim() || "/about";
+  const ctaHref = normalizeShowcaseCtaHref(slot.ctaHref);
+  const isExternal = /^[a-z][a-z0-9+\-.]*:/i.test(ctaHref) || ctaHref.startsWith("//");
 
-  return (
-    <LangLink
-      to={ctaHref}
-      className="group relative block w-full h-full overflow-hidden rounded-[clamp(18px,4.5vw,28px)] md:rounded-[32px]"
-      style={{ backgroundColor: "#2D241E" }}
-    >
+  const className =
+    "group relative block w-full h-full overflow-hidden rounded-[clamp(18px,4.5vw,28px)] md:rounded-[32px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#F5F2ED]/40";
+  const body = (
       <div className="relative z-10 h-full flex flex-col justify-between p-[clamp(10px,2.5vw,18px)] md:p-7">
         <div className="min-h-0">
           {eyebrow.length > 0 && (
@@ -278,7 +277,7 @@ function TextTile({ slot }: TextTileProps) {
 
         {ctaLabel.length > 0 && (
           <span
-            className="inline-flex items-center gap-1 text-white/85 group-hover:text-white transition-colors duration-300 mt-2 md:mt-6"
+            className="inline-flex items-center gap-1 text-white/85 group-hover:text-white transition-colors duration-200 mt-2 md:mt-6"
             style={{
               fontFamily: "'DM Sans', sans-serif",
               fontSize: "clamp(0.62rem, 2.4vw, 0.8rem)",
@@ -288,11 +287,30 @@ function TextTile({ slot }: TextTileProps) {
             <span className="line-clamp-1">{ctaLabel}</span>
             <ArrowUpRight
               size={13}
-              className="shrink-0 transition-transform duration-300 group-hover:translate-x-0.5 group-hover:-translate-y-0.5"
+              className="shrink-0 transition-transform duration-200 group-hover:translate-x-0.5 group-hover:-translate-y-0.5"
+              aria-hidden="true"
             />
           </span>
         )}
       </div>
+  );
+
+  if (isExternal) {
+    return (
+      <a
+        href={ctaHref}
+        className={className}
+        style={{ backgroundColor: "#2D241E" }}
+        rel="noopener noreferrer"
+      >
+        {body}
+      </a>
+    );
+  }
+
+  return (
+    <LangLink to={ctaHref} className={className} style={{ backgroundColor: "#2D241E" }}>
+      {body}
     </LangLink>
   );
 }

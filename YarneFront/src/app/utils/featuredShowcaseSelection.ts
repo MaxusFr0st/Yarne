@@ -45,11 +45,46 @@ const EMPTY_SLOT_2: ShowcaseProductSlot = {
   ctaLabel: "",
 };
 
+const OUR_HISTORY_PATH = "/pages/our-history";
+
 const EMPTY_SLOT_3: ShowcaseTextSlot = {
-  ctaHref: "/about",
+  ctaHref: OUR_HISTORY_PATH,
   en: { ...EMPTY_LOCALE_COPY },
   uk: { ...EMPTY_LOCALE_COPY },
 };
+
+/** Keep story-card CTAs on the in-app history route (not external yarne-acc URLs). */
+export function normalizeShowcaseCtaHref(value: unknown, fallback = OUR_HISTORY_PATH): string {
+  const raw = typeof value === "string" ? value.trim() : "";
+  if (!raw) return fallback;
+
+  const lower = raw.toLowerCase();
+  if (
+    lower.includes("our-history") ||
+    lower === "/about" ||
+    lower === "about" ||
+    lower.endsWith("/about") ||
+    lower.includes("/pages/about")
+  ) {
+    return OUR_HISTORY_PATH;
+  }
+
+  if (/^[a-z][a-z0-9+\-.]*:/i.test(raw) || raw.startsWith("//")) {
+    try {
+      const url = new URL(raw.startsWith("//") ? `https:${raw}` : raw);
+      const path = url.pathname.toLowerCase();
+      if (path.includes("our-history") || path.endsWith("/about") || path.includes("/pages/about")) {
+        return OUR_HISTORY_PATH;
+      }
+    } catch {
+      return fallback;
+    }
+    // Unrelated absolute URL — leave as entered (TextTile will open via <a>).
+    return raw;
+  }
+
+  return raw.startsWith("/") ? raw : `/${raw}`;
+}
 
 const EMPTY_SLOT_4: ShowcaseProductSlot = {
   imageUrl: "",
@@ -87,7 +122,7 @@ function localeCopyHasContent(copy: ShowcaseTextLocaleCopy): boolean {
 
 function normalizeTextSlot(value: unknown, fallback: ShowcaseTextSlot): ShowcaseTextSlot {
   const source = typeof value === "object" && value !== null ? (value as Record<string, unknown>) : {};
-  const ctaHref = normalizeString(source.ctaHref, fallback.ctaHref) || "/about";
+  const ctaHref = normalizeShowcaseCtaHref(source.ctaHref, fallback.ctaHref || OUR_HISTORY_PATH);
 
   const hasNested =
     (typeof source.en === "object" && source.en !== null) ||

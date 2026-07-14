@@ -343,27 +343,27 @@ export function ProductDetail() {
 
           {/* Right: Product Info */}
           <div
-            className="flex flex-col gap-6 md:sticky md:top-[calc(var(--main-header-h)+24px)]"
+            className="flex flex-col gap-5 md:sticky md:top-[calc(var(--main-header-h)+24px)]"
           >
             {/* Category */}
             <p
-              className="text-[#2D241E]/40 tracking-widest uppercase text-xs"
-              style={{ fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.2em" }}
+              className="text-[#2D241E]/45 tracking-widest uppercase text-[0.7rem]"
+              style={{ fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.18em" }}
             >
               {product.category}
             </p>
 
             {/* Name & Price */}
-            <div>
+            <div className="-mt-1">
               <h1
-                className="text-[#2D241E]"
+                className="text-[#2D241E] text-pretty"
                 style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "clamp(1.8rem, 4vw, 2.5rem)", fontWeight: 400, lineHeight: 1.15 }}
               >
                 {product.name}
               </h1>
               <p
-                className="text-[#2D241E]/60 mt-1"
-                style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "0.85rem" }}
+                className="text-[#2D241E]/60 mt-1.5"
+                style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "0.875rem" }}
               >
                 {product.subtitle}
               </p>
@@ -396,24 +396,28 @@ export function ProductDetail() {
                   </AnimatePresence>
                 </p>
               </div>
-              <div className="flex gap-3">
+              <div className="flex flex-wrap gap-2.5">
                 {product.colors.map((color, i) => {
                   const colorLabel = localizedCatalogName(color.name, color.nameUk, locale);
                   return (
                   <motion.button
                     key={color.name}
+                    type="button"
                     onClick={() => handleColorChange(i)}
                     title={colorLabel}
-                    className="cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2D241E]/40 focus-visible:ring-offset-2 focus-visible:ring-offset-[#F5F2ED] transition-colors duration-200"
-                    animate={{ scale: i === activeColor ? 1.08 : 1 }}
-                    transition={{ duration: 0.22, ease: easing }}
+                    aria-label={colorLabel}
+                    aria-pressed={i === activeColor}
+                    className="cursor-pointer touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2D241E]/40 focus-visible:ring-offset-2 focus-visible:ring-offset-[#F5F2ED]"
+                    animate={{ scale: i === activeColor ? 1.06 : 1 }}
+                    transition={{ duration: 0.2, ease: easing }}
                     style={{
-                      width: 32,
-                      height: 32,
+                      width: 30,
+                      height: 30,
                       borderRadius: "50%",
                       backgroundColor: color.hex,
                       border: i === activeColor ? "2px solid #2D241E" : "1.5px solid rgba(45,36,30,0.2)",
                       boxShadow: i === activeColor ? "0 0 0 3px #F5F2ED, 0 0 0 5px #2D241E" : "none",
+                      transition: "border-color 0.2s ease, box-shadow 0.2s ease",
                     }}
                   />
                   );
@@ -448,7 +452,7 @@ export function ProductDetail() {
                     </AnimatePresence>
                   </p>
                 </div>
-                <div className="flex gap-3">
+                <div className="flex flex-wrap gap-2.5">
                   {furnitureList.map((fc, i) => {
                     const furnitureLabel = localizedCatalogName(fc.name, fc.nameUk, locale);
                     return (
@@ -457,16 +461,19 @@ export function ProductDetail() {
                         type="button"
                         onClick={() => handleFurnitureChange(i)}
                         title={furnitureLabel}
-                        className="cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2D241E]/40 focus-visible:ring-offset-2 focus-visible:ring-offset-[#F5F2ED] transition-colors duration-200"
-                        animate={{ scale: i === activeFurniture ? 1.08 : 1 }}
-                        transition={{ duration: 0.22, ease: easing }}
+                        aria-label={furnitureLabel}
+                        aria-pressed={i === activeFurniture}
+                        className="cursor-pointer touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2D241E]/40 focus-visible:ring-offset-2 focus-visible:ring-offset-[#F5F2ED]"
+                        animate={{ scale: i === activeFurniture ? 1.06 : 1 }}
+                        transition={{ duration: 0.2, ease: easing }}
                         style={{
-                          width: 32,
-                          height: 32,
+                          width: 30,
+                          height: 30,
                           borderRadius: "50%",
                           backgroundColor: fc.hex,
                           border: i === activeFurniture ? "2px solid #2D241E" : "1.5px solid rgba(45,36,30,0.2)",
                           boxShadow: i === activeFurniture ? "0 0 0 3px #F5F2ED, 0 0 0 5px #2D241E" : "none",
+                          transition: "border-color 0.2s ease, box-shadow 0.2s ease",
                         }}
                       />
                     );
@@ -523,7 +530,7 @@ export function ProductDetail() {
 
             {/* Size Selection */}
             <div>
-              <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center justify-between mb-2.5">
                 <p
                   className="text-[#2D241E] text-xs tracking-widest uppercase"
                   style={{ fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.14em" }}
@@ -531,39 +538,50 @@ export function ProductDetail() {
                   {t("product.size")}
                 </p>
                 <button
-                  className="text-[#2D241E]/50 text-xs hover:text-[#4A0E0E] transition-colors underline"
+                  type="button"
+                  className="text-[#2D241E]/50 text-xs hover:text-[#4A0E0E] transition-colors duration-200 underline underline-offset-2 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2D241E]/35 rounded-sm"
                   style={{ fontFamily: "'DM Sans', sans-serif" }}
                 >
                   {t("product.sizeGuide")}
                 </button>
               </div>
-              <div className={`flex flex-wrap gap-2 ${displaySizes.length === 1 ? "justify-start" : ""}`}>
+              <div className="flex flex-wrap gap-2">
                 {displaySizes.map((size) => {
                   const sizeMeta = product?.sizes.find((s) => s.name === size);
                   const sizeLabel = localizedCatalogName(size, sizeMeta?.nameUk, locale);
                   const single = displaySizes.length === 1;
+                  const isActive = activeSize === size;
                   return (
                   <motion.button
                     key={size}
                     type="button"
                     onClick={() => { setActiveSize(size); setSizeError(false); }}
-                    className="rounded-full text-sm cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2D241E]/35"
-                    animate={{ scale: activeSize === size ? 1.03 : 1 }}
+                    aria-pressed={isActive}
+                    className="rounded-full cursor-pointer touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2D241E]/35"
+                    animate={reduceMotion ? undefined : { scale: isActive && !single ? 1.02 : 1 }}
                     transition={{ duration: 0.2, ease: easing }}
                     style={{
                       fontFamily: "'DM Sans', sans-serif",
-                      letterSpacing: "0.08em",
-                      minHeight: "44px",
-                      minWidth: single ? undefined : "52px",
-                      padding: single ? "10px 22px" : "10px 14px",
-                      backgroundColor: activeSize === size ? "#2D241E" : "transparent",
-                      color: activeSize === size ? "#F5F2ED" : "#2D241E",
-                      border: activeSize === size
-                        ? "1.5px solid #2D241E"
-                        : sizeError
-                        ? "1.5px solid rgba(74,14,14,0.5)"
-                        : "1.5px solid rgba(45,36,30,0.2)",
-                      transition: "background-color 0.22s ease, color 0.22s ease, border-color 0.22s ease",
+                      fontSize: "0.75rem",
+                      letterSpacing: "0.06em",
+                      minHeight: "40px",
+                      minWidth: single ? undefined : "48px",
+                      padding: single ? "8px 18px" : "8px 14px",
+                      // Single size: quiet status chip — solid ink reserved for Add to bag
+                      backgroundColor: single
+                        ? "rgba(45,36,30,0.06)"
+                        : isActive
+                          ? "#2D241E"
+                          : "transparent",
+                      color: single || !isActive ? "#2D241E" : "#F5F2ED",
+                      border: single
+                        ? "1px solid rgba(45,36,30,0.14)"
+                        : isActive
+                          ? "1.5px solid #2D241E"
+                          : sizeError
+                            ? "1.5px solid rgba(74,14,14,0.5)"
+                            : "1.5px solid rgba(45,36,30,0.2)",
+                      transition: "background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease",
                     }}
                   >
                     {sizeLabel}
@@ -579,6 +597,8 @@ export function ProductDetail() {
                     initial={{ opacity: 0, y: -4 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0 }}
+                    role="status"
+                    aria-live="polite"
                   >
                     {t("product.selectSize")}
                   </motion.p>
@@ -586,7 +606,7 @@ export function ProductDetail() {
               </AnimatePresence>
               {typeof displayStock === "number" && (
                 <p
-                  className="text-[#2D241E]/55 text-xs mt-2"
+                  className="text-[#2D241E]/50 text-[0.7rem] mt-2 tabular-nums"
                   style={{ fontFamily: "'DM Sans', sans-serif" }}
                 >
                   {t("product.inStock", { count: displayStock })}
@@ -594,29 +614,29 @@ export function ProductDetail() {
               )}
             </div>
 
-            {/* Add to Bag */}
-            <div className="flex gap-3">
+            {/* Add to Bag — primary action; matches wishlist height */}
+            <div className="flex items-center gap-2.5 pt-0.5">
               <motion.button
                 type="button"
                 onClick={handleAddToBag}
                 disabled={outOfStock}
-                className="flex-1 min-h-[48px] py-3.5 rounded-full flex items-center justify-center gap-3 text-white transition-colors duration-200 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2D241E]/35"
+                className="flex-1 h-12 rounded-full flex items-center justify-center gap-2.5 text-white touch-manipulation transition-[background-color,opacity] duration-200 hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:opacity-40 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2D241E]/35 focus-visible:ring-offset-2 focus-visible:ring-offset-[#F5F2ED]"
                 style={{
                   backgroundColor: outOfStock ? "#9A9088" : addedToBag ? "#2D5928" : "#2D241E",
                   fontFamily: "'DM Sans', sans-serif",
-                  fontSize: "0.8rem",
-                  letterSpacing: "0.12em",
+                  fontSize: "0.72rem",
+                  letterSpacing: "0.14em",
                 }}
-                whileTap={{ scale: 0.98 }}
+                whileTap={reduceMotion ? undefined : { scale: 0.98 }}
               >
                 {addedToBag ? (
                   <>
-                    <Check size={15} />
+                    <Check size={15} aria-hidden="true" />
                     <span className="uppercase tracking-widest">{t("product.addedToBag")}</span>
                   </>
                 ) : (
                   <>
-                    <ShoppingBag size={15} strokeWidth={1.5} />
+                    <ShoppingBag size={15} strokeWidth={1.5} aria-hidden="true" />
                     <span className="uppercase tracking-widest">
                       {outOfStock ? t("product.outOfStock") : t("product.addToBag")}
                     </span>
@@ -627,16 +647,18 @@ export function ProductDetail() {
               <button
                 type="button"
                 onClick={() => toggleWishlist(product.id)}
-                className="w-14 h-14 rounded-full border flex items-center justify-center transition-all duration-300"
+                className="shrink-0 w-12 h-12 rounded-full border flex items-center justify-center touch-manipulation cursor-pointer transition-[background-color,border-color] duration-200 hover:border-[#2D241E]/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2D241E]/35 focus-visible:ring-offset-2 focus-visible:ring-offset-[#F5F2ED]"
                 aria-label={isWishlisted ? t("product.wishlistRemove") : t("product.wishlistAdd")}
+                aria-pressed={isWishlisted}
                 style={{
-                  borderColor: isWishlisted ? "#4A0E0E" : "rgba(45,36,30,0.2)",
+                  borderColor: isWishlisted ? "#4A0E0E" : "rgba(45,36,30,0.18)",
                   backgroundColor: isWishlisted ? "#4A0E0E" : "transparent",
                 }}
               >
                 <Heart
-                  size={17}
+                  size={16}
                   strokeWidth={1.5}
+                  aria-hidden="true"
                   fill={isWishlisted ? "white" : "none"}
                   stroke={isWishlisted ? "white" : "#2D241E"}
                 />

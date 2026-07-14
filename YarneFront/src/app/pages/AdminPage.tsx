@@ -46,6 +46,7 @@ import {
   getDefaultFeaturedShowcaseSelection,
   loadFeaturedShowcaseSelectionForAdmin,
   persistFeaturedShowcaseSelection,
+  normalizeShowcaseCtaHref,
   type FeaturedShowcaseSelection,
   type ShowcaseProductSlot,
   type ShowcaseTextLocaleCopy,
@@ -2785,7 +2786,10 @@ export function AdminPage() {
     updateFeaturedShowcaseSelection({
       ...featuredShowcaseSelection,
       slot3: {
-        ctaHref: patch.ctaHref ?? prev.ctaHref,
+        ctaHref:
+          patch.ctaHref !== undefined
+            ? normalizeShowcaseCtaHref(patch.ctaHref)
+            : prev.ctaHref,
         en: patch.en ? { ...prev.en, ...patch.en } : prev.en,
         uk: patch.uk ? { ...prev.uk, ...patch.uk } : prev.uk,
       },
@@ -4370,7 +4374,7 @@ export function AdminPage() {
                           type="text"
                           value={featuredShowcaseSelection.slot3.ctaHref}
                           onChange={(e) => updateShowcaseTextSlot({ ctaHref: e.target.value })}
-                          placeholder="/about"
+                          placeholder="/pages/our-history"
                           className="w-full rounded-[14px] border bg-transparent px-3 py-2.5 text-[#2D241E] focus:outline-none"
                           style={{ borderColor: "rgba(45,36,30,0.15)", fontFamily: "'DM Sans', sans-serif", fontSize: "0.85rem" }}
                         />
