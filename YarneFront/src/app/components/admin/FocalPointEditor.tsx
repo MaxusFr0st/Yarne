@@ -43,11 +43,11 @@ export function FocalPointEditor({
   useEffect(() => {
     if (!dragging) return;
     const onMove = (e: MouseEvent) => { e.preventDefault(); updatePosition(e); };
-    const onTouchMove = (e: TouchEvent) => { e.preventDefault(); updateFromClient(e.touches[0].clientX, e.touches[0].clientY); };
+    const onTouchMove = (e: TouchEvent) => { updateFromClient(e.touches[0].clientX, e.touches[0].clientY); };
     const onUp = () => setDragging(false);
     window.addEventListener("mousemove", onMove);
     window.addEventListener("mouseup", onUp);
-    window.addEventListener("touchmove", onTouchMove, { passive: false });
+    window.addEventListener("touchmove", onTouchMove);
     window.addEventListener("touchend", onUp);
     return () => {
       window.removeEventListener("mousemove", onMove);

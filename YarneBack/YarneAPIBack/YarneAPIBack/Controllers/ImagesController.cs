@@ -237,8 +237,6 @@ public class ImagesController : ControllerBase
         var fy = Math.Clamp(request.FocalY, 0f, 1f);
         var updated = 0;
 
-        await using var tx = await db.Database.BeginTransactionAsync(ct);
-
         updated += await db.ProductImages
             .Where(pi => pi.ImageUrl == normalized)
             .ExecuteUpdateAsync(s => s
@@ -256,8 +254,6 @@ public class ImagesController : ControllerBase
             .ExecuteUpdateAsync(s => s
                 .SetProperty(p => p.FocalX, fx)
                 .SetProperty(p => p.FocalY, fy), ct);
-
-        await tx.CommitAsync(ct);
 
         if (updated == 0)
             return NotFound(new { message = "No image rows found for the given URL" });
