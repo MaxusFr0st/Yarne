@@ -528,7 +528,7 @@ function ProductModal({
           description: product.description,
           stock: String(product.stock ?? 0),
           sku: product.sku ?? product.id,
-          imageUrls: product.colors?.map((c) => (c.images?.length ? c.images[0] : c.image)) ?? [],
+          imageUrls: product.colors?.map((c) => (c.images?.length ? c.images[0].src : c.image.src)) ?? [],
           defaultSizeId: product.defaultSize
             ? sizes.find((s) => s.name === product.defaultSize)?.id ?? null
             : null,
@@ -592,8 +592,8 @@ function ProductModal({
           collectedSizeIds.push(sizeId);
           const lv = laceVariants[sizeName];
           const withoutLaceImages = lv?.withoutLaceImages?.length
-            ? lv.withoutLaceImages
-            : (sizeImages[sizeName] ?? []);
+            ? lv.withoutLaceImages.map(i => i.src)
+            : (sizeImages[sizeName] ?? []).map(i => i.src);
           if (withoutLaceImages.length > 0) {
             colorSizeVariants[variantKey(colorId, sizeId, false)] = withoutLaceImages;
           }
@@ -604,7 +604,7 @@ function ProductModal({
             variantStocks[variantKey(colorId, sizeId, false)] = String(withoutLaceStock);
           }
           if (productLace && lv) {
-            colorSizeVariants[variantKey(colorId, sizeId, true)] = lv.withLaceImages ?? [];
+            colorSizeVariants[variantKey(colorId, sizeId, true)] = (lv.withLaceImages ?? []).map(i => i.src);
             variantStocks[variantKey(colorId, sizeId, true)] = String(lv.withLaceStock ?? 0);
           }
         });
@@ -612,7 +612,7 @@ function ProductModal({
         const fallbackSizeId = base.defaultSizeId ?? preferredSizeId;
         if (fallbackSizeId != null) {
           collectedSizeIds.push(fallbackSizeId);
-          colorSizeVariants[variantKey(colorId, fallbackSizeId, false)] = c.images?.length ? c.images : [c.image];
+          colorSizeVariants[variantKey(colorId, fallbackSizeId, false)] = c.images?.length ? c.images.map(i => i.src) : [c.image.src];
         }
       }
       if (collectedSizeIds.length > 0) {

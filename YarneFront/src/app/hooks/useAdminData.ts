@@ -46,24 +46,27 @@ import { normalizeLaceVariants } from "../utils/variantStock";
 import { invalidateProductsCache } from "../utils/productsCache";
 import { useApp } from "../context/AppContext";
 
+const DEFAULT_FOCAL = { focalX: 0.5, focalY: 0.35 };
+const PLACEHOLDER_IMG = { src: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='400' viewBox='0 0 400 400'%3E%3Crect fill='%23EDE9E2' width='400' height='400'/%3E%3Cpath fill='%232D241E' fill-opacity='0.3' d='M80 200h240M200 80v240' stroke='%232D241E' stroke-opacity='0.2'/%3E%3C/svg%3E", ...DEFAULT_FOCAL };
+
 function mapColorVariant(c: ColorVariantDto) {
-  const seen = new Set<string>();
-  const imgs: string[] = [];
-  const push = (url?: string | null) => {
-    const trimmed = url?.trim();
-    if (!trimmed || seen.has(trimmed)) return;
-    seen.add(trimmed);
-    imgs.push(trimmed);
-  };
-  for (const url of c.imageUrls ?? []) push(url);
-  push(c.imageUrl);
+  const imgs = (c.images ?? []).filter((img) => img?.src?.trim());
+  const primary = c.image?.src?.trim() ? c.image : null;
+  const allImages = imgs.length > 0 ? imgs : primary ? [primary] : [];
+  const sizeImages: Record<string, typeof allImages> = {};
+  if (c.sizeImages) {
+    for (const [size, dtos] of Object.entries(c.sizeImages)) {
+      const mapped = (dtos ?? []).filter((d) => d?.src?.trim());
+      if (mapped.length) sizeImages[size] = mapped;
+    }
+  }
   return {
     name: c.name,
     nameUk: c.nameUk ?? null,
     hex: c.hex,
-    image: imgs[0] ?? c.imageUrl,
-    images: imgs.length > 0 ? imgs : c.imageUrl ? [c.imageUrl] : [],
-    sizeImages: c.sizeImages ?? {},
+    image: allImages[0] ?? primary ?? PLACEHOLDER_IMG,
+    images: allImages.length > 0 ? allImages : [PLACEHOLDER_IMG],
+    sizeImages: Object.keys(sizeImages).length ? sizeImages : undefined,
     sizeStocks: c.sizeStocks ?? {},
     laceVariants: normalizeLaceVariants(c.laceVariants),
   };
@@ -72,11 +75,11 @@ function mapColorVariant(c: ColorVariantDto) {
 function mapProductDtoToProduct(d: ProductDto): Product & { idNum: number; sku: string; stock: number } {
   const colors = d.colors && d.colors.length > 0
     ? d.colors.map(mapColorVariant)
-    : d.imageUrls.length > 0
-    ? d.imageUrls.map((url, i) => ({ name: `Image ${i + 1}`, hex: "#2D241E", image: url, images: [url] }))
-    : d.primaryImageUrl
-    ? [{ name: "Default", hex: "#2D241E", image: d.primaryImageUrl, images: [d.primaryImageUrl] }]
-    : [{ name: "Default", hex: "#2D241E", image: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='400' viewBox='0 0 400 400'%3E%3Crect fill='%23EDE9E2' width='400' height='400'/%3E%3Cpath fill='%232D241E' fill-opacity='0.3' d='M80 200h240M200 80v240' stroke='%232D241E' stroke-opacity='0.2'/%3E%3C/svg%3E", images: ["data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='400' viewBox='0 0 400 400'%3E%3Crect fill='%23EDE9E2' width='400' height='400'/%3E%3C/svg%3E"] }];
+    : d.images && d.images.length > 0
+    ? d.images.filter(img => img?.src?.trim()).map((img, i) => ({ name: `Image ${i + 1}`, hex: "#2D241E", image: img, images: [img] }))
+    : d.primaryImage?.src?.trim()
+    ? [{ name: "Default", hex: "#2D241E", image: d.primaryImage, images: [d.primaryImage] }]
+    : [{ name: "Default", hex: "#2D241E", image: PLACEHOLDER_IMG, images: [PLACEHOLDER_IMG] }];
 
   return {
     id: d.productCode,

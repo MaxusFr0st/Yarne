@@ -16,9 +16,9 @@ public class ProductDto
 
     public string? Material { get; set; }
 
-    public string? PrimaryImageUrl { get; set; }
+    public ProductImageDto? PrimaryImage { get; set; }
 
-    public List<string> ImageUrls { get; set; } = new();
+    public List<ProductImageDto> Images { get; set; } = new();
 
     public List<ColorVariantDto> Colors { get; set; } = new();
 

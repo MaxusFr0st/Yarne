@@ -3,7 +3,7 @@ import { useEmblaCarouselWithGestures } from "../hooks/useEmblaCarouselWithGestu
 import { motion, AnimatePresence, LayoutGroup, useReducedMotion } from "motion/react";
 import { ArrowLeft, Heart, ShoppingBag, Check, ChevronDown } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import type { Product } from "../types/product";
+import type { Product, ProductImage } from "../types/product";
 import type { Locale } from "../i18n/config";
 import { PriceTag } from "./PriceTag";
 import { ImageWithFallback } from "./figma/ImageWithFallback";
@@ -16,7 +16,7 @@ import { localizedCatalogName } from "../utils/localizedName";
 
 type MobileProductDetailViewProps = {
   product: Product;
-  images: string[];
+  images: ProductImage[];
   locale: Locale;
   activeColor: number;
   activeFurniture: number;
@@ -70,7 +70,7 @@ export function MobileProductDetailView({
   const [galleryIndex, setGalleryIndex] = useState(0);
   const [descriptionOpen, setDescriptionOpen] = useState(false);
   const [detailsOpen, setDetailsOpen] = useState(false);
-  const imageKey = images.join("|");
+  const imageKey = images.map(i => i.src).join("|");
   const canLoop = images.length > 1;
 
   const [emblaRef, emblaApi] = useEmblaCarouselWithGestures({
@@ -105,7 +105,7 @@ export function MobileProductDetailView({
   }, [emblaApi, imageKey, activeColor, activeSize, activeLace, canLoop]);
 
   const safeGalleryIndex = images.length ? ((galleryIndex % images.length) + images.length) % images.length : 0;
-  const gallerySlides = images.length > 0 ? images : [""];
+  const gallerySlides: (ProductImage | null)[] = images.length > 0 ? images : [null];
   const transitionEase = [0.25, 0.1, 0.25, 1] as const;
   const extraDetails = useMemo(
     () => getSupplementaryProductDetails(product),
@@ -145,10 +145,9 @@ export function MobileProductDetailView({
               >
                 {src ? (
                   <CrossfadeImage
-                    src={src}
+                    src={src.src}
+                    focal={{ x: src.focalX, y: src.focalY }}
                     alt={`${product.name} – ${activeColorLabel} – ${i + 1}`}
-                    className="object-[center_25%]"
-                    objectPosition="center 25%"
                     priority={i === 0}
                   />
                 ) : (

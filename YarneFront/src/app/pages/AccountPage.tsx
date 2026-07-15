@@ -298,7 +298,7 @@ export function AccountPage() {
       new Map(
         products.map((product) => [
           product.id,
-          product.colors[0]?.images?.[0] || product.colors[0]?.image || IMAGE_PLACEHOLDER,
+          product.colors[0]?.images?.[0]?.src || product.colors[0]?.image?.src || IMAGE_PLACEHOLDER,
         ])
       ),
     [products]

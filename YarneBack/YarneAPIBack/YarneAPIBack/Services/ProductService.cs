@@ -1,5 +1,7 @@
 using System.Security.Cryptography;
 using Microsoft.EntityFrameworkCore;
+using SixLabors.ImageSharp;
+using SixLabors.ImageSharp.PixelFormats;
 using YarneAPIBack.Configuration;
 using YarneAPIBack.Data;
 using YarneAPIBack.DTOs.Product;
@@ -13,11 +15,13 @@ public class ProductService : IProductService
 
     private readonly YarneDbContext _context;
     private readonly IUploadFileStorageService _uploadStorage;
+    private readonly IWebHostEnvironment _env;
 
-    public ProductService(YarneDbContext context, IUploadFileStorageService uploadStorage)
+    public ProductService(YarneDbContext context, IUploadFileStorageService uploadStorage, IWebHostEnvironment env)
     {
         _context = context;
         _uploadStorage = uploadStorage;
+        _env = env;
     }
 
     public async Task<IReadOnlyList<ProductDto>> GetProductsAsync(string? category = null, bool? isNew = null, int? collectionId = null, bool includeInactive = false, CancellationToken ct = default)
@@ -501,7 +505,7 @@ public class ProductService : IProductService
 
     private static ProductDto MapToProductDto(Models.Product p)
     {
-        var images = GetOrderedImageUrls(p);
+        var images = GetOrderedImages(p);
         var sizes = p.ProductSizes
             .OrderBy(ps => ps.SortOrder)
             .Select(ps => new SizeOptionDto
@@ -520,8 +524,8 @@ public class ProductService : IProductService
                     .GroupBy(si => si.ProductSize.Size.Name)
                     .ToDictionary(
                         g => g.Key,
-                        g => MediaUrlNormalizer.NormalizeList(
-                            g.OrderBy(si => si.SortOrder).Select(si => si.ImageUrl))
+                        g => ToImageDtoList(
+                            g.OrderBy(si => si.SortOrder).Select(si => (si.ImageUrl, si.FocalX, si.FocalY)))
                     );
                 var sizeStocks = pc.VariantStocks
                     .Where(vs => !vs.Lace)
@@ -536,16 +540,16 @@ public class ProductService : IProductService
                     sizeName => sizeName,
                     sizeName => new LaceSizeVariantDto
                     {
-                        WithLaceImages = MediaUrlNormalizer.NormalizeList(
+                        WithLaceImages = ToImageDtoList(
                             pc.SizeImages
                                 .Where(si => si.ProductSize.Size.Name == sizeName && si.Lace)
                                 .OrderBy(si => si.SortOrder)
-                                .Select(si => si.ImageUrl)),
-                        WithoutLaceImages = MediaUrlNormalizer.NormalizeList(
+                                .Select(si => (si.ImageUrl, si.FocalX, si.FocalY))),
+                        WithoutLaceImages = ToImageDtoList(
                             pc.SizeImages
                                 .Where(si => si.ProductSize.Size.Name == sizeName && !si.Lace)
                                 .OrderBy(si => si.SortOrder)
-                                .Select(si => si.ImageUrl)),
+                                .Select(si => (si.ImageUrl, si.FocalX, si.FocalY))),
                         WithLaceStock = pc.VariantStocks
                             .Where(vs => vs.ProductSize.Size.Name == sizeName && vs.Lace)
                             .Sum(v => v.QuantityInStock),
@@ -556,39 +560,40 @@ public class ProductService : IProductService
 
                 var defaultSizeImages = (!string.IsNullOrWhiteSpace(defaultSize) && sizeImages.TryGetValue(defaultSize, out var imgsForDefault))
                     ? imgsForDefault
-                    : sizeImages.Values.FirstOrDefault() ?? new List<string>();
+                    : sizeImages.Values.FirstOrDefault() ?? new List<ProductImageDto>();
 
                 var colorImages = defaultSizeImages.Count > 0
                     ? defaultSizeImages
-                    : MediaUrlNormalizer.NormalizeList(
-                        pc.Images.OrderBy(pi => pi.SortOrder).Select(pi => pi.ImageUrl));
+                    : ToImageDtoList(
+                        pc.Images.OrderBy(pi => pi.SortOrder).Select(pi => (pi.ImageUrl, pi.FocalX, pi.FocalY)));
 
-                var fallback = NormalizeUrl(
-                    images.Count > i ? images[i] : images.FirstOrDefault() ?? p.ImageUrl) ?? "";
+                var fallbackImg = images.Count > i ? images[i] : images.FirstOrDefault()
+                    ?? ToImageDto(p.ImageUrl);
+                var fallback = fallbackImg ?? new ProductImageDto { Src = "" };
                 return new ColorVariantDto
                 {
                     Name = pc.Color.Name,
                     NameUk = pc.Color.NameUk,
                     Hex = pc.Color.HexCode,
-                    ImageUrl = colorImages.Count > 0 ? colorImages[0] : fallback,
-                    ImageUrls = colorImages.Count > 0 ? colorImages : new List<string> { fallback },
+                    Image = colorImages.Count > 0 ? colorImages[0] : fallback,
+                    Images = colorImages.Count > 0 ? colorImages : new List<ProductImageDto> { fallback },
                     SizeImages = sizeImages,
                     SizeStocks = sizeStocks,
                     LaceVariants = laceVariants,
                 };
             }).ToList()
-            : images.Select((url, i) => new ColorVariantDto
+            : images.Select((img, i) => new ColorVariantDto
             {
                 Name = $"Variant {i + 1}",
                 Hex = "#2D241E",
-                ImageUrl = url,
-                ImageUrls = new List<string> { url },
+                Image = img,
+                Images = new List<ProductImageDto> { img },
             }).ToList();
         if (colors.Count == 0)
         {
-            var legacy = NormalizeUrl(p.ImageUrl);
-            if (!string.IsNullOrEmpty(legacy))
-                colors.Add(new ColorVariantDto { Name = "Default", Hex = "#2D241E", ImageUrl = legacy, ImageUrls = new List<string> { legacy } });
+            var legacy = ToImageDto(p.ImageUrl);
+            if (legacy != null)
+                colors.Add(new ColorVariantDto { Name = "Default", Hex = "#2D241E", Image = legacy, Images = new List<ProductImageDto> { legacy } });
         }
 
         var furnitureColors = p.ProductFurnitureColors
@@ -610,8 +615,8 @@ public class ProductService : IProductService
             Price = p.Price,
             QuantityInStock = p.QuantityInStock,
             Material = p.Material,
-            PrimaryImageUrl = images.FirstOrDefault() ?? p.ImageUrl,
-            ImageUrls = images,
+            PrimaryImage = images.FirstOrDefault() ?? ToImageDto(p.ImageUrl),
+            Images = images,
             Colors = colors,
             FurnitureColors = furnitureColors,
             Sizes = sizes,
@@ -656,8 +661,8 @@ public class ProductService : IProductService
             Price = baseDto.Price,
             QuantityInStock = baseDto.QuantityInStock,
             Material = baseDto.Material,
-            PrimaryImageUrl = baseDto.PrimaryImageUrl,
-            ImageUrls = baseDto.ImageUrls,
+            PrimaryImage = baseDto.PrimaryImage,
+            Images = baseDto.Images,
             CategoryName = baseDto.CategoryName,
             CollectionName = baseDto.CollectionName,
             ProducerName = baseDto.ProducerName,
@@ -682,34 +687,86 @@ public class ProductService : IProductService
 
     private static SuggestedProductDto MapToSuggestedProductDto(Models.Product p)
     {
-        var images = GetOrderedImageUrls(p);
+        var images = GetOrderedImages(p);
         return new SuggestedProductDto
         {
             ProductCode = p.ProductCode,
             Name = p.Name,
             Price = p.Price,
-            PrimaryImageUrl = images.FirstOrDefault() ?? p.ImageUrl,
+            PrimaryImage = images.FirstOrDefault() ?? ToImageDto(p.ImageUrl),
             CategoryName = p.Category?.Name ?? string.Empty,
             IsNew = p.IsNew,
             IsBestseller = p.IsBestseller,
         };
     }
 
-    private static List<string> GetOrderedImageUrls(Models.Product p)
+    private static List<ProductImageDto> GetOrderedImages(Models.Product p)
     {
         if (p.ProductImages.Count > 0)
         {
-            return MediaUrlNormalizer.NormalizeList(p.ProductImages
+            return p.ProductImages
                 .OrderBy(pi => pi.SortOrder)
                 .ThenBy(pi => pi.Id)
-                .Select(pi => pi.ImageUrl));
+                .Select(pi => ToImageDto(pi.ImageUrl, pi.FocalX, pi.FocalY))
+                .Where(dto => dto != null)
+                .Cast<ProductImageDto>()
+                .ToList();
         }
 
         var legacy = NormalizeUrl(p.ImageUrl);
-        return string.IsNullOrEmpty(legacy) ? new List<string>() : new List<string> { legacy };
+        return string.IsNullOrEmpty(legacy)
+            ? new List<ProductImageDto>()
+            : new List<ProductImageDto> { new() { Src = legacy } };
+    }
+
+    private static ProductImageDto? ToImageDto(string? url, float focalX = 0.5f, float focalY = 0.35f)
+    {
+        var normalized = NormalizeUrl(url);
+        if (string.IsNullOrEmpty(normalized)) return null;
+        return new ProductImageDto { Src = normalized, FocalX = focalX, FocalY = focalY };
+    }
+
+    private static List<ProductImageDto> ToImageDtoList(IEnumerable<(string Url, float FocalX, float FocalY)> items)
+    {
+        var result = new List<ProductImageDto>();
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var (url, fx, fy) in items)
+        {
+            var normalized = NormalizeUrl(url);
+            if (string.IsNullOrEmpty(normalized) || !seen.Add(normalized)) continue;
+            result.Add(new ProductImageDto { Src = normalized, FocalX = fx, FocalY = fy });
+        }
+        return result;
     }
 
     private static List<string> BuildDetailsList(Models.Product p) => new();
+
+    private (float FocalX, float FocalY) DetectFocalForUrl(string imageUrl)
+    {
+        const float defaultX = 0.5f, defaultY = 0.35f;
+        if (string.IsNullOrWhiteSpace(imageUrl))
+            return (defaultX, defaultY);
+
+        var relativePath = imageUrl.TrimStart('/');
+        if (!relativePath.StartsWith("uploads/", StringComparison.OrdinalIgnoreCase))
+            return (defaultX, defaultY);
+
+        var webRoot = _env.WebRootPath ?? Path.Combine(_env.ContentRootPath, "wwwroot");
+        var filePath = Path.Combine(webRoot, "uploads", Path.GetFileName(relativePath));
+        if (!File.Exists(filePath))
+            return (defaultX, defaultY);
+
+        try
+        {
+            using var stream = File.OpenRead(filePath);
+            using var image = Image.Load<Rgba32>(stream);
+            return FocalPointDetector.Detect(image);
+        }
+        catch
+        {
+            return (defaultX, defaultY);
+        }
+    }
 
     private static List<string> NormalizeUrls(IEnumerable<string>? urls) =>
         MediaUrlNormalizer.NormalizeList(urls);
@@ -924,12 +981,15 @@ public class ProductService : IProductService
         var normalized = NormalizeUrls(urls);
         for (var i = 0; i < normalized.Count; i++)
         {
+            var (fx, fy) = DetectFocalForUrl(normalized[i]);
             _context.ProductImages.Add(new Models.ProductImage
             {
                 ProductId = productId,
                 ImageUrl = normalized[i],
                 SortOrder = i,
                 IsPrimary = i == 0,
+                FocalX = fx,
+                FocalY = fy,
             });
         }
     }
@@ -996,6 +1056,7 @@ public class ProductService : IProductService
         {
             for (var i = 0; i < variant.ImageUrls.Count; i++)
             {
+                var (fx, fy) = DetectFocalForUrl(variant.ImageUrls[i]);
                 _context.ProductColorSizeImages.Add(new Models.ProductColorSizeImage
                 {
                     ProductId = productId,
@@ -1004,6 +1065,8 @@ public class ProductService : IProductService
                     Lace = variant.Lace,
                     ImageUrl = variant.ImageUrls[i],
                     SortOrder = i,
+                    FocalX = fx,
+                    FocalY = fy,
                 });
             }
         }

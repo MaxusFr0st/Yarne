@@ -16,6 +16,10 @@ public class ProductColorSizeImage
 
     public int SortOrder { get; set; }
 
+    public float FocalX { get; set; } = 0.5f;
+
+    public float FocalY { get; set; } = 0.35f;
+
     public virtual ProductColor ProductColor { get; set; } = null!;
 
     public virtual ProductSize ProductSize { get; set; } = null!;

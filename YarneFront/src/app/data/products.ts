@@ -1,4 +1,4 @@
-import type { Product } from "../types/product";
+import type { Product, ProductImage } from "../types/product";
 export type { Product, ColorVariant } from "../types/product";
 
 const IMG = {
@@ -12,6 +12,10 @@ const IMG = {
   texture: "https://images.unsplash.com/photo-1636715940535-9be6f64188d7?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=1080",
   lookbook: "https://images.unsplash.com/photo-1764697907425-62696b280b31?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=1080",
 };
+
+function pi(src: string): ProductImage {
+  return { src, focalX: 0.5, focalY: 0.35 };
+}
 
 export const PRODUCTS: Product[] = [
   {
@@ -31,10 +35,10 @@ export const PRODUCTS: Product[] = [
       "Model is 5'9\" wearing size S",
     ],
     colors: [
-      { name: "Parchment", hex: "#E8DCC8", image: IMG.cream, images: [IMG.cream] },
-      { name: "Oxblood", hex: "#4A0E0E", image: IMG.burgundy, images: [IMG.burgundy] },
-      { name: "Midnight", hex: "#0A1128", image: IMG.navy, images: [IMG.navy] },
-      { name: "Moss", hex: "#3D5040", image: IMG.earth, images: [IMG.earth] },
+      { name: "Parchment", hex: "#E8DCC8", image: pi(IMG.cream), images: [pi(IMG.cream)] },
+      { name: "Oxblood", hex: "#4A0E0E", image: pi(IMG.burgundy), images: [pi(IMG.burgundy)] },
+      { name: "Midnight", hex: "#0A1128", image: pi(IMG.navy), images: [pi(IMG.navy)] },
+      { name: "Moss", hex: "#3D5040", image: pi(IMG.earth), images: [pi(IMG.earth)] },
     ],
   },
   {
@@ -54,9 +58,9 @@ export const PRODUCTS: Product[] = [
       "Model is 5'10\" wearing size S",
     ],
     colors: [
-      { name: "Midnight", hex: "#0A1128", image: IMG.navy, images: [IMG.navy] },
-      { name: "Ivory", hex: "#F5F0E8", image: IMG.cream, images: [IMG.cream] },
-      { name: "Slate", hex: "#8B9099", image: IMG.studio, images: [IMG.studio] },
+      { name: "Midnight", hex: "#0A1128", image: pi(IMG.navy), images: [pi(IMG.navy)] },
+      { name: "Ivory", hex: "#F5F0E8", image: pi(IMG.cream), images: [pi(IMG.cream)] },
+      { name: "Slate", hex: "#8B9099", image: pi(IMG.studio), images: [pi(IMG.studio)] },
     ],
   },
   {
@@ -75,9 +79,9 @@ export const PRODUCTS: Product[] = [
       "Model is 5'8\" wearing size XS",
     ],
     colors: [
-      { name: "Ecru", hex: "#F0EBD8", image: IMG.vest, images: [IMG.vest] },
-      { name: "Caramel", hex: "#9B6B2E", image: IMG.earth, images: [IMG.earth] },
-      { name: "Ebony", hex: "#1A1510", image: IMG.lookbook, images: [IMG.lookbook] },
+      { name: "Ecru", hex: "#F0EBD8", image: pi(IMG.vest), images: [pi(IMG.vest)] },
+      { name: "Caramel", hex: "#9B6B2E", image: pi(IMG.earth), images: [pi(IMG.earth)] },
+      { name: "Ebony", hex: "#1A1510", image: pi(IMG.lookbook), images: [pi(IMG.lookbook)] },
     ],
   },
   {
@@ -97,9 +101,9 @@ export const PRODUCTS: Product[] = [
       "Model is 5'9\" wearing size S",
     ],
     colors: [
-      { name: "Oat", hex: "#D4C5A0", image: IMG.earth, images: [IMG.earth] },
-      { name: "Bordeaux", hex: "#6B1E1E", image: IMG.burgundy, images: [IMG.burgundy] },
-      { name: "Smoke", hex: "#9DA3AE", image: IMG.studio, images: [IMG.studio] },
+      { name: "Oat", hex: "#D4C5A0", image: pi(IMG.earth), images: [pi(IMG.earth)] },
+      { name: "Bordeaux", hex: "#6B1E1E", image: pi(IMG.burgundy), images: [pi(IMG.burgundy)] },
+      { name: "Smoke", hex: "#9DA3AE", image: pi(IMG.studio), images: [pi(IMG.studio)] },
     ],
   },
   {
@@ -119,9 +123,9 @@ export const PRODUCTS: Product[] = [
       "Made in Italy",
     ],
     colors: [
-      { name: "Bordeaux", hex: "#6B1E1E", image: IMG.burgundy, images: [IMG.burgundy] },
-      { name: "Ivory", hex: "#FAF6EE", image: IMG.cream, images: [IMG.cream] },
-      { name: "Cobalt", hex: "#0A1128", image: IMG.navy, images: [IMG.navy] },
+      { name: "Bordeaux", hex: "#6B1E1E", image: pi(IMG.burgundy), images: [pi(IMG.burgundy)] },
+      { name: "Ivory", hex: "#FAF6EE", image: pi(IMG.cream), images: [pi(IMG.cream)] },
+      { name: "Cobalt", hex: "#0A1128", image: pi(IMG.navy), images: [pi(IMG.navy)] },
     ],
   },
   {
@@ -140,9 +144,9 @@ export const PRODUCTS: Product[] = [
       "Made in Italy",
     ],
     colors: [
-      { name: "Camel", hex: "#C09060", image: IMG.autumn, images: [IMG.autumn] },
-      { name: "Ivory", hex: "#FAF6EE", image: IMG.studio, images: [IMG.studio] },
-      { name: "Ebony", hex: "#1A1510", image: IMG.lookbook, images: [IMG.lookbook] },
+      { name: "Camel", hex: "#C09060", image: pi(IMG.autumn), images: [pi(IMG.autumn)] },
+      { name: "Ivory", hex: "#FAF6EE", image: pi(IMG.studio), images: [pi(IMG.studio)] },
+      { name: "Ebony", hex: "#1A1510", image: pi(IMG.lookbook), images: [pi(IMG.lookbook)] },
     ],
   },
 ];

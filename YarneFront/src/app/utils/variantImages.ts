@@ -1,4 +1,4 @@
-import type { ColorVariant, Product } from "../types/product";
+import type { ColorVariant, Product, ProductImage } from "../types/product";
 
 /** Gallery for selected color + size + lace — never mixes with/without lace sets. */
 export function resolveDisplayImages(
@@ -6,7 +6,7 @@ export function resolveDisplayImages(
   color: ColorVariant | undefined,
   activeSize: string | null,
   activeLace: boolean,
-): string[] {
+): ProductImage[] {
   if (!color) return [];
 
   const laceVariant = activeSize ? color.laceVariants?.[activeSize] : undefined;
@@ -14,7 +14,7 @@ export function resolveDisplayImages(
   if (product.lace === true) {
     if (laceVariant) {
       const scoped = activeLace ? laceVariant.withLaceImages : laceVariant.withoutLaceImages;
-      return (scoped ?? []).filter((url) => url?.trim());
+      return (scoped ?? []).filter((img) => img?.src?.trim());
     }
     if (activeSize) {
       const sizeOnly = color.sizeImages?.[activeSize] ?? [];

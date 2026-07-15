@@ -48,7 +48,7 @@ function ProductTile({ slot, product, fallbackTitle, variant, showWishlist = fal
   const targetImageSrc = useMemo(
     () =>
       resolveMediaUrl(slot.imageUrl) ||
-      resolveMediaUrl(product?.colors?.[0]?.image) ||
+      resolveMediaUrl(product?.colors?.[0]?.image?.src) ||
       PLACEHOLDER_IMG,
     [slot.imageUrl, product?.colors],
   );
@@ -85,18 +85,21 @@ function ProductTile({ slot, product, fallbackTitle, variant, showWishlist = fal
   const href = product ? `/product/${product.id}` : "/collection";
 
   const isLarge = variant === "large";
-  /** Crop only — hover zoom is a separate transform so it stays smooth. */
-  const cropClass = touch
-    ? isLarge
-      ? "object-[center_28%]"
-      : variant === "wide"
-        ? "object-[center_30%]"
-        : "object-[center_26%]"
-    : isLarge
-      ? "object-[center_42%] max-md:object-[center_32%]"
-      : variant === "wide"
-        ? "object-[center_40%] max-md:object-[center_34%]"
-        : "object-[center_38%] max-md:object-[center_30%]";
+  const productFocal = product?.colors?.[0]?.image;
+  const hasFocal = productFocal && !slot.imageUrl;
+  const cropClass = hasFocal
+    ? ""
+    : touch
+      ? isLarge
+        ? "object-[center_28%]"
+        : variant === "wide"
+          ? "object-[center_30%]"
+          : "object-[center_26%]"
+      : isLarge
+        ? "object-[center_42%] max-md:object-[center_32%]"
+        : variant === "wide"
+          ? "object-[center_40%] max-md:object-[center_34%]"
+          : "object-[center_38%] max-md:object-[center_30%]";
 
   const isWishlisted = product ? wishlist.includes(product.id) : false;
   const eyebrow = slot.eyebrow.trim();
@@ -118,6 +121,7 @@ function ProductTile({ slot, product, fallbackTitle, variant, showWishlist = fal
         src={imageSrc}
         alt={title}
         priority={priority}
+        focal={hasFocal ? { x: productFocal.focalX, y: productFocal.focalY } : undefined}
         className={`absolute inset-0 h-full w-full object-cover ${cropClass} ${
           touch
             ? ""
@@ -460,7 +464,7 @@ export function FeaturedShowcase() {
   useEffect(() => {
     for (const p of [slot1Product, slot2Product, slot4Product]) {
       if (!p) continue;
-      const url = resolveMediaUrl(p.colors?.[0]?.image);
+      const url = resolveMediaUrl(p.colors?.[0]?.image?.src);
       if (!url) continue;
       const img = new Image();
       img.src = url;

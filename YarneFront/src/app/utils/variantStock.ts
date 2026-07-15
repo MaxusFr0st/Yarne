@@ -1,16 +1,23 @@
-import type { ColorVariant, LaceSizeVariant } from "../types/product";
-import type { LaceSizeVariantDto } from "../api/products";
+import type { ColorVariant, LaceSizeVariant, ProductImage } from "../types/product";
+import type { LaceSizeVariantDto, ProductImageDto } from "../api/products";
+
+function toProductImages(dtos: ProductImageDto[] | undefined | null): ProductImage[] {
+  if (!dtos?.length) return [];
+  return dtos
+    .filter((d) => d?.src?.trim())
+    .map((d) => ({ src: d.src, focalX: d.focalX ?? 0.5, focalY: d.focalY ?? 0.35 }));
+}
 
 function normalizeLaceSizeVariant(raw: LaceSizeVariantDto | LaceSizeVariant): LaceSizeVariant {
   const anyRaw = raw as LaceSizeVariantDto & {
-    WithLaceImages?: string[];
-    WithoutLaceImages?: string[];
+    WithLaceImages?: ProductImageDto[];
+    WithoutLaceImages?: ProductImageDto[];
     WithLaceStock?: number;
     WithoutLaceStock?: number;
   };
   return {
-    withLaceImages: anyRaw.withLaceImages ?? anyRaw.WithLaceImages ?? [],
-    withoutLaceImages: anyRaw.withoutLaceImages ?? anyRaw.WithoutLaceImages ?? [],
+    withLaceImages: toProductImages(anyRaw.withLaceImages ?? anyRaw.WithLaceImages),
+    withoutLaceImages: toProductImages(anyRaw.withoutLaceImages ?? anyRaw.WithoutLaceImages),
     withLaceStock: Number(anyRaw.withLaceStock ?? anyRaw.WithLaceStock ?? 0),
     withoutLaceStock: Number(anyRaw.withoutLaceStock ?? anyRaw.WithoutLaceStock ?? 0),
   };

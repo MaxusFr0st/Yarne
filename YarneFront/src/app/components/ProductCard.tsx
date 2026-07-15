@@ -102,7 +102,7 @@ function ProductCardInner({
       withLace: null,
       quantity: 1,
       maxQuantity,
-      image: product.colors[activeColor].image,
+      image: product.colors[activeColor].image.src,
     });
   };
 
@@ -172,12 +172,15 @@ function ProductCardInner({
                 src={
                   previewMode && i === activeColor && previewImageOverride
                     ? previewImageOverride
-                    : color.image
+                    : color.image.src
                 }
+                focal={previewImageOverride && previewMode && i === activeColor
+                  ? undefined
+                  : { x: color.image.focalX, y: color.image.focalY }}
                 alt={`${product.name} in ${localizedCatalogName(color.name, color.nameUk, locale)}`}
                 className={`product-card-image absolute inset-0 h-full w-full object-cover ${
-                  isCarouselCard ? "object-[center_28%] md:object-[center_32%]" : "object-[center_30%]"
-                } ${i === activeColor ? "opacity-100" : "opacity-0"}`}
+                  i === activeColor ? "opacity-100" : "opacity-0"
+                }`}
               />
             ))}
           </div>

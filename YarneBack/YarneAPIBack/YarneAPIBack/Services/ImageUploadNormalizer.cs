@@ -1,6 +1,7 @@
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.Formats.Jpeg;
 using SixLabors.ImageSharp.Formats.Webp;
+using SixLabors.ImageSharp.PixelFormats;
 using SixLabors.ImageSharp.Processing;
 using YarneAPIBack.Services.Contracts;
 
@@ -13,21 +14,36 @@ public sealed class ImageUploadNormalizer : IImageUploadNormalizer
 
     public async Task<NormalizedUploadImage> NormalizeAsync(Stream input, CancellationToken ct = default)
     {
-        using var image = await Image.LoadAsync(input, ct);
+        using var image = await Image.LoadAsync<Rgba32>(input, ct);
 
         // Animated GIFs: keep first frame only for product photos.
         if (image.Frames.Count > 1)
         {
             using var firstFrame = image.Frames.CloneFrame(0);
             PrepareForEncode(firstFrame);
-            return await EncodeAsync(firstFrame, ct);
+            var focal = FocalPointDetector.Detect(firstFrame);
+            return await EncodeAsync(firstFrame, focal, ct);
         }
 
-        PrepareForEncode(image);
-        return await EncodeAsync(image, ct);
+        image.Mutate(ctx => ctx.AutoOrient());
+
+        // Detect focal point on the full-res oriented image before any resize.
+        var focalPoint = FocalPointDetector.Detect(image);
+
+        if (image.Width > MaxLongEdge || image.Height > MaxLongEdge)
+        {
+            image.Mutate(ctx => ctx.Resize(new ResizeOptions
+            {
+                Size = new Size(MaxLongEdge, MaxLongEdge),
+                Mode = ResizeMode.Max,
+                Sampler = KnownResamplers.Lanczos3,
+            }));
+        }
+
+        return await EncodeAsync(image, focalPoint, ct);
     }
 
-    private static void PrepareForEncode(Image image)
+    private static void PrepareForEncode(Image<Rgba32> image)
     {
         image.Mutate(ctx => ctx.AutoOrient());
 
@@ -42,9 +58,9 @@ public sealed class ImageUploadNormalizer : IImageUploadNormalizer
         }
     }
 
-    private static async Task<NormalizedUploadImage> EncodeAsync(Image image, CancellationToken ct)
+    private static async Task<NormalizedUploadImage> EncodeAsync(
+        Image<Rgba32> image, (float FocalX, float FocalY) focal, CancellationToken ct)
     {
-        // Drop wide-gamut/HDR metadata so output is plain sRGB WebP.
         image.Metadata.ExifProfile = null;
         image.Metadata.IccProfile = null;
         image.Metadata.XmpProfile = null;
@@ -73,6 +89,8 @@ public sealed class ImageUploadNormalizer : IImageUploadNormalizer
                 ContentType = "image/jpeg",
                 Width = image.Width,
                 Height = image.Height,
+                FocalX = focal.FocalX,
+                FocalY = focal.FocalY,
             };
         }
 
@@ -84,6 +102,8 @@ public sealed class ImageUploadNormalizer : IImageUploadNormalizer
             ContentType = "image/webp",
             Width = image.Width,
             Height = image.Height,
+            FocalX = focal.FocalX,
+            FocalY = focal.FocalY,
         };
     }
 }

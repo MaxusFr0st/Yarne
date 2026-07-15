@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { motion, useReducedMotion } from "motion/react";
 import { useTouchMobileLayout } from "../../hooks/useTouchMobileLayout";
 import { resolveMediaUrl } from "../../utils/storefrontMedia";
-import { ImageWithFallback } from "./ImageWithFallback";
+import { ImageWithFallback, type FocalPoint } from "./ImageWithFallback";
 
 const EASE_OUT = [0.22, 1, 0.36, 1] as const;
 const FADE_MS = 360;
@@ -12,7 +12,7 @@ type CrossfadeImageProps = {
   alt: string;
   className?: string;
   priority?: boolean;
-  objectPosition?: string;
+  focal?: FocalPoint;
 };
 
 /**
@@ -24,7 +24,7 @@ export function CrossfadeImage({
   alt,
   className = "",
   priority = false,
-  objectPosition,
+  focal,
 }: CrossfadeImageProps) {
   const reduceMotion = useReducedMotion();
   const touchMobile = useTouchMobileLayout();
@@ -32,7 +32,10 @@ export function CrossfadeImage({
   const resolved = src ? resolveMediaUrl(src) : "";
   const [currentSrc, setCurrentSrc] = useState(resolved);
   const [previousSrc, setPreviousSrc] = useState<string | null>(null);
+  const [previousFocal, setPreviousFocal] = useState<FocalPoint | undefined>(undefined);
   const pendingRef = useRef<string | null>(null);
+  const currentFocalRef = useRef(focal);
+  currentFocalRef.current = focal;
 
   useEffect(() => {
     if (!resolved || resolved === currentSrc) return;
@@ -49,12 +52,14 @@ export function CrossfadeImage({
     img.decoding = "async";
     img.onload = () => {
       if (pendingRef.current !== resolved) return;
+      setPreviousFocal(currentFocalRef.current);
       setPreviousSrc(currentSrc || null);
       setCurrentSrc(resolved);
       pendingRef.current = null;
     };
     img.onerror = () => {
       if (pendingRef.current !== resolved) return;
+      setPreviousFocal(currentFocalRef.current);
       setPreviousSrc(currentSrc || null);
       setCurrentSrc(resolved);
       pendingRef.current = null;
@@ -84,8 +89,8 @@ export function CrossfadeImage({
             src={previousSrc}
             alt=""
             aria-hidden
+            focal={previousFocal}
             className={`h-full w-full object-cover ${className}`}
-            style={objectPosition ? { objectPosition } : undefined}
           />
         </motion.div>
       )}
@@ -100,8 +105,8 @@ export function CrossfadeImage({
           src={currentSrc}
           alt={alt}
           priority={priority}
+          focal={focal}
           className={`h-full w-full object-cover ${className}`}
-          style={objectPosition ? { objectPosition } : undefined}
         />
       </motion.div>
     </div>

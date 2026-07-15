@@ -27,7 +27,7 @@ import {
   loadProductGuaranteeContent,
   type ProductGuaranteeContent,
 } from "../utils/productGuaranteeContent";
-import type { Product } from "../types/product";
+import type { Product, ProductImage } from "../types/product";
 
 const easing = [0.25, 0.1, 0.25, 1] as const;
 export function ProductDetail() {
@@ -137,9 +137,9 @@ export function ProductDetail() {
     for (const colorIndex of colorIndices) {
       const color = product.colors[colorIndex];
       if (!color) continue;
-      const urls = resolveDisplayImages(product, color, activeSize, activeLace);
-      for (const src of urls) {
-        const resolved = resolveMediaUrl(src);
+      const imgs = resolveDisplayImages(product, color, activeSize, activeLace);
+      for (const entry of imgs) {
+        const resolved = resolveMediaUrl(entry.src);
         if (!resolved || seen.has(resolved)) continue;
         seen.add(resolved);
         const img = new Image();
@@ -226,7 +226,7 @@ export function ProductDetail() {
       withLace: product.lace ? activeLace : null,
       quantity: 1,
       maxQuantity: displayStock,
-      image: images[0] ?? selectedColor.image,
+      image: images[0]?.src ?? selectedColor.image.src,
     });
     setAddedToBag(true);
     setTimeout(() => setAddedToBag(false), 2500);
@@ -288,9 +288,9 @@ export function ProductDetail() {
             <div className="relative rounded-[34px] sm:rounded-[40px] overflow-hidden bg-[#EDE9E2] h-[min(64svh,430px)] min-h-[320px] sm:min-h-[340px] md:h-[min(62svh,640px)] md:min-h-[440px] lg:h-[min(68svh,720px)] lg:min-h-[500px]">
               {images.length > 0 && (
                 <CrossfadeImage
-                  src={images[safeImageIndex]}
+                  src={images[safeImageIndex].src}
+                  focal={{ x: images[safeImageIndex].focalX, y: images[safeImageIndex].focalY }}
                   alt={`${product!.name} – ${selectedColorLabel}`}
-                  className="object-[center_25%]"
                   priority
                 />
               )}
@@ -330,10 +330,10 @@ export function ProductDetail() {
                   }}
                 >
                   <ImageWithFallback
-                    src={img}
+                    src={img.src}
+                    focal={{ x: img.focalX, y: img.focalY }}
                     alt={`${selectedColorLabel} - ${i + 1}`}
                     className="w-full h-full object-cover"
-                    style={{ objectPosition: "center center" }}
                   />
                 </button>
               ))}

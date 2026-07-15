@@ -26,6 +26,7 @@ public static class DatabaseStartup
                 await OrderItemSchemaPatches.EnsureSnapshotColumnsAsync(db, logger, cancellationToken);
                 await CatalogSchemaPatches.EnsureAsync(db, logger, cancellationToken);
                 await RefreshTokenSchemaPatches.EnsureTablesAsync(db, logger, cancellationToken);
+                await FocalPointSchemaPatches.EnsureAsync(db, logger, cancellationToken);
                 return;
             }
             catch (Exception ex) when (attempt < maxAttempts)

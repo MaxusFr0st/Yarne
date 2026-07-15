@@ -31,17 +31,17 @@ public static class ProductLogImageHelper
                 urls.Add(key);
         }
 
-        foreach (var url in product.ImageUrls ?? [])
-            Add(url);
+        foreach (var img in product.Images ?? [])
+            Add(img.Src);
 
-        if (!string.IsNullOrWhiteSpace(product.PrimaryImageUrl))
-            Add(product.PrimaryImageUrl);
+        if (!string.IsNullOrWhiteSpace(product.PrimaryImage?.Src))
+            Add(product.PrimaryImage.Src);
 
         foreach (var color in product.Colors ?? [])
         {
-            foreach (var url in color.ImageUrls ?? [])
-                Add(url);
-            Add(color.ImageUrl);
+            foreach (var img in color.Images ?? [])
+                Add(img.Src);
+            Add(color.Image?.Src);
         }
 
         return urls;

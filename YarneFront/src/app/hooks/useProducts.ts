@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useSyncExternalStore } from "react";
-import { fetchProducts, fetchProduct, type ProductDto, type ProductDetailDto, type ColorVariantDto, type SuggestedProductDto } from "../api/products";
-import type { Product, ColorVariant } from "../types/product";
+import { fetchProducts, fetchProduct, type ProductDto, type ProductDetailDto, type ColorVariantDto, type SuggestedProductDto, type ProductImageDto } from "../api/products";
+import type { Product, ProductImage, ColorVariant } from "../types/product";
 import { normalizeLaceVariants } from "../utils/variantStock";
 import {
   loadProductDetail,
@@ -12,7 +12,8 @@ import {
   getProductsCacheGeneration,
 } from "../utils/productsCache";
 
-const PLACEHOLDER = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='400' viewBox='0 0 400 400'%3E%3Crect fill='%23EDE9E2' width='400' height='400'/%3E%3Cpath fill='%232D241E' fill-opacity='0.3' d='M80 200h240M200 80v240' stroke='%232D241E' stroke-opacity='0.2'/%3E%3C/svg%3E";
+const PLACEHOLDER_SRC = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='400' viewBox='0 0 400 400'%3E%3Crect fill='%23EDE9E2' width='400' height='400'/%3E%3Cpath fill='%232D241E' fill-opacity='0.3' d='M80 200h240M200 80v240' stroke='%232D241E' stroke-opacity='0.2'/%3E%3C/svg%3E";
+const PLACEHOLDER: ProductImage = { src: PLACEHOLDER_SRC, focalX: 0.5, focalY: 0.35 };
 
 const FALLBACK_SIZES = [
   { name: "XS" },
@@ -27,25 +28,44 @@ function mapSizes(sizes?: { name: string; nameUk?: string | null }[] | null) {
   return sizes.map((s) => ({ name: s.name, nameUk: s.nameUk ?? null }));
 }
 
-function toColorVariant(c: ColorVariantDto): ColorVariant {
+function toProductImage(dto: ProductImageDto | null | undefined): ProductImage {
+  if (!dto?.src?.trim()) return PLACEHOLDER;
+  return { src: dto.src, focalX: dto.focalX ?? 0.5, focalY: dto.focalY ?? 0.35 };
+}
+
+function toProductImages(dtos: ProductImageDto[] | null | undefined): ProductImage[] {
+  if (!dtos?.length) return [];
   const seen = new Set<string>();
-  const imgs: string[] = [];
-  const push = (url?: string | null) => {
-    const trimmed = url?.trim();
-    if (!trimmed || seen.has(trimmed)) return;
-    seen.add(trimmed);
-    imgs.push(trimmed);
-  };
-  for (const url of c.imageUrls ?? []) push(url);
-  push(c.imageUrl);
-  if (imgs.length === 0) push(c.imageUrl);
+  const result: ProductImage[] = [];
+  for (const dto of dtos) {
+    const src = dto.src?.trim();
+    if (!src || seen.has(src)) continue;
+    seen.add(src);
+    result.push({ src, focalX: dto.focalX ?? 0.5, focalY: dto.focalY ?? 0.35 });
+  }
+  return result;
+}
+
+function toColorVariant(c: ColorVariantDto): ColorVariant {
+  const imgs = toProductImages(c.images);
+  const primary = toProductImage(c.image);
+  if (imgs.length === 0) imgs.push(primary);
+
+  const sizeImages: Record<string, ProductImage[]> = {};
+  if (c.sizeImages) {
+    for (const [size, dtos] of Object.entries(c.sizeImages)) {
+      const mapped = toProductImages(dtos);
+      if (mapped.length) sizeImages[size] = mapped;
+    }
+  }
+
   return {
     name: c.name,
     nameUk: c.nameUk ?? null,
     hex: c.hex,
-    image: imgs[0] ?? c.imageUrl,
+    image: imgs[0] ?? primary,
     images: imgs,
-    sizeImages: c.sizeImages ?? {},
+    sizeImages: Object.keys(sizeImages).length ? sizeImages : undefined,
     sizeStocks: c.sizeStocks ?? {},
     laceVariants: normalizeLaceVariants(c.laceVariants),
   };
@@ -54,10 +74,13 @@ function toColorVariant(c: ColorVariantDto): ColorVariant {
 function mapToFrontendProduct(d: ProductDto): Product {
   const colors: ColorVariant[] = d.colors && d.colors.length > 0
     ? d.colors.map(toColorVariant)
-    : d.imageUrls.length > 0
-    ? d.imageUrls.map((url, i) => ({ name: `Variant ${i + 1}`, hex: "#2D241E", image: url, images: [url] }))
-    : d.primaryImageUrl
-    ? [{ name: "Default", hex: "#2D241E", image: d.primaryImageUrl, images: [d.primaryImageUrl] }]
+    : d.images && d.images.length > 0
+    ? d.images.map((img, i) => {
+        const pi = toProductImage(img);
+        return { name: `Variant ${i + 1}`, hex: "#2D241E", image: pi, images: [pi] };
+      })
+    : d.primaryImage
+    ? [{ name: "Default", hex: "#2D241E", image: toProductImage(d.primaryImage), images: [toProductImage(d.primaryImage)] }]
     : [{ name: "Default", hex: "#2D241E", image: PLACEHOLDER, images: [PLACEHOLDER] }];
 
   return {
@@ -87,7 +110,7 @@ function mapToFrontendProduct(d: ProductDto): Product {
 }
 
 function mapSuggestedToProduct(s: SuggestedProductDto): Product {
-  const image = s.primaryImageUrl ?? PLACEHOLDER;
+  const image = s.primaryImage ? toProductImage(s.primaryImage) : PLACEHOLDER;
   return {
     id: s.productCode,
     name: s.name,
@@ -105,8 +128,9 @@ function mapSuggestedToProduct(s: SuggestedProductDto): Product {
 
 function mapDetailToFrontend(d: ProductDetailDto): Product {
   const colors: ColorVariant[] = d.colors.map(toColorVariant);
-  if (colors.length === 0 && d.primaryImageUrl) {
-    colors.push({ name: "Default", hex: "#2D241E", image: d.primaryImageUrl, images: [d.primaryImageUrl] });
+  if (colors.length === 0 && d.primaryImage) {
+    const pi = toProductImage(d.primaryImage);
+    colors.push({ name: "Default", hex: "#2D241E", image: pi, images: [pi] });
   }
 
   return {

@@ -8,8 +8,8 @@ const PLACEHOLDER =
 export function getProductPreviewUrl(product: Pick<Product, "colors">): string {
   for (const color of product.colors ?? []) {
     const candidates = [
-      ...(color.images ?? []),
-      color.image,
+      ...(color.images ?? []).map((img) => img.src),
+      color.image?.src,
     ].filter((url): url is string => Boolean(url?.trim()));
 
     for (const raw of candidates) {

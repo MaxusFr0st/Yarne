@@ -1,5 +1,10 @@
-import type { Product } from "../types/product";
+import type { Product, ProductImage } from "../types/product";
 import { resolveMediaUrl } from "./storefrontMedia";
+
+function toPI(url: string): ProductImage {
+  const src = resolveMediaUrl(url) || url;
+  return { src, focalX: 0.5, focalY: 0.35 };
+}
 
 export type DraftProductFormInput = {
   name: string;
@@ -84,8 +89,8 @@ export function buildDraftProduct(
           return {
             name: catalog?.name ?? "Color",
             hex: catalog?.hexCode ?? "#2D241E",
-            image: resolveMediaUrl(image) || image,
-            images: images.map((u) => resolveMediaUrl(u) || u),
+            image: toPI(image),
+            images: images.map(toPI),
           };
         })
       : form.imageUrls
@@ -93,15 +98,15 @@ export function buildDraftProduct(
           .map((url, index) => ({
             name: index === 0 ? "Default" : `Variant ${index + 1}`,
             hex: "#2D241E",
-            image: resolveMediaUrl(url) || url,
-            images: [resolveMediaUrl(url) || url],
+            image: toPI(url),
+            images: [toPI(url)],
           }));
 
   if (productColors.length === 0) {
     productColors.push({
       name: "Default",
       hex: "#2D241E",
-      image: "",
+      image: { src: "", focalX: 0.5, focalY: 0.35 },
       images: [],
     });
   }

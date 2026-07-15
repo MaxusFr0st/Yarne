@@ -1,8 +1,14 @@
 import { apiRequest } from "./client";
 
+export interface ProductImageDto {
+  src: string;
+  focalX: number;
+  focalY: number;
+}
+
 export interface LaceSizeVariantDto {
-  withLaceImages: string[];
-  withoutLaceImages: string[];
+  withLaceImages: ProductImageDto[];
+  withoutLaceImages: ProductImageDto[];
   withLaceStock: number;
   withoutLaceStock: number;
 }
@@ -11,9 +17,9 @@ export interface ColorVariantDto {
   name: string;
   nameUk?: string | null;
   hex: string;
-  imageUrl: string;
-  imageUrls: string[];
-  sizeImages?: Record<string, string[]>;
+  image: ProductImageDto;
+  images: ProductImageDto[];
+  sizeImages?: Record<string, ProductImageDto[]>;
   sizeStocks?: Record<string, number>;
   laceVariants?: Record<string, LaceSizeVariantDto>;
 }
@@ -37,8 +43,8 @@ export interface ProductDto {
   price: number;
   quantityInStock: number;
   material: string | null;
-  primaryImageUrl: string | null;
-  imageUrls: string[];
+  primaryImage: ProductImageDto | null;
+  images: ProductImageDto[];
   colors?: ColorVariantDto[];
   furnitureColors?: FurnitureColorVariantDto[];
   sizes?: SizeOptionDto[];
@@ -71,7 +77,7 @@ export interface SuggestedProductDto {
   productCode: string;
   name: string;
   price: number;
-  primaryImageUrl: string | null;
+  primaryImage: ProductImageDto | null;
   categoryName: string;
   isNew: boolean;
   isBestseller: boolean;

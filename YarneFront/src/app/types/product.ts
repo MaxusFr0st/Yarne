@@ -1,6 +1,12 @@
+export interface ProductImage {
+  src: string;
+  focalX: number;
+  focalY: number;
+}
+
 export interface LaceSizeVariant {
-  withLaceImages: string[];
-  withoutLaceImages: string[];
+  withLaceImages: ProductImage[];
+  withoutLaceImages: ProductImage[];
   withLaceStock: number;
   withoutLaceStock: number;
 }
@@ -9,9 +15,9 @@ export interface ColorVariant {
   name: string;
   nameUk?: string | null;
   hex: string;
-  image: string;
-  images: string[];
-  sizeImages?: Record<string, string[]>;
+  image: ProductImage;
+  images: ProductImage[];
+  sizeImages?: Record<string, ProductImage[]>;
   sizeStocks?: Record<string, number>;
   laceVariants?: Record<string, LaceSizeVariant>;
 }

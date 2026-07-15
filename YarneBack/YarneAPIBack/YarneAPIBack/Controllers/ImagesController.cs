@@ -2,6 +2,8 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SixLabors.ImageSharp;
 using YarneAPIBack.Configuration;
+using YarneAPIBack.Data;
+using YarneAPIBack.Services;
 using YarneAPIBack.Services.Contracts;
 
 namespace YarneAPIBack.Controllers;
@@ -127,7 +129,7 @@ public class ImagesController : ControllerBase
                 actorEmail,
                 ct);
 
-            return Ok(new { url });
+            return Ok(new { url, focalX = normalized.FocalX, focalY = normalized.FocalY });
         }
     }
 
@@ -203,6 +205,18 @@ public class ImagesController : ControllerBase
             : "image/jpeg";
 
         return PhysicalFile(filePath, contentType, enableRangeProcessing: true);
+    }
+
+    [HttpPost("backfill-focal-points")]
+    [Authorize(Roles = "Admin")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    public async Task<ActionResult<object>> BackfillFocalPoints(
+        [FromQuery] bool force = false,
+        [FromServices] YarneDbContext db = null!,
+        CancellationToken ct = default)
+    {
+        await FocalPointBackfill.RunAsync(db, _env, _logger, force, ct);
+        return Ok(new { message = "Backfill complete" });
     }
 
     private static string? InferMimeTypeFromExtension(string extension) =>
