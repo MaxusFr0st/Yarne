@@ -35,6 +35,15 @@ public static class DatabaseBootstrap
             logger.LogWarning(ex, "RefreshToken schema not ready at bootstrap start; will retry after migrations.");
         }
 
+        try
+        {
+            await FocalPointSchemaPatches.ForceEnsureAsync(db, logger, cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "FocalPoint schema not ready at bootstrap start; will retry after migrations.");
+        }
+
         // Catalog columns/tables are required by Product EF queries (NameUk, furniture).
         const int catalogAttempts = 8;
         for (var attempt = 1; attempt <= catalogAttempts; attempt++)
@@ -78,6 +87,14 @@ public static class DatabaseBootstrap
             {
                 logger.LogError(refreshEx, "RefreshToken schema re-apply failed after migration failure.");
             }
+            try
+            {
+                await FocalPointSchemaPatches.ForceEnsureAsync(db, logger, cancellationToken);
+            }
+            catch (Exception focalEx)
+            {
+                logger.LogError(focalEx, "FocalPoint schema re-apply failed after migration failure.");
+            }
         }
 
         // Final guarantee before marking bootstrap ready — products crash without this.
@@ -97,6 +114,15 @@ public static class DatabaseBootstrap
         catch (Exception refreshEx)
         {
             logger.LogError(refreshEx, "RefreshToken schema still missing after bootstrap; /api/auth/login will 500 until fixed.");
+        }
+
+        try
+        {
+            await FocalPointSchemaPatches.ForceEnsureAsync(db, logger, cancellationToken);
+        }
+        catch (Exception focalEx)
+        {
+            logger.LogError(focalEx, "FocalPoint columns still missing after bootstrap; /api/products will 500 until fixed.");
         }
 
         if (runStartupDbPatches)
