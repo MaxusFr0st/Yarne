@@ -977,11 +977,16 @@ public class ProductService : IProductService
     private async Task ReplaceProductImagesAsync(int productId, IEnumerable<string> urls, CancellationToken ct)
     {
         var existing = await _context.ProductImages.Where(pi => pi.ProductId == productId).ToListAsync(ct);
+        var focalCache = new Dictionary<string, (float, float)>(StringComparer.OrdinalIgnoreCase);
+        foreach (var e in existing)
+            focalCache.TryAdd(e.ImageUrl, (e.FocalX, e.FocalY));
         _context.ProductImages.RemoveRange(existing);
         var normalized = NormalizeUrls(urls);
         for (var i = 0; i < normalized.Count; i++)
         {
-            var (fx, fy) = DetectFocalForUrl(normalized[i]);
+            var (fx, fy) = focalCache.TryGetValue(normalized[i], out var cached)
+                ? cached
+                : DetectFocalForUrl(normalized[i]);
             _context.ProductImages.Add(new Models.ProductImage
             {
                 ProductId = productId,
@@ -1050,13 +1055,18 @@ public class ProductService : IProductService
     private async Task ReplaceColorSizeImagesAsync(int productId, List<ColorSizeVariantInput> variants, CancellationToken ct)
     {
         var existing = await _context.ProductColorSizeImages.Where(v => v.ProductId == productId).ToListAsync(ct);
+        var focalCache = new Dictionary<string, (float, float)>(StringComparer.OrdinalIgnoreCase);
+        foreach (var e in existing)
+            focalCache.TryAdd(e.ImageUrl, (e.FocalX, e.FocalY));
         _context.ProductColorSizeImages.RemoveRange(existing);
 
         foreach (var variant in variants)
         {
             for (var i = 0; i < variant.ImageUrls.Count; i++)
             {
-                var (fx, fy) = DetectFocalForUrl(variant.ImageUrls[i]);
+                var (fx, fy) = focalCache.TryGetValue(variant.ImageUrls[i], out var cached)
+                    ? cached
+                    : DetectFocalForUrl(variant.ImageUrls[i]);
                 _context.ProductColorSizeImages.Add(new Models.ProductColorSizeImage
                 {
                     ProductId = productId,

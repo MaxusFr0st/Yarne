@@ -92,9 +92,11 @@ import {
   RefreshCw,
   Phone,
   Crop,
+  Crosshair,
 } from "lucide-react";
 import { fetchActivityLogs, type AdminActivityLogDto } from "../api/admin";
 import { fetchProduct } from "../api/products";
+import { FocalPointEditor } from "../components/admin/FocalPointEditor";
 import { AdminAccountingTab } from "../components/admin/AdminAccountingTab";
 import { AdminHomeCopyEditor } from "../components/admin/AdminHomeCopyEditor";
 import { AdminOurHistoryEditor } from "../components/admin/AdminOurHistoryEditor";
@@ -200,6 +202,7 @@ function AdminImageUrlRow({
   onRemove,
   onSetDefault,
   onCrop,
+  onFocal,
   isDefault = false,
   canSetDefault = false,
   readOnly = false,
@@ -211,6 +214,7 @@ function AdminImageUrlRow({
   onRemove: () => void;
   onSetDefault?: () => void;
   onCrop?: () => void;
+  onFocal?: () => void;
   isDefault?: boolean;
   canSetDefault?: boolean;
   readOnly?: boolean;
@@ -271,6 +275,17 @@ function AdminImageUrlRow({
           className="w-9 h-9 rounded-full flex items-center justify-center hover:bg-[#2D241E]/8 text-[#2D241E] disabled:opacity-40 shrink-0 transition-colors"
         >
           <Crop size={14} />
+        </button>
+      )}
+      {onFocal && url.trim() && (
+        <button
+          type="button"
+          disabled={disabled || readOnly}
+          onClick={onFocal}
+          title="Set focal point"
+          className="w-9 h-9 rounded-full flex items-center justify-center hover:bg-[#2D241E]/8 text-[#2D241E] disabled:opacity-40 shrink-0 transition-colors"
+        >
+          <Crosshair size={14} />
         </button>
       )}
       <button
@@ -437,6 +452,37 @@ function ProductModal({
     });
     cropInFlightRef.current = false;
   }, []);
+
+  const [focalEditor, setFocalEditor] = useState<{
+    imageSrc: string;
+    focalX: number;
+    focalY: number;
+  } | null>(null);
+
+  const [savedFocalOverrides, setSavedFocalOverrides] = useState<Record<string, { focalX: number; focalY: number }>>({});
+
+  const openFocalEditor = useCallback((url: string) => {
+    const normalizedUrl = normalizeStoredMediaUrl(url) ?? url;
+    const override = savedFocalOverrides[normalizedUrl];
+    if (override) {
+      setFocalEditor({ imageSrc: url, focalX: override.focalX, focalY: override.focalY });
+      return;
+    }
+    let fx = 0.5, fy = 0.35;
+    if (product) {
+      for (const color of product.colors ?? []) {
+        for (const img of color.images ?? []) {
+          if (img.src === normalizedUrl) {
+            fx = img.focalX; fy = img.focalY; break;
+          }
+        }
+        if (color.image?.src === normalizedUrl) {
+          fx = color.image.focalX; fy = color.image.focalY;
+        }
+      }
+    }
+    setFocalEditor({ imageSrc: url, focalX: fx, focalY: fy });
+  }, [product, savedFocalOverrides]);
 
   const promptCropForUpload = useCallback(
     (
@@ -1279,6 +1325,7 @@ function ProductModal({
                       ? () => void handleRecropImageUrl(url, (newUrl) => setImageUrl(i, newUrl))
                       : undefined
                   }
+                  onFocal={url.trim() ? () => openFocalEditor(url) : undefined}
                   readOnly={imagesLockedByColors}
                   disabled={imagesLockedByColors || uploading || cropBusy}
                   placeholder={`Image ${i + 1} URL or upload from device`}
@@ -1679,6 +1726,7 @@ function ProductModal({
                                         })
                                     : undefined
                                 }
+                                onFocal={url.trim() ? () => openFocalEditor(url) : undefined}
                                 onChange={(value) => {
                                   setForm((p) => {
                                     const next = { ...p.colorSizeVariants };
@@ -1964,6 +2012,20 @@ function ProductModal({
           onComplete={cropDialog.onComplete}
         />
       ) : null}
+
+      {focalEditor && (
+        <FocalPointEditor
+          imageSrc={focalEditor.imageSrc}
+          initialFocalX={focalEditor.focalX}
+          initialFocalY={focalEditor.focalY}
+          onClose={() => setFocalEditor(null)}
+          onSaved={(fx, fy) => {
+            const key = normalizeStoredMediaUrl(focalEditor.imageSrc) ?? focalEditor.imageSrc;
+            setSavedFocalOverrides((prev) => ({ ...prev, [key]: { focalX: fx, focalY: fy } }));
+            setFocalEditor(null);
+          }}
+        />
+      )}
     </div>
   );
 }

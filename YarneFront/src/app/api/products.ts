@@ -175,3 +175,10 @@ export async function updateProduct(id: number, data: UpdateProductRequest): Pro
 export async function deleteProduct(id: number): Promise<void> {
   await apiRequest(`/api/products/${id}`, { method: "DELETE" });
 }
+
+export async function updateFocalPoint(imageUrl: string, focalX: number, focalY: number): Promise<{ updated: number; focalX: number; focalY: number }> {
+  return apiRequest<{ updated: number; focalX: number; focalY: number }>("/api/images/focal-point", {
+    method: "PATCH",
+    body: JSON.stringify({ imageUrl, focalX, focalY }),
+  });
+}

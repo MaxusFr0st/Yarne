@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using SixLabors.ImageSharp;
 using YarneAPIBack.Configuration;
 using YarneAPIBack.Data;
@@ -219,6 +220,63 @@ public class ImagesController : ControllerBase
         return Ok(new { message = "Backfill complete" });
     }
 
+    [HttpPatch("focal-point")]
+    [Authorize(Roles = "Admin")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<object>> UpdateFocalPoint(
+        [FromBody] UpdateFocalPointRequest request,
+        [FromServices] YarneDbContext db = null!,
+        CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(request.ImageUrl))
+            return BadRequest(new { message = "imageUrl is required" });
+
+        var normalized = request.ImageUrl.Trim().Replace('\\', '/');
+        var fx = Math.Clamp(request.FocalX, 0f, 1f);
+        var fy = Math.Clamp(request.FocalY, 0f, 1f);
+        var updated = 0;
+
+        await using var tx = await db.Database.BeginTransactionAsync(ct);
+
+        updated += await db.ProductImages
+            .Where(pi => pi.ImageUrl == normalized)
+            .ExecuteUpdateAsync(s => s
+                .SetProperty(p => p.FocalX, fx)
+                .SetProperty(p => p.FocalY, fy), ct);
+
+        updated += await db.ProductColorImages
+            .Where(pi => pi.ImageUrl == normalized)
+            .ExecuteUpdateAsync(s => s
+                .SetProperty(p => p.FocalX, fx)
+                .SetProperty(p => p.FocalY, fy), ct);
+
+        updated += await db.ProductColorSizeImages
+            .Where(pi => pi.ImageUrl == normalized)
+            .ExecuteUpdateAsync(s => s
+                .SetProperty(p => p.FocalX, fx)
+                .SetProperty(p => p.FocalY, fy), ct);
+
+        await tx.CommitAsync(ct);
+
+        if (updated == 0)
+            return NotFound(new { message = "No image rows found for the given URL" });
+
+        var (actorUserId, actorEmail) = AdminActivityLogHelper.GetActor(HttpContext);
+        await _activityLogs.LogAsync(
+            "image",
+            "focal-point-updated",
+            $"Updated focal point for {normalized} to ({fx:F2}, {fy:F2})",
+            Path.GetFileName(normalized),
+            normalized,
+            new { imageUrl = normalized, focalX = fx, focalY = fy, rowsUpdated = updated },
+            actorUserId,
+            actorEmail,
+            ct);
+
+        return Ok(new { updated, focalX = fx, focalY = fy });
+    }
+
     private static string? InferMimeTypeFromExtension(string extension) =>
         extension switch
         {
@@ -228,4 +286,11 @@ public class ImagesController : ControllerBase
             ".webp" => "image/webp",
             _ => null,
         };
+}
+
+public class UpdateFocalPointRequest
+{
+    public string ImageUrl { get; set; } = null!;
+    public float FocalX { get; set; } = 0.5f;
+    public float FocalY { get; set; } = 0.35f;
 }
