@@ -3,26 +3,17 @@ import { motion, AnimatePresence } from "motion/react";
 import {
   Plus, Pencil, Trash2, X, Download, TrendingUp, TrendingDown,
   Package, BarChart3, ShoppingBag, Loader2, RefreshCw,
-  ChevronDown, ChevronUp, Lock, FileText, Tag, Truck, Layers, Warehouse, ClipboardList,
+  ChevronDown, ChevronUp, Lock, FileText, Tag, Truck, Warehouse, ClipboardList,
+  Building2, Landmark, CircleDollarSign, Scissors, Factory, Store, RotateCcw,
+  Wallet, Camera, BookOpen, Users, Boxes,
 } from "lucide-react";
 import {
   fetchAccountingDashboard, fetchSoldOrders,
   fetchMaterials, createMaterial, updateMaterial, deleteMaterial,
-  fetchImports, fetchImport, createImport, updateImport, deleteImport,
-  fetchExpenses, createExpense, updateExpense, deleteExpense,
-  fetchExpenseCategoryRecords, createExpenseCategory, updateExpenseCategory, deleteExpenseCategory,
-  fetchUsageRecords, createUsage, updateUsage, deleteUsage,
   fetchMaterialStock, fetchStockReports, fetchStockReport, createStockReport,
-  fetchUsageOrderOptions, createExternalOrder,
   fetchAccountingReport, downloadAccountingReportPdf,
   type MaterialDto,
   type MaterialStockDto,
-  type ImportTransactionDto,
-  type ImportTransactionSummaryDto,
-  type ExpenseDto,
-  type ExpenseCategoryDto,
-  type MaterialUsageRecordDto,
-  type UsageOrderOptionsDto,
   type SoldOrderLineDto,
   type StockReportSummaryDto,
   type StockReportDetailDto,
@@ -30,16 +21,37 @@ import {
   type AccountingReportDto,
 } from "../../api/accounting";
 import { formatPriceCompact } from "../../i18n/format";
+import { AdminProcurementView } from "./AdminProcurementView";
+import { AdminProductAccountingView } from "./AdminProductAccountingView";
+import { AdminProductionView } from "./AdminProductionView";
+import { AdminFinishedStockView } from "./AdminFinishedStockView";
+import { AdminSalesView } from "./AdminSalesView";
+import { AdminReturnsView } from "./AdminReturnsView";
+import { AdminCustomersView } from "./AdminCustomersView";
+import { AdminOperatingExpensesView } from "./AdminOperatingExpensesView";
+import { AdminAccountingReportsView } from "./AdminAccountingReportsView";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type AccountingTab =
-  | "overview" | "sold" | "materials" | "imports"
-  | "usage" | "expenses" | "stock" | "stock-reports" | "reports";
+  | "overview" | "sold" | "suppliers" | "materials" | "purchase-orders" | "currency-rates"
+  | "stock" | "stock-reports" | "reports"
+  | "products" | "production" | "product-stock" | "channels" | "sales" | "customers" | "returns"
+  | "operating-expenses" | "quick-expense" | "ledger";
 
-interface ImportLine {
-  materialId: number;
-  quantity: string;
-  unitPrice: string;
+const ACCOUNTING_TAB_KEYS: AccountingTab[] = [
+  "overview", "sold", "suppliers", "materials", "purchase-orders", "currency-rates",
+  "stock", "stock-reports", "reports",
+  "products", "production", "product-stock", "channels", "sales", "customers", "returns",
+  "operating-expenses", "quick-expense", "ledger",
+];
+
+function readSectionFromUrl(): AccountingTab | null {
+  if (typeof window === "undefined") return null;
+  const section = new URLSearchParams(window.location.search).get("section");
+  if (section && (ACCOUNTING_TAB_KEYS as string[]).includes(section)) {
+    return section as AccountingTab;
+  }
+  return null;
 }
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
@@ -63,11 +75,12 @@ const inputStyle: React.CSSProperties = {
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 function monthStartIso(): string {
   const d = new Date();
-  return new Date(d.getFullYear(), d.getMonth(), 1).toISOString().slice(0, 10);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-01`;
 }
 
 function todayIso(): string {
-  return new Date().toISOString().slice(0, 10);
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
 function formatMoney(value: number): string {
@@ -77,7 +90,8 @@ function formatMoney(value: number): string {
 
 function formatDate(iso: string | null | undefined): string {
   if (!iso) return "—";
-  return new Date(iso).toLocaleDateString(undefined, { day: "2-digit", month: "short", year: "numeric" });
+  const [year, month, day] = iso.slice(0, 10).split("-").map(Number);
+  return new Date(year, month - 1, day).toLocaleDateString(undefined, { day: "2-digit", month: "short", year: "numeric" });
 }
 
 // ─── UI Primitives ────────────────────────────────────────────────────────────
@@ -297,8 +311,8 @@ function ActionButtons({ onEdit, onDelete, compact }: { onEdit: () => void; onDe
         type="button"
         onClick={onDelete}
         className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-[#4A0E0E]/8 transition-colors duration-200 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2D241E]/30"
-        title="Delete"
-        aria-label="Delete"
+        title="Void"
+        aria-label="Void"
       >
         <Trash2 size={13} style={{ color: "#4A0E0E", opacity: 0.6 }} />
       </button>
@@ -329,10 +343,20 @@ function MobileCard({
 const TABS: { key: AccountingTab; label: string; icon: React.ReactNode }[] = [
   { key: "overview",      label: "Overview",      icon: <BarChart3 size={14} /> },
   { key: "sold",          label: "Sold",          icon: <ShoppingBag size={14} /> },
+  { key: "suppliers",     label: "Suppliers",     icon: <Building2 size={14} /> },
   { key: "materials",     label: "Materials",     icon: <Package size={14} /> },
-  { key: "imports",       label: "Imports",       icon: <Truck size={14} /> },
-  { key: "usage",         label: "Usage",         icon: <Layers size={14} /> },
-  { key: "expenses",      label: "Expenses",      icon: <Tag size={14} /> },
+  { key: "purchase-orders", label: "Purchases",   icon: <Landmark size={14} /> },
+  { key: "currency-rates", label: "Rates",        icon: <CircleDollarSign size={14} /> },
+  { key: "products",      label: "Products",      icon: <Scissors size={14} /> },
+  { key: "production",    label: "Production",    icon: <Factory size={14} /> },
+  { key: "product-stock", label: "Product Stock", icon: <Boxes size={14} /> },
+  { key: "channels",      label: "Channels",      icon: <Store size={14} /> },
+  { key: "sales",         label: "Sales",         icon: <ShoppingBag size={14} /> },
+  { key: "customers",     label: "Customers",     icon: <Users size={14} /> },
+  { key: "returns",       label: "Returns",       icon: <RotateCcw size={14} /> },
+  { key: "operating-expenses", label: "OpEx",     icon: <Wallet size={14} /> },
+  { key: "quick-expense", label: "Quick OpEx",    icon: <Camera size={14} /> },
+  { key: "ledger",        label: "Ledger",        icon: <BookOpen size={14} /> },
   { key: "stock",         label: "Stock",         icon: <Warehouse size={14} /> },
   { key: "stock-reports", label: "Stock Reports", icon: <ClipboardList size={14} /> },
   { key: "reports",       label: "Reports",       icon: <FileText size={14} /> },
@@ -341,7 +365,18 @@ const TABS: { key: AccountingTab; label: string; icon: React.ReactNode }[] = [
 // ─── Main export ─────────────────────────────────────────────────────────────
 export function AdminAccountingTab() {
   // ── Tab ──────────────────────────────────────────────────────────────────
-  const [tab, setTab] = useState<AccountingTab>("overview");
+  const [tab, setTabState] = useState<AccountingTab>(() => readSectionFromUrl() ?? "overview");
+
+  const setTab = useCallback((next: AccountingTab) => {
+    setTabState(next);
+    try {
+      const url = new URL(window.location.href);
+      url.searchParams.set("section", next);
+      window.history.replaceState({}, "", `${url.pathname}${url.search}${url.hash}`);
+    } catch {
+      // Ignore URL sync failures in non-browser contexts.
+    }
+  }, []);
 
   // ── Global date range (overview / sold / expenses) ────────────────────────
   const [dateFrom, setDateFrom] = useState(monthStartIso);
@@ -351,10 +386,6 @@ export function AdminAccountingTab() {
   const [dashboard, setDashboard] = useState<AccountingDashboardDto | null>(null);
   const [soldOrders, setSoldOrders] = useState<SoldOrderLineDto[]>([]);
   const [materials, setMaterials] = useState<MaterialDto[]>([]);
-  const [imports, setImports] = useState<ImportTransactionSummaryDto[]>([]);
-  const [expenses, setExpenses] = useState<ExpenseDto[]>([]);
-  const [expenseCategoryRecords, setExpenseCategoryRecords] = useState<ExpenseCategoryDto[]>([]);
-  const [usageRecords, setUsageRecords] = useState<MaterialUsageRecordDto[]>([]);
   const [stock, setStock] = useState<MaterialStockDto[]>([]);
   const [stockReports, setStockReports] = useState<StockReportSummaryDto[]>([]);
   const [report, setReport] = useState<AccountingReportDto | null>(null);
@@ -375,49 +406,11 @@ export function AdminAccountingTab() {
 
   // ── Material modal ────────────────────────────────────────────────────────
   const [matModal, setMatModal] = useState<{ open: boolean; editing: MaterialDto | null }>({ open: false, editing: null });
-  const [matForm, setMatForm] = useState({ name: "", unit: "pcs", sku: "", description: "" });
-
-  // ── Import modal ──────────────────────────────────────────────────────────
-  const [importModal, setImportModal] = useState<{ open: boolean; editingId: number | null }>({ open: false, editingId: null });
-  const [importForm, setImportForm] = useState({
-    supplier: "", transactionDate: todayIso(), receivedDate: "", invoiceRef: "", notes: "",
-    lines: [{ materialId: 0, quantity: "1", unitPrice: "" }] as ImportLine[],
-  });
-
-  // ── Import expand / details cache ─────────────────────────────────────────
-  const [expandedImports, setExpandedImports] = useState<Record<number, ImportTransactionDto | null>>({});
-
-  // ── Expense modal ─────────────────────────────────────────────────────────
-  const [expModal, setExpModal] = useState<{ open: boolean; editing: ExpenseDto | null }>({ open: false, editing: null });
-  const [expForm, setExpForm] = useState({
-    category: "", name: "", description: "",
-    amount: "", expenseDate: todayIso(), notes: "",
-  });
-
-  // ── Expense category modal ────────────────────────────────────────────────
-  const [catModal, setCatModal] = useState<{ open: boolean; editing: ExpenseCategoryDto | null }>({ open: false, editing: null });
-  const [catForm, setCatForm] = useState({ name: "", description: "" });
-
-  // ── Usage modal ───────────────────────────────────────────────────────────
-  const [usageModal, setUsageModal] = useState<{ open: boolean; editing: MaterialUsageRecordDto | null }>({ open: false, editing: null });
-  const [usageForm, setUsageForm] = useState({
-    materialId: 0,
-    quantityUsed: "1",
-    usageDate: todayIso(),
-    notes: "",
-    orderSource: "none" as "none" | "website" | "external",
-    selectedOrderId: null as number | null,
-    externalOrderId: null as number | null,
-    newExternalLabel: "",
-    newExternalCustomer: "",
-  });
-  const [usageOrderOptions, setUsageOrderOptions] = useState<UsageOrderOptionsDto | null>(null);
-  const [usageStockList, setUsageStockList] = useState<MaterialStockDto[]>([]);
-  const [usageOptsLoading, setUsageOptsLoading] = useState(false);
+  const [matForm, setMatForm] = useState({ name: "", unit: "pcs", sku: "", category: "", reorderThreshold: "0", description: "" });
 
   // ── Delete confirm ────────────────────────────────────────────────────────
   const [deleteTarget, setDeleteTarget] = useState<{
-    type: "material" | "import" | "expense" | "usage" | "expcat"; id: number; name: string;
+    type: "material"; id: number; name: string;
   } | null>(null);
 
   // ── Stock report expansion ────────────────────────────────────────────────
@@ -434,13 +427,17 @@ export function AdminAccountingTab() {
     return data;
   }, []);
 
-  const loadExpenseCategories = useCallback(async () => {
-    const records = await fetchExpenseCategoryRecords();
-    setExpenseCategoryRecords(records);
-  }, []);
-
   const loadForTab = useCallback(
     async (t: AccountingTab, from: string, to: string) => {
+      const selfManaged: AccountingTab[] = [
+        "suppliers", "purchase-orders", "currency-rates",
+        "products", "production", "product-stock", "channels", "sales", "returns",
+        "operating-expenses", "quick-expense", "ledger",
+      ];
+      if (selfManaged.includes(t)) {
+        setLoading(false);
+        return;
+      }
       setLoading(true);
       setError(null);
       try {
@@ -455,24 +452,6 @@ export function AdminAccountingTab() {
           setSoldOrders(data);
         } else if (t === "materials") {
           await loadMaterials();
-        } else if (t === "imports") {
-          const [imps] = await Promise.all([
-            fetchImports(),
-            loadMaterials(),
-          ]);
-          setImports(imps);
-        } else if (t === "expenses") {
-          const [exps] = await Promise.all([
-            fetchExpenses(from, to),
-            loadExpenseCategories(),
-          ]);
-          setExpenses(exps);
-        } else if (t === "usage") {
-          const [usages] = await Promise.all([
-            fetchUsageRecords(),
-            loadMaterials(),
-          ]);
-          setUsageRecords(usages);
         } else if (t === "stock") {
           const data = await fetchMaterialStock();
           setStock(data);
@@ -486,7 +465,7 @@ export function AdminAccountingTab() {
         setLoading(false);
       }
     },
-    [loadMaterials, loadExpenseCategories],
+    [loadMaterials],
   );
 
   useEffect(() => {
@@ -494,14 +473,21 @@ export function AdminAccountingTab() {
   }, [tab]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
-    if (tab === "overview" || tab === "sold" || tab === "expenses") {
+    if (tab === "overview" || tab === "sold") {
       void loadForTab(tab, dateFrom, dateTo);
     }
   }, [dateFrom, dateTo]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ─── Material handlers ────────────────────────────────────────────────────
   const openMatModal = (editing: MaterialDto | null) => {
-    setMatForm({ name: editing?.name ?? "", unit: editing?.unit ?? "pcs", sku: editing?.sku ?? "", description: editing?.description ?? "" });
+    setMatForm({
+      name: editing?.name ?? "",
+      unit: editing?.unit ?? "pcs",
+      sku: editing?.sku ?? "",
+      category: editing?.category ?? "",
+      reorderThreshold: String(editing?.reorderThreshold ?? 0),
+      description: editing?.description ?? "",
+    });
     setMatModal({ open: true, editing });
   };
 
@@ -510,7 +496,14 @@ export function AdminAccountingTab() {
     setModalLoading(true);
     setError(null);
     try {
-      const body = { name: matForm.name.trim(), unit: matForm.unit.trim() || "pcs", sku: matForm.sku.trim() || null, description: matForm.description.trim() || null };
+      const body = {
+        name: matForm.name.trim(),
+        unit: matForm.unit.trim() || "pcs",
+        sku: matForm.sku.trim() || null,
+        category: matForm.category.trim() || null,
+        reorderThreshold: Math.max(0, Number(matForm.reorderThreshold) || 0),
+        description: matForm.description.trim() || null,
+      };
       if (matModal.editing) {
         await updateMaterial(matModal.editing.id, body);
       } else {
@@ -525,270 +518,17 @@ export function AdminAccountingTab() {
     }
   };
 
-  // ─── Import handlers ──────────────────────────────────────────────────────
-  const openImportModal = async (editingId: number | null) => {
-    if (editingId !== null) {
-      setModalLoading(true);
-      try {
-        const full = await fetchImport(editingId);
-        setImportForm({
-          supplier: full.supplier ?? "",
-          transactionDate: full.transactionDate.slice(0, 10),
-          receivedDate: full.receivedDate?.slice(0, 10) ?? "",
-          invoiceRef: full.invoiceRef ?? "",
-          notes: full.notes ?? "",
-          lines: full.lines.length
-            ? full.lines.map((l) => ({ materialId: l.materialId, quantity: String(l.quantity), unitPrice: String(l.unitPrice) }))
-            : [{ materialId: materials[0]?.id ?? 0, quantity: "1", unitPrice: "" }],
-        });
-      } catch (e) {
-        setError(e instanceof Error ? e.message : "Failed to load import");
-        setModalLoading(false);
-        return;
-      }
-      setModalLoading(false);
-    } else {
-      setImportForm({
-        supplier: "", transactionDate: todayIso(), receivedDate: "", invoiceRef: "", notes: "",
-        lines: [{ materialId: materials[0]?.id ?? 0, quantity: "1", unitPrice: "" }],
-      });
-    }
-    setImportModal({ open: true, editingId });
-  };
-
-  const saveImport = async () => {
-    const validLines = importForm.lines.filter(
-      (l) => l.materialId > 0 && l.quantity.trim() && l.unitPrice.trim(),
-    );
-    if (!importForm.transactionDate || validLines.length === 0) return;
-    setModalLoading(true);
-    setError(null);
-    try {
-      const body = {
-        supplier: importForm.supplier.trim() || null,
-        transactionDate: importForm.transactionDate,
-        receivedDate: importForm.receivedDate || null,
-        invoiceRef: importForm.invoiceRef.trim() || null,
-        notes: importForm.notes.trim() || null,
-        lines: validLines.map((l) => ({
-          materialId: l.materialId,
-          quantity: parseFloat(l.quantity),
-          unitPrice: parseFloat(l.unitPrice),
-        })),
-      };
-      if (importModal.editingId !== null) {
-        await updateImport(importModal.editingId, body);
-      } else {
-        await createImport(body);
-      }
-      setImportModal({ open: false, editingId: null });
-      const data = await fetchImports();
-      setImports(data);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Save failed");
-    } finally {
-      setModalLoading(false);
-    }
-  };
-
-  const addImportLine = () =>
-    setImportForm((f) => ({ ...f, lines: [...f.lines, { materialId: materials[0]?.id ?? 0, quantity: "1", unitPrice: "" }] }));
-
-  const removeImportLine = (idx: number) =>
-    setImportForm((f) => ({ ...f, lines: f.lines.filter((_, i) => i !== idx) }));
-
-  const updateImportLine = (idx: number, patch: Partial<ImportLine>) =>
-    setImportForm((f) => ({ ...f, lines: f.lines.map((l, i) => (i === idx ? { ...l, ...patch } : l)) }));
-
-  const toggleExpandImport = async (id: number) => {
-    if (id in expandedImports) {
-      setExpandedImports((prev) => {
-        const next = { ...prev };
-        delete next[id];
-        return next;
-      });
-      return;
-    }
-    setExpandedImports((prev) => ({ ...prev, [id]: null }));
-    try {
-      const detail = await fetchImport(id);
-      setExpandedImports((prev) => ({ ...prev, [id]: detail }));
-    } catch {
-      setExpandedImports((prev) => {
-        const next = { ...prev };
-        delete next[id];
-        return next;
-      });
-    }
-  };
-
-  // ─── Expense category handlers ────────────────────────────────────────────
-  const openCatModal = (editing: ExpenseCategoryDto | null) => {
-    setCatForm({ name: editing?.name ?? "", description: editing?.description ?? "" });
-    setCatModal({ open: true, editing });
-  };
-
-  const saveCat = async () => {
-    if (!catForm.name.trim()) return;
-    setModalLoading(true);
-    setError(null);
-    try {
-      const body = { name: catForm.name.trim(), description: catForm.description.trim() || null };
-      if (catModal.editing) {
-        await updateExpenseCategory(catModal.editing.id, body);
-      } else {
-        await createExpenseCategory(body);
-      }
-      setCatModal({ open: false, editing: null });
-      await loadExpenseCategories();
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Save failed");
-    } finally {
-      setModalLoading(false);
-    }
-  };
-
-  // ─── Expense handlers ─────────────────────────────────────────────────────
-  const expCatNames = expenseCategoryRecords.map((c) => c.name);
-
-  const openExpModal = (editing: ExpenseDto | null) => {
-    setExpForm({
-      category: editing?.category ?? expCatNames[0] ?? "",
-      name: editing?.name ?? "",
-      description: editing?.description ?? "",
-      amount: editing ? String(editing.amount) : "",
-      expenseDate: editing?.expenseDate?.slice(0, 10) ?? todayIso(),
-      notes: editing?.notes ?? "",
-    });
-    setExpModal({ open: true, editing });
-  };
-
-  const saveExpense = async () => {
-    if (!expForm.name.trim() || !expForm.amount) return;
-    const amount = parseFloat(expForm.amount);
-    if (Number.isNaN(amount)) return;
-    setModalLoading(true);
-    setError(null);
-    try {
-      const body = {
-        category: expForm.category,
-        name: expForm.name.trim(),
-        description: expForm.description.trim() || null,
-        amount,
-        expenseDate: expForm.expenseDate,
-        notes: expForm.notes.trim() || null,
-      };
-      if (expModal.editing) {
-        await updateExpense(expModal.editing.id, body);
-      } else {
-        await createExpense(body);
-      }
-      setExpModal({ open: false, editing: null });
-      const data = await fetchExpenses(dateFrom, dateTo);
-      setExpenses(data);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Save failed");
-    } finally {
-      setModalLoading(false);
-    }
-  };
-
-  // ─── Usage handlers ───────────────────────────────────────────────────────
-  const openUsageModal = async (editing: MaterialUsageRecordDto | null) => {
-    setUsageForm({
-      materialId: editing?.materialId ?? materials[0]?.id ?? 0,
-      quantityUsed: editing ? String(editing.quantityUsed) : "1",
-      usageDate: editing?.usageDate?.slice(0, 10) ?? todayIso(),
-      notes: editing?.notes ?? "",
-      orderSource: editing?.orderId != null ? "website" : editing?.externalOrderId != null ? "external" : "none",
-      selectedOrderId: editing?.orderId ?? null,
-      externalOrderId: editing?.externalOrderId ?? null,
-      newExternalLabel: "",
-      newExternalCustomer: "",
-    });
-    setUsageModal({ open: true, editing });
-    setUsageOptsLoading(true);
-    try {
-      const [opts, stockData] = await Promise.all([
-        fetchUsageOrderOptions(),
-        fetchMaterialStock(),
-      ]);
-      setUsageOrderOptions(opts);
-      setUsageStockList(stockData);
-    } catch {
-      // non-fatal; order options remain null
-    } finally {
-      setUsageOptsLoading(false);
-    }
-  };
-
-  const saveUsage = async () => {
-    if (!usageForm.materialId || !usageForm.quantityUsed) return;
-    const qty = parseFloat(usageForm.quantityUsed);
-    if (Number.isNaN(qty)) return;
-    setModalLoading(true);
-    setError(null);
-    try {
-      let finalOrderId: number | null = null;
-      let finalExternalOrderId: number | null = null;
-
-      if (usageForm.orderSource === "website") {
-        finalOrderId = usageForm.selectedOrderId;
-      } else if (usageForm.orderSource === "external") {
-        if (usageForm.externalOrderId === null) {
-          const ext = await createExternalOrder({
-            label: usageForm.newExternalLabel.trim() || null,
-            customerName: usageForm.newExternalCustomer.trim() || null,
-            orderDate: usageForm.usageDate,
-          });
-          finalExternalOrderId = ext.id;
-        } else {
-          finalExternalOrderId = usageForm.externalOrderId;
-        }
-      }
-
-      const body = {
-        materialId: usageForm.materialId,
-        orderId: finalOrderId,
-        externalOrderId: finalExternalOrderId,
-        quantityUsed: qty,
-        usageDate: usageForm.usageDate,
-        notes: usageForm.notes.trim() || null,
-      };
-      if (usageModal.editing) {
-        await updateUsage(usageModal.editing.id, body);
-      } else {
-        await createUsage(body);
-      }
-      setUsageModal({ open: false, editing: null });
-      const data = await fetchUsageRecords();
-      setUsageRecords(data);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Save failed");
-    } finally {
-      setModalLoading(false);
-    }
-  };
-
   // ─── Delete handler ───────────────────────────────────────────────────────
   const handleDelete = async () => {
     if (!deleteTarget) return;
     setModalLoading(true);
     setError(null);
     try {
-      if (deleteTarget.type === "material") await deleteMaterial(deleteTarget.id);
-      else if (deleteTarget.type === "import") await deleteImport(deleteTarget.id);
-      else if (deleteTarget.type === "expense") await deleteExpense(deleteTarget.id);
-      else if (deleteTarget.type === "expcat") await deleteExpenseCategory(deleteTarget.id);
-      else await deleteUsage(deleteTarget.id);
+      await deleteMaterial(deleteTarget.id);
       setDeleteTarget(null);
-      if (deleteTarget.type === "material") await loadMaterials();
-      else if (deleteTarget.type === "import") { const d = await fetchImports(); setImports(d); }
-      else if (deleteTarget.type === "expense") { const d = await fetchExpenses(dateFrom, dateTo); setExpenses(d); }
-      else if (deleteTarget.type === "expcat") { await loadExpenseCategories(); }
-      else { const d = await fetchUsageRecords(); setUsageRecords(d); }
+      await loadMaterials();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Delete failed");
+      setError(e instanceof Error ? e.message : "Void failed");
     } finally {
       setModalLoading(false);
     }
@@ -1032,6 +772,23 @@ export function AdminAccountingTab() {
         </>
       )}
 
+      {/* ── Phase 2 procurement views ───────────────────────────────────── */}
+      {(tab === "suppliers" || tab === "purchase-orders" || tab === "currency-rates") && (
+        <AdminProcurementView view={tab} />
+      )}
+
+      {/* ── Phases 3–9 accounting domain views ──────────────────────────── */}
+      {tab === "products" && <AdminProductAccountingView />}
+      {tab === "production" && <AdminProductionView />}
+      {tab === "product-stock" && <AdminFinishedStockView />}
+      {tab === "channels" && <AdminSalesView mode="channels" />}
+      {tab === "sales" && <AdminSalesView mode="sales" />}
+      {tab === "customers" && <AdminCustomersView />}
+      {tab === "returns" && <AdminReturnsView />}
+      {tab === "operating-expenses" && <AdminOperatingExpensesView mode="list" />}
+      {tab === "quick-expense" && <AdminOperatingExpensesView mode="quick" />}
+      {tab === "ledger" && <AdminAccountingReportsView />}
+
       {/* ── Materials ─────────────────────────────────────────────────────── */}
       {tab === "materials" && (
         <>
@@ -1043,7 +800,7 @@ export function AdminAccountingTab() {
             </PrimaryButton>
           </div>
           <div className="rounded-[28px] overflow-hidden hidden md:block" style={cardBorder}>
-            <TableHeader cols={["Name", "SKU", "Unit", "Active", "Actions"]} widths="1.5fr 1fr 0.8fr 0.6fr 100px" />
+            <TableHeader cols={["Name", "Category", "SKU", "Unit", "Reorder at", "Active", "Actions"]} widths="1.5fr 1fr 0.8fr 0.55fr 0.75fr 0.55fr 100px" />
             <div className="divide-y" style={{ borderColor: "rgba(45,36,30,0.06)" }}>
               {materials.length === 0 ? (
                 <EmptyRow message="No materials yet" />
@@ -1052,14 +809,16 @@ export function AdminAccountingTab() {
                   <div
                     key={m.id}
                     className="grid items-center px-6 py-4 hover:bg-[#2D241E]/[0.03] transition-colors duration-200"
-                    style={{ gridTemplateColumns: "1.5fr 1fr 0.8fr 0.6fr 100px", fontFamily: "'DM Sans', sans-serif" }}
+                    style={{ gridTemplateColumns: "1.5fr 1fr 0.8fr 0.55fr 0.75fr 0.55fr 100px", fontFamily: "'DM Sans', sans-serif" }}
                   >
                     <div>
                       <p className="text-[#2D241E]" style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "1.05rem" }}>{m.name}</p>
                       {m.description && <p className="text-xs text-[#2D241E]/45 mt-0.5">{m.description}</p>}
                     </div>
+                    <span className="text-sm text-[#2D241E]/60">{m.category || "—"}</span>
                     <span className="text-sm text-[#2D241E]/60">{m.sku || "—"}</span>
                     <span className="text-sm text-[#2D241E]/60">{m.unit}</span>
+                    <span className="text-sm text-[#2D241E]/60">{m.reorderThreshold} {m.unit}</span>
                     <span className="text-sm text-[#2D241E]/60">{m.isActive ? "Yes" : "No"}</span>
                     <ActionButtons onEdit={() => openMatModal(m)} onDelete={() => setDeleteTarget({ type: "material", id: m.id, name: m.name })} />
                   </div>
@@ -1075,313 +834,10 @@ export function AdminAccountingTab() {
                 <MobileCard
                   key={m.id}
                   title={m.name}
-                  subtitle={`${m.unit}${m.sku ? ` · SKU: ${m.sku}` : ""}`}
+                  subtitle={`${m.category ? `${m.category} · ` : ""}${m.unit}${m.sku ? ` · SKU: ${m.sku}` : ""} · reorder at ${m.reorderThreshold}`}
                   extra={m.description || undefined}
                   onEdit={() => openMatModal(m)}
                   onDelete={() => setDeleteTarget({ type: "material", id: m.id, name: m.name })}
-                />
-              ))
-            )}
-          </div>
-        </>
-      )}
-
-      {/* ── Imports ───────────────────────────────────────────────────────── */}
-      {tab === "imports" && (
-        <>
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
-            <p className="text-[#2D241E]/50 text-sm" style={{ fontFamily: "'DM Sans', sans-serif" }}>{imports.length} import transactions</p>
-            <PrimaryButton onClick={() => void openImportModal(null)} disabled={materials.length === 0}>
-              <Plus size={14} />
-              <span className="uppercase tracking-widest">New import</span>
-            </PrimaryButton>
-          </div>
-          {materials.length === 0 && (
-            <p className="mb-4 text-sm text-[#4A0E0E]/80" style={{ fontFamily: "'DM Sans', sans-serif" }}>Add materials first before recording imports.</p>
-          )}
-
-          {/* Desktop table */}
-          <div className="rounded-[28px] overflow-hidden hidden md:block" style={cardBorder}>
-            <div
-              className="grid px-6 py-4 text-xs uppercase"
-              style={{
-                gridTemplateColumns: "0.9fr 1.2fr 1fr 0.5fr 0.8fr 100px 40px",
-                fontFamily: "'DM Sans', sans-serif",
-                letterSpacing: "0.12em",
-                color: "rgba(45,36,30,0.4)",
-                backgroundColor: "rgba(45,36,30,0.03)",
-                borderBottom: "1px solid rgba(45,36,30,0.06)",
-              }}
-            >
-              {["Date", "Supplier", "Invoice ref", "Items", "Total", "Actions", ""].map((c) => <span key={c}>{c}</span>)}
-            </div>
-            <div className="divide-y" style={{ borderColor: "rgba(45,36,30,0.06)" }}>
-              {imports.length === 0 ? (
-                <EmptyRow message="No imports yet" />
-              ) : (
-                imports.map((imp) => {
-                  const expanded = imp.id in expandedImports;
-                  const detail = expandedImports[imp.id];
-                  return (
-                    <div key={imp.id}>
-                      <div
-                        className="grid items-center px-6 py-4 hover:bg-[#2D241E]/[0.03] transition-colors duration-200 text-sm"
-                        style={{ gridTemplateColumns: "0.9fr 1.2fr 1fr 0.5fr 0.8fr 100px 40px", fontFamily: "'DM Sans', sans-serif" }}
-                      >
-                        <span className="text-[#2D241E]/60">{formatDate(imp.transactionDate)}</span>
-                        <span className="text-[#2D241E]">{imp.supplier || "—"}</span>
-                        <span className="text-[#2D241E]/60">{imp.invoiceRef || "—"}</span>
-                        <span className="text-[#2D241E]/60">{imp.lineCount}</span>
-                        <span className="text-[#2D241E] font-medium">{formatMoney(imp.totalAmount)}</span>
-                        <ActionButtons
-                          onEdit={() => void openImportModal(imp.id)}
-                          onDelete={() => setDeleteTarget({ type: "import", id: imp.id, name: imp.supplier ?? `Import #${imp.id}` })}
-                        />
-                        <button
-                          type="button"
-                          onClick={() => void toggleExpandImport(imp.id)}
-                          className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-[#2D241E]/8 transition-colors cursor-pointer"
-                        >
-                          {expanded
-                            ? <ChevronUp size={15} style={{ color: "#2D241E", opacity: 0.5 }} />
-                            : <ChevronDown size={15} style={{ color: "#2D241E", opacity: 0.5 }} />}
-                        </button>
-                      </div>
-                      {expanded && (
-                        <div style={{ borderTop: "1px solid rgba(45,36,30,0.06)" }}>
-                          {detail === null ? (
-                            <div className="flex justify-center py-6">
-                              <Loader2 size={18} className="animate-spin" style={{ color: "#2D241E", opacity: 0.4 }} />
-                            </div>
-                          ) : (
-                            <div className="overflow-x-auto">
-                              <table className="w-full text-sm" style={{ fontFamily: "'DM Sans', sans-serif" }}>
-                                <thead>
-                                  <tr style={{ backgroundColor: "rgba(45,36,30,0.02)", borderBottom: "1px solid rgba(45,36,30,0.06)" }}>
-                                    {["Material", "Unit", "Qty", "Unit price", "Line total"].map((h) => (
-                                      <th key={h} className="px-6 py-2.5 text-left text-xs font-normal" style={{ color: "rgba(45,36,30,0.4)", letterSpacing: "0.1em", textTransform: "uppercase" }}>{h}</th>
-                                    ))}
-                                  </tr>
-                                </thead>
-                                <tbody className="divide-y" style={{ borderColor: "rgba(45,36,30,0.06)" }}>
-                                  {detail.lines.map((ln) => (
-                                    <tr key={ln.id} className="hover:bg-[#2D241E]/[0.02] transition-colors">
-                                      <td className="px-6 py-2.5 text-[#2D241E]">{ln.materialName}</td>
-                                      <td className="px-6 py-2.5 text-[#2D241E]/60">{ln.materialUnit}</td>
-                                      <td className="px-6 py-2.5 text-[#2D241E]/60">{ln.quantity}</td>
-                                      <td className="px-6 py-2.5 text-[#2D241E]/60">{formatMoney(ln.unitPrice)}</td>
-                                      <td className="px-6 py-2.5 text-[#2D241E] font-medium">{formatMoney(ln.lineTotal)}</td>
-                                    </tr>
-                                  ))}
-                                </tbody>
-                              </table>
-                            </div>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  );
-                })
-              )}
-            </div>
-          </div>
-
-          {/* Mobile cards */}
-          <div className="md:hidden space-y-3">
-            {imports.length === 0 ? (
-              <EmptyCard message="No imports yet" />
-            ) : (
-              imports.map((imp) => (
-                <div key={imp.id} className="rounded-[20px] p-4" style={{ ...cardBorder, backgroundColor: "rgba(255,255,255,0.45)" }}>
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <p className="text-[#2D241E]" style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "1.15rem" }}>
-                        {imp.supplier ?? `Import #${imp.id}`}
-                      </p>
-                      <p className="text-xs text-[#2D241E]/50 mt-0.5" style={{ fontFamily: "'DM Sans', sans-serif" }}>
-                        {formatDate(imp.transactionDate)} · {imp.lineCount} items · {formatMoney(imp.totalAmount)}
-                      </p>
-                      {imp.invoiceRef && <p className="text-xs text-[#2D241E]/45 mt-1" style={{ fontFamily: "'DM Sans', sans-serif" }}>Invoice: {imp.invoiceRef}</p>}
-                    </div>
-                    <ActionButtons
-                      onEdit={() => void openImportModal(imp.id)}
-                      onDelete={() => setDeleteTarget({ type: "import", id: imp.id, name: imp.supplier ?? `Import #${imp.id}` })}
-                    />
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
-        </>
-      )}
-
-      {/* ── Usage ─────────────────────────────────────────────────────────── */}
-      {tab === "usage" && (
-        <>
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
-            <p className="text-[#2D241E]/50 text-sm" style={{ fontFamily: "'DM Sans', sans-serif" }}>{usageRecords.length} usage records</p>
-            <PrimaryButton onClick={() => void openUsageModal(null)} disabled={materials.length === 0}>
-              <Plus size={14} />
-              <span className="uppercase tracking-widest">Log usage</span>
-            </PrimaryButton>
-          </div>
-          {materials.length === 0 && (
-            <p className="mb-4 text-sm text-[#4A0E0E]/80" style={{ fontFamily: "'DM Sans', sans-serif" }}>Add materials first before logging usage.</p>
-          )}
-          <div className="rounded-[28px] overflow-x-auto hidden md:block" style={cardBorder}>
-            <TableHeader cols={["Material", "Date", "Qty", "Order", "Notes", "Actions"]} widths="1.4fr 0.9fr 0.5fr 1.1fr 1.5fr 100px" />
-            <div className="divide-y" style={{ borderColor: "rgba(45,36,30,0.06)" }}>
-              {usageRecords.length === 0 ? (
-                <EmptyRow message="No usage records yet" />
-              ) : (
-                usageRecords.map((u) => (
-                  <div
-                    key={u.id}
-                    className="grid items-center px-6 py-4 hover:bg-[#2D241E]/[0.03] transition-colors duration-200 text-sm"
-                    style={{ gridTemplateColumns: "1.4fr 0.9fr 0.5fr 1.1fr 1.5fr 100px", fontFamily: "'DM Sans', sans-serif" }}
-                  >
-                    <span className="text-[#2D241E]">{u.materialName}</span>
-                    <span className="text-[#2D241E]/60">{formatDate(u.usageDate)}</span>
-                    <span className="text-[#2D241E]/60">{u.quantityUsed}</span>
-                    <span className="text-[#2D241E]/60 truncate">{u.orderDisplay ?? "—"}</span>
-                    <span className="text-[#2D241E]/55 truncate">{u.notes || "—"}</span>
-                    <ActionButtons
-                      onEdit={() => void openUsageModal(u)}
-                      onDelete={() => setDeleteTarget({ type: "usage", id: u.id, name: `${u.materialName} (${formatDate(u.usageDate)})` })}
-                    />
-                  </div>
-                ))
-              )}
-            </div>
-          </div>
-          <div className="md:hidden space-y-3">
-            {usageRecords.length === 0 ? (
-              <EmptyCard message="No usage records yet" />
-            ) : (
-              usageRecords.map((u) => (
-                <MobileCard
-                  key={u.id}
-                  title={u.materialName}
-                  subtitle={`${formatDate(u.usageDate)} · qty: ${u.quantityUsed}${u.orderDisplay ? ` · ${u.orderDisplay}` : ""}`}
-                  extra={u.notes || undefined}
-                  onEdit={() => void openUsageModal(u)}
-                  onDelete={() => setDeleteTarget({ type: "usage", id: u.id, name: `${u.materialName} (${formatDate(u.usageDate)})` })}
-                />
-              ))
-            )}
-          </div>
-        </>
-      )}
-
-      {/* ── Expenses ──────────────────────────────────────────────────────── */}
-      {tab === "expenses" && (
-        <>
-          {dateRangeBar}
-
-          {/* Categories section */}
-          <div className="rounded-[20px] overflow-hidden mb-6" style={{ ...cardBorder, backgroundColor: "rgba(255,255,255,0.35)" }}>
-            <div
-              className="flex items-center justify-between px-5 py-3.5"
-              style={{ backgroundColor: "rgba(45,36,30,0.03)", borderBottom: "1px solid rgba(45,36,30,0.06)" }}
-            >
-              <span className="text-[#2D241E]" style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "1.1rem", fontWeight: 400 }}>
-                Categories
-                <span className="ml-2 text-xs text-[#2D241E]/40" style={{ fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.08em" }}>
-                  {expenseCategoryRecords.length}
-                </span>
-              </span>
-              <button
-                type="button"
-                onClick={() => openCatModal(null)}
-                className="flex items-center gap-1.5 text-xs text-[#2D241E]/60 hover:text-[#2D241E] transition-colors cursor-pointer"
-                style={{ fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.08em" }}
-              >
-                <Plus size={12} /> Add
-              </button>
-            </div>
-            {expenseCategoryRecords.length === 0 ? (
-              <p className="px-5 py-4 text-xs text-[#2D241E]/40" style={{ fontFamily: "'DM Sans', sans-serif" }}>
-                No categories yet. Add one to categorise your expenses.
-              </p>
-            ) : (
-              <div className="divide-y" style={{ borderColor: "rgba(45,36,30,0.06)" }}>
-                {expenseCategoryRecords.map((cat) => (
-                  <div key={cat.id} className="flex items-center justify-between px-5 py-3 gap-3">
-                    <div className="min-w-0">
-                      <span className="text-sm text-[#2D241E]" style={{ fontFamily: "'DM Sans', sans-serif" }}>{cat.name}</span>
-                      {cat.description && (
-                        <span className="ml-2 text-xs text-[#2D241E]/45">{cat.description}</span>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-1 flex-shrink-0">
-                      <button
-                        type="button"
-                        onClick={() => openCatModal(cat)}
-                        className="w-7 h-7 rounded-full flex items-center justify-center hover:bg-[#2D241E]/8 transition-colors cursor-pointer"
-                        title="Edit"
-                      >
-                        <Pencil size={12} style={{ color: "#2D241E", opacity: 0.5 }} />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setDeleteTarget({ type: "expcat", id: cat.id, name: cat.name })}
-                        className="w-7 h-7 rounded-full flex items-center justify-center hover:bg-[#4A0E0E]/8 transition-colors cursor-pointer"
-                        title="Delete"
-                      >
-                        <Trash2 size={12} style={{ color: "#4A0E0E", opacity: 0.6 }} />
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
-            <p className="text-[#2D241E]/50 text-sm" style={{ fontFamily: "'DM Sans', sans-serif" }}>{expenses.length} expenses</p>
-            <PrimaryButton onClick={() => openExpModal(null)}>
-              <Plus size={14} />
-              <span className="uppercase tracking-widest">Add expense</span>
-            </PrimaryButton>
-          </div>
-          <div className="rounded-[28px] overflow-x-auto hidden md:block" style={cardBorder}>
-            <TableHeader cols={["Name", "Category", "Date", "Amount", "Notes", "Actions"]} widths="1.4fr 1fr 0.9fr 0.8fr 1.4fr 100px" />
-            <div className="divide-y" style={{ borderColor: "rgba(45,36,30,0.06)" }}>
-              {expenses.length === 0 ? (
-                <EmptyRow message="No expenses in this period" />
-              ) : (
-                expenses.map((ex) => (
-                  <div
-                    key={ex.id}
-                    className="grid items-center px-6 py-4 hover:bg-[#2D241E]/[0.03] transition-colors duration-200 text-sm"
-                    style={{ gridTemplateColumns: "1.4fr 1fr 0.9fr 0.8fr 1.4fr 100px", fontFamily: "'DM Sans', sans-serif" }}
-                  >
-                    <span className="text-[#2D241E]">{ex.name}</span>
-                    <span className="text-[#2D241E]/60">{ex.category}</span>
-                    <span className="text-[#2D241E]/60">{formatDate(ex.expenseDate)}</span>
-                    <span className="text-[#2D241E] font-medium">{formatMoney(ex.amount)}</span>
-                    <span className="text-[#2D241E]/55 truncate">{ex.notes || ex.description || "—"}</span>
-                    <ActionButtons
-                      onEdit={() => openExpModal(ex)}
-                      onDelete={() => setDeleteTarget({ type: "expense", id: ex.id, name: ex.name })}
-                    />
-                  </div>
-                ))
-              )}
-            </div>
-          </div>
-          <div className="md:hidden space-y-3">
-            {expenses.length === 0 ? (
-              <EmptyCard message="No expenses in this period" />
-            ) : (
-              expenses.map((ex) => (
-                <MobileCard
-                  key={ex.id}
-                  title={ex.name}
-                  subtitle={`${ex.category} · ${formatDate(ex.expenseDate)} · ${formatMoney(ex.amount)}`}
-                  extra={ex.notes || ex.description || undefined}
-                  onEdit={() => openExpModal(ex)}
-                  onDelete={() => setDeleteTarget({ type: "expense", id: ex.id, name: ex.name })}
                 />
               ))
             )}
@@ -1669,6 +1125,16 @@ export function AdminAccountingTab() {
                   <TextInput value={matForm.sku} onChange={(e) => setMatForm((f) => ({ ...f, sku: e.target.value }))} placeholder="e.g. YRN-001" />
                 </div>
               </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <FieldLabel>Category (optional)</FieldLabel>
+                  <TextInput value={matForm.category} onChange={(e) => setMatForm((f) => ({ ...f, category: e.target.value }))} placeholder="e.g. Yarn, Packaging" />
+                </div>
+                <div>
+                  <FieldLabel>Reorder threshold</FieldLabel>
+                  <TextInput type="number" min={0} step="0.001" value={matForm.reorderThreshold} onChange={(e) => setMatForm((f) => ({ ...f, reorderThreshold: e.target.value }))} />
+                </div>
+              </div>
               <div>
                 <FieldLabel>Description (optional)</FieldLabel>
                 <TextArea value={matForm.description} onChange={(e) => setMatForm((f) => ({ ...f, description: e.target.value }))} />
@@ -1677,320 +1143,6 @@ export function AdminAccountingTab() {
             <div className="flex gap-3 justify-end">
               <GhostButton onClick={() => setMatModal({ open: false, editing: null })}>Cancel</GhostButton>
               <PrimaryButton onClick={() => void saveMaterial()} disabled={modalLoading || !matForm.name.trim()}>
-                {modalLoading ? <Loader2 size={14} className="animate-spin" /> : null}
-                Save
-              </PrimaryButton>
-            </div>
-          </ModalShell>
-        )}
-
-        {/* Import modal */}
-        {importModal.open && (
-          <ModalShell title={importModal.editingId !== null ? "Edit import" : "New import transaction"} onClose={() => setImportModal({ open: false, editingId: null })} wide>
-            <div className="space-y-4 mb-6">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <FieldLabel>Supplier</FieldLabel>
-                  <TextInput value={importForm.supplier} onChange={(e) => setImportForm((f) => ({ ...f, supplier: e.target.value }))} placeholder="Supplier name" />
-                </div>
-                <div>
-                  <FieldLabel>Invoice ref</FieldLabel>
-                  <TextInput value={importForm.invoiceRef} onChange={(e) => setImportForm((f) => ({ ...f, invoiceRef: e.target.value }))} placeholder="INV-0001" />
-                </div>
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <FieldLabel>Transaction date</FieldLabel>
-                  <TextInput type="date" value={importForm.transactionDate} onChange={(e) => setImportForm((f) => ({ ...f, transactionDate: e.target.value }))} />
-                </div>
-                <div>
-                  <FieldLabel>Received date (optional)</FieldLabel>
-                  <TextInput type="date" value={importForm.receivedDate} onChange={(e) => setImportForm((f) => ({ ...f, receivedDate: e.target.value }))} />
-                </div>
-              </div>
-              <div>
-                <FieldLabel>Notes (optional)</FieldLabel>
-                <TextArea value={importForm.notes} onChange={(e) => setImportForm((f) => ({ ...f, notes: e.target.value }))} />
-              </div>
-
-              {/* Line items */}
-              <div>
-                <div className="flex items-center justify-between mb-2">
-                  <span style={labelStyle}>Line items</span>
-                  <button
-                    type="button"
-                    onClick={addImportLine}
-                    className="flex items-center gap-1.5 text-xs text-[#2D241E]/60 hover:text-[#2D241E] transition-colors cursor-pointer"
-                    style={{ fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.08em" }}
-                  >
-                    <Plus size={12} /> Add line
-                  </button>
-                </div>
-                <div className="space-y-2">
-                  {importForm.lines.map((line, idx) => (
-                    <div key={idx} className="grid grid-cols-[1fr_90px_90px_32px] gap-2 items-end">
-                      <div>
-                        {idx === 0 && <FieldLabel>Material</FieldLabel>}
-                        <SelectInput
-                          value={line.materialId}
-                          onChange={(e) => updateImportLine(idx, { materialId: Number(e.target.value) })}
-                        >
-                          <option value={0} disabled>Select material</option>
-                          {materials.map((m) => (
-                            <option key={m.id} value={m.id}>{m.name} ({m.unit})</option>
-                          ))}
-                        </SelectInput>
-                      </div>
-                      <div>
-                        {idx === 0 && <FieldLabel>Qty</FieldLabel>}
-                        <TextInput
-                          type="number"
-                          min={0}
-                          step="0.001"
-                          value={line.quantity}
-                          onChange={(e) => updateImportLine(idx, { quantity: e.target.value })}
-                          placeholder="0"
-                        />
-                      </div>
-                      <div>
-                        {idx === 0 && <FieldLabel>Unit price (₴)</FieldLabel>}
-                        <TextInput
-                          type="number"
-                          min={0}
-                          step="0.01"
-                          value={line.unitPrice}
-                          onChange={(e) => updateImportLine(idx, { unitPrice: e.target.value })}
-                          placeholder="0.00"
-                        />
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => removeImportLine(idx)}
-                        disabled={importForm.lines.length === 1}
-                        className="w-8 h-[42px] rounded-xl flex items-center justify-center hover:bg-[#4A0E0E]/8 transition-colors cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
-                      >
-                        <X size={13} style={{ color: "#4A0E0E", opacity: 0.7 }} />
-                      </button>
-                    </div>
-                  ))}
-                </div>
-                {importForm.lines.some((l) => l.quantity && l.unitPrice) && (
-                  <p className="mt-2 text-xs text-right text-[#2D241E]/50" style={{ fontFamily: "'DM Sans', sans-serif" }}>
-                    Total: {formatMoney(importForm.lines.reduce((sum, l) => {
-                      const q = parseFloat(l.quantity) || 0;
-                      const p = parseFloat(l.unitPrice) || 0;
-                      return sum + q * p;
-                    }, 0))}
-                  </p>
-                )}
-              </div>
-            </div>
-            <div className="flex gap-3 justify-end">
-              <GhostButton onClick={() => setImportModal({ open: false, editingId: null })}>Cancel</GhostButton>
-              <PrimaryButton onClick={() => void saveImport()} disabled={modalLoading}>
-                {modalLoading ? <Loader2 size={14} className="animate-spin" /> : null}
-                Save
-              </PrimaryButton>
-            </div>
-          </ModalShell>
-        )}
-
-        {/* Expense category modal */}
-        {catModal.open && (
-          <ModalShell title={catModal.editing ? "Edit category" : "New category"} onClose={() => setCatModal({ open: false, editing: null })}>
-            <div className="space-y-4 mb-6">
-              <div>
-                <FieldLabel>Name</FieldLabel>
-                <TextInput value={catForm.name} onChange={(e) => setCatForm((f) => ({ ...f, name: e.target.value }))} placeholder="e.g. Marketing" />
-              </div>
-              <div>
-                <FieldLabel>Description (optional)</FieldLabel>
-                <TextInput value={catForm.description} onChange={(e) => setCatForm((f) => ({ ...f, description: e.target.value }))} placeholder="Short description" />
-              </div>
-            </div>
-            <div className="flex gap-3 justify-end">
-              <GhostButton onClick={() => setCatModal({ open: false, editing: null })}>Cancel</GhostButton>
-              <PrimaryButton onClick={() => void saveCat()} disabled={modalLoading || !catForm.name.trim()}>
-                {modalLoading ? <Loader2 size={14} className="animate-spin" /> : null}
-                Save
-              </PrimaryButton>
-            </div>
-          </ModalShell>
-        )}
-
-        {/* Expense modal */}
-        {expModal.open && (
-          <ModalShell title={expModal.editing ? "Edit expense" : "New expense"} onClose={() => setExpModal({ open: false, editing: null })}>
-            <div className="space-y-4 mb-6">
-              <div>
-                <FieldLabel>Category</FieldLabel>
-                <SelectInput value={expForm.category} onChange={(e) => setExpForm((f) => ({ ...f, category: e.target.value }))}>
-                  {expCatNames.length === 0 ? (
-                    <option value="" disabled>No categories — add one in the Expenses tab</option>
-                  ) : (
-                    expCatNames.map((c) => <option key={c} value={c}>{c}</option>)
-                  )}
-                </SelectInput>
-              </div>
-              <div>
-                <FieldLabel>Name</FieldLabel>
-                <TextInput value={expForm.name} onChange={(e) => setExpForm((f) => ({ ...f, name: e.target.value }))} placeholder="Expense name" />
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <FieldLabel>Amount (₴)</FieldLabel>
-                  <TextInput type="number" min={0} step="0.01" value={expForm.amount} onChange={(e) => setExpForm((f) => ({ ...f, amount: e.target.value }))} placeholder="0.00" />
-                </div>
-                <div>
-                  <FieldLabel>Date</FieldLabel>
-                  <TextInput type="date" value={expForm.expenseDate} onChange={(e) => setExpForm((f) => ({ ...f, expenseDate: e.target.value }))} />
-                </div>
-              </div>
-              <div>
-                <FieldLabel>Description (optional)</FieldLabel>
-                <TextArea value={expForm.description} onChange={(e) => setExpForm((f) => ({ ...f, description: e.target.value }))} />
-              </div>
-              <div>
-                <FieldLabel>Notes (optional)</FieldLabel>
-                <TextInput value={expForm.notes} onChange={(e) => setExpForm((f) => ({ ...f, notes: e.target.value }))} />
-              </div>
-            </div>
-            <div className="flex gap-3 justify-end">
-              <GhostButton onClick={() => setExpModal({ open: false, editing: null })}>Cancel</GhostButton>
-              <PrimaryButton onClick={() => void saveExpense()} disabled={modalLoading || !expForm.name.trim() || !expForm.amount}>
-                {modalLoading ? <Loader2 size={14} className="animate-spin" /> : null}
-                Save
-              </PrimaryButton>
-            </div>
-          </ModalShell>
-        )}
-
-        {/* Usage modal */}
-        {usageModal.open && (
-          <ModalShell title={usageModal.editing ? "Edit usage record" : "Log material usage"} onClose={() => setUsageModal({ open: false, editing: null })}>
-            <div className="space-y-4 mb-6">
-              <div>
-                <FieldLabel>Material</FieldLabel>
-                <SelectInput value={usageForm.materialId} onChange={(e) => setUsageForm((f) => ({ ...f, materialId: Number(e.target.value) }))}>
-                  <option value={0} disabled>Select material</option>
-                  {materials.map((m) => <option key={m.id} value={m.id}>{m.name} ({m.unit})</option>)}
-                </SelectInput>
-                {usageForm.materialId > 0 && (() => {
-                  const stockEntry = usageStockList.find((s) => s.materialId === usageForm.materialId);
-                  if (!stockEntry) return null;
-                  return (
-                    <p className="mt-1.5 text-xs text-[#2D241E]/55" style={{ fontFamily: "'DM Sans', sans-serif" }}>
-                      Available: <span style={{ color: stockEntry.qtyOnHand < 0 ? "#4A0E0E" : undefined }}>{stockEntry.qtyOnHand}</span> {stockEntry.unit}
-                    </p>
-                  );
-                })()}
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <FieldLabel>Quantity used</FieldLabel>
-                  <TextInput type="number" min={0} step="0.001" value={usageForm.quantityUsed} onChange={(e) => setUsageForm((f) => ({ ...f, quantityUsed: e.target.value }))} />
-                </div>
-                <div>
-                  <FieldLabel>Date</FieldLabel>
-                  <TextInput type="date" value={usageForm.usageDate} onChange={(e) => setUsageForm((f) => ({ ...f, usageDate: e.target.value }))} />
-                </div>
-              </div>
-
-              {/* Order source */}
-              <div>
-                <FieldLabel>Linked order</FieldLabel>
-                <div className="flex gap-4 mb-3">
-                  {(["none", "website", "external"] as const).map((src) => (
-                    <label key={src} className="flex items-center gap-1.5 text-sm text-[#2D241E]/70 cursor-pointer" style={{ fontFamily: "'DM Sans', sans-serif" }}>
-                      <input
-                        type="radio"
-                        name="orderSource"
-                        value={src}
-                        checked={usageForm.orderSource === src}
-                        onChange={() => setUsageForm((f) => ({ ...f, orderSource: src, selectedOrderId: null, externalOrderId: null }))}
-                        className="accent-[#2D241E] cursor-pointer"
-                      />
-                      <span className="capitalize">{src === "none" ? "None" : src === "website" ? "Website order" : "External order"}</span>
-                    </label>
-                  ))}
-                </div>
-
-                {usageForm.orderSource === "website" && (
-                  <div>
-                    {usageOptsLoading ? (
-                      <div className="flex items-center gap-2 text-xs text-[#2D241E]/50 py-2" style={{ fontFamily: "'DM Sans', sans-serif" }}>
-                        <Loader2 size={12} className="animate-spin" /> Loading orders…
-                      </div>
-                    ) : (
-                      <SelectInput
-                        value={usageForm.selectedOrderId ?? ""}
-                        onChange={(e) => setUsageForm((f) => ({ ...f, selectedOrderId: e.target.value ? Number(e.target.value) : null }))}
-                      >
-                        <option value="">— Select website order —</option>
-                        {(usageOrderOptions?.websiteOrders ?? []).map((o) => (
-                          <option key={o.orderId} value={o.orderId}>
-                            {o.displayId} — {o.customerName} ({formatDate(o.orderDate)}) {formatMoney(o.total)}
-                          </option>
-                        ))}
-                      </SelectInput>
-                    )}
-                  </div>
-                )}
-
-                {usageForm.orderSource === "external" && (
-                  <div className="space-y-3">
-                    {usageOptsLoading ? (
-                      <div className="flex items-center gap-2 text-xs text-[#2D241E]/50 py-2" style={{ fontFamily: "'DM Sans', sans-serif" }}>
-                        <Loader2 size={12} className="animate-spin" /> Loading orders…
-                      </div>
-                    ) : (
-                      <SelectInput
-                        value={usageForm.externalOrderId !== null ? String(usageForm.externalOrderId) : ""}
-                        onChange={(e) => setUsageForm((f) => ({ ...f, externalOrderId: e.target.value ? Number(e.target.value) : null }))}
-                      >
-                        <option value="">+ Create new external order</option>
-                        {(usageOrderOptions?.externalOrders ?? []).map((o) => (
-                          <option key={o.id} value={o.id}>
-                            {o.displayId}{o.label ? ` — ${o.label}` : ""}{o.customerName ? ` (${o.customerName})` : ""}
-                          </option>
-                        ))}
-                      </SelectInput>
-                    )}
-                    {usageForm.externalOrderId === null && (
-                      <div className="rounded-xl p-3 space-y-3" style={{ backgroundColor: "rgba(45,36,30,0.04)", border: "1px solid rgba(45,36,30,0.08)" }}>
-                        <p className="text-xs text-[#2D241E]/50" style={{ fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.06em" }}>
-                          New external order details
-                        </p>
-                        <div>
-                          <FieldLabel>Label (optional)</FieldLabel>
-                          <TextInput
-                            value={usageForm.newExternalLabel}
-                            onChange={(e) => setUsageForm((f) => ({ ...f, newExternalLabel: e.target.value }))}
-                            placeholder="e.g. Market stall #12"
-                          />
-                        </div>
-                        <div>
-                          <FieldLabel>Customer (optional)</FieldLabel>
-                          <TextInput
-                            value={usageForm.newExternalCustomer}
-                            onChange={(e) => setUsageForm((f) => ({ ...f, newExternalCustomer: e.target.value }))}
-                            placeholder="Customer name"
-                          />
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-
-              <div>
-                <FieldLabel>Notes (optional)</FieldLabel>
-                <TextArea value={usageForm.notes} onChange={(e) => setUsageForm((f) => ({ ...f, notes: e.target.value }))} />
-              </div>
-            </div>
-            <div className="flex gap-3 justify-end">
-              <GhostButton onClick={() => setUsageModal({ open: false, editing: null })}>Cancel</GhostButton>
-              <PrimaryButton onClick={() => void saveUsage()} disabled={modalLoading || !usageForm.materialId || !usageForm.quantityUsed}>
                 {modalLoading ? <Loader2 size={14} className="animate-spin" /> : null}
                 Save
               </PrimaryButton>
@@ -2024,11 +1176,11 @@ export function AdminAccountingTab() {
           </ModalShell>
         )}
 
-        {/* Delete confirm */}
+        {/* Void confirm */}
         {deleteTarget && (
-          <ModalShell title="Confirm delete" onClose={() => setDeleteTarget(null)}>
+          <ModalShell title="Confirm void" onClose={() => setDeleteTarget(null)}>
             <p className="text-[#2D241E]/70 mb-6" style={{ fontFamily: "'DM Sans', sans-serif" }}>
-              Delete <strong>{deleteTarget.name}</strong>? This cannot be undone.
+              Void <strong>{deleteTarget.name}</strong>? The record will leave active accounting views and this cannot be undone.
             </p>
             <div className="flex gap-3 justify-end">
               <GhostButton onClick={() => setDeleteTarget(null)}>Cancel</GhostButton>
@@ -2040,7 +1192,7 @@ export function AdminAccountingTab() {
                 style={{ backgroundColor: "#4A0E0E", fontFamily: "'DM Sans', sans-serif", fontSize: "0.72rem" }}
               >
                 {modalLoading ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
-                Delete
+                Void record
               </button>
             </div>
           </ModalShell>

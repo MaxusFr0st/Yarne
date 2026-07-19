@@ -1,0 +1,34 @@
+{
+  "name": "Yarne Store & Accounting",
+  "short_name": "Yarne",
+  "description": "Yarne orders, inventory, production, and accounting.",
+  "start_url": "/admin?tab=accounting",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#F5F2ED",
+  "theme_color": "#2D241E",
+  "orientation": "any",
+  "icons": [
+    {
+      "src": "/yarne-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Capture Expense",
+      "short_name": "New Expense",
+      "description": "Open the mobile expense quick-capture screen.",
+      "url": "/admin?tab=accounting&section=quick-expense",
+      "icons": [
+        {
+          "src": "/yarne-icon.svg",
+          "sizes": "any",
+          "type": "image/svg+xml"
+        }
+      ]
+    }
+  ]
+}

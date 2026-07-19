@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using YarneAPIBack.Accounting.Models;
 
 namespace YarneAPIBack.Models;
 
@@ -23,6 +24,24 @@ public partial class OrderItem
 
     public decimal UnitPrice { get; set; }
 
+    public long ListedPriceCents { get; set; }
+
+    public long NetPriceCents { get; set; }
+
+    public long ChannelFeeShareCents { get; set; }
+
+    public long UnitCogsCents { get; set; }
+
+    public long VatAmountCents { get; set; }
+
+    public bool IsVoid { get; set; }
+
+    public int? CreatedBy { get; set; }
+
+    public DateTime CreatedAt { get; set; }
+
+    public DateTime UpdatedAt { get; set; }
+
     public string? ProductSubtitle { get; set; }
 
     public string? ColorName { get; set; }
@@ -38,4 +57,9 @@ public partial class OrderItem
     public virtual Order Order { get; set; } = null!;
 
     public virtual Product? Product { get; set; }
+
+    public virtual ICollection<ReturnOrderItem> ReturnItems { get; set; } = new List<ReturnOrderItem>();
+
+    public virtual ICollection<SalesFinishedGoodsConsumption> FinishedGoodsConsumptions { get; set; } =
+        new List<SalesFinishedGoodsConsumption>();
 }

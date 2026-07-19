@@ -344,7 +344,7 @@ public partial class YarneDbContext : DbContext
             entity.Property(e => e.Status)
                 .HasMaxLength(50)
                 .HasDefaultValue("Pending");
-            entity.Property(e => e.Total).HasColumnType("decimal(18, 2)");
+            entity.Property(e => e.TotalCents).HasColumnType("bigint");
 
             entity.HasOne(d => d.Customer).WithMany(p => p.Orders)
                 .HasForeignKey(d => d.CustomerId)
@@ -568,6 +568,8 @@ public partial class YarneDbContext : DbContext
             entity.ToTable("ImportTransactionLine");
             entity.Property(e => e.Quantity).HasColumnType("decimal(18,4)");
             entity.Property(e => e.UnitPrice).HasColumnType("decimal(18,2)");
+            entity.Property(e => e.CreatedAt).HasDefaultValueSql("CURRENT_TIMESTAMP");
+            entity.Property(e => e.UpdatedAt).HasDefaultValueSql("CURRENT_TIMESTAMP");
             entity.HasOne(e => e.ImportTransaction)
                 .WithMany(t => t.Lines)
                 .HasForeignKey(e => e.ImportTransactionId)
@@ -622,7 +624,9 @@ public partial class YarneDbContext : DbContext
             entity.Property(e => e.Name).HasMaxLength(100).IsRequired();
             entity.Property(e => e.Description).HasMaxLength(500);
             entity.Property(e => e.CreatedAt).HasDefaultValueSql("CURRENT_TIMESTAMP");
-            entity.HasIndex(e => e.Name).IsUnique();
+            entity.HasIndex(e => e.Name)
+                .IsUnique()
+                .HasFilter("\"IsVoid\" = false");
         });
 
         modelBuilder.Entity<ExternalOrder>(entity =>

@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title">
+  <title id="title">Yarne</title>
+  <rect width="512" height="512" rx="112" fill="#2D241E"/>
+  <path d="M118 104v94c0 76 45 126 112 139v71h52v-71c67-13 112-63 112-139v-94h-56v94c0 55-30 88-82 88s-82-33-82-88v-94z" fill="#F5F2ED"/>
+  <path d="M118 430h276" stroke="#B68A73" stroke-width="12" stroke-linecap="round" stroke-dasharray="3 24"/>
+</svg>

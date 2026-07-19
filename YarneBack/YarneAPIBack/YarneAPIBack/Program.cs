@@ -28,6 +28,8 @@ builder.WebHost.UseUrls($"http://0.0.0.0:{listenPort}");
 const string PendingDbConnection =
     "Host=127.0.0.1;Port=5432;Database=yarne_unconfigured;Username=postgres;Password=postgres;Timeout=2;Pooling=false";
 
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddScoped<AccountingAuditInterceptor>();
 builder.Services.AddDbContext<YarneDbContext>((sp, options) =>
 {
     var configuration = sp.GetRequiredService<IConfiguration>();
@@ -39,6 +41,7 @@ builder.Services.AddDbContext<YarneDbContext>((sp, options) =>
     options.UseNpgsql(
         connectionString,
         npgsqlOptions => npgsqlOptions.EnableRetryOnFailure(maxRetryCount: 10, maxRetryDelay: TimeSpan.FromSeconds(5), errorCodesToAdd: null));
+    options.AddInterceptors(sp.GetRequiredService<AccountingAuditInterceptor>());
 });
 
 // JWT — bind config, then apply JWT_SECRET / Jwt__Secret for token generation (AuthService, OAuthService).
@@ -48,6 +51,15 @@ builder.Services.Configure<JwtSettings>(options =>
     var legacyJwtSecret = Environment.GetEnvironmentVariable("JWT_SECRET");
     if (!string.IsNullOrWhiteSpace(legacyJwtSecret))
         options.Secret = legacyJwtSecret;
+});
+builder.Services.Configure<CloudinarySettings>(options =>
+{
+    builder.Configuration.GetSection(CloudinarySettings.SectionName).Bind(options);
+    options.CloudName = Environment.GetEnvironmentVariable("CLOUDINARY_CLOUD_NAME") ?? options.CloudName;
+    options.ApiKey = Environment.GetEnvironmentVariable("CLOUDINARY_API_KEY") ?? options.ApiKey;
+    options.ApiSecret = Environment.GetEnvironmentVariable("CLOUDINARY_API_SECRET") ?? options.ApiSecret;
+    options.UploadPreset = Environment.GetEnvironmentVariable("CLOUDINARY_UPLOAD_PRESET") ?? options.UploadPreset;
+    options.Folder = Environment.GetEnvironmentVariable("CLOUDINARY_FOLDER") ?? options.Folder;
 });
 var jwtSettings = builder.Configuration.GetSection(JwtSettings.SectionName).Get<JwtSettings>()
     ?? new JwtSettings();
@@ -138,6 +150,14 @@ builder.Services.AddScoped<IStorefrontSettingsService, StorefrontSettingsService
 builder.Services.AddScoped<IAdminActivityLogService, AdminActivityLogService>();
 builder.Services.AddScoped<IAccountingService, AccountingService>();
 builder.Services.AddScoped<IAccountingPdfService, AccountingPdfService>();
+builder.Services.AddScoped<IProcurementService, ProcurementService>();
+builder.Services.AddScoped<IProductAccountingService, ProductAccountingService>();
+builder.Services.AddScoped<IProductionService, ProductionService>();
+builder.Services.AddScoped<ISalesAccountingService, SalesAccountingService>();
+builder.Services.AddScoped<IReturnService, ReturnService>();
+builder.Services.AddScoped<IOperatingExpenseService, OperatingExpenseService>();
+builder.Services.AddScoped<IAccountingReportsV3Service, AccountingReportsV3Service>();
+builder.Services.AddSingleton<CloudinaryUploadSignatureService>();
 builder.Services.AddSingleton<IEmailService>(sp =>
 {
     var configuration = sp.GetRequiredService<IConfiguration>();

@@ -1,3 +1,4 @@
+using System.Data;
 using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -129,7 +130,7 @@ public class OrdersController : ControllerBase
             .Select(g => new AdminOrdersSummaryDto
             {
                 TotalOrders = g.Count(),
-                TotalRevenue = g.Sum(o => o.Total),
+                TotalRevenue = g.Sum(o => o.TotalCents) / 100m,
                 PendingOrders = g.Count(o => o.Status == "Pending"),
             })
             .FirstOrDefaultAsync(ct);
@@ -257,6 +258,7 @@ public class OrdersController : ControllerBase
 
         var orderItems = new List<OrderItem>();
         var quantityByProductId = new Dictionary<int, int>();
+        var now = DateTime.UtcNow;
         foreach (var item in request.Items)
         {
             var productKey = item.ProductIdOrCode.Trim();
@@ -272,7 +274,7 @@ public class OrdersController : ControllerBase
             if (product == null)
                 return BadRequest(new { message = $"Product '{productKey}' was not found." });
 
-            if (!product.IsActive)
+            if (!product.IsActive || product.IsVoid)
                 return BadRequest(new { message = $"Product '{productKey}' is not available." });
 
             var orderItem = new OrderItem
@@ -280,6 +282,13 @@ public class OrdersController : ControllerBase
                 CountryId = item.CountryId,
                 Quantity = item.Quantity,
                 UnitPrice = product.Price,
+                ListedPriceCents = checked((long)decimal.Round(product.Price * 100m, 0, MidpointRounding.AwayFromZero)),
+                NetPriceCents = checked((long)decimal.Round(product.Price * 100m, 0, MidpointRounding.AwayFromZero)),
+                UnitCogsCents = 0,
+                VatAmountCents = 0,
+                CreatedBy = customerId.Value,
+                CreatedAt = now,
+                UpdatedAt = now,
                 ProductSubtitle = NormalizeOptional(item.ProductSubtitle),
                 ColorName = NormalizeOptional(item.ColorName),
                 FurnitureColorName = NormalizeOptional(item.FurnitureColorName),
@@ -292,48 +301,108 @@ public class OrdersController : ControllerBase
             quantityByProductId[product.Id] = quantityByProductId.GetValueOrDefault(product.Id) + item.Quantity;
         }
 
-        var orderTotal = orderItems.Sum(i => i.UnitPrice * i.Quantity);
-        customer.PhoneNumber = contactPhone;
-        _context.Entry(customer).Property(c => c.PhoneNumber).IsModified = true;
+        var orderTotalCents = orderItems.Sum(i => checked(i.ListedPriceCents * i.Quantity));
+        var ownStoreChannelId = await _context.SalesChannels
+            .Where(x => !x.IsVoid && x.FeeType == "none")
+            .OrderBy(x => x.Id)
+            .Select(x => (int?)x.Id)
+            .FirstOrDefaultAsync(ct);
 
         var order = new Order
         {
             CustomerId = customerId.Value,
             PaymentMethodId = paymentMethodId,
             ShippingAddrId = request.ShippingAddrId,
+            ChannelId = ownStoreChannelId,
+            ChannelFeeCents = 0,
+            IsChannelFeeOverridden = false,
+            CurrencyCode = "UAH",
+            ExchangeRateToBase = 1m,
             Status = "Pending",
-            Total = orderTotal,
-            OrderDate = DateTime.UtcNow,
+            TotalCents = orderTotalCents,
+            OrderDate = now,
+            CreatedAt = now,
+            UpdatedAt = now,
+            CreatedBy = customerId.Value,
             OrderItems = orderItems,
         };
 
-        // Single SaveChanges is atomic; explicit transactions break Npgsql retry strategy on Railway.
-        foreach (var (productId, requestedQty) in quantityByProductId)
+        ActionResult<OrderDto>? stockFailure = null;
+        var strategy = _context.Database.CreateExecutionStrategy();
+        await strategy.ExecuteAsync(async () =>
         {
-            if (!productById.TryGetValue(productId, out var product))
-                return BadRequest(new { message = "One or more products in the order were not found." });
-
-            if (product.QuantityInStock < requestedQty)
+            await using var transaction = await _context.Database.BeginTransactionAsync(
+                IsolationLevel.Serializable,
+                ct);
+            foreach (var productId in quantityByProductId.Keys.OrderBy(id => id))
             {
-                return BadRequest(new
+                var requestedQty = quantityByProductId[productId];
+                var product = await _context.Products
+                    .FromSqlInterpolated(
+                        $"""SELECT * FROM "Product" WHERE "Id" = {productId} FOR UPDATE""")
+                    .SingleOrDefaultAsync(ct);
+                if (product is null || product.IsVoid || !product.IsActive)
                 {
-                    message = $"Not enough stock for '{product.ProductCode}'. Please refresh and try again.",
-                });
+                    stockFailure = BadRequest(new { message = "One or more products in the order were not found." });
+                    await transaction.RollbackAsync(ct);
+                    return;
+                }
+
+                var finishedInventory = await _context.FinishedGoodsInventories
+                    .FromSqlInterpolated(
+                        $"""
+                         SELECT * FROM "FinishedGoodsInventory"
+                         WHERE "ProductId" = {productId}
+                         FOR UPDATE
+                         """)
+                    .SingleOrDefaultAsync(ct);
+                if (finishedInventory is null || finishedInventory.IsVoid)
+                {
+                    stockFailure = BadRequest(new
+                    {
+                        message = $"'{product.ProductCode}' has no finished-goods stock ledger. Produce the item before selling.",
+                    });
+                    await transaction.RollbackAsync(ct);
+                    return;
+                }
+
+                if (product.QuantityInStock < requestedQty || finishedInventory.QuantityOnHand < requestedQty)
+                {
+                    stockFailure = BadRequest(new
+                    {
+                        message = $"Not enough stock for '{product.ProductCode}'. Please refresh and try again.",
+                    });
+                    await transaction.RollbackAsync(ct);
+                    return;
+                }
+
+                product.QuantityInStock -= requestedQty;
+                product.UpdatedAt = now;
+                finishedInventory.QuantityOnHand -= requestedQty;
+                finishedInventory.UpdatedAt = now;
+
+                foreach (var orderItem in orderItems.Where(item => item.ProductId == productId))
+                    orderItem.UnitCogsCents = finishedInventory.AverageUnitCostCents;
             }
 
-            product.QuantityInStock -= requestedQty;
-        }
+            customer.PhoneNumber = contactPhone;
+            _context.Entry(customer).Property(c => c.PhoneNumber).IsModified = true;
+            _context.Orders.Add(order);
+            try
+            {
+                await _context.SaveChangesAsync(ct);
+                await transaction.CommitAsync(ct);
+            }
+            catch (DbUpdateException ex)
+            {
+                _logger.LogWarning(ex, "Order save failed — likely stock or constraint conflict.");
+                await transaction.RollbackAsync(ct);
+                stockFailure = BadRequest(new { message = "Unable to place order. Please refresh and try again." });
+            }
+        });
 
-        _context.Orders.Add(order);
-        try
-        {
-            await _context.SaveChangesAsync(ct);
-        }
-        catch (DbUpdateException ex)
-        {
-            _logger.LogWarning(ex, "Order save failed — likely stock or constraint conflict.");
-            return BadRequest(new { message = "Unable to place order. Please refresh and try again." });
-        }
+        if (stockFailure != null)
+            return stockFailure;
 
         var createdOrder = await BuildOrderQuery().FirstOrDefaultAsync(o => o.Id == order.Id, ct);
         if (createdOrder == null)
@@ -365,14 +434,143 @@ public class OrdersController : ControllerBase
         if (!AllowedStatuses.TryGetValue(normalized, out var canonicalStatus))
             return BadRequest(new { message = "Unsupported order status." });
 
-        var order = await _context.Orders.FirstOrDefaultAsync(o => o.Id == id, ct);
+        var order = await _context.Orders
+            .Include(o => o.OrderItems)
+            .FirstOrDefaultAsync(o => o.Id == id, ct);
         if (order == null)
             return NotFound();
 
         var previousStatus = order.Status;
-        order.Status = canonicalStatus;
-        order.EstimatedDelivery = request.EstimatedDelivery;
-        await _context.SaveChangesAsync(ct);
+        var wasCanceled = string.Equals(previousStatus, "Canceled", StringComparison.OrdinalIgnoreCase);
+        var willBeCanceled = string.Equals(canonicalStatus, "Canceled", StringComparison.OrdinalIgnoreCase);
+        if (wasCanceled != willBeCanceled)
+        {
+            var quantities = order.OrderItems
+                .Where(item => !item.IsVoid && item.ProductId.HasValue)
+                .GroupBy(item => item.ProductId!.Value)
+                .ToDictionary(group => group.Key, group => group.Sum(item => item.Quantity));
+
+            ActionResult<OrderDto>? stockFailure = null;
+            string? lockedPreviousStatus = null;
+            var strategy = _context.Database.CreateExecutionStrategy();
+            await strategy.ExecuteAsync(async () =>
+            {
+                await using var transaction = await _context.Database.BeginTransactionAsync(
+                    IsolationLevel.Serializable,
+                    ct);
+                var lockedOrder = await _context.Orders
+                    .FromSqlInterpolated($"""SELECT * FROM "Order" WHERE "Id" = {id} FOR UPDATE""")
+                    .SingleOrDefaultAsync(ct);
+                if (lockedOrder is null)
+                {
+                    stockFailure = NotFound();
+                    await transaction.RollbackAsync(ct);
+                    return;
+                }
+
+                lockedPreviousStatus = lockedOrder.Status;
+                var lockedWasCanceled = string.Equals(
+                    lockedPreviousStatus,
+                    "Canceled",
+                    StringComparison.OrdinalIgnoreCase);
+                if (lockedWasCanceled == willBeCanceled)
+                {
+                    // Another request already applied this cancel/reopen transition.
+                    lockedOrder.Status = canonicalStatus;
+                    lockedOrder.EstimatedDelivery = request.EstimatedDelivery;
+                    lockedOrder.UpdatedAt = DateTime.UtcNow;
+                    await _context.SaveChangesAsync(ct);
+                    await transaction.CommitAsync(ct);
+                    return;
+                }
+
+                var now = DateTime.UtcNow;
+                foreach (var productId in quantities.Keys.OrderBy(pid => pid))
+                {
+                    var quantity = quantities[productId];
+                    var product = await _context.Products
+                        .FromSqlInterpolated(
+                            $"""SELECT * FROM "Product" WHERE "Id" = {productId} FOR UPDATE""")
+                        .SingleOrDefaultAsync(ct);
+                    var inventory = await _context.FinishedGoodsInventories
+                        .FromSqlInterpolated(
+                            $"""
+                             SELECT * FROM "FinishedGoodsInventory"
+                             WHERE "ProductId" = {productId}
+                             FOR UPDATE
+                             """)
+                        .SingleOrDefaultAsync(ct);
+                    if (product is null || product.IsVoid || inventory is null || inventory.IsVoid)
+                    {
+                        stockFailure = BadRequest(new { message = "Order stock records are incomplete." });
+                        await transaction.RollbackAsync(ct);
+                        return;
+                    }
+
+                    if (willBeCanceled)
+                    {
+                        product.QuantityInStock = checked(product.QuantityInStock + quantity);
+                        inventory.QuantityOnHand = checked(inventory.QuantityOnHand + quantity);
+                    }
+                    else
+                    {
+                        if (product.QuantityInStock < quantity || inventory.QuantityOnHand < quantity)
+                        {
+                            stockFailure = BadRequest(new { message = "Not enough stock to reopen this canceled order." });
+                            await transaction.RollbackAsync(ct);
+                            return;
+                        }
+                        product.QuantityInStock -= quantity;
+                        inventory.QuantityOnHand -= quantity;
+                    }
+                    product.UpdatedAt = now;
+                    inventory.UpdatedAt = now;
+                }
+
+                lockedOrder.Status = canonicalStatus;
+                lockedOrder.EstimatedDelivery = request.EstimatedDelivery;
+                lockedOrder.UpdatedAt = now;
+                await _context.SaveChangesAsync(ct);
+                await transaction.CommitAsync(ct);
+            });
+
+            if (stockFailure != null)
+                return stockFailure;
+
+            previousStatus = lockedPreviousStatus ?? previousStatus;
+        }
+        else
+        {
+            // Even for non-stock-touching transitions, take a row-level lock so concurrent
+            // status writes on the same order serialize rather than silently last-write-win.
+            bool orderDisappeared = false;
+            var strategy = _context.Database.CreateExecutionStrategy();
+            await strategy.ExecuteAsync(async () =>
+            {
+                await using var transaction = await _context.Database.BeginTransactionAsync(
+                    IsolationLevel.RepeatableRead,
+                    ct);
+                var lockedOrder = await _context.Orders
+                    .FromSqlInterpolated($"""SELECT * FROM "Order" WHERE "Id" = {id} FOR UPDATE""")
+                    .SingleOrDefaultAsync(ct);
+                if (lockedOrder is null)
+                {
+                    orderDisappeared = true;
+                    await transaction.RollbackAsync(ct);
+                    return;
+                }
+
+                previousStatus = lockedOrder.Status;
+                lockedOrder.Status = canonicalStatus;
+                lockedOrder.EstimatedDelivery = request.EstimatedDelivery;
+                lockedOrder.UpdatedAt = DateTime.UtcNow;
+                await _context.SaveChangesAsync(ct);
+                await transaction.CommitAsync(ct);
+            });
+
+            if (orderDisappeared)
+                return NotFound();
+        }
 
         var updatedOrder = await BuildOrderQuery().FirstOrDefaultAsync(o => o.Id == id, ct);
         if (updatedOrder == null)
@@ -408,7 +606,7 @@ public class OrdersController : ControllerBase
                 newStatus = canonicalStatus,
                 estimatedDelivery = request.EstimatedDelivery,
                 customerEmail = updatedOrder.Customer.Email,
-                total = updatedOrder.Total,
+                total = updatedOrder.TotalCents / 100m,
             },
             actorUserId,
             actorEmail,
@@ -486,7 +684,7 @@ public class OrdersController : ControllerBase
             CustomerName = customerName,
             CustomerEmail = customer?.Email ?? string.Empty,
             CustomerPhoneNumber = customer?.PhoneNumber,
-            Total = order.Total,
+            Total = order.TotalCents / 100m,
             Status = order.Status,
             OrderDate = order.OrderDate,
             EstimatedDelivery = order.EstimatedDelivery,
@@ -613,7 +811,7 @@ public class OrdersController : ControllerBase
             BccEmails = [],
             AccountUrl = accountUrl,
             OrderDateUtc = order.OrderDate,
-            Total = order.Total,
+            Total = order.TotalCents / 100m,
             Items = order.OrderItems
                 .OrderBy(i => i.Id)
                 .Select(i => new OrderConfirmationEmailItem

@@ -9,5 +9,6 @@ public class Expense
     public decimal Amount { get; set; }
     public DateTime ExpenseDate { get; set; }
     public string? Notes { get; set; }
+    public bool IsVoid { get; set; }
     public DateTime CreatedAt { get; set; }
 }

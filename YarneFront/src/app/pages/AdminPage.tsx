@@ -95,6 +95,7 @@ import {
   Crosshair,
 } from "lucide-react";
 import { fetchActivityLogs, type AdminActivityLogDto } from "../api/admin";
+import { fetchVariantProducedAvailability, applyVariantStock } from "../api/accounting";
 import { fetchProduct } from "../api/products";
 import { FocalPointEditor } from "../components/admin/FocalPointEditor";
 import { AdminAccountingTab } from "../components/admin/AdminAccountingTab";
@@ -681,6 +682,67 @@ function ProductModal({
   });
 
   const [activeTab, setActiveTab] = useState<ProductModalTab>("details");
+
+  // Produced-but-not-yet-listed stock per variant, from accounting production runs that
+  // were tagged with a color/size/lace. Applying moves real produced units onto the
+  // storefront variant quantity instead of the admin typing a number blind.
+  const [producedAvailability, setProducedAvailability] = useState<Record<string, number>>({});
+  const [applyingVariantKey, setApplyingVariantKey] = useState<string | null>(null);
+  const [applyStockError, setApplyStockError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const productId = product?.idNum;
+    if (!productId) return;
+    let cancelled = false;
+    void fetchVariantProducedAvailability(productId)
+      .then((rows) => {
+        if (cancelled) return;
+        const next: Record<string, number> = {};
+        rows.forEach((row) => {
+          next[`${row.colorId}:${row.sizeId}:${row.lace}`] = row.availableQuantity;
+        });
+        setProducedAvailability(next);
+      })
+      .catch(() => {
+        // Availability is a convenience overlay — the editor still works without it.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [product?.idNum]);
+
+  const handleApplyProducedStock = async (colorId: number, sizeId: number, lace: boolean) => {
+    const productId = product?.idNum;
+    if (!productId) return;
+    const key = variantKey(colorId, sizeId, lace);
+    const available = producedAvailability[key] ?? 0;
+    if (available <= 0) return;
+    const answer = window.prompt(
+      `Apply how many produced units to this variant's storefront stock? (up to ${available})`,
+      String(available),
+    );
+    if (answer == null) return;
+    const quantity = Number(answer.trim());
+    if (!Number.isInteger(quantity) || quantity <= 0 || quantity > available) {
+      setApplyStockError(`Enter a whole number between 1 and ${available}.`);
+      return;
+    }
+    setApplyingVariantKey(key);
+    setApplyStockError(null);
+    try {
+      const result = await applyVariantStock({ productId, colorId, sizeId, lace, quantity });
+      setForm((p) => ({
+        ...p,
+        variantStocks: { ...p.variantStocks, [key]: String(result.variantQuantityInStock) },
+      }));
+      setProducedAvailability((prev) => ({ ...prev, [key]: result.remainingAvailableQuantity }));
+    } catch (e) {
+      setApplyStockError(e instanceof Error ? e.message : "Could not apply produced stock.");
+    } finally {
+      setApplyingVariantKey(null);
+    }
+  };
+
   const suggestedProductSet = useMemo(
     () => new Set(form.suggestedProductCodes),
     [form.suggestedProductCodes]
@@ -1609,6 +1671,11 @@ function ProductModal({
                       {uploadError}
                     </p>
                   )}
+                  {applyStockError && (
+                    <p className="text-sm text-[#4A0E0E] mb-3 p-3 rounded-[12px] bg-[#4A0E0E]/8" style={{ fontFamily: "'DM Sans', sans-serif" }}>
+                      {applyStockError}
+                    </p>
+                  )}
                   <div className="grid gap-3 sm:gap-4 lg:grid-cols-2">
                     {form.colorIds.flatMap((colorId) =>
                       (form.colorSizeIds[colorId] ?? []).flatMap((sizeId) =>
@@ -1659,6 +1726,18 @@ function ProductModal({
                                 className="w-20 bg-white/60 border rounded-[10px] px-2.5 py-1.5 text-xs text-[#2D241E] focus:outline-none"
                                 style={{ fontFamily: "'DM Sans', sans-serif", borderColor: "rgba(45,36,30,0.15)" }}
                               />
+                              {(producedAvailability[key] ?? 0) > 0 && (
+                                <button
+                                  type="button"
+                                  disabled={applyingVariantKey === key}
+                                  onClick={() => void handleApplyProducedStock(colorId, sizeId, lace)}
+                                  className={`px-3 py-1.5 rounded-[10px] text-xs border transition-all hover:bg-[#227850]/10 ${applyingVariantKey === key ? "opacity-50 pointer-events-none" : "cursor-pointer"}`}
+                                  style={{ fontFamily: "'DM Sans', sans-serif", borderColor: "rgba(34,120,80,0.4)", color: "#227850" }}
+                                  title={`${producedAvailability[key]} produced unit(s) of this exact variant are not yet on the storefront listing`}
+                                >
+                                  {applyingVariantKey === key ? "Applying…" : `Use stock (${producedAvailability[key]})`}
+                                </button>
+                              )}
                               <label
                                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-[10px] text-xs border transition-all hover:bg-[#2D241E]/5 ${rowUploading || cropBusy ? "opacity-50 pointer-events-none" : "cursor-pointer"}`}
                                 style={{ fontFamily: "'DM Sans', sans-serif", borderColor: "rgba(45,36,30,0.2)", color: "#2D241E" }}

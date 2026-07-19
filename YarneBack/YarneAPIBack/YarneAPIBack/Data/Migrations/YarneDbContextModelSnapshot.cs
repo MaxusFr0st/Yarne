@@ -68,6 +68,64 @@ namespace YarneAPIBack.Data.Migrations
                     b.ToTable("AccountingCategory", (string)null);
                 });
 
+            modelBuilder.Entity("YarneAPIBack.Accounting.Models.AccountingCurrency", b =>
+                {
+                    b.Property<string>("Code")
+                        .HasMaxLength(3)
+                        .HasColumnType("character varying(3)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                    b.Property<int?>("CreatedBy")
+                        .HasColumnType("integer");
+
+                    b.Property<bool>("IsActive")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(true);
+
+                    b.Property<bool>("IsBase")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("IsVoid")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false);
+
+                    b.Property<int>("MinorUnitDigits")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(2);
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)");
+
+                    b.Property<string>("Symbol")
+                        .IsRequired()
+                        .HasMaxLength(8)
+                        .HasColumnType("character varying(8)");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                    b.HasKey("Code");
+
+                    b.HasIndex("CreatedBy");
+
+                    b.HasIndex("IsBase")
+                        .IsUnique()
+                        .HasFilter("\"IsBase\" = true AND \"IsVoid\" = false");
+
+                    b.ToTable("AccountingCurrency", (string)null);
+                });
+
             modelBuilder.Entity("YarneAPIBack.Accounting.Models.AccountingPurchase", b =>
                 {
                     b.Property<int>("Id")
@@ -131,6 +189,65 @@ namespace YarneAPIBack.Data.Migrations
                     b.ToTable("AccountingPurchase", (string)null);
                 });
 
+            modelBuilder.Entity("YarneAPIBack.Accounting.Models.CurrencyExchangeRate", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                    b.Property<int?>("CreatedBy")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime>("EffectiveAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("FromCurrencyCode")
+                        .IsRequired()
+                        .HasMaxLength(3)
+                        .HasColumnType("character varying(3)");
+
+                    b.Property<bool>("IsVoid")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false);
+
+                    b.Property<decimal>("Rate")
+                        .HasPrecision(18, 8)
+                        .HasColumnType("numeric(18,8)");
+
+                    b.Property<string>("ToCurrencyCode")
+                        .IsRequired()
+                        .HasMaxLength(3)
+                        .HasColumnType("character varying(3)");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreatedBy");
+
+                    b.HasIndex("ToCurrencyCode");
+
+                    b.HasIndex("FromCurrencyCode", "ToCurrencyCode", "EffectiveAt");
+
+                    b.ToTable("CurrencyExchangeRate", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_CurrencyExchangeRate_DifferentCurrencies", "\"FromCurrencyCode\" <> \"ToCurrencyCode\"");
+
+                            t.HasCheckConstraint("CK_CurrencyExchangeRate_Rate_Positive", "\"Rate\" > 0");
+                        });
+                });
+
             modelBuilder.Entity("YarneAPIBack.Accounting.Models.Expense", b =>
                 {
                     b.Property<int>("Id")
@@ -158,6 +275,9 @@ namespace YarneAPIBack.Data.Migrations
 
                     b.Property<DateTime>("ExpenseDate")
                         .HasColumnType("timestamp with time zone");
+
+                    b.Property<bool>("IsVoid")
+                        .HasColumnType("boolean");
 
                     b.Property<string>("Name")
                         .IsRequired()
@@ -194,6 +314,9 @@ namespace YarneAPIBack.Data.Migrations
                         .HasMaxLength(500)
                         .HasColumnType("character varying(500)");
 
+                    b.Property<bool>("IsVoid")
+                        .HasColumnType("boolean");
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(100)
@@ -202,7 +325,8 @@ namespace YarneAPIBack.Data.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("Name")
-                        .IsUnique();
+                        .IsUnique()
+                        .HasFilter("\"IsVoid\" = false");
 
                     b.ToTable("ExpenseCategory", (string)null);
                 });
@@ -242,6 +366,128 @@ namespace YarneAPIBack.Data.Migrations
                     b.ToTable("ExternalOrder", (string)null);
                 });
 
+            modelBuilder.Entity("YarneAPIBack.Accounting.Models.FinishedGoodsInventory", b =>
+                {
+                    b.Property<int>("ProductId")
+                        .HasColumnType("integer");
+
+                    b.Property<long>("AverageUnitCostCents")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                    b.Property<int?>("CreatedBy")
+                        .HasColumnType("integer");
+
+                    b.Property<bool>("IsVoid")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false);
+
+                    b.Property<int>("QuantityOnHand")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                    b.HasKey("ProductId");
+
+                    b.HasIndex("CreatedBy");
+
+                    b.ToTable("FinishedGoodsInventory", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_FinishedGoodsInventory_Cost_NonNegative", "\"AverageUnitCostCents\" >= 0");
+
+                            t.HasCheckConstraint("CK_FinishedGoodsInventory_Quantity_NonNegative", "\"QuantityOnHand\" >= 0");
+                        });
+                });
+
+            modelBuilder.Entity("YarneAPIBack.Accounting.Models.FinishedGoodsLot", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("AppliedToStorefrontQuantity")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(0);
+
+                    b.Property<int?>("ColorId")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                    b.Property<int?>("CreatedBy")
+                        .HasColumnType("integer");
+
+                    b.Property<bool>("IsVoid")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false);
+
+                    b.Property<bool>("Lace")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false);
+
+                    b.Property<int>("ProductId")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("ProductionOrderId")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("QuantityProduced")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("QuantityRemaining")
+                        .HasColumnType("integer");
+
+                    b.Property<int?>("SizeId")
+                        .HasColumnType("integer");
+
+                    b.Property<long>("UnitCostCents")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ColorId");
+
+                    b.HasIndex("CreatedBy");
+
+                    b.HasIndex("ProductionOrderId");
+
+                    b.HasIndex("SizeId");
+
+                    b.HasIndex("ProductId", "Id");
+
+                    b.ToTable("FinishedGoodsLot", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_FinishedGoodsLot_Applied_Range", "\"AppliedToStorefrontQuantity\" >= 0 AND \"AppliedToStorefrontQuantity\" <= \"QuantityProduced\"");
+
+                            t.HasCheckConstraint("CK_FinishedGoodsLot_Cost_NonNegative", "\"UnitCostCents\" >= 0");
+
+                            t.HasCheckConstraint("CK_FinishedGoodsLot_QuantityRemaining_Range", "\"QuantityRemaining\" >= 0 AND \"QuantityRemaining\" <= \"QuantityProduced\"");
+
+                            t.HasCheckConstraint("CK_FinishedGoodsLot_Quantity_Positive", "\"QuantityProduced\" > 0");
+                        });
+                });
+
             modelBuilder.Entity("YarneAPIBack.Accounting.Models.ImportTransaction", b =>
                 {
                     b.Property<int>("Id")
@@ -263,6 +509,9 @@ namespace YarneAPIBack.Data.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("boolean")
                         .HasDefaultValue(false);
+
+                    b.Property<bool>("IsVoid")
+                        .HasColumnType("boolean");
 
                     b.Property<string>("Notes")
                         .HasMaxLength(1000)
@@ -293,8 +542,16 @@ namespace YarneAPIBack.Data.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
                     b.Property<int>("ImportTransactionId")
                         .HasColumnType("integer");
+
+                    b.Property<bool>("IsVoid")
+                        .HasColumnType("boolean");
 
                     b.Property<int>("MaterialId")
                         .HasColumnType("integer");
@@ -304,6 +561,11 @@ namespace YarneAPIBack.Data.Migrations
 
                     b.Property<decimal>("UnitPrice")
                         .HasColumnType("decimal(18,2)");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
 
                     b.HasKey("Id");
 
@@ -361,10 +623,17 @@ namespace YarneAPIBack.Data.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
+                    b.Property<string>("Category")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
                     b.Property<DateTime>("CreatedAt")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("timestamp with time zone")
                         .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                    b.Property<int?>("CreatedBy")
+                        .HasColumnType("integer");
 
                     b.Property<string>("Description")
                         .HasMaxLength(1000)
@@ -375,10 +644,19 @@ namespace YarneAPIBack.Data.Migrations
                         .HasColumnType("boolean")
                         .HasDefaultValue(true);
 
+                    b.Property<bool>("IsVoid")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false);
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(255)
                         .HasColumnType("character varying(255)");
+
+                    b.Property<decimal>("ReorderThreshold")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)");
 
                     b.Property<string>("Sku")
                         .HasMaxLength(100)
@@ -390,6 +668,11 @@ namespace YarneAPIBack.Data.Migrations
                         .HasMaxLength(50)
                         .HasColumnType("character varying(50)")
                         .HasDefaultValue("pcs");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
 
                     b.HasKey("Id");
 
@@ -416,6 +699,9 @@ namespace YarneAPIBack.Data.Migrations
 
                     b.Property<int?>("ExternalOrderId")
                         .HasColumnType("integer");
+
+                    b.Property<bool>("IsVoid")
+                        .HasColumnType("boolean");
 
                     b.Property<int>("MaterialId")
                         .HasColumnType("integer");
@@ -444,6 +730,835 @@ namespace YarneAPIBack.Data.Migrations
                     b.HasIndex("UsageDate");
 
                     b.ToTable("MaterialUsageRecord", (string)null);
+                });
+
+            modelBuilder.Entity("YarneAPIBack.Accounting.Models.OperatingExpense", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<long>("AmountCents")
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("BaseAmountCents")
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("BaseVatAmountCents")
+                        .HasColumnType("bigint");
+
+                    b.Property<int>("CategoryId")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                    b.Property<int?>("CreatedBy")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("CurrencyCode")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(3)
+                        .HasColumnType("character varying(3)")
+                        .HasDefaultValue("UAH");
+
+                    b.Property<DateTime>("Date")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)");
+
+                    b.Property<decimal>("ExchangeRateToBase")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(18, 8)
+                        .HasColumnType("numeric(18,8)")
+                        .HasDefaultValue(1m);
+
+                    b.Property<bool>("IsVoid")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false);
+
+                    b.Property<string>("PaymentMethod")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("ReceiptUrl")
+                        .HasMaxLength(2048)
+                        .HasColumnType("character varying(2048)");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasDefaultValue("posted");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                    b.Property<long>("VatAmountCents")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("Vendor")
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CategoryId");
+
+                    b.HasIndex("CreatedBy");
+
+                    b.HasIndex("CurrencyCode");
+
+                    b.HasIndex("Date");
+
+                    b.ToTable("OperatingExpense", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_OperatingExpense_ExchangeRate_Positive", "\"ExchangeRateToBase\" > 0");
+
+                            t.HasCheckConstraint("CK_OperatingExpense_Money_NonNegative", "\"AmountCents\" >= 0 AND \"VatAmountCents\" >= 0 AND \"BaseAmountCents\" >= 0 AND \"BaseVatAmountCents\" >= 0");
+
+                            t.HasCheckConstraint("CK_OperatingExpense_Status", "\"Status\" IN ('draft', 'posted', 'cancelled')");
+                        });
+                });
+
+            modelBuilder.Entity("YarneAPIBack.Accounting.Models.OperatingExpenseCategory", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                    b.Property<int?>("CreatedBy")
+                        .HasColumnType("integer");
+
+                    b.Property<bool>("IsVoid")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false);
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreatedBy");
+
+                    b.HasIndex("Name")
+                        .IsUnique()
+                        .HasFilter("\"IsVoid\" = false");
+
+                    b.ToTable("OperatingExpenseCategory", (string)null);
+                });
+
+            modelBuilder.Entity("YarneAPIBack.Accounting.Models.ProductBom", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                    b.Property<int?>("CreatedBy")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("CurrencyCode")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(3)
+                        .HasColumnType("character varying(3)")
+                        .HasDefaultValue("UAH");
+
+                    b.Property<bool>("IsVoid")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false);
+
+                    b.Property<long>("LabourCostCents")
+                        .HasColumnType("bigint");
+
+                    b.Property<int>("ProductId")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreatedBy");
+
+                    b.HasIndex("CurrencyCode");
+
+                    b.HasIndex("ProductId")
+                        .IsUnique()
+                        .HasFilter("\"IsVoid\" = false");
+
+                    b.ToTable("ProductBom", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_ProductBom_LabourCost_NonNegative", "\"LabourCostCents\" >= 0");
+                        });
+                });
+
+            modelBuilder.Entity("YarneAPIBack.Accounting.Models.ProductBomItem", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                    b.Property<int?>("CreatedBy")
+                        .HasColumnType("integer");
+
+                    b.Property<bool>("IsVoid")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false);
+
+                    b.Property<int>("MaterialId")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("ProductBomId")
+                        .HasColumnType("integer");
+
+                    b.Property<decimal>("QuantityRequired")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreatedBy");
+
+                    b.HasIndex("MaterialId");
+
+                    b.HasIndex("ProductBomId", "MaterialId")
+                        .IsUnique()
+                        .HasFilter("\"IsVoid\" = false");
+
+                    b.ToTable("ProductBomItem", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_ProductBomItem_Quantity_Positive", "\"QuantityRequired\" > 0");
+                        });
+                });
+
+            modelBuilder.Entity("YarneAPIBack.Accounting.Models.ProductionMaterialConsumption", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                    b.Property<int?>("CreatedBy")
+                        .HasColumnType("integer");
+
+                    b.Property<bool>("IsVoid")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false);
+
+                    b.Property<int>("ProductionOrderId")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("PurchaseOrderItemId")
+                        .HasColumnType("integer");
+
+                    b.Property<decimal>("QuantityUsed")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)");
+
+                    b.Property<long>("TotalCostCents")
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("UnitCostAtUseCents")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreatedBy");
+
+                    b.HasIndex("ProductionOrderId");
+
+                    b.HasIndex("PurchaseOrderItemId");
+
+                    b.ToTable("ProductionMaterialConsumption", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_ProductionMaterialConsumption_Cost_NonNegative", "\"UnitCostAtUseCents\" >= 0 AND \"TotalCostCents\" >= 0");
+
+                            t.HasCheckConstraint("CK_ProductionMaterialConsumption_Quantity_Positive", "\"QuantityUsed\" > 0");
+                        });
+                });
+
+            modelBuilder.Entity("YarneAPIBack.Accounting.Models.ProductionOrder", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<long>("CapitalizedCogsCents")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                    b.Property<int?>("CreatedBy")
+                        .HasColumnType("integer");
+
+                    b.Property<bool>("IsVoid")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false);
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)");
+
+                    b.Property<int>("ProductId")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime>("ProductionDate")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("QuantityProduced")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("QuantityRejected")
+                        .HasColumnType("integer");
+
+                    b.Property<long>("ScrapCostCents")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasDefaultValue("draft");
+
+                    b.Property<long>("TotalCogsCents")
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("TotalLabourCostCents")
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("TotalMaterialCostCents")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreatedBy");
+
+                    b.HasIndex("ProductId");
+
+                    b.HasIndex("ProductionDate");
+
+                    b.ToTable("ProductionOrder", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_ProductionOrder_Costs_NonNegative", "\"TotalMaterialCostCents\" >= 0 AND \"TotalLabourCostCents\" >= 0 AND \"TotalCogsCents\" >= 0");
+
+                            t.HasCheckConstraint("CK_ProductionOrder_Quantities", "\"QuantityProduced\" > 0 AND \"QuantityRejected\" >= 0 AND \"QuantityRejected\" <= \"QuantityProduced\"");
+
+                            t.HasCheckConstraint("CK_ProductionOrder_Status", "\"Status\" IN ('draft', 'completed', 'cancelled')");
+                        });
+                });
+
+            modelBuilder.Entity("YarneAPIBack.Accounting.Models.PurchaseOrder", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                    b.Property<int?>("CreatedBy")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("CurrencyCode")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(3)
+                        .HasColumnType("character varying(3)")
+                        .HasDefaultValue("UAH");
+
+                    b.Property<decimal>("ExchangeRateToBase")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(18, 8)
+                        .HasColumnType("numeric(18,8)")
+                        .HasDefaultValue(1m);
+
+                    b.Property<string>("InvoiceRef")
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)");
+
+                    b.Property<bool>("IsVoid")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false);
+
+                    b.Property<DateTime>("OrderDate")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("ReceiptUrl")
+                        .HasMaxLength(2048)
+                        .HasColumnType("character varying(2048)");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasDefaultValue("draft");
+
+                    b.Property<int>("SupplierId")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreatedBy");
+
+                    b.HasIndex("CurrencyCode");
+
+                    b.HasIndex("OrderDate");
+
+                    b.HasIndex("SupplierId");
+
+                    b.ToTable("PurchaseOrder", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_PurchaseOrder_ExchangeRate_Positive", "\"ExchangeRateToBase\" > 0");
+
+                            t.HasCheckConstraint("CK_PurchaseOrder_Status", "\"Status\" IN ('draft', 'received', 'cancelled')");
+                        });
+                });
+
+            modelBuilder.Entity("YarneAPIBack.Accounting.Models.PurchaseOrderItem", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<long>("BaseTotalCostCents")
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("BaseUnitPriceCents")
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("BaseVatAmountCents")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                    b.Property<int?>("CreatedBy")
+                        .HasColumnType("integer");
+
+                    b.Property<bool>("IsVoid")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false);
+
+                    b.Property<int>("MaterialId")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("PurchaseOrderId")
+                        .HasColumnType("integer");
+
+                    b.Property<decimal>("QuantityPurchased")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)");
+
+                    b.Property<decimal>("QuantityRemaining")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)");
+
+                    b.Property<long>("TotalCostCents")
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("UnitPriceCents")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                    b.Property<long>("VatAmountCents")
+                        .HasColumnType("bigint");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreatedBy");
+
+                    b.HasIndex("PurchaseOrderId");
+
+                    b.HasIndex("MaterialId", "Id");
+
+                    b.ToTable("PurchaseOrderItem", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_PurchaseOrderItem_Money_NonNegative", "\"UnitPriceCents\" >= 0 AND \"TotalCostCents\" >= 0 AND \"VatAmountCents\" >= 0 AND \"BaseUnitPriceCents\" >= 0 AND \"BaseTotalCostCents\" >= 0 AND \"BaseVatAmountCents\" >= 0");
+
+                            t.HasCheckConstraint("CK_PurchaseOrderItem_QuantityPurchased_Positive", "\"QuantityPurchased\" > 0");
+
+                            t.HasCheckConstraint("CK_PurchaseOrderItem_QuantityRemaining_Range", "\"QuantityRemaining\" >= 0 AND \"QuantityRemaining\" <= \"QuantityPurchased\"");
+                        });
+                });
+
+            modelBuilder.Entity("YarneAPIBack.Accounting.Models.ReturnOrder", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                    b.Property<int?>("CreatedBy")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("CurrencyCode")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(3)
+                        .HasColumnType("character varying(3)")
+                        .HasDefaultValue("UAH");
+
+                    b.Property<decimal>("ExchangeRateToBase")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(18, 8)
+                        .HasColumnType("numeric(18,8)")
+                        .HasDefaultValue(1m);
+
+                    b.Property<bool>("IsVoid")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false);
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)");
+
+                    b.Property<string>("Reason")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)");
+
+                    b.Property<long>("RefundAmountCents")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("Resolution")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<DateTime>("ReturnDate")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("SalesOrderId")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasDefaultValue("draft");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreatedBy");
+
+                    b.HasIndex("CurrencyCode");
+
+                    b.HasIndex("ReturnDate");
+
+                    b.HasIndex("SalesOrderId");
+
+                    b.ToTable("ReturnOrder", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_ReturnOrder_ExchangeRate_Positive", "\"ExchangeRateToBase\" > 0");
+
+                            t.HasCheckConstraint("CK_ReturnOrder_Reason", "\"Reason\" IN ('customer_request', 'defective', 'wrong_item', 'other')");
+
+                            t.HasCheckConstraint("CK_ReturnOrder_Refund_NonNegative", "\"RefundAmountCents\" >= 0");
+
+                            t.HasCheckConstraint("CK_ReturnOrder_Resolution", "\"Resolution\" IN ('restock', 'reclaim_materials', 'write_off')");
+
+                            t.HasCheckConstraint("CK_ReturnOrder_Status", "\"Status\" IN ('draft', 'approved', 'completed', 'cancelled')");
+                        });
+                });
+
+            modelBuilder.Entity("YarneAPIBack.Accounting.Models.ReturnOrderItem", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<long>("CogsReversedCents")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                    b.Property<int?>("CreatedBy")
+                        .HasColumnType("integer");
+
+                    b.Property<long>("FeeReversedCents")
+                        .HasColumnType("bigint");
+
+                    b.Property<bool>("IsVoid")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false);
+
+                    b.Property<long>("MaterialsReclaimedCents")
+                        .HasColumnType("bigint");
+
+                    b.Property<int>("Quantity")
+                        .HasColumnType("integer");
+
+                    b.Property<long>("RefundAmountCents")
+                        .HasColumnType("bigint");
+
+                    b.Property<int>("ReturnOrderId")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("SalesOrderItemId")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                    b.Property<long>("VatReversedCents")
+                        .HasColumnType("bigint");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreatedBy");
+
+                    b.HasIndex("ReturnOrderId");
+
+                    b.HasIndex("SalesOrderItemId");
+
+                    b.ToTable("ReturnOrderItem", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_ReturnOrderItem_Money_NonNegative", "\"RefundAmountCents\" >= 0 AND \"VatReversedCents\" >= 0 AND \"CogsReversedCents\" >= 0 AND \"FeeReversedCents\" >= 0 AND \"MaterialsReclaimedCents\" >= 0");
+
+                            t.HasCheckConstraint("CK_ReturnOrderItem_Quantity_Positive", "\"Quantity\" > 0");
+                        });
+                });
+
+            modelBuilder.Entity("YarneAPIBack.Accounting.Models.SalesChannel", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                    b.Property<int?>("CreatedBy")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("CurrencyCode")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(3)
+                        .HasColumnType("character varying(3)")
+                        .HasDefaultValue("UAH");
+
+                    b.Property<long>("FeeFlatCents")
+                        .HasColumnType("bigint");
+
+                    b.Property<decimal>("FeePercentage")
+                        .HasPrecision(7, 4)
+                        .HasColumnType("numeric(7,4)");
+
+                    b.Property<string>("FeeType")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasDefaultValue("none");
+
+                    b.Property<bool>("IsVoid")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false);
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreatedBy");
+
+                    b.HasIndex("CurrencyCode");
+
+                    b.HasIndex("Name")
+                        .IsUnique()
+                        .HasFilter("\"IsVoid\" = false");
+
+                    b.ToTable("SalesChannel", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_SalesChannel_FeeType", "\"FeeType\" IN ('none', 'percentage', 'flat', 'percentage_plus_flat')");
+
+                            t.HasCheckConstraint("CK_SalesChannel_Fees", "\"FeePercentage\" >= 0 AND \"FeePercentage\" <= 100 AND \"FeeFlatCents\" >= 0");
+                        });
+                });
+
+            modelBuilder.Entity("YarneAPIBack.Accounting.Models.SalesFinishedGoodsConsumption", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                    b.Property<int?>("CreatedBy")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("FinishedGoodsLotId")
+                        .HasColumnType("integer");
+
+                    b.Property<bool>("IsVoid")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false);
+
+                    b.Property<int>("Quantity")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("SalesOrderItemId")
+                        .HasColumnType("integer");
+
+                    b.Property<long>("TotalCostCents")
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("UnitCostAtSaleCents")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreatedBy");
+
+                    b.HasIndex("FinishedGoodsLotId");
+
+                    b.HasIndex("SalesOrderItemId");
+
+                    b.ToTable("SalesFinishedGoodsConsumption", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_SalesFinishedGoodsConsumption_Cost_NonNegative", "\"UnitCostAtSaleCents\" >= 0 AND \"TotalCostCents\" >= 0");
+
+                            t.HasCheckConstraint("CK_SalesFinishedGoodsConsumption_Quantity_Positive", "\"Quantity\" > 0");
+                        });
                 });
 
             modelBuilder.Entity("YarneAPIBack.Accounting.Models.StockReport", b =>
@@ -528,6 +1643,52 @@ namespace YarneAPIBack.Data.Migrations
                     b.HasIndex("StockReportId");
 
                     b.ToTable("StockReportLine", (string)null);
+                });
+
+            modelBuilder.Entity("YarneAPIBack.Accounting.Models.Supplier", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("ContactInfo")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                    b.Property<int?>("CreatedBy")
+                        .HasColumnType("integer");
+
+                    b.Property<bool>("IsVoid")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false);
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreatedBy");
+
+                    b.HasIndex("Name")
+                        .IsUnique()
+                        .HasFilter("\"IsVoid\" = false");
+
+                    b.ToTable("Supplier", (string)null);
                 });
 
             modelBuilder.Entity("YarneAPIBack.Models.AdminActivityLog", b =>
@@ -667,6 +1828,10 @@ namespace YarneAPIBack.Data.Migrations
 
                     b.Property<string>("Name")
                         .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("NameUk")
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");
 
@@ -835,6 +2000,33 @@ namespace YarneAPIBack.Data.Migrations
                     b.ToTable("CustomerRole", (string)null);
                 });
 
+            modelBuilder.Entity("YarneAPIBack.Models.FurnitureColor", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("HexCode")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("NameUk")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("FurnitureColor", (string)null);
+                });
+
             modelBuilder.Entity("YarneAPIBack.Models.Order", b =>
                 {
                     b.Property<int>("Id")
@@ -843,11 +2035,46 @@ namespace YarneAPIBack.Data.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
+                    b.Property<long>("ChannelFeeCents")
+                        .HasColumnType("bigint");
+
+                    b.Property<int?>("ChannelId")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                    b.Property<int?>("CreatedBy")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("CurrencyCode")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(3)
+                        .HasColumnType("character varying(3)")
+                        .HasDefaultValue("UAH");
+
                     b.Property<int>("CustomerId")
                         .HasColumnType("integer");
 
                     b.Property<DateTime?>("EstimatedDelivery")
                         .HasColumnType("timestamp without time zone");
+
+                    b.Property<decimal>("ExchangeRateToBase")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(18, 8)
+                        .HasColumnType("numeric(18,8)")
+                        .HasDefaultValue(1m);
+
+                    b.Property<bool>("IsChannelFeeOverridden")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("IsVoid")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false);
 
                     b.Property<DateTime>("OrderDate")
                         .ValueGeneratedOnAdd()
@@ -867,11 +2094,20 @@ namespace YarneAPIBack.Data.Migrations
                         .HasColumnType("character varying(50)")
                         .HasDefaultValue("Pending");
 
-                    b.Property<decimal>("Total")
-                        .HasColumnType("decimal(18, 2)");
+                    b.Property<long>("TotalCents")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
 
                     b.HasKey("Id")
                         .HasName("PK__Order__3214EC0702DFA63A");
+
+                    b.HasIndex("ChannelId");
+
+                    b.HasIndex("CurrencyCode");
 
                     b.HasIndex("CustomerId");
 
@@ -890,12 +2126,38 @@ namespace YarneAPIBack.Data.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
+                    b.Property<long>("ChannelFeeShareCents")
+                        .HasColumnType("bigint");
+
                     b.Property<string>("ColorName")
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");
 
                     b.Property<int?>("CountryId")
                         .HasColumnType("integer");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                    b.Property<int?>("CreatedBy")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("FurnitureColorName")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<bool>("IsVoid")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false);
+
+                    b.Property<long>("ListedPriceCents")
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("NetPriceCents")
+                        .HasColumnType("bigint");
 
                     b.Property<int>("OrderId")
                         .HasColumnType("integer");
@@ -928,8 +2190,19 @@ namespace YarneAPIBack.Data.Migrations
                         .HasMaxLength(20)
                         .HasColumnType("character varying(20)");
 
+                    b.Property<long>("UnitCogsCents")
+                        .HasColumnType("bigint");
+
                     b.Property<decimal>("UnitPrice")
                         .HasColumnType("decimal(18, 2)");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                    b.Property<long>("VatAmountCents")
+                        .HasColumnType("bigint");
 
                     b.Property<bool?>("WithLace")
                         .HasColumnType("boolean");
@@ -943,7 +2216,10 @@ namespace YarneAPIBack.Data.Migrations
 
                     b.HasIndex("ProductId");
 
-                    b.ToTable("OrderItem", (string)null);
+                    b.ToTable("OrderItem", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_OrderItem_AccountingMoney_NonNegative", "\"ListedPriceCents\" >= 0 AND \"NetPriceCents\" >= 0 AND \"ChannelFeeShareCents\" >= 0 AND \"UnitCogsCents\" >= 0 AND \"VatAmountCents\" >= 0");
+                        });
                 });
 
             modelBuilder.Entity("YarneAPIBack.Models.PaymentMethod", b =>
@@ -987,7 +2263,13 @@ namespace YarneAPIBack.Data.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasDefaultValueSql("CURRENT_TIMESTAMP");
 
+                    b.Property<int?>("CreatedBy")
+                        .HasColumnType("integer");
+
                     b.Property<int?>("DefaultColorId")
+                        .HasColumnType("integer");
+
+                    b.Property<int?>("DefaultFurnitureColorId")
                         .HasColumnType("integer");
 
                     b.Property<int?>("DefaultSizeId")
@@ -1015,10 +2297,21 @@ namespace YarneAPIBack.Data.Migrations
                         .HasColumnType("boolean")
                         .HasDefaultValue(false);
 
+                    b.Property<bool>("IsVoid")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false);
+
                     b.Property<bool>("Lace")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("boolean")
                         .HasDefaultValue(false);
+
+                    b.Property<decimal>("MarginThresholdPct")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(5, 2)
+                        .HasColumnType("numeric(5,2)")
+                        .HasDefaultValue(60m);
 
                     b.Property<string>("Material")
                         .HasMaxLength(100)
@@ -1044,8 +2337,25 @@ namespace YarneAPIBack.Data.Migrations
                     b.Property<int>("QuantityInStock")
                         .HasColumnType("integer");
 
+                    b.Property<string>("SellingCurrencyCode")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(3)
+                        .HasColumnType("character varying(3)")
+                        .HasDefaultValue("UAH");
+
+                    b.Property<long>("SellingPriceCents")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasDefaultValue(0L);
+
                     b.Property<bool>("SuggestionsConfigured")
                         .HasColumnType("boolean");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
 
                     b.HasKey("Id")
                         .HasName("PK__Product__3214EC07CAFE7D6A");
@@ -1056,7 +2366,11 @@ namespace YarneAPIBack.Data.Migrations
 
                     b.HasIndex("DefaultColorId");
 
+                    b.HasIndex("DefaultFurnitureColorId");
+
                     b.HasIndex("DefaultSizeId");
+
+                    b.HasIndex("SellingCurrencyCode");
 
                     b.HasIndex(new[] { "ProductCode" }, "UQ__Product__2F4E024F20B6D95F")
                         .IsUnique();
@@ -1093,6 +2407,12 @@ namespace YarneAPIBack.Data.Migrations
                     b.Property<int>("ColorId")
                         .HasColumnType("integer");
 
+                    b.Property<float>("FocalX")
+                        .HasColumnType("real");
+
+                    b.Property<float>("FocalY")
+                        .HasColumnType("real");
+
                     b.Property<string>("ImageUrl")
                         .IsRequired()
                         .HasMaxLength(500)
@@ -1124,6 +2444,12 @@ namespace YarneAPIBack.Data.Migrations
                     b.Property<int>("ColorId")
                         .HasColumnType("integer");
 
+                    b.Property<float>("FocalX")
+                        .HasColumnType("real");
+
+                    b.Property<float>("FocalY")
+                        .HasColumnType("real");
+
                     b.Property<string>("ImageUrl")
                         .IsRequired()
                         .HasMaxLength(500)
@@ -1152,6 +2478,24 @@ namespace YarneAPIBack.Data.Migrations
                     b.ToTable("ProductColorSizeImage", (string)null);
                 });
 
+            modelBuilder.Entity("YarneAPIBack.Models.ProductFurnitureColor", b =>
+                {
+                    b.Property<int>("ProductId")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("FurnitureColorId")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("integer");
+
+                    b.HasKey("ProductId", "FurnitureColorId");
+
+                    b.HasIndex("FurnitureColorId");
+
+                    b.ToTable("ProductFurnitureColor", (string)null);
+                });
+
             modelBuilder.Entity("YarneAPIBack.Models.ProductImage", b =>
                 {
                     b.Property<int>("Id")
@@ -1164,6 +2508,12 @@ namespace YarneAPIBack.Data.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("timestamp with time zone")
                         .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                    b.Property<float>("FocalX")
+                        .HasColumnType("real");
+
+                    b.Property<float>("FocalY")
+                        .HasColumnType("real");
 
                     b.Property<string>("ImageUrl")
                         .IsRequired()
@@ -1250,6 +2600,50 @@ namespace YarneAPIBack.Data.Migrations
                     b.ToTable("ProductVariantStock", (string)null);
                 });
 
+            modelBuilder.Entity("YarneAPIBack.Models.RefreshToken", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                    b.Property<int>("CustomerId")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime>("ExpiresAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int?>("ReplacedByTokenId")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime?>("RevokedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("TokenHash")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CustomerId");
+
+                    b.HasIndex("ExpiresAtUtc");
+
+                    b.HasIndex("ReplacedByTokenId");
+
+                    b.HasIndex("TokenHash")
+                        .IsUnique();
+
+                    b.ToTable("RefreshToken", (string)null);
+                });
+
             modelBuilder.Entity("YarneAPIBack.Models.Role", b =>
                 {
                     b.Property<int>("Id")
@@ -1284,6 +2678,10 @@ namespace YarneAPIBack.Data.Migrations
                         .IsRequired()
                         .HasMaxLength(50)
                         .HasColumnType("character varying(50)");
+
+                    b.Property<string>("NameUk")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
 
                     b.HasKey("Id");
 
@@ -1321,6 +2719,69 @@ namespace YarneAPIBack.Data.Migrations
                     b.Navigation("Category");
                 });
 
+            modelBuilder.Entity("YarneAPIBack.Accounting.Models.CurrencyExchangeRate", b =>
+                {
+                    b.HasOne("YarneAPIBack.Accounting.Models.AccountingCurrency", "FromCurrency")
+                        .WithMany()
+                        .HasForeignKey("FromCurrencyCode")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("YarneAPIBack.Accounting.Models.AccountingCurrency", "ToCurrency")
+                        .WithMany()
+                        .HasForeignKey("ToCurrencyCode")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("FromCurrency");
+
+                    b.Navigation("ToCurrency");
+                });
+
+            modelBuilder.Entity("YarneAPIBack.Accounting.Models.FinishedGoodsInventory", b =>
+                {
+                    b.HasOne("YarneAPIBack.Models.Product", "Product")
+                        .WithOne("FinishedGoodsInventory")
+                        .HasForeignKey("YarneAPIBack.Accounting.Models.FinishedGoodsInventory", "ProductId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Product");
+                });
+
+            modelBuilder.Entity("YarneAPIBack.Accounting.Models.FinishedGoodsLot", b =>
+                {
+                    b.HasOne("YarneAPIBack.Models.Color", "Color")
+                        .WithMany()
+                        .HasForeignKey("ColorId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("YarneAPIBack.Models.Product", "Product")
+                        .WithMany()
+                        .HasForeignKey("ProductId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("YarneAPIBack.Accounting.Models.ProductionOrder", "ProductionOrder")
+                        .WithMany("FinishedGoodsLots")
+                        .HasForeignKey("ProductionOrderId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("YarneAPIBack.Models.Size", "Size")
+                        .WithMany()
+                        .HasForeignKey("SizeId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("Color");
+
+                    b.Navigation("Product");
+
+                    b.Navigation("ProductionOrder");
+
+                    b.Navigation("Size");
+                });
+
             modelBuilder.Entity("YarneAPIBack.Accounting.Models.ImportTransactionLine", b =>
                 {
                     b.HasOne("YarneAPIBack.Accounting.Models.ImportTransaction", "ImportTransaction")
@@ -1356,6 +2817,199 @@ namespace YarneAPIBack.Data.Migrations
                     b.Navigation("ExternalOrder");
 
                     b.Navigation("Material");
+                });
+
+            modelBuilder.Entity("YarneAPIBack.Accounting.Models.OperatingExpense", b =>
+                {
+                    b.HasOne("YarneAPIBack.Accounting.Models.OperatingExpenseCategory", "Category")
+                        .WithMany("Expenses")
+                        .HasForeignKey("CategoryId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("YarneAPIBack.Accounting.Models.AccountingCurrency", "Currency")
+                        .WithMany()
+                        .HasForeignKey("CurrencyCode")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Category");
+
+                    b.Navigation("Currency");
+                });
+
+            modelBuilder.Entity("YarneAPIBack.Accounting.Models.ProductBom", b =>
+                {
+                    b.HasOne("YarneAPIBack.Accounting.Models.AccountingCurrency", "Currency")
+                        .WithMany()
+                        .HasForeignKey("CurrencyCode")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("YarneAPIBack.Models.Product", "Product")
+                        .WithOne("Bom")
+                        .HasForeignKey("YarneAPIBack.Accounting.Models.ProductBom", "ProductId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Currency");
+
+                    b.Navigation("Product");
+                });
+
+            modelBuilder.Entity("YarneAPIBack.Accounting.Models.ProductBomItem", b =>
+                {
+                    b.HasOne("YarneAPIBack.Accounting.Models.Material", "Material")
+                        .WithMany("BomItems")
+                        .HasForeignKey("MaterialId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("YarneAPIBack.Accounting.Models.ProductBom", "ProductBom")
+                        .WithMany("Items")
+                        .HasForeignKey("ProductBomId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Material");
+
+                    b.Navigation("ProductBom");
+                });
+
+            modelBuilder.Entity("YarneAPIBack.Accounting.Models.ProductionMaterialConsumption", b =>
+                {
+                    b.HasOne("YarneAPIBack.Accounting.Models.ProductionOrder", "ProductionOrder")
+                        .WithMany("MaterialConsumptions")
+                        .HasForeignKey("ProductionOrderId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("YarneAPIBack.Accounting.Models.PurchaseOrderItem", "PurchaseOrderItem")
+                        .WithMany("Consumptions")
+                        .HasForeignKey("PurchaseOrderItemId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("ProductionOrder");
+
+                    b.Navigation("PurchaseOrderItem");
+                });
+
+            modelBuilder.Entity("YarneAPIBack.Accounting.Models.ProductionOrder", b =>
+                {
+                    b.HasOne("YarneAPIBack.Models.Product", "Product")
+                        .WithMany("ProductionOrders")
+                        .HasForeignKey("ProductId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Product");
+                });
+
+            modelBuilder.Entity("YarneAPIBack.Accounting.Models.PurchaseOrder", b =>
+                {
+                    b.HasOne("YarneAPIBack.Accounting.Models.AccountingCurrency", "Currency")
+                        .WithMany()
+                        .HasForeignKey("CurrencyCode")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("YarneAPIBack.Accounting.Models.Supplier", "Supplier")
+                        .WithMany("PurchaseOrders")
+                        .HasForeignKey("SupplierId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Currency");
+
+                    b.Navigation("Supplier");
+                });
+
+            modelBuilder.Entity("YarneAPIBack.Accounting.Models.PurchaseOrderItem", b =>
+                {
+                    b.HasOne("YarneAPIBack.Accounting.Models.Material", "Material")
+                        .WithMany("PurchaseOrderItems")
+                        .HasForeignKey("MaterialId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("YarneAPIBack.Accounting.Models.PurchaseOrder", "PurchaseOrder")
+                        .WithMany("Items")
+                        .HasForeignKey("PurchaseOrderId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Material");
+
+                    b.Navigation("PurchaseOrder");
+                });
+
+            modelBuilder.Entity("YarneAPIBack.Accounting.Models.ReturnOrder", b =>
+                {
+                    b.HasOne("YarneAPIBack.Accounting.Models.AccountingCurrency", "Currency")
+                        .WithMany()
+                        .HasForeignKey("CurrencyCode")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("YarneAPIBack.Models.Order", "SalesOrder")
+                        .WithMany("ReturnOrders")
+                        .HasForeignKey("SalesOrderId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Currency");
+
+                    b.Navigation("SalesOrder");
+                });
+
+            modelBuilder.Entity("YarneAPIBack.Accounting.Models.ReturnOrderItem", b =>
+                {
+                    b.HasOne("YarneAPIBack.Accounting.Models.ReturnOrder", "ReturnOrder")
+                        .WithMany("Items")
+                        .HasForeignKey("ReturnOrderId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("YarneAPIBack.Models.OrderItem", "SalesOrderItem")
+                        .WithMany("ReturnItems")
+                        .HasForeignKey("SalesOrderItemId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("ReturnOrder");
+
+                    b.Navigation("SalesOrderItem");
+                });
+
+            modelBuilder.Entity("YarneAPIBack.Accounting.Models.SalesChannel", b =>
+                {
+                    b.HasOne("YarneAPIBack.Accounting.Models.AccountingCurrency", "Currency")
+                        .WithMany()
+                        .HasForeignKey("CurrencyCode")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Currency");
+                });
+
+            modelBuilder.Entity("YarneAPIBack.Accounting.Models.SalesFinishedGoodsConsumption", b =>
+                {
+                    b.HasOne("YarneAPIBack.Accounting.Models.FinishedGoodsLot", "FinishedGoodsLot")
+                        .WithMany("Consumptions")
+                        .HasForeignKey("FinishedGoodsLotId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("YarneAPIBack.Models.OrderItem", "SalesOrderItem")
+                        .WithMany("FinishedGoodsConsumptions")
+                        .HasForeignKey("SalesOrderItemId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("FinishedGoodsLot");
+
+                    b.Navigation("SalesOrderItem");
                 });
 
             modelBuilder.Entity("YarneAPIBack.Accounting.Models.StockReportLine", b =>
@@ -1412,6 +3066,17 @@ namespace YarneAPIBack.Data.Migrations
 
             modelBuilder.Entity("YarneAPIBack.Models.Order", b =>
                 {
+                    b.HasOne("YarneAPIBack.Accounting.Models.SalesChannel", "Channel")
+                        .WithMany("SalesOrders")
+                        .HasForeignKey("ChannelId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("YarneAPIBack.Accounting.Models.AccountingCurrency", "Currency")
+                        .WithMany()
+                        .HasForeignKey("CurrencyCode")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
                     b.HasOne("YarneAPIBack.Models.Customer", "Customer")
                         .WithMany("Orders")
                         .HasForeignKey("CustomerId")
@@ -1428,6 +3093,10 @@ namespace YarneAPIBack.Data.Migrations
                         .WithMany("Orders")
                         .HasForeignKey("ShippingAddrId")
                         .HasConstraintName("FK__Order__ShippingA__6477ECF3");
+
+                    b.Navigation("Channel");
+
+                    b.Navigation("Currency");
 
                     b.Navigation("Customer");
 
@@ -1481,9 +3150,20 @@ namespace YarneAPIBack.Data.Migrations
                         .HasForeignKey("DefaultColorId")
                         .OnDelete(DeleteBehavior.SetNull);
 
+                    b.HasOne("YarneAPIBack.Models.FurnitureColor", "DefaultFurnitureColor")
+                        .WithMany("ProductsAsDefaultFurnitureColor")
+                        .HasForeignKey("DefaultFurnitureColorId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
                     b.HasOne("YarneAPIBack.Models.Size", "DefaultSize")
                         .WithMany("ProductsAsDefaultSize")
                         .HasForeignKey("DefaultSizeId");
+
+                    b.HasOne("YarneAPIBack.Accounting.Models.AccountingCurrency", "SellingCurrency")
+                        .WithMany()
+                        .HasForeignKey("SellingCurrencyCode")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
 
                     b.Navigation("Category");
 
@@ -1491,7 +3171,11 @@ namespace YarneAPIBack.Data.Migrations
 
                     b.Navigation("DefaultColor");
 
+                    b.Navigation("DefaultFurnitureColor");
+
                     b.Navigation("DefaultSize");
+
+                    b.Navigation("SellingCurrency");
                 });
 
             modelBuilder.Entity("YarneAPIBack.Models.ProductColor", b =>
@@ -1557,6 +3241,25 @@ namespace YarneAPIBack.Data.Migrations
                     b.Navigation("ProductColor");
 
                     b.Navigation("ProductSize");
+                });
+
+            modelBuilder.Entity("YarneAPIBack.Models.ProductFurnitureColor", b =>
+                {
+                    b.HasOne("YarneAPIBack.Models.FurnitureColor", "FurnitureColor")
+                        .WithMany("ProductFurnitureColors")
+                        .HasForeignKey("FurnitureColorId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("YarneAPIBack.Models.Product", "Product")
+                        .WithMany("ProductFurnitureColors")
+                        .HasForeignKey("ProductId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("FurnitureColor");
+
+                    b.Navigation("Product");
                 });
 
             modelBuilder.Entity("YarneAPIBack.Models.ProductImage", b =>
@@ -1627,6 +3330,24 @@ namespace YarneAPIBack.Data.Migrations
                     b.Navigation("ProductSize");
                 });
 
+            modelBuilder.Entity("YarneAPIBack.Models.RefreshToken", b =>
+                {
+                    b.HasOne("YarneAPIBack.Models.Customer", "Customer")
+                        .WithMany("RefreshTokens")
+                        .HasForeignKey("CustomerId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("YarneAPIBack.Models.RefreshToken", "ReplacedByToken")
+                        .WithMany()
+                        .HasForeignKey("ReplacedByTokenId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("Customer");
+
+                    b.Navigation("ReplacedByToken");
+                });
+
             modelBuilder.Entity("YarneAPIBack.Accounting.Models.AccountingCategory", b =>
                 {
                     b.Navigation("Purchases");
@@ -1637,6 +3358,11 @@ namespace YarneAPIBack.Data.Migrations
                     b.Navigation("UsageRecords");
                 });
 
+            modelBuilder.Entity("YarneAPIBack.Accounting.Models.FinishedGoodsLot", b =>
+                {
+                    b.Navigation("Consumptions");
+                });
+
             modelBuilder.Entity("YarneAPIBack.Accounting.Models.ImportTransaction", b =>
                 {
                     b.Navigation("Lines");
@@ -1644,14 +3370,60 @@ namespace YarneAPIBack.Data.Migrations
 
             modelBuilder.Entity("YarneAPIBack.Accounting.Models.Material", b =>
                 {
+                    b.Navigation("BomItems");
+
                     b.Navigation("ImportLines");
 
+                    b.Navigation("PurchaseOrderItems");
+
                     b.Navigation("UsageRecords");
+                });
+
+            modelBuilder.Entity("YarneAPIBack.Accounting.Models.OperatingExpenseCategory", b =>
+                {
+                    b.Navigation("Expenses");
+                });
+
+            modelBuilder.Entity("YarneAPIBack.Accounting.Models.ProductBom", b =>
+                {
+                    b.Navigation("Items");
+                });
+
+            modelBuilder.Entity("YarneAPIBack.Accounting.Models.ProductionOrder", b =>
+                {
+                    b.Navigation("FinishedGoodsLots");
+
+                    b.Navigation("MaterialConsumptions");
+                });
+
+            modelBuilder.Entity("YarneAPIBack.Accounting.Models.PurchaseOrder", b =>
+                {
+                    b.Navigation("Items");
+                });
+
+            modelBuilder.Entity("YarneAPIBack.Accounting.Models.PurchaseOrderItem", b =>
+                {
+                    b.Navigation("Consumptions");
+                });
+
+            modelBuilder.Entity("YarneAPIBack.Accounting.Models.ReturnOrder", b =>
+                {
+                    b.Navigation("Items");
+                });
+
+            modelBuilder.Entity("YarneAPIBack.Accounting.Models.SalesChannel", b =>
+                {
+                    b.Navigation("SalesOrders");
                 });
 
             modelBuilder.Entity("YarneAPIBack.Accounting.Models.StockReport", b =>
                 {
                     b.Navigation("Lines");
+                });
+
+            modelBuilder.Entity("YarneAPIBack.Accounting.Models.Supplier", b =>
+                {
+                    b.Navigation("PurchaseOrders");
                 });
 
             modelBuilder.Entity("YarneAPIBack.Models.Category", b =>
@@ -1685,6 +3457,8 @@ namespace YarneAPIBack.Data.Migrations
                     b.Navigation("CustomerRoles");
 
                     b.Navigation("Orders");
+
+                    b.Navigation("RefreshTokens");
                 });
 
             modelBuilder.Entity("YarneAPIBack.Models.CustomerAddress", b =>
@@ -1692,9 +3466,25 @@ namespace YarneAPIBack.Data.Migrations
                     b.Navigation("Orders");
                 });
 
+            modelBuilder.Entity("YarneAPIBack.Models.FurnitureColor", b =>
+                {
+                    b.Navigation("ProductFurnitureColors");
+
+                    b.Navigation("ProductsAsDefaultFurnitureColor");
+                });
+
             modelBuilder.Entity("YarneAPIBack.Models.Order", b =>
                 {
                     b.Navigation("OrderItems");
+
+                    b.Navigation("ReturnOrders");
+                });
+
+            modelBuilder.Entity("YarneAPIBack.Models.OrderItem", b =>
+                {
+                    b.Navigation("FinishedGoodsConsumptions");
+
+                    b.Navigation("ReturnItems");
                 });
 
             modelBuilder.Entity("YarneAPIBack.Models.PaymentMethod", b =>
@@ -1704,13 +3494,21 @@ namespace YarneAPIBack.Data.Migrations
 
             modelBuilder.Entity("YarneAPIBack.Models.Product", b =>
                 {
+                    b.Navigation("Bom");
+
+                    b.Navigation("FinishedGoodsInventory");
+
                     b.Navigation("OrderItems");
 
                     b.Navigation("ProductColors");
 
+                    b.Navigation("ProductFurnitureColors");
+
                     b.Navigation("ProductImages");
 
                     b.Navigation("ProductSizes");
+
+                    b.Navigation("ProductionOrders");
 
                     b.Navigation("Recommendations");
                 });

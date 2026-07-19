@@ -7,8 +7,11 @@ public class MaterialDto
     public string? Description { get; set; }
     public string Unit { get; set; } = string.Empty;
     public string? Sku { get; set; }
+    public string? Category { get; set; }
+    public decimal ReorderThreshold { get; set; }
     public bool IsActive { get; set; }
     public DateTime CreatedAt { get; set; }
+    public DateTime UpdatedAt { get; set; }
 }
 
 public class MaterialStockDto
@@ -30,6 +33,8 @@ public class CreateMaterialRequest
     public string? Description { get; set; }
     public string Unit { get; set; } = "pcs";
     public string? Sku { get; set; }
+    public string? Category { get; set; }
+    public decimal ReorderThreshold { get; set; }
     public bool IsActive { get; set; } = true;
 }
 
@@ -39,5 +44,7 @@ public class UpdateMaterialRequest
     public string? Description { get; set; }
     public string Unit { get; set; } = "pcs";
     public string? Sku { get; set; }
+    public string? Category { get; set; }
+    public decimal ReorderThreshold { get; set; }
     public bool IsActive { get; set; } = true;
 }

@@ -20,7 +20,7 @@ public class AccountingService : IAccountingService
 
     public async Task<IReadOnlyList<MaterialDto>> GetMaterialsAsync(bool? isActive = null, CancellationToken ct = default)
     {
-        var query = _context.Materials.AsNoTracking().AsQueryable();
+        var query = _context.Materials.AsNoTracking().Where(m => !m.IsVoid);
         if (isActive.HasValue)
             query = query.Where(m => m.IsActive == isActive.Value);
 
@@ -30,7 +30,7 @@ public class AccountingService : IAccountingService
 
     public async Task<MaterialDto?> GetMaterialByIdAsync(int id, CancellationToken ct = default)
     {
-        var row = await _context.Materials.AsNoTracking().FirstOrDefaultAsync(m => m.Id == id, ct);
+        var row = await _context.Materials.AsNoTracking().FirstOrDefaultAsync(m => m.Id == id && !m.IsVoid, ct);
         return row == null ? null : MapMaterial(row);
     }
 
@@ -42,8 +42,11 @@ public class AccountingService : IAccountingService
             Description = string.IsNullOrWhiteSpace(req.Description) ? null : req.Description.Trim(),
             Unit        = string.IsNullOrWhiteSpace(req.Unit) ? "pcs" : req.Unit.Trim(),
             Sku         = string.IsNullOrWhiteSpace(req.Sku) ? null : req.Sku.Trim(),
+            Category    = string.IsNullOrWhiteSpace(req.Category) ? null : req.Category.Trim(),
+            ReorderThreshold = req.ReorderThreshold,
             IsActive    = req.IsActive,
             CreatedAt   = DateTime.UtcNow,
+            UpdatedAt   = DateTime.UtcNow,
         };
         _context.Materials.Add(entity);
         await _context.SaveChangesAsync(ct);
@@ -53,13 +56,16 @@ public class AccountingService : IAccountingService
     public async Task<MaterialDto?> UpdateMaterialAsync(int id, UpdateMaterialRequest req, CancellationToken ct = default)
     {
         var entity = await _context.Materials.FindAsync([id], ct);
-        if (entity == null) return null;
+        if (entity == null || entity.IsVoid) return null;
 
         entity.Name        = req.Name.Trim();
         entity.Description = string.IsNullOrWhiteSpace(req.Description) ? null : req.Description.Trim();
         entity.Unit        = string.IsNullOrWhiteSpace(req.Unit) ? "pcs" : req.Unit.Trim();
         entity.Sku         = string.IsNullOrWhiteSpace(req.Sku) ? null : req.Sku.Trim();
+        entity.Category    = string.IsNullOrWhiteSpace(req.Category) ? null : req.Category.Trim();
+        entity.ReorderThreshold = req.ReorderThreshold;
         entity.IsActive    = req.IsActive;
+        entity.UpdatedAt   = DateTime.UtcNow;
         await _context.SaveChangesAsync(ct);
         return MapMaterial(entity);
     }
@@ -67,49 +73,51 @@ public class AccountingService : IAccountingService
     public async Task<bool> DeleteMaterialAsync(int id, CancellationToken ct = default)
     {
         var entity = await _context.Materials.FindAsync([id], ct);
-        if (entity == null) return false;
+        if (entity == null || entity.IsVoid) return false;
 
-        _context.Materials.Remove(entity);
+        entity.IsVoid = true;
+        entity.IsActive = false;
+        entity.UpdatedAt = DateTime.UtcNow;
         await _context.SaveChangesAsync(ct);
         return true;
     }
 
     public async Task<IReadOnlyList<MaterialStockDto>> GetStockAsync(int? materialId = null, CancellationToken ct = default)
     {
-        var materialQuery = _context.Materials.AsNoTracking().Where(m => m.IsActive);
+        var materialQuery = _context.Materials.AsNoTracking().Where(m => m.IsActive && !m.IsVoid);
         if (materialId.HasValue)
             materialQuery = materialQuery.Where(m => m.Id == materialId.Value);
 
         var materials = await materialQuery.OrderBy(m => m.Name).ToListAsync(ct);
 
-        var importTotals = await _context.ImportTransactionLines
+        // Canonical material ledger = received purchase-order lots (FIFO source of truth).
+        // Legacy ImportTransaction / MaterialUsageRecord totals are intentionally ignored.
+        var lotTotals = await _context.PurchaseOrderItems
             .AsNoTracking()
+            .Where(l =>
+                !l.IsVoid &&
+                !l.PurchaseOrder.IsVoid &&
+                l.PurchaseOrder.Status == "received")
             .GroupBy(l => l.MaterialId)
             .Select(g => new
             {
-                MaterialId  = g.Key,
-                TotalQty    = g.Sum(l => l.Quantity),
-                TotalCost   = g.Sum(l => l.Quantity * l.UnitPrice),
+                MaterialId = g.Key,
+                TotalQty = g.Sum(l => l.QuantityPurchased),
+                QtyOnHand = g.Sum(l => l.QuantityRemaining),
+                OnHandValueCents = g.Sum(l => l.QuantityRemaining * l.BaseUnitPriceCents),
             })
             .ToListAsync(ct);
 
-        var usageTotals = await _context.MaterialUsageRecords
-            .AsNoTracking()
-            .GroupBy(u => u.MaterialId)
-            .Select(g => new { MaterialId = g.Key, TotalUsed = g.Sum(u => u.QuantityUsed) })
-            .ToListAsync(ct);
-
-        var importMap = importTotals.ToDictionary(x => x.MaterialId);
-        var usageMap  = usageTotals.ToDictionary(x => x.MaterialId);
+        var lotMap = lotTotals.ToDictionary(x => x.MaterialId);
 
         return materials.Select(m =>
         {
-            importMap.TryGetValue(m.Id, out var imp);
-            usageMap.TryGetValue(m.Id, out var use);
-            var qtyImported = imp?.TotalQty ?? 0m;
-            var qtyUsed     = use?.TotalUsed ?? 0m;
-            var qtyOnHand   = qtyImported - qtyUsed;
-            var avgUnitCost = qtyImported > 0 ? (imp?.TotalCost ?? 0m) / qtyImported : 0m;
+            lotMap.TryGetValue(m.Id, out var lot);
+            var qtyImported = lot?.TotalQty ?? 0m;
+            var qtyOnHand = lot?.QtyOnHand ?? 0m;
+            var qtyUsed = qtyImported - qtyOnHand;
+            var onHandValueCents = lot?.OnHandValueCents ?? 0m;
+            var avgUnitCost = qtyOnHand > 0 ? onHandValueCents / qtyOnHand / 100m : 0m;
             return new MaterialStockDto
             {
                 MaterialId      = m.Id,
@@ -120,7 +128,7 @@ public class AccountingService : IAccountingService
                 QtyUsed         = qtyUsed,
                 QtyOnHand       = qtyOnHand,
                 AvgUnitCost     = avgUnitCost,
-                TotalStockValue = qtyOnHand * avgUnitCost,
+                TotalStockValue = onHandValueCents / 100m,
             };
         }).ToList();
     }
@@ -135,7 +143,8 @@ public class AccountingService : IAccountingService
 
         var query = _context.ImportTransactions
             .AsNoTracking()
-            .Include(t => t.Lines)
+            .Include(t => t.Lines.Where(l => !l.IsVoid))
+            .Where(t => !t.IsVoid)
             .AsQueryable();
 
         if (fromUtc.HasValue) query = query.Where(t => t.TransactionDate >= fromUtc.Value);
@@ -149,68 +158,24 @@ public class AccountingService : IAccountingService
     {
         var row = await _context.ImportTransactions
             .AsNoTracking()
-            .Include(t => t.Lines)
+            .Include(t => t.Lines.Where(l => !l.IsVoid))
                 .ThenInclude(l => l.Material)
             .FirstOrDefaultAsync(t => t.Id == id, ct);
         return row == null ? null : MapImport(row);
     }
 
-    public async Task<ImportTransactionDto> CreateImportTransactionAsync(
+    public Task<ImportTransactionDto> CreateImportTransactionAsync(
         CreateImportTransactionRequest req, CancellationToken ct = default)
     {
-        var entity = new ImportTransaction
-        {
-            Supplier        = string.IsNullOrWhiteSpace(req.Supplier) ? null : req.Supplier.Trim(),
-            TransactionDate = req.TransactionDate.ToUniversalTime(),
-            ReceivedDate    = req.ReceivedDate?.ToUniversalTime(),
-            Notes           = string.IsNullOrWhiteSpace(req.Notes) ? null : req.Notes.Trim(),
-            InvoiceRef      = string.IsNullOrWhiteSpace(req.InvoiceRef) ? null : req.InvoiceRef.Trim(),
-            CreatedAt       = DateTime.UtcNow,
-            Lines           = req.Lines.Select(l => new ImportTransactionLine
-            {
-                MaterialId = l.MaterialId,
-                Quantity   = l.Quantity,
-                UnitPrice  = l.UnitPrice,
-            }).ToList(),
-        };
-        _context.ImportTransactions.Add(entity);
-        await _context.SaveChangesAsync(ct);
-
-        await _context.Entry(entity).Collection(e => e.Lines).Query()
-            .Include(l => l.Material).LoadAsync(ct);
-
-        return MapImport(entity);
+        throw new AccountingBusinessException(
+            "Legacy imports are retired. Receive materials via Purchase Orders so lots feed FIFO production.");
     }
 
-    public async Task<ImportTransactionDto?> UpdateImportTransactionAsync(
+    public Task<ImportTransactionDto?> UpdateImportTransactionAsync(
         int id, UpdateImportTransactionRequest req, CancellationToken ct = default)
     {
-        var entity = await _context.ImportTransactions
-            .Include(t => t.Lines)
-            .FirstOrDefaultAsync(t => t.Id == id, ct);
-        if (entity == null) return null;
-
-        entity.Supplier        = string.IsNullOrWhiteSpace(req.Supplier) ? null : req.Supplier.Trim();
-        entity.TransactionDate = req.TransactionDate.ToUniversalTime();
-        entity.ReceivedDate    = req.ReceivedDate?.ToUniversalTime();
-        entity.Notes           = string.IsNullOrWhiteSpace(req.Notes) ? null : req.Notes.Trim();
-        entity.InvoiceRef      = string.IsNullOrWhiteSpace(req.InvoiceRef) ? null : req.InvoiceRef.Trim();
-
-        _context.ImportTransactionLines.RemoveRange(entity.Lines);
-        entity.Lines = req.Lines.Select(l => new ImportTransactionLine
-        {
-            ImportTransactionId = entity.Id,
-            MaterialId          = l.MaterialId,
-            Quantity            = l.Quantity,
-            UnitPrice           = l.UnitPrice,
-        }).ToList();
-
-        await _context.SaveChangesAsync(ct);
-
-        await _context.Entry(entity).Collection(e => e.Lines).Query()
-            .Include(l => l.Material).LoadAsync(ct);
-
-        return MapImport(entity);
+        throw new AccountingBusinessException(
+            "Legacy imports are retired. Edit received stock via Purchase Orders instead.");
     }
 
     public async Task<bool> DeleteImportTransactionAsync(int id, CancellationToken ct = default)
@@ -219,8 +184,17 @@ public class AccountingService : IAccountingService
             .Include(t => t.Lines)
             .FirstOrDefaultAsync(t => t.Id == id, ct);
         if (entity == null) return false;
+        if (entity.IsVoid) return true;
 
-        _context.ImportTransactions.Remove(entity);
+        if (await _context.PurchaseOrders.AnyAsync(x => x.Id == id && !x.IsVoid, ct))
+        {
+            throw new AccountingBusinessException(
+                "This import was migrated to purchase orders. Void it from Purchases instead.");
+        }
+
+        // Legacy imports are retained for migration history; never hard-delete financial records.
+        entity.IsVoid = true;
+        entity.IsLocked = true;
         await _context.SaveChangesAsync(ct);
         return true;
     }
@@ -229,14 +203,17 @@ public class AccountingService : IAccountingService
 
     public async Task<IReadOnlyList<ExpenseCategoryDto>> GetExpenseCategoryRecordsAsync(CancellationToken ct = default)
     {
-        var rows = await _context.ExpenseCategories.AsNoTracking().OrderBy(c => c.Name).ToListAsync(ct);
+        var rows = await _context.ExpenseCategories.AsNoTracking()
+            .Where(c => !c.IsVoid)
+            .OrderBy(c => c.Name)
+            .ToListAsync(ct);
         return rows.Select(MapExpenseCategory).ToList();
     }
 
     public async Task<ExpenseCategoryDto> CreateExpenseCategoryAsync(CreateExpenseCategoryRequest req, CancellationToken ct = default)
     {
         var name = req.Name.Trim();
-        if (await _context.ExpenseCategories.AnyAsync(c => c.Name == name, ct))
+        if (await _context.ExpenseCategories.AnyAsync(c => c.Name == name && !c.IsVoid, ct))
             throw new AccountingBusinessException($"Category '{name}' already exists.");
 
         var entity = new ExpenseCategory
@@ -254,9 +231,11 @@ public class AccountingService : IAccountingService
     {
         var entity = await _context.ExpenseCategories.FindAsync([id], ct);
         if (entity == null) return null;
+        if (entity.IsVoid)
+            throw new AccountingBusinessException("Voided categories cannot be edited.");
 
         var name = req.Name.Trim();
-        if (await _context.ExpenseCategories.AnyAsync(c => c.Name == name && c.Id != id, ct))
+        if (await _context.ExpenseCategories.AnyAsync(c => c.Name == name && c.Id != id && !c.IsVoid, ct))
             throw new AccountingBusinessException($"Category '{name}' already exists.");
 
         var oldName = entity.Name;
@@ -267,7 +246,7 @@ public class AccountingService : IAccountingService
         if (oldName != name)
         {
             await _context.Expenses
-                .Where(e => e.Category == oldName)
+                .Where(e => e.Category == oldName && !e.IsVoid)
                 .ExecuteUpdateAsync(s => s.SetProperty(e => e.Category, name), ct);
         }
 
@@ -278,12 +257,13 @@ public class AccountingService : IAccountingService
     {
         var entity = await _context.ExpenseCategories.FindAsync([id], ct);
         if (entity == null) return false;
+        if (entity.IsVoid) return true;
 
-        var inUse = await _context.Expenses.AnyAsync(e => e.Category == entity.Name, ct);
+        var inUse = await _context.Expenses.AnyAsync(e => e.Category == entity.Name && !e.IsVoid, ct);
         if (inUse)
             throw new AccountingBusinessException($"Cannot delete category '{entity.Name}' — expenses still use it.");
 
-        _context.ExpenseCategories.Remove(entity);
+        entity.IsVoid = true;
         await _context.SaveChangesAsync(ct);
         return true;
     }
@@ -296,7 +276,9 @@ public class AccountingService : IAccountingService
         var fromUtc = from?.ToUniversalTime();
         var toUtc   = to?.ToUniversalTime();
 
-        var query = _context.Expenses.AsNoTracking().AsQueryable();
+        var query = _context.Expenses.AsNoTracking()
+            .Where(e => !e.IsVoid)
+            .AsQueryable();
         if (!string.IsNullOrWhiteSpace(category))
             query = query.Where(e => e.Category == category);
         if (fromUtc.HasValue) query = query.Where(e => e.ExpenseDate >= fromUtc.Value);
@@ -312,48 +294,26 @@ public class AccountingService : IAccountingService
         return row == null ? null : MapExpense(row);
     }
 
-    public async Task<ExpenseDto> CreateExpenseAsync(CreateExpenseRequest req, CancellationToken ct = default)
+    public Task<ExpenseDto> CreateExpenseAsync(CreateExpenseRequest req, CancellationToken ct = default)
     {
-        await EnsureExpenseCategoryExistsAsync(req.Category, ct);
-
-        var entity = new Expense
-        {
-            Category    = req.Category.Trim(),
-            Name        = req.Name.Trim(),
-            Description = string.IsNullOrWhiteSpace(req.Description) ? null : req.Description.Trim(),
-            Amount      = req.Amount,
-            ExpenseDate = req.ExpenseDate.ToUniversalTime(),
-            Notes       = string.IsNullOrWhiteSpace(req.Notes) ? null : req.Notes.Trim(),
-            CreatedAt   = DateTime.UtcNow,
-        };
-        _context.Expenses.Add(entity);
-        await _context.SaveChangesAsync(ct);
-        return MapExpense(entity);
+        throw new AccountingBusinessException(
+            "Legacy expenses are retired. Use Operating Expenses (with categories, VAT, and receipt upload).");
     }
 
-    public async Task<ExpenseDto?> UpdateExpenseAsync(int id, UpdateExpenseRequest req, CancellationToken ct = default)
+    public Task<ExpenseDto?> UpdateExpenseAsync(int id, UpdateExpenseRequest req, CancellationToken ct = default)
     {
-        var entity = await _context.Expenses.FindAsync([id], ct);
-        if (entity == null) return null;
-
-        await EnsureExpenseCategoryExistsAsync(req.Category, ct);
-
-        entity.Category    = req.Category.Trim();
-        entity.Name        = req.Name.Trim();
-        entity.Description = string.IsNullOrWhiteSpace(req.Description) ? null : req.Description.Trim();
-        entity.Amount      = req.Amount;
-        entity.ExpenseDate = req.ExpenseDate.ToUniversalTime();
-        entity.Notes       = string.IsNullOrWhiteSpace(req.Notes) ? null : req.Notes.Trim();
-        await _context.SaveChangesAsync(ct);
-        return MapExpense(entity);
+        throw new AccountingBusinessException(
+            "Legacy expenses are retired. Edit Operating Expenses instead.");
     }
 
     public async Task<bool> DeleteExpenseAsync(int id, CancellationToken ct = default)
     {
         var entity = await _context.Expenses.FindAsync([id], ct);
         if (entity == null) return false;
+        if (entity.IsVoid) return true;
 
-        _context.Expenses.Remove(entity);
+        // Legacy expenses are retained; soft-archive without destroying amounts.
+        entity.IsVoid = true;
         await _context.SaveChangesAsync(ct);
         return true;
     }
@@ -362,6 +322,7 @@ public class AccountingService : IAccountingService
     {
         return await _context.ExpenseCategories
             .AsNoTracking()
+            .Where(c => !c.IsVoid)
             .OrderBy(c => c.Name)
             .Select(c => c.Name)
             .ToListAsync(ct);
@@ -378,7 +339,7 @@ public class AccountingService : IAccountingService
         var query = _context.Orders
             .AsNoTracking()
             .Include(o => o.Customer)
-            .Where(o => o.Status == "Received");
+            .Where(o => !o.IsVoid && o.Status != "Canceled" && o.Status != "Pending");
 
         if (fromUtc.HasValue) query = query.Where(o => o.OrderDate >= fromUtc.Value);
         if (toUtc.HasValue)   query = query.Where(o => o.OrderDate <= toUtc.Value);
@@ -389,7 +350,7 @@ public class AccountingService : IAccountingService
             OrderId      = o.Id,
             OrderDate    = o.OrderDate,
             Status       = o.Status,
-            Total        = o.Total,
+            Total        = o.TotalCents / 100m,
             CustomerName = $"{o.Customer.FirstName} {o.Customer.LastName}".Trim(),
         }).ToList();
     }
@@ -402,6 +363,7 @@ public class AccountingService : IAccountingService
         var query = _context.MaterialUsageRecords
             .AsNoTracking()
             .Include(u => u.Material)
+            .Where(u => !u.IsVoid)
             .AsQueryable();
 
         if (materialId.HasValue) query = query.Where(u => u.MaterialId == materialId.Value);
@@ -423,64 +385,28 @@ public class AccountingService : IAccountingService
         return row == null ? null : MapUsage(row);
     }
 
-    public async Task<MaterialUsageRecordDto> CreateUsageRecordAsync(
+    public Task<MaterialUsageRecordDto> CreateUsageRecordAsync(
         CreateMaterialUsageRequest req, CancellationToken ct = default)
     {
-        if (req.OrderId.HasValue && req.ExternalOrderId.HasValue)
-            throw new AccountingBusinessException("Link usage to either a website order or an external order, not both.");
-
-        await EnsureUsageQuantityAvailableAsync(req.MaterialId, req.QuantityUsed, excludeUsageId: null, ct);
-
-        var entity = new MaterialUsageRecord
-        {
-            MaterialId       = req.MaterialId,
-            OrderId          = req.OrderId,
-            ExternalOrderId  = req.ExternalOrderId,
-            QuantityUsed     = req.QuantityUsed,
-            UsageDate        = req.UsageDate.ToUniversalTime(),
-            Notes            = string.IsNullOrWhiteSpace(req.Notes) ? null : req.Notes.Trim(),
-            CreatedAt        = DateTime.UtcNow,
-        };
-        _context.MaterialUsageRecords.Add(entity);
-        await _context.SaveChangesAsync(ct);
-
-        await _context.Entry(entity).Reference(e => e.Material).LoadAsync(ct);
-        return MapUsage(entity);
+        throw new AccountingBusinessException(
+            "Legacy material usage is retired. Material consumption is recorded automatically by Production Orders (FIFO).");
     }
 
-    public async Task<MaterialUsageRecordDto?> UpdateUsageRecordAsync(
+    public Task<MaterialUsageRecordDto?> UpdateUsageRecordAsync(
         int id, UpdateMaterialUsageRequest req, CancellationToken ct = default)
     {
-        var entity = await _context.MaterialUsageRecords
-            .Include(u => u.Material)
-            .FirstOrDefaultAsync(u => u.Id == id, ct);
-        if (entity == null) return null;
-
-        if (req.OrderId.HasValue && req.ExternalOrderId.HasValue)
-            throw new AccountingBusinessException("Link usage to either a website order or an external order, not both.");
-
-        await EnsureUsageQuantityAvailableAsync(req.MaterialId, req.QuantityUsed, excludeUsageId: id, ct);
-
-        entity.MaterialId      = req.MaterialId;
-        entity.OrderId         = req.OrderId;
-        entity.ExternalOrderId = req.ExternalOrderId;
-        entity.QuantityUsed    = req.QuantityUsed;
-        entity.UsageDate    = req.UsageDate.ToUniversalTime();
-        entity.Notes        = string.IsNullOrWhiteSpace(req.Notes) ? null : req.Notes.Trim();
-        await _context.SaveChangesAsync(ct);
-
-        if (entity.MaterialId != req.MaterialId)
-            await _context.Entry(entity).Reference(e => e.Material).LoadAsync(ct);
-
-        return MapUsage(entity);
+        throw new AccountingBusinessException(
+            "Legacy material usage is retired. Review consumption on Production Orders instead.");
     }
 
     public async Task<bool> DeleteUsageRecordAsync(int id, CancellationToken ct = default)
     {
         var entity = await _context.MaterialUsageRecords.FindAsync([id], ct);
         if (entity == null) return false;
+        if (entity.IsVoid) return true;
 
-        _context.MaterialUsageRecords.Remove(entity);
+        // Legacy usage is retained; soft-void without destroying quantities.
+        entity.IsVoid = true;
         await _context.SaveChangesAsync(ct);
         return true;
     }
@@ -494,7 +420,7 @@ public class AccountingService : IAccountingService
         var websiteOrders = await _context.Orders
             .AsNoTracking()
             .Include(o => o.Customer)
-            .Where(o => o.OrderDate >= from)
+            .Where(o => o.OrderDate >= from && !o.IsVoid && o.Status != "Canceled")
             .OrderByDescending(o => o.OrderDate)
             .Take(200)
             .ToListAsync(ct);
@@ -514,7 +440,7 @@ public class AccountingService : IAccountingService
                 OrderDate    = o.OrderDate,
                 Status       = o.Status,
                 CustomerName = $"{o.Customer.FirstName} {o.Customer.LastName}".Trim(),
-                Total        = o.Total,
+                Total        = o.TotalCents / 100m,
             }).ToList(),
             ExternalOrders = externalOrders.Select(MapExternalOrderOption).ToList(),
         };
@@ -611,24 +537,27 @@ public class AccountingService : IAccountingService
         var fromUtc = from?.ToUniversalTime();
         var toUtc   = to?.ToUniversalTime();
 
-        // Sold revenue: orders with status "Received"
-        var orderQuery = _context.Orders.AsNoTracking().Where(o => o.Status == "Received");
+        // Sold revenue: all non-void, non-canceled orders (aligned with v3 ledger)
+        var orderQuery = _context.Orders.AsNoTracking()
+            .Where(o => !o.IsVoid && o.Status != "Canceled");
         if (fromUtc.HasValue) orderQuery = orderQuery.Where(o => o.OrderDate >= fromUtc.Value);
         if (toUtc.HasValue)   orderQuery = orderQuery.Where(o => o.OrderDate <= toUtc.Value);
-        var soldRevenue     = await orderQuery.SumAsync(o => (decimal?)o.Total, ct) ?? 0m;
+        var soldRevenue     = (await orderQuery.SumAsync(o => (long?)o.TotalCents, ct) ?? 0L) / 100m;
         var totalOrdersSold = await orderQuery.CountAsync(ct);
 
-        // Import spend from import transaction lines
-        var importQuery = _context.ImportTransactions.AsNoTracking();
+        // Import spend from import transaction lines (exclude voided legacy rows)
+        var importQuery = _context.ImportTransactions.AsNoTracking()
+            .Where(t => !t.IsVoid);
         if (fromUtc.HasValue) importQuery = importQuery.Where(t => t.TransactionDate >= fromUtc.Value);
         if (toUtc.HasValue)   importQuery = importQuery.Where(t => t.TransactionDate <= toUtc.Value);
         var importIds    = importQuery.Select(t => t.Id);
         var importSpend  = await _context.ImportTransactionLines.AsNoTracking()
-            .Where(l => importIds.Contains(l.ImportTransactionId))
+            .Where(l => !l.IsVoid && importIds.Contains(l.ImportTransactionId))
             .SumAsync(l => (decimal?)(l.Quantity * l.UnitPrice), ct) ?? 0m;
 
         // Expense spend
-        var expenseQuery = _context.Expenses.AsNoTracking();
+        var expenseQuery = _context.Expenses.AsNoTracking()
+            .Where(e => !e.IsVoid);
         if (fromUtc.HasValue) expenseQuery = expenseQuery.Where(e => e.ExpenseDate >= fromUtc.Value);
         if (toUtc.HasValue)   expenseQuery = expenseQuery.Where(e => e.ExpenseDate <= toUtc.Value);
         var expenseSpend = await expenseQuery.SumAsync(e => (decimal?)e.Amount, ct) ?? 0m;
@@ -679,7 +608,9 @@ public class AccountingService : IAccountingService
         if (req.IncludeImports)
         {
             var importQuery = _context.ImportTransactions.AsNoTracking()
-                .Include(t => t.Lines).AsQueryable();
+                .Include(t => t.Lines.Where(l => !l.IsVoid))
+                .Where(t => !t.IsVoid)
+                .AsQueryable();
             if (fromUtc.HasValue) importQuery = importQuery.Where(t => t.TransactionDate >= fromUtc.Value);
             if (toUtc.HasValue)   importQuery = importQuery.Where(t => t.TransactionDate <= toUtc.Value);
             var imports = await importQuery.OrderByDescending(t => t.TransactionDate).ToListAsync(ct);
@@ -690,7 +621,9 @@ public class AccountingService : IAccountingService
         // Expenses by category
         if (req.IncludeExpenses)
         {
-            var expenseQuery = _context.Expenses.AsNoTracking().AsQueryable();
+            var expenseQuery = _context.Expenses.AsNoTracking()
+                .Where(e => !e.IsVoid)
+                .AsQueryable();
             if (fromUtc.HasValue) expenseQuery = expenseQuery.Where(e => e.ExpenseDate >= fromUtc.Value);
             if (toUtc.HasValue)   expenseQuery = expenseQuery.Where(e => e.ExpenseDate <= toUtc.Value);
             var expenses = await expenseQuery.OrderByDescending(e => e.ExpenseDate).ToListAsync(ct);
@@ -743,8 +676,11 @@ public class AccountingService : IAccountingService
         Description = m.Description,
         Unit        = m.Unit,
         Sku         = m.Sku,
+        Category    = m.Category,
+        ReorderThreshold = m.ReorderThreshold,
         IsActive    = m.IsActive,
         CreatedAt   = m.CreatedAt,
+        UpdatedAt   = m.UpdatedAt,
     };
 
     private static ImportTransactionSummaryDto MapImportSummary(ImportTransaction t) => new()
@@ -866,31 +802,8 @@ public class AccountingService : IAccountingService
     private async Task EnsureExpenseCategoryExistsAsync(string category, CancellationToken ct)
     {
         var name = category.Trim();
-        if (!await _context.ExpenseCategories.AnyAsync(c => c.Name == name, ct))
+        if (!await _context.ExpenseCategories.AnyAsync(c => c.Name == name && !c.IsVoid, ct))
             throw new AccountingBusinessException($"Unknown expense category '{name}'. Create it in Categories first.");
-    }
-
-    private async Task EnsureUsageQuantityAvailableAsync(
-        int materialId, decimal quantityUsed, int? excludeUsageId, CancellationToken ct)
-    {
-        if (quantityUsed <= 0)
-            throw new AccountingBusinessException("Quantity used must be greater than zero.");
-
-        var imported = await _context.ImportTransactionLines
-            .AsNoTracking()
-            .Where(l => l.MaterialId == materialId)
-            .SumAsync(l => (decimal?)l.Quantity, ct) ?? 0m;
-
-        var usedQuery = _context.MaterialUsageRecords.AsNoTracking().Where(u => u.MaterialId == materialId);
-        if (excludeUsageId.HasValue)
-            usedQuery = usedQuery.Where(u => u.Id != excludeUsageId.Value);
-
-        var used = await usedQuery.SumAsync(u => (decimal?)u.QuantityUsed, ct) ?? 0m;
-        var available = imported - used;
-
-        if (quantityUsed > available)
-            throw new AccountingBusinessException(
-                $"Not enough stock. Available: {available:G29}, requested: {quantityUsed:G29}.");
     }
 
     private static StockReportDetailDto MapStockReportDetail(StockReport r) => new()

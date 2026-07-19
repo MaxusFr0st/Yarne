@@ -51,6 +51,8 @@ public class ProductService : IProductService
                         .ThenInclude(ps => ps.Size)
             .AsQueryable();
 
+        query = query.Where(p => !p.IsVoid);
+
         if (!includeInactive)
             query = query.Where(p => p.IsActive);
 
@@ -99,7 +101,7 @@ public class ProductService : IProductService
             .Include(p => p.Recommendations)
                 .ThenInclude(r => r.RelatedProduct)
                     .ThenInclude(rp => rp.ProductImages)
-            .FirstOrDefaultAsync(p => p.Id == id && (!activeOnly || p.IsActive), ct);
+            .FirstOrDefaultAsync(p => p.Id == id && !p.IsVoid && (!activeOnly || p.IsActive), ct);
 
         return product == null ? null : MapToProductDetailDto(product, activeSuggestionsOnly: activeOnly);
     }
@@ -151,12 +153,20 @@ public class ProductService : IProductService
 
         var productCode = await ResolveCreateProductCodeAsync(request.ProductCode, ct);
 
+        var sellingPriceCents = (long)decimal.Round(
+            request.Price * 100m,
+            0,
+            MidpointRounding.AwayFromZero);
         var product = new Models.Product
         {
             ProductCode = productCode,
             Name = request.Name,
             Description = request.Description,
             Price = request.Price,
+            // Seed accounting selling price from the storefront UAH price so margins
+            // and accounting sales don't see a silent 0-cent selling price.
+            SellingPriceCents = sellingPriceCents,
+            SellingCurrencyCode = "UAH",
             QuantityInStock = computedTotalStock,
             Material = request.Material,
             CategoryId = request.CategoryId,
@@ -285,6 +295,15 @@ public class ProductService : IProductService
         product.Name = request.Name;
         product.Description = request.Description;
         product.Price = request.Price;
+        // Keep accounting cents aligned when the catalog price is still UAH-denominated.
+        // Never overwrite a non-UAH accounting selling price from the storefront editor.
+        if (string.Equals(product.SellingCurrencyCode, "UAH", StringComparison.OrdinalIgnoreCase))
+        {
+            product.SellingPriceCents = (long)decimal.Round(
+                request.Price * 100m,
+                0,
+                MidpointRounding.AwayFromZero);
+        }
         product.QuantityInStock = ComputeTotalStock(request.QuantityInStock, request.VariantStocks);
         product.Material = request.Material;
         product.CategoryId = request.CategoryId;
@@ -416,7 +435,6 @@ public class ProductService : IProductService
     public async Task<bool> DeleteProductAsync(int id, CancellationToken ct = default)
     {
         var product = await _context.Products
-            .Include(p => p.Countries)
             .Include(p => p.ProductImages)
             .Include(p => p.ProductColors)
                 .ThenInclude(pc => pc.Images)
@@ -424,9 +442,9 @@ public class ProductService : IProductService
                 .ThenInclude(pc => pc.SizeImages)
             .FirstOrDefaultAsync(p => p.Id == id, ct);
         if (product == null) return false;
+        if (product.IsVoid) return true;
 
-        var previousUploadUrls = CollectProductUploadUrls(product);
-
+        // Freeze order-line display fields before deactivating the catalog row.
         var orderItems = await _context.OrderItems
             .Include(oi => oi.Product)
                 .ThenInclude(p => p!.ProductImages)
@@ -445,44 +463,11 @@ public class ProductService : IProductService
                 OrderItemSnapshotHelper.ApplyProductSnapshot(orderItem, orderItem.Product);
         }
 
-        // Be defensive here: some deployed databases still have NO ACTION on
-        // composite product variant FKs, so explicit cleanup avoids delete
-        // failures for newly created products with variant/image records.
-        var colorSizeImages = await _context.ProductColorSizeImages
-            .Where(v => v.ProductId == id)
-            .ToListAsync(ct);
-        _context.ProductColorSizeImages.RemoveRange(colorSizeImages);
-
-        var variantStocks = await _context.ProductVariantStocks
-            .Where(v => v.ProductId == id)
-            .ToListAsync(ct);
-        _context.ProductVariantStocks.RemoveRange(variantStocks);
-
-        var colorImages = await _context.ProductColorImages
-            .Where(v => v.ProductId == id)
-            .ToListAsync(ct);
-        _context.ProductColorImages.RemoveRange(colorImages);
-
-        var productImages = await _context.ProductImages
-            .Where(v => v.ProductId == id)
-            .ToListAsync(ct);
-        _context.ProductImages.RemoveRange(productImages);
-
-        var productColors = await _context.ProductColors
-            .Where(v => v.ProductId == id)
-            .ToListAsync(ct);
-        _context.ProductColors.RemoveRange(productColors);
-
-        var productSizes = await _context.ProductSizes
-            .Where(v => v.ProductId == id)
-            .ToListAsync(ct);
-        _context.ProductSizes.RemoveRange(productSizes);
-
-        product.Countries.Clear();
-        _context.Products.Remove(product);
+        // Accounting rule: never hard-delete products that may appear in sales/COGS history.
+        product.IsVoid = true;
+        product.IsActive = false;
+        product.UpdatedAt = DateTime.UtcNow;
         await _context.SaveChangesAsync(ct);
-
-        await _uploadStorage.DeleteRemovedIfUnreferencedAsync(previousUploadUrls, Array.Empty<string>(), ct);
         return true;
     }
 
