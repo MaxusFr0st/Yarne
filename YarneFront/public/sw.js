@@ -55,12 +55,17 @@ self.addEventListener("fetch", (event) => {
     caches.match(request).then(
       (cached) =>
         cached ||
-        fetch(request).then((response) => {
-          if (!response.ok || response.type === "opaque") return response;
-          const copy = response.clone();
-          caches.open(CACHE_VERSION).then((cache) => cache.put(request, copy));
-          return response;
-        }),
+        fetch(request)
+          .then((response) => {
+            if (!response.ok || response.type === "opaque") return response;
+            const copy = response.clone();
+            caches.open(CACHE_VERSION).then((cache) => cache.put(request, copy));
+            return response;
+          })
+          // A failed fetch (network hiccup, blocked cross-origin request) must resolve
+          // to a Response, not reject — otherwise it surfaces as an unhandled promise
+          // rejection instead of a normal failed-resource load.
+          .catch(() => Response.error()),
     ),
   );
 });

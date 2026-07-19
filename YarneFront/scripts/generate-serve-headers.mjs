@@ -24,6 +24,8 @@ const connectSrc = new Set([
   "https://appleid.apple.com",
   "https://static.cloudflareinsights.com",
   "https://cloudflareinsights.com",
+  "https://fonts.googleapis.com",
+  "https://fonts.gstatic.com",
 ]);
 const api = apiOrigin(process.env.VITE_API_URL);
 if (api) connectSrc.add(api);
