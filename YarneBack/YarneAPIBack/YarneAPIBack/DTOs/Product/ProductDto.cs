@@ -46,5 +46,7 @@ public class ProductDto
 
     public bool Lace { get; set; }
 
+    public bool IsInternalComponent { get; set; }
+
     public DateTime CreatedAt { get; set; }
 }

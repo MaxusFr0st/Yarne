@@ -24,7 +24,7 @@ public class ProductService : IProductService
         _env = env;
     }
 
-    public async Task<IReadOnlyList<ProductDto>> GetProductsAsync(string? category = null, bool? isNew = null, int? collectionId = null, bool includeInactive = false, CancellationToken ct = default)
+    public async Task<IReadOnlyList<ProductDto>> GetProductsAsync(string? category = null, bool? isNew = null, int? collectionId = null, bool includeInactive = false, bool includeInternal = false, CancellationToken ct = default)
     {
         var query = _context.Products
             .Include(p => p.Category)
@@ -55,7 +55,9 @@ public class ProductService : IProductService
 
         // Internal composition components (e.g. Lace) are tracked like products for
         // production/costing but must never appear in the public storefront catalog.
-        query = query.Where(p => !p.IsInternalComponent);
+        // Admin listings can opt in via includeInternal to manage them alongside regular products.
+        if (!includeInternal)
+            query = query.Where(p => !p.IsInternalComponent);
 
         if (!includeInactive)
             query = query.Where(p => p.IsActive);
@@ -631,6 +633,7 @@ public class ProductService : IProductService
             IsNew = p.IsNew,
             IsBestseller = p.IsBestseller,
             Lace = p.Lace,
+            IsInternalComponent = p.IsInternalComponent,
             CreatedAt = p.CreatedAt,
         };
     }

@@ -93,6 +93,7 @@ function mapProductDtoToProduct(d: ProductDto): Product & { idNum: number; sku: 
     isNew: d.isNew ?? false,
     isBestseller: d.isBestseller ?? false,
     lace: d.lace ?? false,
+    isInternalComponent: d.isInternalComponent ?? false,
     sizes: d.sizes?.length
       ? d.sizes.map((s) => ({ name: s.name, nameUk: s.nameUk ?? null }))
       : [
@@ -211,7 +212,7 @@ export function useAdminData() {
     const warnings: string[] = [];
 
     const catalogResults = await Promise.allSettled([
-      fetchProducts({ includeInactive: true }),
+      fetchProducts({ includeInactive: true, includeInternal: true }),
       fetchCategories(),
       fetchCountries(),
       fetchColors(),

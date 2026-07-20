@@ -312,9 +312,19 @@ export function AdminProcurementView({ view }: { view: ProcurementView }) {
     return match?.rate ?? null;
   }, [baseCurrency, rates]);
 
-  const orderTotal = useMemo(() => purchaseForm.lines.reduce((sum, line) => (
-    sum + Math.round((Number(line.quantity) || 0) * centsFromInput(line.unitPrice))
-  ), 0), [purchaseForm.lines]);
+  // Mirror the backend's line-total rule exactly (ProcurementService.BuildLine): roll-tracked
+  // lines with a roll price use rolls x price-per-roll (exact), everything else uses
+  // quantity x unit price. Using quantity x unit price for roll lines here would show a
+  // subtotal that drifts from what the order actually saves, since the per-meter unit price
+  // is necessarily rounded to whole cents.
+  const orderTotal = useMemo(() => purchaseForm.lines.reduce((sum, line) => {
+    const material = materials.find((m) => m.id === line.materialId);
+    const isRollTracked = material?.trackByItem ?? false;
+    if (isRollTracked && line.rollPrice && Number(line.itemCount) > 0) {
+      return sum + Number(line.itemCount) * centsFromInput(line.rollPrice);
+    }
+    return sum + Math.round((Number(line.quantity) || 0) * centsFromInput(line.unitPrice));
+  }, 0), [purchaseForm.lines, materials]);
   const orderVat = useMemo(() => purchaseForm.lines.reduce((sum, line) => sum + centsFromInput(line.vat), 0), [purchaseForm.lines]);
 
   const openSupplier = (supplier: SupplierDto | "new") => {

@@ -413,6 +413,7 @@ function ProductModal({
 }) {
   useBodyScrollLock(true);
 
+  const [submitting, setSubmitting] = useState(false);
   const variantKey = (colorId: number, sizeId: number, lace: boolean) => `${colorId}:${sizeId}:${lace}`;
   const draftCropMetaIdRef = useRef(
     `draft-${typeof crypto !== "undefined" && "randomUUID" in crypto ? crypto.randomUUID() : Date.now()}`,
@@ -1021,7 +1022,11 @@ function ProductModal({
       form.colorIds.flatMap((colorId) => form.colorSizeIds[colorId] ?? [])
     )
   );
-  const laceOptions: boolean[] = form.lace ? [false, true] : [false];
+  // "Has lace option" now only gates the storefront's global lace-color picker (a separately
+  // composed/priced product, see Colors tab -> Lace product mapping) — it no longer requires a
+  // duplicate "with lace" photo/stock record per color-size, which was the old baked-in
+  // mechanism from before lace became its own SKU. Always [false] keeps one record per pair.
+  const laceOptions: boolean[] = [false];
 
   useEffect(() => {
     const preferredSizeId = sizes.find((s) => s.name === "M")?.id ?? sizes[0]?.id ?? null;
@@ -1103,7 +1108,9 @@ function ProductModal({
 
     setFormErrors(errors);
     if (Object.keys(errors).length > 0) return;
-    onSave(form);
+    if (submitting) return;
+    setSubmitting(true);
+    void Promise.resolve(onSave(form)).finally(() => setSubmitting(false));
   };
 
   const previewCategoryName = categories.find((c) => c.id === form.categoryId)?.name ?? "";
@@ -1665,9 +1672,7 @@ function ProductModal({
                       Constructor (Color + Size + Photos + Stock)
                     </label>
                     <p className="text-xs text-[#2D241E]/55 mb-2" style={{ fontFamily: "'DM Sans', sans-serif" }}>
-                      {form.lace
-                        ? "Every color-size pair has a Without lace and With lace record. Minimum 3 photos per record."
-                        : "Every selected color-size pair is shown below. Minimum 3 photos per pair."}
+                      Every selected color-size pair is shown below. Minimum 3 photos per pair.
                       {" "}Photos are saved as <code>/uploads/…</code> on the API server and linked per color-size in the database.
                     </p>
                   </div>
@@ -1698,19 +1703,6 @@ function ProductModal({
                               <span className="text-sm font-medium text-[#2D241E]" style={{ fontFamily: "'Cormorant Garamond', serif" }}>
                                 {color?.name ?? "Color"} · {size?.name ?? "Size"}
                               </span>
-                              {form.lace && (
-                                <span
-                                  className="px-2 py-0.5 rounded-full text-[0.65rem] uppercase tracking-wider"
-                                  style={{
-                                    fontFamily: "'DM Sans', sans-serif",
-                                    letterSpacing: "0.08em",
-                                    backgroundColor: lace ? "#4A0E0E" : "rgba(45,36,30,0.1)",
-                                    color: lace ? "#F5F2ED" : "#2D241E",
-                                  }}
-                                >
-                                  {lace ? "With lace" : "Without lace"}
-                                </span>
-                              )}
                             </div>
                             <div className="flex items-center gap-2">
                               <input
@@ -2077,7 +2069,8 @@ function ProductModal({
           </button>
           <button
             onClick={validateAndSubmit}
-            className="px-8 py-3 rounded-full text-[#F5F2ED] transition-all duration-300 hover:opacity-90"
+            disabled={submitting}
+            className="px-8 py-3 rounded-full text-[#F5F2ED] transition-all duration-300 hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
             style={{
               backgroundColor: "#2D241E",
               fontFamily: "'DM Sans', sans-serif",
@@ -2085,7 +2078,7 @@ function ProductModal({
               letterSpacing: "0.12em",
             }}
           >
-            <span className="uppercase tracking-widest">{isEditing ? "Save Changes" : "Add Product"}</span>
+            <span className="uppercase tracking-widest">{submitting ? "Saving…" : isEditing ? "Save Changes" : "Add Product"}</span>
           </button>
         </div>
       </motion.div>
@@ -4652,6 +4645,11 @@ export function AdminPage() {
                               {formatPriceCompact(p.price, "uk")}
                             </p>
                             <div className="flex items-center gap-2">
+                              {p.isInternalComponent && (
+                                <span className="px-2 py-0.5 rounded-full text-[10px]" style={{ backgroundColor: "rgba(154,103,26,0.14)", color: "#9A671A", fontFamily: "'DM Sans', sans-serif" }} title="Internal product — never shown on the public storefront">
+                                  Internal
+                                </span>
+                              )}
                               {p.isNew && (
                                 <span className="px-2 py-0.5 rounded-full text-[10px]" style={{ backgroundColor: "rgba(74,14,14,0.08)", color: "#4A0E0E", fontFamily: "'DM Sans', sans-serif" }}>
                                   New
@@ -4797,13 +4795,16 @@ export function AdminPage() {
                         </span>
                         {/* Status */}
                         <div className="flex flex-wrap gap-1">
+                          {p.isInternalComponent && (
+                            <span className="px-2 py-0.5 rounded-full text-xs" style={{ backgroundColor: "rgba(154,103,26,0.14)", color: "#9A671A", fontFamily: "'DM Sans', sans-serif" }} title="Internal product — never shown on the public storefront">Internal</span>
+                          )}
                           {p.isNew && (
                             <span className="px-2 py-0.5 rounded-full text-xs" style={{ backgroundColor: "rgba(74,14,14,0.08)", color: "#4A0E0E", fontFamily: "'DM Sans', sans-serif" }}>New</span>
                           )}
                           {p.isBestseller && (
                             <span className="px-2 py-0.5 rounded-full text-xs" style={{ backgroundColor: "rgba(45,36,30,0.06)", color: "#2D241E", fontFamily: "'DM Sans', sans-serif" }}>Best</span>
                           )}
-                          {!p.isNew && !p.isBestseller && (
+                          {!p.isNew && !p.isBestseller && !p.isInternalComponent && (
                             <span className="text-xs" style={{ color: "rgba(45,36,30,0.3)", fontFamily: "'DM Sans', sans-serif" }}>—</span>
                           )}
                         </div>

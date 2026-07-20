@@ -59,6 +59,7 @@ export interface ProductDto {
   isNew: boolean;
   isBestseller: boolean;
   lace: boolean;
+  isInternalComponent: boolean;
   createdAt: string;
 }
 
@@ -101,12 +102,14 @@ export async function fetchProducts(params?: {
   isNew?: boolean;
   collectionId?: number;
   includeInactive?: boolean;
+  includeInternal?: boolean;
 }): Promise<ProductDto[]> {
   const sp = new URLSearchParams();
   if (params?.category) sp.set("category", params.category);
   if (params?.isNew !== undefined) sp.set("isNew", String(params.isNew));
   if (params?.collectionId !== undefined) sp.set("collectionId", String(params.collectionId));
   if (params?.includeInactive) sp.set("includeInactive", "true");
+  if (params?.includeInternal) sp.set("includeInternal", "true");
   const qs = sp.toString();
   return apiRequest<ProductDto[]>(`/api/products${qs ? `?${qs}` : ""}`);
 }

@@ -4,7 +4,7 @@ namespace YarneAPIBack.Services.Contracts;
 
 public interface IProductService
 {
-    Task<IReadOnlyList<ProductDto>> GetProductsAsync(string? category = null, bool? isNew = null, int? collectionId = null, bool includeInactive = false, CancellationToken ct = default);
+    Task<IReadOnlyList<ProductDto>> GetProductsAsync(string? category = null, bool? isNew = null, int? collectionId = null, bool includeInactive = false, bool includeInternal = false, CancellationToken ct = default);
 
     Task<ProductDetailDto?> GetProductByIdAsync(int id, bool activeOnly = false, CancellationToken ct = default);
 

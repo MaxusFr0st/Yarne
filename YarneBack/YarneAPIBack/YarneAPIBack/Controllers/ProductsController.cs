@@ -27,12 +27,14 @@ public class ProductsController : ControllerBase
         [FromQuery] bool? isNew = null,
         [FromQuery] int? collectionId = null,
         [FromQuery] bool includeInactive = false,
+        [FromQuery] bool includeInternal = false,
         CancellationToken ct = default)
     {
-        if (includeInactive && !(User.Identity?.IsAuthenticated == true && User.IsInRole("Admin")))
+        var isAdmin = User.Identity?.IsAuthenticated == true && User.IsInRole("Admin");
+        if ((includeInactive || includeInternal) && !isAdmin)
             return Forbid();
 
-        var products = await _productService.GetProductsAsync(category, isNew, collectionId, includeInactive, ct);
+        var products = await _productService.GetProductsAsync(category, isNew, collectionId, includeInactive, includeInternal, ct);
         return Ok(products);
     }
 
