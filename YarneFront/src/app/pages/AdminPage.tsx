@@ -1022,11 +1022,7 @@ function ProductModal({
       form.colorIds.flatMap((colorId) => form.colorSizeIds[colorId] ?? [])
     )
   );
-  // "Has lace option" now only gates the storefront's global lace-color picker (a separately
-  // composed/priced product, see Colors tab -> Lace product mapping) — it no longer requires a
-  // duplicate "with lace" photo/stock record per color-size, which was the old baked-in
-  // mechanism from before lace became its own SKU. Always [false] keeps one record per pair.
-  const laceOptions: boolean[] = [false];
+  const laceOptions: boolean[] = form.lace ? [false, true] : [false];
 
   useEffect(() => {
     const preferredSizeId = sizes.find((s) => s.name === "M")?.id ?? sizes[0]?.id ?? null;
@@ -1672,7 +1668,9 @@ function ProductModal({
                       Constructor (Color + Size + Photos + Stock)
                     </label>
                     <p className="text-xs text-[#2D241E]/55 mb-2" style={{ fontFamily: "'DM Sans', sans-serif" }}>
-                      Every selected color-size pair is shown below. Minimum 3 photos per pair.
+                      {form.lace
+                        ? "Every color-size pair has a Without lace and With lace record. Minimum 3 photos per record."
+                        : "Every selected color-size pair is shown below. Minimum 3 photos per pair."}
                       {" "}Photos are saved as <code>/uploads/…</code> on the API server and linked per color-size in the database.
                     </p>
                   </div>
@@ -1703,6 +1701,19 @@ function ProductModal({
                               <span className="text-sm font-medium text-[#2D241E]" style={{ fontFamily: "'Cormorant Garamond', serif" }}>
                                 {color?.name ?? "Color"} · {size?.name ?? "Size"}
                               </span>
+                              {form.lace && (
+                                <span
+                                  className="px-2 py-0.5 rounded-full text-[0.65rem] uppercase tracking-wider"
+                                  style={{
+                                    fontFamily: "'DM Sans', sans-serif",
+                                    letterSpacing: "0.08em",
+                                    backgroundColor: lace ? "#4A0E0E" : "rgba(45,36,30,0.1)",
+                                    color: lace ? "#F5F2ED" : "#2D241E",
+                                  }}
+                                >
+                                  {lace ? "With lace" : "Without lace"}
+                                </span>
+                              )}
                             </div>
                             <div className="flex items-center gap-2">
                               <input

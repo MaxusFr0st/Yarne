@@ -126,9 +126,9 @@ const uk: Translations = {
     wishlistAdd: "Додати до списку бажань",
     wishlistRemove: "Видалити зі списку бажань",
     lace: {
-      label: "Ремінець",
-      withLace: "З ремінцем",
-      withoutLace: "Без ремінця",
+      label: "Мереживо",
+      withLace: "З мереживом",
+      withoutLace: "Без мережива",
     },
   },
   cart: {
