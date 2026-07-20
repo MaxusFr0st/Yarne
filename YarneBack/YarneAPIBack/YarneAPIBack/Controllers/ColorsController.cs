@@ -45,7 +45,9 @@ public class ColorsController : ControllerBase
     public async Task<ActionResult<IEnumerable<object>>> GetLaceProducts(CancellationToken ct = default)
     {
         var products = await _context.Products
-            .Where(p => p.IsInternalComponent && !p.IsVoid)
+            // Must stay in sync with ProductService.ComputeLaceColorOptionsAsync: the storefront
+            // only surfaces lace colors whose mapped product is active, so only offer those here.
+            .Where(p => p.IsInternalComponent && !p.IsVoid && p.IsActive)
             .OrderBy(p => p.Name)
             .Select(p => new { id = p.Id, name = p.Name, price = p.Price })
             .ToListAsync(ct);
@@ -65,9 +67,9 @@ public class ColorsController : ControllerBase
         if (request.LaceProductId.HasValue)
         {
             var laceProductValid = await _context.Products.AnyAsync(
-                p => p.Id == request.LaceProductId.Value && p.IsInternalComponent && !p.IsVoid, ct);
+                p => p.Id == request.LaceProductId.Value && p.IsInternalComponent && !p.IsVoid && p.IsActive, ct);
             if (!laceProductValid)
-                return BadRequest(new { message = "Selected lace product must be an internal product" });
+                return BadRequest(new { message = "Selected lace product must be an active internal product" });
         }
 
         var color = new Models.Color
@@ -112,9 +114,9 @@ public class ColorsController : ControllerBase
         if (request.LaceProductId.HasValue)
         {
             var laceProductValid = await _context.Products.AnyAsync(
-                p => p.Id == request.LaceProductId.Value && p.IsInternalComponent && !p.IsVoid, ct);
+                p => p.Id == request.LaceProductId.Value && p.IsInternalComponent && !p.IsVoid && p.IsActive, ct);
             if (!laceProductValid)
-                return BadRequest(new { message = "Selected lace product must be an internal product" });
+                return BadRequest(new { message = "Selected lace product must be an active internal product" });
         }
 
         var previousName = color.Name;
