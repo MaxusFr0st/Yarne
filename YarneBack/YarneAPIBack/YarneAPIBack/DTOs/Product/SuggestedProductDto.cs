@@ -18,7 +18,5 @@ public class SuggestedProductDto
 
     public string? DefaultColorName { get; set; }
 
-    public string? DefaultColorNameUk { get; set; }
-
-    public string? DefaultColorHex { get; set; }
+    public List<ColorVariantDto> Colors { get; set; } = new();
 }

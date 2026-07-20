@@ -110,6 +110,33 @@ public class ProductService : IProductService
             .Include(p => p.Recommendations)
                 .ThenInclude(r => r.RelatedProduct)
                     .ThenInclude(rp => rp.DefaultColor)
+            .Include(p => p.Recommendations)
+                .ThenInclude(r => r.RelatedProduct)
+                    .ThenInclude(rp => rp.DefaultSize)
+            .Include(p => p.Recommendations)
+                .ThenInclude(r => r.RelatedProduct)
+                    .ThenInclude(rp => rp.ProductSizes)
+                        .ThenInclude(ps => ps.Size)
+            .Include(p => p.Recommendations)
+                .ThenInclude(r => r.RelatedProduct)
+                    .ThenInclude(rp => rp.ProductColors)
+                        .ThenInclude(pc => pc.Color)
+            .Include(p => p.Recommendations)
+                .ThenInclude(r => r.RelatedProduct)
+                    .ThenInclude(rp => rp.ProductColors)
+                        .ThenInclude(pc => pc.Images)
+            .Include(p => p.Recommendations)
+                .ThenInclude(r => r.RelatedProduct)
+                    .ThenInclude(rp => rp.ProductColors)
+                        .ThenInclude(pc => pc.SizeImages)
+                            .ThenInclude(si => si.ProductSize)
+                                .ThenInclude(ps => ps.Size)
+            .Include(p => p.Recommendations)
+                .ThenInclude(r => r.RelatedProduct)
+                    .ThenInclude(rp => rp.ProductColors)
+                        .ThenInclude(pc => pc.VariantStocks)
+                            .ThenInclude(vs => vs.ProductSize)
+                                .ThenInclude(ps => ps.Size)
             .FirstOrDefaultAsync(p => p.Id == id && !p.IsVoid && !p.IsInternalComponent && (!activeOnly || p.IsActive), ct);
 
         if (product == null)
@@ -154,6 +181,33 @@ public class ProductService : IProductService
             .Include(p => p.Recommendations)
                 .ThenInclude(r => r.RelatedProduct)
                     .ThenInclude(rp => rp.DefaultColor)
+            .Include(p => p.Recommendations)
+                .ThenInclude(r => r.RelatedProduct)
+                    .ThenInclude(rp => rp.DefaultSize)
+            .Include(p => p.Recommendations)
+                .ThenInclude(r => r.RelatedProduct)
+                    .ThenInclude(rp => rp.ProductSizes)
+                        .ThenInclude(ps => ps.Size)
+            .Include(p => p.Recommendations)
+                .ThenInclude(r => r.RelatedProduct)
+                    .ThenInclude(rp => rp.ProductColors)
+                        .ThenInclude(pc => pc.Color)
+            .Include(p => p.Recommendations)
+                .ThenInclude(r => r.RelatedProduct)
+                    .ThenInclude(rp => rp.ProductColors)
+                        .ThenInclude(pc => pc.Images)
+            .Include(p => p.Recommendations)
+                .ThenInclude(r => r.RelatedProduct)
+                    .ThenInclude(rp => rp.ProductColors)
+                        .ThenInclude(pc => pc.SizeImages)
+                            .ThenInclude(si => si.ProductSize)
+                                .ThenInclude(ps => ps.Size)
+            .Include(p => p.Recommendations)
+                .ThenInclude(r => r.RelatedProduct)
+                    .ThenInclude(rp => rp.ProductColors)
+                        .ThenInclude(pc => pc.VariantStocks)
+                            .ThenInclude(vs => vs.ProductSize)
+                                .ThenInclude(ps => ps.Size)
             .FirstOrDefaultAsync(p => p.ProductCode == productCode && p.IsActive && !p.IsInternalComponent, ct);
 
         if (product == null)
@@ -511,19 +565,8 @@ public class ProductService : IProductService
         }
     }
 
-    private static ProductDto MapToProductDto(Models.Product p)
+    private static List<ColorVariantDto> BuildColorVariants(Models.Product p, List<ProductImageDto> images, string? defaultSize)
     {
-        var images = GetOrderedImages(p);
-        var sizes = p.ProductSizes
-            .OrderBy(ps => ps.SortOrder)
-            .Select(ps => new SizeOptionDto
-            {
-                Name = ps.Size.Name,
-                NameUk = ps.Size.NameUk,
-            })
-            .ToList();
-        var defaultSize = p.DefaultSize?.Name ?? sizes.FirstOrDefault()?.Name;
-
         var colors = p.ProductColors.Count > 0
             ? p.ProductColors.OrderBy(pc => pc.SortOrder).Select((pc, i) =>
             {
@@ -604,6 +647,23 @@ public class ProductService : IProductService
             if (legacy != null)
                 colors.Add(new ColorVariantDto { Name = "Default", Hex = "#2D241E", Image = legacy, Images = new List<ProductImageDto> { legacy } });
         }
+        return colors;
+    }
+
+    private static ProductDto MapToProductDto(Models.Product p)
+    {
+        var images = GetOrderedImages(p);
+        var sizes = p.ProductSizes
+            .OrderBy(ps => ps.SortOrder)
+            .Select(ps => new SizeOptionDto
+            {
+                Name = ps.Size.Name,
+                NameUk = ps.Size.NameUk,
+            })
+            .ToList();
+        var defaultSize = p.DefaultSize?.Name ?? sizes.FirstOrDefault()?.Name;
+
+        var colors = BuildColorVariants(p, images, defaultSize);
 
         var furnitureColors = p.ProductFurnitureColors
             .OrderBy(pc => pc.SortOrder)
@@ -738,6 +798,7 @@ public class ProductService : IProductService
     private static SuggestedProductDto MapToSuggestedProductDto(Models.Product p)
     {
         var images = GetOrderedImages(p);
+        var defaultSize = p.DefaultSize?.Name ?? p.ProductSizes.OrderBy(ps => ps.SortOrder).FirstOrDefault()?.Size.Name;
         return new SuggestedProductDto
         {
             ProductCode = p.ProductCode,
@@ -748,8 +809,7 @@ public class ProductService : IProductService
             IsNew = p.IsNew,
             IsBestseller = p.IsBestseller,
             DefaultColorName = p.DefaultColor?.Name,
-            DefaultColorNameUk = p.DefaultColor?.NameUk,
-            DefaultColorHex = p.DefaultColor?.HexCode,
+            Colors = BuildColorVariants(p, images, defaultSize),
         };
     }
 

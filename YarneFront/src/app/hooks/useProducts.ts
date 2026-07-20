@@ -112,6 +112,9 @@ function mapToFrontendProduct(d: ProductDto): Product {
 
 function mapSuggestedToProduct(s: SuggestedProductDto): Product {
   const image = s.primaryImage ? toProductImage(s.primaryImage) : PLACEHOLDER;
+  const colors: ColorVariant[] = s.colors.length > 0
+    ? s.colors.map(toColorVariant)
+    : [{ name: "", hex: "#2D241E", image, images: [image] }];
   return {
     id: s.productCode,
     name: s.name,
@@ -123,16 +126,8 @@ function mapSuggestedToProduct(s: SuggestedProductDto): Product {
     sizes: FALLBACK_SIZES,
     description: "",
     details: [],
-    // Suggestion cards don't carry the full color list — just the related product's own
-    // default color, if it has one, so the card shows a real swatch/name instead of a
-    // placeholder ("Default" used to leak into the UI as literal customer-facing text).
-    colors: [{
-      name: s.defaultColorName ?? "",
-      nameUk: s.defaultColorNameUk ?? null,
-      hex: s.defaultColorHex ?? "#2D241E",
-      image,
-      images: [image],
-    }],
+    defaultColor: s.defaultColorName ?? undefined,
+    colors,
   };
 }
 
