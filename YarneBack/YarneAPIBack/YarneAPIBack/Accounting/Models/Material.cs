@@ -10,6 +10,20 @@ public class Material
     public string? Category { get; set; }
     public decimal ReorderThreshold { get; set; }
     public bool IsActive { get; set; } = true;
+    /// <summary>
+    /// Opt-in flag: when true, purchases of this material are entered as
+    /// "N rolls x length-each" and stock/lot displays show a full-rolls +
+    /// loose-remainder breakdown. Purely additive/non-retroactive — lots
+    /// created before this was set (or for materials that never set it)
+    /// simply have null ItemCount/LengthPerItem and render as before.
+    /// </summary>
+    public bool TrackByItem { get; set; }
+    /// <summary>
+    /// Convenience pre-fill (e.g. 120 m per roll) for the purchase-order
+    /// entry form. Not authoritative — each PurchaseOrderItem snapshots its
+    /// own LengthPerItem, which can differ from this default.
+    /// </summary>
+    public decimal? DefaultLengthPerItem { get; set; }
     public bool IsVoid { get; set; }
     public int? CreatedBy { get; set; }
     public DateTime CreatedAt { get; set; }

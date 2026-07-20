@@ -71,6 +71,15 @@ public class PurchaseOrderItem
     public long UnitPriceCents { get; set; }
     public long TotalCostCents { get; set; }
     public decimal QuantityRemaining { get; set; }
+    /// <summary>
+    /// Roll/discrete-item tracking snapshot (only set when the material was
+    /// roll-tracked at purchase time). Both null = bulk lot (today's
+    /// behaviour); both set = ItemCount * LengthPerItem == QuantityPurchased
+    /// (enforced in ProcurementService, within tolerance). Never read live
+    /// from Material.DefaultLengthPerItem — roll size can vary per purchase.
+    /// </summary>
+    public int? ItemCount { get; set; }
+    public decimal? LengthPerItem { get; set; }
     public long VatAmountCents { get; set; }
     public long BaseUnitPriceCents { get; set; }
     public long BaseTotalCostCents { get; set; }

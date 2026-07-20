@@ -16,6 +16,9 @@ public class ProductImageDto
 /// </summary>
 public class ColorVariantDto
 {
+    /// <summary>Color.Id — used to match this bag color against a lace color option by id.</summary>
+    public int? ColorId { get; set; }
+
     public string Name { get; set; } = null!;
 
     public string? NameUk { get; set; }

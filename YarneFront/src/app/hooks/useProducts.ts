@@ -60,6 +60,7 @@ function toColorVariant(c: ColorVariantDto): ColorVariant {
   }
 
   return {
+    colorId: c.colorId ?? undefined,
     name: c.name,
     nameUk: c.nameUk ?? null,
     hex: c.hex,
@@ -159,6 +160,14 @@ function mapDetailToFrontend(d: ProductDetailDto): Product {
     suggestedProducts: (d.suggestedProducts ?? []).map(mapSuggestedToProduct),
     hasConfiguredSuggestions: d.hasConfiguredSuggestions ?? false,
     producerName: d.producerName ?? undefined,
+    laceSurcharge: d.laceSurcharge ?? 0,
+    laceColorOptions: (d.laceColorOptions ?? []).map((o) => ({
+      colorId: o.colorId,
+      colorName: o.colorName,
+      colorNameUk: o.colorNameUk ?? null,
+      colorHex: o.colorHex,
+      surcharge: Number(o.surcharge),
+    })),
   };
 }
 

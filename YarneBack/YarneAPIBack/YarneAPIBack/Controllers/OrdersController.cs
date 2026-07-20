@@ -239,6 +239,31 @@ public class OrdersController : ControllerBase
             .GroupBy(p => p.ProductCode, StringComparer.OrdinalIgnoreCase)
             .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
 
+        // Load sale-time composition recipes (lace, and any "always" component later) for the
+        // cart's base products, plus the component products they reference (for price + snapshot).
+        var baseProductIds = products.Select(p => p.Id).ToList();
+        var saleComponents = baseProductIds.Count == 0
+            ? new List<Models.ProductSaleComponent>()
+            : await _context.ProductSaleComponents
+                .AsNoTracking()
+                .Where(sc => !sc.IsVoid && baseProductIds.Contains(sc.ProductId))
+                .ToListAsync(ct);
+        var componentsByBaseProduct = saleComponents
+            .GroupBy(sc => sc.ProductId)
+            .ToDictionary(g => g.Key, g => g.ToList());
+        var componentProductIds = saleComponents.Select(sc => sc.ComponentProductId).Distinct().ToList();
+        var componentProducts = componentProductIds.Count == 0
+            ? new Dictionary<int, Product>()
+            : (await _context.Products
+                .Include(p => p.ProductImages)
+                .Include(p => p.ProductColors)
+                    .ThenInclude(pc => pc.Images)
+                .Include(p => p.ProductColors)
+                    .ThenInclude(pc => pc.SizeImages)
+                .Where(p => componentProductIds.Contains(p.Id))
+                .ToListAsync(ct))
+                .ToDictionary(p => p.Id);
+
         var requestedCountryIds = request.Items
             .Where(i => i.CountryId.HasValue)
             .Select(i => i.CountryId!.Value)
@@ -274,7 +299,7 @@ public class OrdersController : ControllerBase
             if (product == null)
                 return BadRequest(new { message = $"Product '{productKey}' was not found." });
 
-            if (!product.IsActive || product.IsVoid)
+            if (!product.IsActive || product.IsVoid || product.IsInternalComponent)
                 return BadRequest(new { message = $"Product '{productKey}' is not available." });
 
             var orderItem = new OrderItem
@@ -299,6 +324,66 @@ public class OrdersController : ControllerBase
             orderItems.Add(orderItem);
 
             quantityByProductId[product.Id] = quantityByProductId.GetValueOrDefault(product.Id) + item.Quantity;
+
+            // Expand sale-time composition into separate child OrderItems (each with its own
+            // pooled stock decrement + COGS). "always" components apply on every sale; "with_lace"
+            // components apply only when the line opted into lace. Never hardcode price — the
+            // component's own catalog price is the surcharge, added fresh here.
+            if (componentsByBaseProduct.TryGetValue(product.Id, out var components))
+            {
+                // If the base product offers lace and the line opted in, the client must name
+                // exactly which configured color it wants — never silently expand "all colors".
+                // Legacy/un-migrated "with_lace" rows (ColorId == null) don't count as configured
+                // options: lace simply doesn't compose for those until the recipe is reconfigured.
+                if (item.WithLace == true)
+                {
+                    var withLaceOptions = components.Where(c => c.Condition == "with_lace" && c.ColorId != null).ToList();
+                    if (withLaceOptions.Count > 0)
+                    {
+                        if (!item.LaceColorId.HasValue)
+                            return BadRequest(new { message = $"Product '{productKey}' requires a lace color selection." });
+                        if (!withLaceOptions.Any(c => c.ColorId == item.LaceColorId.Value))
+                            return BadRequest(new { message = $"Product '{productKey}' does not offer the selected lace color." });
+                    }
+                }
+
+                foreach (var component in components)
+                {
+                    var include = component.Condition == "always"
+                        || (component.Condition == "with_lace" && item.WithLace == true
+                            && item.LaceColorId.HasValue && component.ColorId == item.LaceColorId.Value);
+                    if (!include)
+                        continue;
+                    if (!componentProducts.TryGetValue(component.ComponentProductId, out var componentProduct))
+                        continue;
+                    if (!componentProduct.IsActive || componentProduct.IsVoid)
+                        continue;
+
+                    var componentQuantity = checked(item.Quantity * component.Quantity);
+                    var componentPriceCents = checked((long)decimal.Round(
+                        componentProduct.Price * 100m, 0, MidpointRounding.AwayFromZero));
+                    var componentLine = new OrderItem
+                    {
+                        CountryId = item.CountryId,
+                        Quantity = componentQuantity,
+                        UnitPrice = componentProduct.Price,
+                        ListedPriceCents = componentPriceCents,
+                        NetPriceCents = componentPriceCents,
+                        UnitCogsCents = 0,
+                        VatAmountCents = 0,
+                        CreatedBy = customerId.Value,
+                        CreatedAt = now,
+                        UpdatedAt = now,
+                        // Component line links back to its bag line so order/return views group them.
+                        ParentOrderItem = orderItem,
+                    };
+                    OrderItemSnapshotHelper.ApplyProductSnapshot(componentLine, componentProduct);
+                    orderItems.Add(componentLine);
+
+                    quantityByProductId[componentProduct.Id] =
+                        quantityByProductId.GetValueOrDefault(componentProduct.Id) + componentQuantity;
+                }
+            }
         }
 
         var orderTotalCents = orderItems.Sum(i => checked(i.ListedPriceCents * i.Quantity));
@@ -697,6 +782,7 @@ public class OrdersController : ControllerBase
                 {
                     Id = i.Id,
                     ProductId = i.ProductId,
+                    ParentOrderItemId = i.ParentOrderItemId,
                     ProductCode = OrderItemSnapshotHelper.ResolveProductCode(i),
                     ProductName = OrderItemSnapshotHelper.ResolveProductName(i),
                     ProductImageUrl = OrderItemSnapshotHelper.ResolveProductImageUrl(i),

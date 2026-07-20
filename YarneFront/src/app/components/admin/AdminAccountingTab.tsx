@@ -5,7 +5,7 @@ import {
   Package, BarChart3, ShoppingBag, Loader2, RefreshCw,
   ChevronDown, ChevronUp, Lock, FileText, Tag, Truck, Warehouse, ClipboardList,
   Building2, Landmark, CircleDollarSign, Scissors, Factory, Store, RotateCcw,
-  Wallet, Camera, BookOpen, Users, Boxes,
+  Wallet, Camera, BookOpen, Users,
 } from "lucide-react";
 import {
   fetchAccountingDashboard, fetchSoldOrders,
@@ -21,6 +21,7 @@ import {
   type AccountingReportDto,
 } from "../../api/accounting";
 import { formatPriceCompact } from "../../i18n/format";
+import { formatRollBreakdown } from "./rollTracking";
 import { AdminProcurementView } from "./AdminProcurementView";
 import { AdminProductAccountingView } from "./AdminProductAccountingView";
 import { AdminProductionView } from "./AdminProductionView";
@@ -35,13 +36,13 @@ import { AdminAccountingReportsView } from "./AdminAccountingReportsView";
 type AccountingTab =
   | "overview" | "sold" | "suppliers" | "materials" | "purchase-orders" | "currency-rates"
   | "stock" | "stock-reports" | "reports"
-  | "products" | "production" | "product-stock" | "channels" | "sales" | "customers" | "returns"
+  | "products" | "production" | "channels" | "sales" | "customers" | "returns"
   | "operating-expenses" | "quick-expense" | "ledger";
 
 const ACCOUNTING_TAB_KEYS: AccountingTab[] = [
   "overview", "sold", "suppliers", "materials", "purchase-orders", "currency-rates",
   "stock", "stock-reports", "reports",
-  "products", "production", "product-stock", "channels", "sales", "customers", "returns",
+  "products", "production", "channels", "sales", "customers", "returns",
   "operating-expenses", "quick-expense", "ledger",
 ];
 
@@ -349,7 +350,6 @@ const TABS: { key: AccountingTab; label: string; icon: React.ReactNode }[] = [
   { key: "currency-rates", label: "Rates",        icon: <CircleDollarSign size={14} /> },
   { key: "products",      label: "Products",      icon: <Scissors size={14} /> },
   { key: "production",    label: "Production",    icon: <Factory size={14} /> },
-  { key: "product-stock", label: "Product Stock", icon: <Boxes size={14} /> },
   { key: "channels",      label: "Channels",      icon: <Store size={14} /> },
   { key: "sales",         label: "Sales",         icon: <ShoppingBag size={14} /> },
   { key: "customers",     label: "Customers",     icon: <Users size={14} /> },
@@ -387,6 +387,7 @@ export function AdminAccountingTab() {
   const [soldOrders, setSoldOrders] = useState<SoldOrderLineDto[]>([]);
   const [materials, setMaterials] = useState<MaterialDto[]>([]);
   const [stock, setStock] = useState<MaterialStockDto[]>([]);
+  const [hideZeroStockMaterials, setHideZeroStockMaterials] = useState(false);
   const [stockReports, setStockReports] = useState<StockReportSummaryDto[]>([]);
   const [report, setReport] = useState<AccountingReportDto | null>(null);
 
@@ -406,7 +407,7 @@ export function AdminAccountingTab() {
 
   // ── Material modal ────────────────────────────────────────────────────────
   const [matModal, setMatModal] = useState<{ open: boolean; editing: MaterialDto | null }>({ open: false, editing: null });
-  const [matForm, setMatForm] = useState({ name: "", unit: "pcs", sku: "", category: "", reorderThreshold: "0", description: "" });
+  const [matForm, setMatForm] = useState({ name: "", unit: "pcs", sku: "", category: "", reorderThreshold: "0", description: "", trackByItem: false, defaultLengthPerItem: "" });
 
   // ── Delete confirm ────────────────────────────────────────────────────────
   const [deleteTarget, setDeleteTarget] = useState<{
@@ -431,7 +432,7 @@ export function AdminAccountingTab() {
     async (t: AccountingTab, from: string, to: string) => {
       const selfManaged: AccountingTab[] = [
         "suppliers", "purchase-orders", "currency-rates",
-        "products", "production", "product-stock", "channels", "sales", "returns",
+        "products", "production", "channels", "sales", "returns",
         "operating-expenses", "quick-expense", "ledger",
       ];
       if (selfManaged.includes(t)) {
@@ -487,6 +488,8 @@ export function AdminAccountingTab() {
       category: editing?.category ?? "",
       reorderThreshold: String(editing?.reorderThreshold ?? 0),
       description: editing?.description ?? "",
+      trackByItem: editing?.trackByItem ?? false,
+      defaultLengthPerItem: editing?.defaultLengthPerItem != null ? String(editing.defaultLengthPerItem) : "",
     });
     setMatModal({ open: true, editing });
   };
@@ -503,6 +506,10 @@ export function AdminAccountingTab() {
         category: matForm.category.trim() || null,
         reorderThreshold: Math.max(0, Number(matForm.reorderThreshold) || 0),
         description: matForm.description.trim() || null,
+        trackByItem: matForm.trackByItem,
+        defaultLengthPerItem: matForm.trackByItem && matForm.defaultLengthPerItem.trim()
+          ? Number(matForm.defaultLengthPerItem)
+          : null,
       };
       if (matModal.editing) {
         await updateMaterial(matModal.editing.id, body);
@@ -780,7 +787,6 @@ export function AdminAccountingTab() {
       {/* ── Phases 3–9 accounting domain views ──────────────────────────── */}
       {tab === "products" && <AdminProductAccountingView />}
       {tab === "production" && <AdminProductionView />}
-      {tab === "product-stock" && <AdminFinishedStockView />}
       {tab === "channels" && <AdminSalesView mode="channels" />}
       {tab === "sales" && <AdminSalesView mode="sales" />}
       {tab === "customers" && <AdminCustomersView />}
@@ -848,67 +854,113 @@ export function AdminAccountingTab() {
       {/* ── Stock ─────────────────────────────────────────────────────────── */}
       {tab === "stock" && (
         <>
-          <div className="flex items-center justify-between mb-6">
-            <p className="text-[#2D241E]/50 text-sm" style={{ fontFamily: "'DM Sans', sans-serif" }}>{stock.length} materials tracked</p>
-            <GhostButton onClick={() => void fetchMaterialStock().then(setStock).catch((e) => setError(e instanceof Error ? e.message : "Failed"))} disabled={loading}>
-              <RefreshCw size={14} />
-              <span className="uppercase tracking-widest">Refresh</span>
-            </GhostButton>
-          </div>
-          <div className="rounded-[28px] overflow-x-auto hidden md:block" style={cardBorder}>
-            <TableHeader cols={["Material", "SKU", "Unit", "Imported", "Used", "On hand", "Avg cost", "Stock value"]} widths="1.4fr 0.8fr 0.6fr 0.7fr 0.7fr 0.7fr 0.8fr 0.9fr" />
-            <div className="divide-y" style={{ borderColor: "rgba(45,36,30,0.06)" }}>
-              {stock.length === 0 ? (
-                <EmptyRow message="No stock data yet" />
-              ) : (
-                stock.map((s) => {
-                  const isNeg = s.qtyOnHand < 0;
-                  return (
-                    <div
-                      key={s.materialId}
-                      className="grid items-center px-6 py-4 hover:bg-[#2D241E]/[0.03] transition-colors duration-200 text-sm"
-                      style={{ gridTemplateColumns: "1.4fr 0.8fr 0.6fr 0.7fr 0.7fr 0.7fr 0.8fr 0.9fr", fontFamily: "'DM Sans', sans-serif" }}
-                    >
-                      <span className="text-[#2D241E] font-medium">{s.name}</span>
-                      <span className="text-[#2D241E]/60">{s.sku || "—"}</span>
-                      <span className="text-[#2D241E]/60">{s.unit}</span>
-                      <span className="text-[#2D241E]/60">{s.qtyImported}</span>
-                      <span className="text-[#2D241E]/60">{s.qtyUsed}</span>
-                      <span style={{ color: isNeg ? "#4A0E0E" : "#2D241E", fontWeight: isNeg ? 500 : undefined }}>{s.qtyOnHand}</span>
-                      <span className="text-[#2D241E]/60">{formatMoney(s.avgUnitCost)}</span>
-                      <span style={{ color: isNeg ? "#4A0E0E" : "#2D241E", fontWeight: 500 }}>{formatMoney(s.totalStockValue)}</span>
-                    </div>
-                  );
-                })
-              )}
+          <section className="mb-10">
+            <p className="mb-3 text-[0.68rem] uppercase tracking-[0.14em] text-[#2D241E]/45" style={{ fontFamily: "'DM Sans', sans-serif" }}>
+              Product stock
+            </p>
+            <AdminFinishedStockView />
+          </section>
+
+          <section>
+            <p className="mb-3 text-[0.68rem] uppercase tracking-[0.14em] text-[#2D241E]/45" style={{ fontFamily: "'DM Sans', sans-serif" }}>
+              Material stock
+            </p>
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-6">
+              <div className="flex items-center gap-4">
+                <p className="text-[#2D241E]/50 text-sm" style={{ fontFamily: "'DM Sans', sans-serif" }}>
+                  {(hideZeroStockMaterials ? stock.filter((s) => s.qtyOnHand !== 0) : stock).length} materials tracked
+                </p>
+                <label className="flex items-center gap-2 text-sm text-[#2D241E]/65 cursor-pointer" style={{ fontFamily: "'DM Sans', sans-serif" }}>
+                  <input
+                    type="checkbox"
+                    className="size-4 cursor-pointer"
+                    checked={hideZeroStockMaterials}
+                    onChange={(e) => setHideZeroStockMaterials(e.target.checked)}
+                  />
+                  Hide zero-stock materials
+                </label>
+              </div>
+              <GhostButton onClick={() => void fetchMaterialStock().then(setStock).catch((e) => setError(e instanceof Error ? e.message : "Failed"))} disabled={loading}>
+                <RefreshCw size={14} />
+                <span className="uppercase tracking-widest">Refresh</span>
+              </GhostButton>
             </div>
-          </div>
-          <div className="md:hidden space-y-3">
-            {stock.length === 0 ? (
-              <EmptyCard message="No stock data yet" />
-            ) : (
-              stock.map((s) => {
-                const isNeg = s.qtyOnHand < 0;
-                return (
-                  <div key={s.materialId} className="rounded-[20px] p-4" style={{ ...cardBorder, backgroundColor: "rgba(255,255,255,0.45)" }}>
-                    <div className="flex items-start justify-between gap-3 mb-3">
-                      <div>
-                        <p className="text-[#2D241E]" style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "1.15rem" }}>{s.name}</p>
-                        <p className="text-xs text-[#2D241E]/50 mt-0.5" style={{ fontFamily: "'DM Sans', sans-serif" }}>{s.unit}{s.sku ? ` · ${s.sku}` : ""}</p>
-                      </div>
-                      <span className="font-medium text-sm" style={{ fontFamily: "'DM Sans', sans-serif", color: isNeg ? "#4A0E0E" : "#2D241E" }}>{formatMoney(s.totalStockValue)}</span>
-                    </div>
-                    <div className="grid grid-cols-3 gap-2 text-xs" style={{ fontFamily: "'DM Sans', sans-serif" }}>
-                      <span className="text-[#2D241E]/65">Imported: {s.qtyImported}</span>
-                      <span className="text-[#2D241E]/65">Used: {s.qtyUsed}</span>
-                      <span style={{ color: isNeg ? "#4A0E0E" : "rgba(45,36,30,0.65)", fontWeight: isNeg ? 500 : undefined }}>On hand: {s.qtyOnHand}</span>
-                      <span className="text-[#2D241E]/65">Avg cost: {formatMoney(s.avgUnitCost)}</span>
+            {(() => {
+              const visibleStock = hideZeroStockMaterials ? stock.filter((s) => s.qtyOnHand !== 0) : stock;
+              return (
+                <>
+                  <div className="rounded-[28px] overflow-x-auto hidden md:block" style={cardBorder}>
+                    <TableHeader cols={["Material", "SKU", "Unit", "Imported", "Used", "On hand", "Avg cost", "Stock value"]} widths="1.4fr 0.8fr 0.6fr 0.7fr 0.7fr 0.7fr 0.8fr 0.9fr" />
+                    <div className="divide-y" style={{ borderColor: "rgba(45,36,30,0.06)" }}>
+                      {visibleStock.length === 0 ? (
+                        <EmptyRow message="No stock data yet" />
+                      ) : (
+                        visibleStock.map((s) => {
+                          const isNeg = s.qtyOnHand < 0;
+                          const breakdown = s.trackByItem
+                            ? formatRollBreakdown(s.wholeItemsRemaining, s.looseRemainder, s.qtyOnHand, s.unit)
+                            : null;
+                          return (
+                            <div
+                              key={s.materialId}
+                              className="grid items-center px-6 py-4 hover:bg-[#2D241E]/[0.03] transition-colors duration-200 text-sm"
+                              style={{ gridTemplateColumns: "1.4fr 0.8fr 0.6fr 0.7fr 0.7fr 0.7fr 0.8fr 0.9fr", fontFamily: "'DM Sans', sans-serif" }}
+                            >
+                              <span className="text-[#2D241E] font-medium">{s.name}</span>
+                              <span className="text-[#2D241E]/60">{s.sku || "—"}</span>
+                              <span className="text-[#2D241E]/60">{s.unit}</span>
+                              <span className="text-[#2D241E]/60">{s.qtyImported}</span>
+                              <span className="text-[#2D241E]/60">{s.qtyUsed}</span>
+                              <span style={{ color: isNeg ? "#4A0E0E" : "#2D241E", fontWeight: isNeg ? 500 : undefined }}>
+                                {s.qtyOnHand}
+                                {breakdown && (
+                                  <span className="block text-xs text-[#2D241E]/50 font-normal">{breakdown}</span>
+                                )}
+                              </span>
+                              <span className="text-[#2D241E]/60">{formatMoney(s.avgUnitCost)}</span>
+                              <span style={{ color: isNeg ? "#4A0E0E" : "#2D241E", fontWeight: 500 }}>{formatMoney(s.totalStockValue)}</span>
+                            </div>
+                          );
+                        })
+                      )}
                     </div>
                   </div>
-                );
-              })
-            )}
-          </div>
+                  <div className="md:hidden space-y-3">
+                    {visibleStock.length === 0 ? (
+                      <EmptyCard message="No stock data yet" />
+                    ) : (
+                      visibleStock.map((s) => {
+                        const isNeg = s.qtyOnHand < 0;
+                        const breakdown = s.trackByItem
+                          ? formatRollBreakdown(s.wholeItemsRemaining, s.looseRemainder, s.qtyOnHand, s.unit)
+                          : null;
+                        return (
+                          <div key={s.materialId} className="rounded-[20px] p-4" style={{ ...cardBorder, backgroundColor: "rgba(255,255,255,0.45)" }}>
+                            <div className="flex items-start justify-between gap-3 mb-3">
+                              <div>
+                                <p className="text-[#2D241E]" style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "1.15rem" }}>{s.name}</p>
+                                <p className="text-xs text-[#2D241E]/50 mt-0.5" style={{ fontFamily: "'DM Sans', sans-serif" }}>{s.unit}{s.sku ? ` · ${s.sku}` : ""}</p>
+                              </div>
+                              <span className="font-medium text-sm" style={{ fontFamily: "'DM Sans', sans-serif", color: isNeg ? "#4A0E0E" : "#2D241E" }}>{formatMoney(s.totalStockValue)}</span>
+                            </div>
+                            <div className="grid grid-cols-3 gap-2 text-xs" style={{ fontFamily: "'DM Sans', sans-serif" }}>
+                              <span className="text-[#2D241E]/65">Imported: {s.qtyImported}</span>
+                              <span className="text-[#2D241E]/65">Used: {s.qtyUsed}</span>
+                              <span style={{ color: isNeg ? "#4A0E0E" : "rgba(45,36,30,0.65)", fontWeight: isNeg ? 500 : undefined }}>On hand: {s.qtyOnHand}</span>
+                              <span className="text-[#2D241E]/65">Avg cost: {formatMoney(s.avgUnitCost)}</span>
+                            </div>
+                            {breakdown && (
+                              <p className="text-xs text-[#2D241E]/50 mt-2" style={{ fontFamily: "'DM Sans', sans-serif" }}>{breakdown}</p>
+                            )}
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+                </>
+              );
+            })()}
+          </section>
         </>
       )}
 
@@ -1138,6 +1190,30 @@ export function AdminAccountingTab() {
               <div>
                 <FieldLabel>Description (optional)</FieldLabel>
                 <TextArea value={matForm.description} onChange={(e) => setMatForm((f) => ({ ...f, description: e.target.value }))} />
+              </div>
+              <div>
+                <label className="flex items-center gap-2 text-sm text-[#2D241E]/70 cursor-pointer" style={{ fontFamily: "'DM Sans', sans-serif" }}>
+                  <input
+                    type="checkbox"
+                    className="size-4 cursor-pointer rounded accent-[#2D241E]"
+                    checked={matForm.trackByItem}
+                    onChange={(e) => setMatForm((f) => ({ ...f, trackByItem: e.target.checked }))}
+                  />
+                  Track by roll / discrete item
+                </label>
+                {matForm.trackByItem && (
+                  <div className="mt-2">
+                    <FieldLabel>{`Default length per roll (in ${matForm.unit.trim() || "unit"})`}</FieldLabel>
+                    <TextInput
+                      type="number"
+                      min={0}
+                      step="0.0001"
+                      value={matForm.defaultLengthPerItem}
+                      onChange={(e) => setMatForm((f) => ({ ...f, defaultLengthPerItem: e.target.value }))}
+                      placeholder="e.g. 120"
+                    />
+                  </div>
+                )}
               </div>
             </div>
             <div className="flex gap-3 justify-end">

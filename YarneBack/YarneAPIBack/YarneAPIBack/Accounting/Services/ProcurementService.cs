@@ -415,10 +415,38 @@ public sealed class ProcurementService : IProcurementService
             BaseUnitPriceCents = RoundToCents(request.UnitPriceCents * exchangeRate),
             BaseTotalCostCents = RoundToCents(totalCostCents * exchangeRate),
             BaseVatAmountCents = RoundToCents(request.VatAmountCents * exchangeRate),
+            ItemCount = request.ItemCount,
+            LengthPerItem = request.LengthPerItem,
             CreatedBy = actorId,
             CreatedAt = now,
             UpdatedAt = now,
         };
+    }
+
+    private const decimal ItemShapeTolerance = 0.0001m;
+
+    private static (int? WholeItemsRemaining, decimal? PartialRemainder) DeriveItemBreakdown(
+        int? itemCount,
+        decimal? lengthPerItem,
+        decimal quantityRemaining)
+    {
+        if (itemCount is null || lengthPerItem is null || lengthPerItem.Value <= 0)
+            return (null, null);
+
+        var wholeItems = Math.Floor(quantityRemaining / lengthPerItem.Value);
+        var remainder = quantityRemaining - wholeItems * lengthPerItem.Value;
+        // Guard against floating-point-ish decimal noise pushing the remainder
+        // just over the item length (e.g. 119.99999... -> whole+1, remainder~0).
+        if (remainder >= lengthPerItem.Value - ItemShapeTolerance)
+        {
+            wholeItems += 1;
+            remainder = 0m;
+        }
+        else if (remainder < 0m)
+        {
+            remainder = 0m;
+        }
+        return ((int)wholeItems, remainder);
     }
 
     private static PurchaseOrderDto MapPurchaseOrder(PurchaseOrder entity)
@@ -426,19 +454,27 @@ public sealed class ProcurementService : IProcurementService
         var items = entity.Items
             .Where(x => !x.IsVoid)
             .OrderBy(x => x.Id)
-            .Select(x => new PurchaseOrderItemDto(
-                x.Id,
-                x.MaterialId,
-                x.Material.Name,
-                x.Material.Unit,
-                x.QuantityPurchased,
-                x.QuantityRemaining,
-                x.UnitPriceCents,
-                x.TotalCostCents,
-                x.VatAmountCents,
-                x.BaseUnitPriceCents,
-                x.BaseTotalCostCents,
-                x.BaseVatAmountCents))
+            .Select(x =>
+            {
+                var (wholeItems, partial) = DeriveItemBreakdown(x.ItemCount, x.LengthPerItem, x.QuantityRemaining);
+                return new PurchaseOrderItemDto(
+                    x.Id,
+                    x.MaterialId,
+                    x.Material.Name,
+                    x.Material.Unit,
+                    x.QuantityPurchased,
+                    x.QuantityRemaining,
+                    x.UnitPriceCents,
+                    x.TotalCostCents,
+                    x.VatAmountCents,
+                    x.BaseUnitPriceCents,
+                    x.BaseTotalCostCents,
+                    x.BaseVatAmountCents,
+                    x.ItemCount,
+                    x.LengthPerItem,
+                    wholeItems,
+                    partial);
+            })
             .ToList();
         return new PurchaseOrderDto(
             entity.Id,
@@ -482,6 +518,20 @@ public sealed class ProcurementService : IProcurementService
             return x.VatAmountCents > lineTotal;
         }))
             throw new AccountingBusinessException("VAT cannot exceed the line total cost.");
+
+        foreach (var item in request.Items)
+        {
+            if (item.ItemCount is null && item.LengthPerItem is null)
+                continue;
+            if (item.ItemCount is null || item.LengthPerItem is null)
+                throw new AccountingBusinessException("Roll count and length-per-roll must both be set, or both left blank.");
+            if (item.ItemCount <= 0 || item.LengthPerItem <= 0)
+                throw new AccountingBusinessException("Roll count and length-per-roll must be greater than zero.");
+            var expected = item.ItemCount.Value * item.LengthPerItem.Value;
+            if (Math.Abs(expected - item.QuantityPurchased) > ItemShapeTolerance)
+                throw new AccountingBusinessException(
+                    "Rolls x length-per-roll must equal the purchased quantity.");
+        }
     }
 
     private static string NormalizeCurrency(string value)

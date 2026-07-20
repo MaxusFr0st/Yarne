@@ -1,13 +1,16 @@
 import React, { useCallback, useEffect, useState } from "react";
-import { AlertTriangle, Loader2, Pencil, Plus, RefreshCw, Trash2 } from "lucide-react";
+import { AlertTriangle, Layers, Loader2, Pencil, Plus, RefreshCw, Trash2 } from "lucide-react";
 import {
   fetchAccountingProducts,
   fetchMaterials,
+  setProductInternalComponent,
   updateProductBom,
   updateProductPricing,
+  updateProductSaleComponents,
   type AccountingProductDto,
   type MaterialDto,
 } from "../../api/accounting";
+import { fetchColors, type ColorDto } from "../../api/admin";
 import {
   Button,
   Dialog,
@@ -23,28 +26,46 @@ import {
 } from "./accountingAdminUi";
 
 type BomLine = { materialId: number; quantity: string };
+type RecipeLine = {
+  componentProductId: number;
+  quantity: string;
+  condition: "with_lace" | "always";
+  colorId: number | null;
+};
+
+/** True if a product has a "with_lace" recipe row with no configured color — the old
+ *  single-shared-lace behaviour that needs to be migrated to per-color rows (see decisions
+ *  in the lace-color-choice plan: an un-migrated bag's lace toggle simply won't compose). */
+function needsColorMapping(product: AccountingProductDto): boolean {
+  return product.saleComponents.some((sc) => sc.condition === "with_lace" && sc.colorId == null);
+}
 
 export function AdminProductAccountingView() {
   const [products, setProducts] = useState<AccountingProductDto[]>([]);
   const [materials, setMaterials] = useState<MaterialDto[]>([]);
+  const [colors, setColors] = useState<ColorDto[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pricingTarget, setPricingTarget] = useState<AccountingProductDto | null>(null);
   const [bomTarget, setBomTarget] = useState<AccountingProductDto | null>(null);
+  const [recipeTarget, setRecipeTarget] = useState<AccountingProductDto | null>(null);
   const [priceForm, setPriceForm] = useState({ selling: "", currency: "UAH", threshold: "60" });
   const [bomForm, setBomForm] = useState({ labour: "", currency: "UAH", lines: [] as BomLine[] });
+  const [recipeForm, setRecipeForm] = useState({ isInternalComponent: false, lines: [] as RecipeLine[] });
 
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const [nextProducts, nextMaterials] = await Promise.all([
+      const [nextProducts, nextMaterials, nextColors] = await Promise.all([
         fetchAccountingProducts(),
         fetchMaterials(true),
+        fetchColors(),
       ]);
       setProducts(nextProducts);
       setMaterials(nextMaterials);
+      setColors(nextColors);
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "Could not load products.");
     } finally {
@@ -77,6 +98,66 @@ export function AdminProductAccountingView() {
         : [{ materialId: materials[0]?.id ?? 0, quantity: "1" }],
     });
     setBomTarget(product);
+  };
+
+  const openRecipe = (product: AccountingProductDto) => {
+    setRecipeForm({
+      isInternalComponent: product.isInternalComponent,
+      lines: product.saleComponents.map((component) => ({
+        componentProductId: component.componentProductId,
+        quantity: String(component.quantity),
+        condition: component.condition,
+        colorId: component.colorId,
+      })),
+    });
+    setRecipeTarget(product);
+  };
+
+  const saveRecipe = async () => {
+    if (!recipeTarget) return;
+    if (recipeForm.lines.some((line) => !line.componentProductId || Number(line.quantity) <= 0)) {
+      setError("Each recipe line needs a component product and quantity greater than zero.");
+      return;
+    }
+    if (recipeForm.lines.some((line) => line.componentProductId === recipeTarget.id)) {
+      setError("A product cannot be a component of itself.");
+      return;
+    }
+    if (recipeForm.lines.some((line) => line.condition === "with_lace" && !line.colorId)) {
+      setError("Every 'With lace' row needs a lace color.");
+      return;
+    }
+    const laceColorIds = recipeForm.lines
+      .filter((line) => line.condition === "with_lace")
+      .map((line) => line.colorId);
+    if (new Set(laceColorIds).size !== laceColorIds.length) {
+      setError("Each lace color can only be mapped once per product.");
+      return;
+    }
+    setSaving(true);
+    setError(null);
+    try {
+      // Only flip the internal flag when it actually changed (unmarking is guarded server-side).
+      if (recipeForm.isInternalComponent !== recipeTarget.isInternalComponent) {
+        await setProductInternalComponent(recipeTarget.id, {
+          isInternalComponent: recipeForm.isInternalComponent,
+        });
+      }
+      await updateProductSaleComponents(recipeTarget.id, {
+        components: recipeForm.lines.map((line) => ({
+          componentProductId: line.componentProductId,
+          quantity: Number(line.quantity),
+          condition: line.condition,
+          colorId: line.condition === "with_lace" ? line.colorId : null,
+        })),
+      });
+      setRecipeTarget(null);
+      await load();
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "Could not save recipe.");
+    } finally {
+      setSaving(false);
+    }
   };
 
   const savePricing = async () => {
@@ -155,7 +236,7 @@ export function AdminProductAccountingView() {
             <div className="hidden md:block">
               <div
                 className="grid gap-3 border-b border-[#2D241E]/10 px-5 py-3 text-[0.68rem] uppercase tracking-[0.12em] text-[#2D241E]/45"
-                style={{ gridTemplateColumns: "1.6fr 0.7fr 0.9fr 0.8fr 0.9fr 140px", fontFamily: "'DM Sans', sans-serif" }}
+                style={{ gridTemplateColumns: "1.6fr 0.7fr 0.9fr 0.8fr 0.9fr 190px", fontFamily: "'DM Sans', sans-serif" }}
               >
                 <span>Product</span>
                 <span>SKU</span>
@@ -165,12 +246,12 @@ export function AdminProductAccountingView() {
                 <span>Actions</span>
               </div>
               {products.map((product) => (
-                <ProductRow key={product.id} product={product} onPricing={() => openPricing(product)} onBom={() => openBom(product)} />
+                <ProductRow key={product.id} product={product} onPricing={() => openPricing(product)} onBom={() => openBom(product)} onRecipe={() => openRecipe(product)} />
               ))}
             </div>
             <div className="space-y-3 p-3 md:hidden">
               {products.map((product) => (
-                <ProductCard key={product.id} product={product} onPricing={() => openPricing(product)} onBom={() => openBom(product)} />
+                <ProductCard key={product.id} product={product} onPricing={() => openPricing(product)} onBom={() => openBom(product)} onRecipe={() => openRecipe(product)} />
               ))}
             </div>
           </>
@@ -286,6 +367,164 @@ export function AdminProductAccountingView() {
           </div>
         </Dialog>
       ) : null}
+
+      {recipeTarget ? (
+        <Dialog
+          title="Sale recipe"
+          subtitle={`${recipeTarget.name} · lace / packaging composition`}
+          onClose={() => setRecipeTarget(null)}
+          wide
+        >
+          <div className="space-y-4">
+            <label className="flex items-start gap-3 rounded-[14px] bg-white/50 p-3" style={{ border: "1px solid rgba(45,36,30,0.1)" }}>
+              <input
+                type="checkbox"
+                className="mt-1"
+                checked={recipeForm.isInternalComponent}
+                onChange={(e) => setRecipeForm((c) => ({ ...c, isInternalComponent: e.target.checked }))}
+              />
+              <span className="text-sm text-[#2D241E]/75" style={{ fontFamily: "'DM Sans', sans-serif" }}>
+                Internal component — hide from the public storefront catalog. Turn this on for each
+                per-color lace product (e.g. “Lace Yellow”) so it is never sold directly, only
+                composed onto other products.
+              </span>
+            </label>
+
+            {needsColorMapping(recipeTarget) ? (
+              <p
+                className="flex items-start gap-2 rounded-[14px] bg-[#641D1D]/8 p-3 text-xs text-[#641D1D]"
+                style={{ fontFamily: "'DM Sans', sans-serif" }}
+              >
+                <AlertTriangle size={14} className="mt-0.5 shrink-0" />
+                <span>
+                  This product has a "With lace" row with no color assigned. Un-migrated rows like
+                  this don't offer lace to customers — assign a color below (or remove the row) to
+                  make lace available again.
+                </span>
+              </p>
+            ) : null}
+
+            <div>
+              <p className="mb-2 text-sm text-[#2D241E]/75" style={{ fontFamily: "'DM Sans', sans-serif" }}>
+                Components added when this product is sold. Each "With lace" row maps one internal
+                lace product to one color the customer can pick; the sale line composes only the
+                chosen color. "Always" applies on every sale (packaging). Each component is billed
+                and stocked as its own line at its own price.
+              </p>
+              <div className="space-y-3">
+                {recipeForm.lines.map((line, index) => (
+                  <div key={index} className="grid gap-3 sm:grid-cols-[1.2fr_90px_120px_1fr_44px]">
+                    <div>
+                      <Label htmlFor={`recipe-comp-${index}`}>Component</Label>
+                      <select
+                        id={`recipe-comp-${index}`}
+                        className={controlClass()}
+                        value={line.componentProductId || ""}
+                        onChange={(e) => setRecipeForm((c) => ({
+                          ...c,
+                          lines: c.lines.map((row, i) => i === index ? { ...row, componentProductId: Number(e.target.value) } : row),
+                        }))}
+                      >
+                        <option value="">Select product</option>
+                        {products
+                          .filter((candidate) => candidate.id !== recipeTarget.id)
+                          .map((candidate) => (
+                            <option key={candidate.id} value={candidate.id}>
+                              {candidate.name}{candidate.isInternalComponent ? " (internal)" : ""}
+                            </option>
+                          ))}
+                      </select>
+                    </div>
+                    <div>
+                      <Label htmlFor={`recipe-qty-${index}`}>Qty</Label>
+                      <input
+                        id={`recipe-qty-${index}`}
+                        inputMode="numeric"
+                        className={`${controlClass()} tabular-nums`}
+                        value={line.quantity}
+                        onChange={(e) => setRecipeForm((c) => ({
+                          ...c,
+                          lines: c.lines.map((row, i) => i === index ? { ...row, quantity: e.target.value } : row),
+                        }))}
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor={`recipe-cond-${index}`}>Condition</Label>
+                      <select
+                        id={`recipe-cond-${index}`}
+                        className={controlClass()}
+                        value={line.condition}
+                        onChange={(e) => setRecipeForm((c) => ({
+                          ...c,
+                          lines: c.lines.map((row, i) => i === index
+                            ? { ...row, condition: e.target.value as RecipeLine["condition"], colorId: e.target.value === "always" ? null : row.colorId }
+                            : row),
+                        }))}
+                      >
+                        <option value="with_lace">With lace</option>
+                        <option value="always">Always</option>
+                      </select>
+                    </div>
+                    <div>
+                      {line.condition === "with_lace" ? (
+                        <>
+                          <Label htmlFor={`recipe-color-${index}`}>Color</Label>
+                          <select
+                            id={`recipe-color-${index}`}
+                            className={controlClass()}
+                            value={line.colorId ?? ""}
+                            onChange={(e) => setRecipeForm((c) => ({
+                              ...c,
+                              lines: c.lines.map((row, i) => i === index ? { ...row, colorId: Number(e.target.value) || null } : row),
+                            }))}
+                          >
+                            <option value="">Select color</option>
+                            {colors.map((color) => (
+                              <option key={color.id} value={color.id}>{color.name}</option>
+                            ))}
+                          </select>
+                        </>
+                      ) : null}
+                    </div>
+                    <div className="flex items-end">
+                      <button
+                        type="button"
+                        className="flex size-11 cursor-pointer items-center justify-center rounded-full text-[#641D1D] hover:bg-[#641D1D]/8 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#75482E]"
+                        aria-label="Remove component"
+                        onClick={() => setRecipeForm((c) => ({ ...c, lines: c.lines.filter((_, i) => i !== index) }))}
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+                {recipeForm.lines.length === 0 ? (
+                  <p className="text-xs text-[#2D241E]/45" style={{ fontFamily: "'DM Sans', sans-serif" }}>
+                    No components yet. Add one to compose lace (or packaging) onto this product.
+                  </p>
+                ) : null}
+              </div>
+            </div>
+
+            <Button
+              tone="light"
+              onClick={() => setRecipeForm((c) => ({
+                ...c,
+                lines: [...c.lines, { componentProductId: 0, quantity: "1", condition: "with_lace", colorId: null }],
+              }))}
+            >
+              <Plus size={14} /> Add component
+            </Button>
+            <div className="flex justify-end gap-2 pt-2">
+              <Button tone="light" onClick={() => setRecipeTarget(null)}>Cancel</Button>
+              <Button onClick={() => void saveRecipe()} disabled={saving}>
+                {saving ? <Loader2 size={14} className="animate-spin" /> : null}
+                Save recipe
+              </Button>
+            </div>
+          </div>
+        </Dialog>
+      ) : null}
     </div>
   );
 }
@@ -321,18 +560,35 @@ function ProductRow({
   product,
   onPricing,
   onBom,
+  onRecipe,
 }: {
   product: AccountingProductDto;
   onPricing: () => void;
   onBom: () => void;
+  onRecipe: () => void;
 }) {
   return (
     <div
       className="grid items-start gap-3 border-b border-[#2D241E]/06 px-5 py-4 text-sm last:border-b-0"
-      style={{ gridTemplateColumns: "1.6fr 0.7fr 0.9fr 0.8fr 0.9fr 140px", fontFamily: "'DM Sans', sans-serif" }}
+      style={{ gridTemplateColumns: "1.6fr 0.7fr 0.9fr 0.8fr 0.9fr 190px", fontFamily: "'DM Sans', sans-serif" }}
     >
       <div>
-        <p className="text-[#2D241E]">{product.name}</p>
+        <p className="text-[#2D241E]">
+          {product.name}
+          {product.isInternalComponent ? (
+            <span className="ml-2 align-middle"><StatusPill>Internal</StatusPill></span>
+          ) : null}
+        </p>
+        {product.saleComponents.length > 0 ? (
+          <p className="mt-1 text-xs text-[#2D241E]/50">
+            {product.saleComponents.length} sale component{product.saleComponents.length === 1 ? "" : "s"}
+          </p>
+        ) : null}
+        {needsColorMapping(product) ? (
+          <p className="mt-1 flex items-center gap-1 text-xs text-[#641D1D]">
+            <AlertTriangle size={12} /> Needs lace color mapping
+          </p>
+        ) : null}
         <FlagWarning product={product} />
       </div>
       <span className="text-[#2D241E]/55 tabular-nums">{product.sku || "—"}</span>
@@ -352,6 +608,9 @@ function ProductRow({
         <button type="button" onClick={onBom} className="flex size-10 cursor-pointer items-center justify-center rounded-full hover:bg-[#2D241E]/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#75482E]" aria-label={`Edit BOM for ${product.name}`}>
           <Plus size={15} />
         </button>
+        <button type="button" onClick={onRecipe} className="flex size-10 cursor-pointer items-center justify-center rounded-full hover:bg-[#2D241E]/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#75482E]" aria-label={`Edit sale recipe for ${product.name}`}>
+          <Layers size={15} />
+        </button>
       </div>
     </div>
   );
@@ -361,16 +620,23 @@ function ProductCard({
   product,
   onPricing,
   onBom,
+  onRecipe,
 }: {
   product: AccountingProductDto;
   onPricing: () => void;
   onBom: () => void;
+  onRecipe: () => void;
 }) {
   return (
     <div className="rounded-[18px] bg-white/55 p-4" style={{ border: "1px solid rgba(45,36,30,0.1)" }}>
       <div className="flex items-start justify-between gap-3">
         <div>
-          <p className="text-lg text-[#2D241E]" style={{ fontFamily: "'Cormorant Garamond', serif" }}>{product.name}</p>
+          <p className="text-lg text-[#2D241E]" style={{ fontFamily: "'Cormorant Garamond', serif" }}>
+            {product.name}
+            {product.isInternalComponent ? (
+              <span className="ml-2 align-middle"><StatusPill>Internal</StatusPill></span>
+            ) : null}
+          </p>
           <p className="mt-0.5 text-xs text-[#2D241E]/50">{product.sku || "No SKU"}</p>
         </div>
         <MarginBadge product={product} />
@@ -381,10 +647,16 @@ function ProductCard({
           ? ` · BOM ${moneyFromCents(product.margin.currentBomCostCents, product.sellingCurrencyCode)}`
           : ""}
       </p>
+      {needsColorMapping(product) ? (
+        <p className="mt-1 flex items-center gap-1 text-xs text-[#641D1D]">
+          <AlertTriangle size={12} /> Needs lace color mapping
+        </p>
+      ) : null}
       <FlagWarning product={product} />
-      <div className="mt-3 flex gap-2">
+      <div className="mt-3 flex flex-wrap gap-2">
         <Button tone="light" onClick={onPricing}><Pencil size={14} /> Pricing</Button>
         <Button tone="light" onClick={onBom}><Plus size={14} /> BOM</Button>
+        <Button tone="light" onClick={onRecipe}><Layers size={14} /> Recipe</Button>
       </div>
     </div>
   );

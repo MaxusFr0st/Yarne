@@ -26,4 +26,6 @@ public class CreateOrderItemRequest
     public string? SizeName { get; set; }
 
     public bool? WithLace { get; set; }
+
+    public int? LaceColorId { get; set; }
 }

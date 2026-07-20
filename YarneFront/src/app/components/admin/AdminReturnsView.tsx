@@ -27,7 +27,13 @@ import {
   toApiDate,
 } from "./accountingAdminUi";
 
-type ReturnLine = { salesOrderItemId: number; quantity: string; maxQty: number; productName: string };
+type ReturnLine = {
+  salesOrderItemId: number;
+  parentOrderItemId: number | null;
+  quantity: string;
+  maxQty: number;
+  productName: string;
+};
 
 export function AdminReturnsView() {
   const [returns, setReturns] = useState<ReturnOrderDto[]>([]);
@@ -85,6 +91,7 @@ export function AdminReturnsView() {
       lines: first
         ? first.items.map((item) => ({
             salesOrderItemId: item.id,
+            parentOrderItemId: item.parentOrderItemId,
             quantity: String(item.quantity),
             maxQty: item.quantity,
             productName: item.productName,
@@ -103,12 +110,35 @@ export function AdminReturnsView() {
       lines: order
         ? order.items.map((item) => ({
             salesOrderItemId: item.id,
+            parentOrderItemId: item.parentOrderItemId,
             quantity: String(item.quantity),
             maxQty: item.quantity,
             productName: item.productName,
           }))
         : [],
     }));
+  };
+
+  // Guided cascade: setting a line's return quantity clamps any of its component (child)
+  // lines to not exceed the parent — you can't return more lace than bags. The server
+  // enforces this too, but keeping the form consistent avoids a confusing rejection.
+  const setLineQuantity = (index: number, value: string) => {
+    setForm((current) => {
+      const target = current.lines[index];
+      if (!target) return current;
+      const parentQty = Number(value);
+      const next = current.lines.map((row, i) => (i === index ? { ...row, quantity: value } : row));
+      if (Number.isFinite(parentQty)) {
+        for (let i = 0; i < next.length; i++) {
+          if (next[i].parentOrderItemId === target.salesOrderItemId) {
+            if (Number(next[i].quantity) > parentQty) {
+              next[i] = { ...next[i], quantity: String(Math.max(0, parentQty)) };
+            }
+          }
+        }
+      }
+      return { ...current, lines: next };
+    });
   };
 
   const save = async () => {
@@ -289,25 +319,48 @@ export function AdminReturnsView() {
               </div>
             </div>
             <div className="space-y-3">
-              {form.lines.map((line, index) => (
-                <div key={line.salesOrderItemId} className="grid grid-cols-[1fr_100px] items-end gap-3">
-                  <div>
-                    <Label htmlFor={`ret-line-${index}`}>{line.productName}</Label>
-                    <p className="text-xs text-[#2D241E]/45">Max {line.maxQty}</p>
-                  </div>
-                  <input
-                    id={`ret-line-${index}`}
-                    inputMode="numeric"
-                    className={`${controlClass()} tabular-nums`}
-                    value={line.quantity}
-                    onChange={(e) => setForm((c) => ({
-                      ...c,
-                      lines: c.lines.map((row, i) => i === index ? { ...row, quantity: e.target.value } : row),
-                    }))}
-                    aria-label={`Return quantity for ${line.productName}`}
-                  />
-                </div>
-              ))}
+              {form.lines
+                .map((line, index) => ({ line, index }))
+                .filter(({ line }) => line.parentOrderItemId == null)
+                .map(({ line, index }) => {
+                  const children = form.lines
+                    .map((row, i) => ({ row, i }))
+                    .filter(({ row }) => row.parentOrderItemId === line.salesOrderItemId);
+                  return (
+                    <div key={line.salesOrderItemId} className="space-y-2">
+                      <div className="grid grid-cols-[1fr_100px] items-end gap-3">
+                        <div>
+                          <Label htmlFor={`ret-line-${index}`}>{line.productName}</Label>
+                          <p className="text-xs text-[#2D241E]/45">Max {line.maxQty}</p>
+                        </div>
+                        <input
+                          id={`ret-line-${index}`}
+                          inputMode="numeric"
+                          className={`${controlClass()} tabular-nums`}
+                          value={line.quantity}
+                          onChange={(e) => setLineQuantity(index, e.target.value)}
+                          aria-label={`Return quantity for ${line.productName}`}
+                        />
+                      </div>
+                      {children.map(({ row, i }) => (
+                        <div key={row.salesOrderItemId} className="grid grid-cols-[1fr_100px] items-end gap-3 pl-4">
+                          <div>
+                            <Label htmlFor={`ret-line-${i}`}>↳ {row.productName}</Label>
+                            <p className="text-xs text-[#2D241E]/45">Max {row.maxQty} · cannot exceed parent</p>
+                          </div>
+                          <input
+                            id={`ret-line-${i}`}
+                            inputMode="numeric"
+                            className={`${controlClass()} tabular-nums`}
+                            value={row.quantity}
+                            onChange={(e) => setLineQuantity(i, e.target.value)}
+                            aria-label={`Return quantity for ${row.productName}`}
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  );
+                })}
             </div>
             <div>
               <Label htmlFor="ret-notes">Notes</Label>

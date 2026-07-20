@@ -3,6 +3,7 @@ import { apiRequest } from "./client";
 export interface OrderItemDto {
   id: number;
   productId: number | null;
+  parentOrderItemId: number | null;
   productCode: string;
   productName: string;
   productImageUrl: string | null;
@@ -49,6 +50,7 @@ export interface CreateOrderItemRequest {
   furnitureColorName?: string;
   sizeName?: string;
   withLace?: boolean | null;
+  laceColorId?: number | null;
 }
 
 export interface CreateOrderRequest {

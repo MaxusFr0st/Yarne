@@ -24,6 +24,7 @@ import {
   type SavePurchaseOrderRequest,
   type SupplierDto,
 } from "../../api/accounting";
+import { formatRollBreakdown } from "./rollTracking";
 
 export type ProcurementView = "suppliers" | "purchase-orders" | "currency-rates";
 
@@ -32,6 +33,8 @@ type PurchaseLineForm = {
   quantity: string;
   unitPrice: string;
   vat: string;
+  itemCount: string;
+  lengthPerItem: string;
 };
 
 type PurchaseForm = {
@@ -237,7 +240,7 @@ export function AdminProcurementView({ view }: { view: ProcurementView }) {
     currencyCode: "UAH",
     exchangeRate: "1",
     receiptUrl: "",
-    lines: [{ materialId: 0, quantity: "1", unitPrice: "", vat: "0" }],
+    lines: [{ materialId: 0, quantity: "1", unitPrice: "", vat: "0", itemCount: "", lengthPerItem: "" }],
   });
 
   const load = useCallback(async () => {
@@ -326,6 +329,7 @@ export function AdminProcurementView({ view }: { view: ProcurementView }) {
     const firstMaterial = materials[0]?.id ?? 0;
     if (order === "new") {
       const currencyCode = currencies.find((currency) => currency.isBase)?.code ?? "UAH";
+      const firstMaterialDto = materials.find((material) => material.id === firstMaterial);
       setPurchaseForm({
         supplierId: suppliers[0]?.id ?? 0,
         orderDate: localIsoDate(),
@@ -334,7 +338,16 @@ export function AdminProcurementView({ view }: { view: ProcurementView }) {
         currencyCode,
         exchangeRate: "1",
         receiptUrl: "",
-        lines: [{ materialId: firstMaterial, quantity: "1", unitPrice: "", vat: "0" }],
+        lines: [{
+          materialId: firstMaterial,
+          quantity: "1",
+          unitPrice: "",
+          vat: "0",
+          itemCount: "",
+          lengthPerItem: firstMaterialDto?.trackByItem && firstMaterialDto.defaultLengthPerItem != null
+            ? String(firstMaterialDto.defaultLengthPerItem)
+            : "",
+        }],
       });
     } else {
       setPurchaseForm({
@@ -350,6 +363,8 @@ export function AdminProcurementView({ view }: { view: ProcurementView }) {
           quantity: String(item.quantityPurchased),
           unitPrice: inputFromCents(item.unitPriceCents),
           vat: inputFromCents(item.vatAmountCents),
+          itemCount: item.itemCount != null ? String(item.itemCount) : "",
+          lengthPerItem: item.lengthPerItem != null ? String(item.lengthPerItem) : "",
         })),
       });
     }
@@ -375,9 +390,20 @@ export function AdminProcurementView({ view }: { view: ProcurementView }) {
 
   const saveOrder = async () => {
     const duplicateMaterials = new Set(purchaseForm.lines.map((line) => line.materialId)).size !== purchaseForm.lines.length;
-    if (!purchaseForm.supplierId || !purchaseForm.exchangeRate || duplicateMaterials ||
+    const rollTrackedIncomplete = purchaseForm.lines.some((line) => {
+      const material = materials.find((m) => m.id === line.materialId);
+      if (!material?.trackByItem) return false;
+      return !(Number(line.itemCount) > 0) || !(Number(line.lengthPerItem) > 0);
+    });
+    if (!purchaseForm.supplierId || !purchaseForm.exchangeRate || duplicateMaterials || rollTrackedIncomplete ||
       purchaseForm.lines.some((line) => !line.materialId || Number(line.quantity) <= 0 || centsFromInput(line.unitPrice) < 0)) {
-      setError(duplicateMaterials ? "Combine duplicate material lines before saving." : "Complete every required purchase order field.");
+      setError(
+        duplicateMaterials
+          ? "Combine duplicate material lines before saving."
+          : rollTrackedIncomplete
+            ? "Enter both rolls and length-each for every roll-tracked material line."
+            : "Complete every required purchase order field.",
+      );
       return;
     }
     const body: SavePurchaseOrderRequest = {
@@ -388,12 +414,23 @@ export function AdminProcurementView({ view }: { view: ProcurementView }) {
       receiptUrl: purchaseForm.receiptUrl || null,
       currencyCode: purchaseForm.currencyCode,
       exchangeRateToBase: Number(purchaseForm.exchangeRate),
-      items: purchaseForm.lines.map((line) => ({
-        materialId: line.materialId,
-        quantityPurchased: Number(line.quantity),
-        unitPriceCents: centsFromInput(line.unitPrice),
-        vatAmountCents: centsFromInput(line.vat),
-      })),
+      items: purchaseForm.lines.map((line) => {
+        const material = materials.find((m) => m.id === line.materialId);
+        const isRollTracked = material?.trackByItem ?? false;
+        const itemCount = isRollTracked ? Number(line.itemCount) : null;
+        const lengthPerItem = isRollTracked ? Number(line.lengthPerItem) : null;
+        const quantityPurchased = isRollTracked && itemCount && lengthPerItem
+          ? itemCount * lengthPerItem
+          : Number(line.quantity);
+        return {
+          materialId: line.materialId,
+          quantityPurchased,
+          unitPriceCents: centsFromInput(line.unitPrice),
+          vatAmountCents: centsFromInput(line.vat),
+          itemCount,
+          lengthPerItem,
+        };
+      }),
     };
     setSaving(true);
     setError(null);
@@ -555,18 +592,80 @@ export function AdminProcurementView({ view }: { view: ProcurementView }) {
           <div className="mt-7" style={stitch}>
             <div className="mb-3 flex items-center justify-between gap-3">
               <h4 className="text-lg text-[#2D241E]" style={{ fontFamily: "'Cormorant Garamond', serif" }}>Material lines</h4>
-              <button type="button" onClick={() => setPurchaseForm((current) => ({ ...current, lines: [...current.lines, { materialId: materials[0]?.id ?? 0, quantity: "1", unitPrice: "", vat: "0" }] }))} className="inline-flex min-h-10 cursor-pointer items-center gap-1.5 rounded-full px-3 text-xs font-semibold uppercase tracking-[0.09em] text-[#75482E] hover:bg-[#75482E]/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#75482E]"><Plus size={13} /> Add line</button>
+              <button type="button" onClick={() => setPurchaseForm((current) => {
+                const nextMaterialId = materials[0]?.id ?? 0;
+                const nextMaterial = materials.find((material) => material.id === nextMaterialId);
+                return {
+                  ...current,
+                  lines: [...current.lines, {
+                    materialId: nextMaterialId,
+                    quantity: "1",
+                    unitPrice: "",
+                    vat: "0",
+                    itemCount: "",
+                    lengthPerItem: nextMaterial?.trackByItem && nextMaterial.defaultLengthPerItem != null
+                      ? String(nextMaterial.defaultLengthPerItem)
+                      : "",
+                  }],
+                };
+              })} className="inline-flex min-h-10 cursor-pointer items-center gap-1.5 rounded-full px-3 text-xs font-semibold uppercase tracking-[0.09em] text-[#75482E] hover:bg-[#75482E]/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#75482E]"><Plus size={13} /> Add line</button>
             </div>
             <div className="space-y-3 pb-6">
-              {purchaseForm.lines.map((line, index) => (
-                <div key={index} className="grid gap-3 rounded-2xl border border-[#2D241E]/10 bg-white/45 p-3 sm:grid-cols-2 lg:grid-cols-[minmax(180px,1.6fr)_0.65fr_0.8fr_0.8fr_44px]">
-                  <div><Label htmlFor={`po-material-${index}`}>Material</Label><select id={`po-material-${index}`} value={line.materialId} onChange={(event) => updateLine(index, { materialId: Number(event.target.value) })} className={controlClass()}>{materials.map((material) => <option key={material.id} value={material.id}>{material.name} · {material.unit}</option>)}</select></div>
-                  <div><Label htmlFor={`po-quantity-${index}`}>Quantity</Label><input id={`po-quantity-${index}`} type="number" min="0.001" step="0.001" value={line.quantity} onChange={(event) => updateLine(index, { quantity: event.target.value })} className={controlClass()} /></div>
-                  <div><Label htmlFor={`po-price-${index}`}>Unit price</Label><input id={`po-price-${index}`} inputMode="decimal" value={line.unitPrice} onChange={(event) => updateLine(index, { unitPrice: event.target.value })} className={controlClass()} placeholder="0.00" /></div>
-                  <div><Label htmlFor={`po-vat-${index}`}>VAT, total</Label><input id={`po-vat-${index}`} inputMode="decimal" value={line.vat} onChange={(event) => updateLine(index, { vat: event.target.value })} className={controlClass()} placeholder="0.00" /></div>
-                  <div className="flex items-end"><button type="button" disabled={purchaseForm.lines.length === 1} onClick={() => setPurchaseForm((current) => ({ ...current, lines: current.lines.filter((_, lineIndex) => lineIndex !== index) }))} className="flex size-11 cursor-pointer items-center justify-center rounded-xl text-[#641D1D] hover:bg-[#641D1D]/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#641D1D] disabled:cursor-not-allowed disabled:opacity-30" aria-label={`Remove material line ${index + 1}`}><X size={16} /></button></div>
-                </div>
-              ))}
+              {purchaseForm.lines.map((line, index) => {
+                const lineMaterial = materials.find((material) => material.id === line.materialId);
+                const isRollTracked = lineMaterial?.trackByItem ?? false;
+                const computedTotal = isRollTracked
+                  ? (Number(line.itemCount) || 0) * (Number(line.lengthPerItem) || 0)
+                  : null;
+                return (
+                  <div key={index} className={`grid gap-3 rounded-2xl border border-[#2D241E]/10 bg-white/45 p-3 sm:grid-cols-2 ${isRollTracked ? "lg:grid-cols-[minmax(160px,1.4fr)_0.6fr_0.6fr_0.7fr_0.7fr_0.7fr_44px]" : "lg:grid-cols-[minmax(180px,1.6fr)_0.65fr_0.8fr_0.8fr_44px]"}`}>
+                    <div>
+                      <Label htmlFor={`po-material-${index}`}>Material</Label>
+                      <select
+                        id={`po-material-${index}`}
+                        value={line.materialId}
+                        onChange={(event) => {
+                          const nextId = Number(event.target.value);
+                          const nextMaterial = materials.find((material) => material.id === nextId);
+                          updateLine(index, {
+                            materialId: nextId,
+                            lengthPerItem: nextMaterial?.trackByItem && nextMaterial.defaultLengthPerItem != null
+                              ? String(nextMaterial.defaultLengthPerItem)
+                              : "",
+                            itemCount: "",
+                          });
+                        }}
+                        className={controlClass()}
+                      >
+                        {materials.map((material) => <option key={material.id} value={material.id}>{material.name} · {material.unit}</option>)}
+                      </select>
+                    </div>
+                    {isRollTracked ? (
+                      <>
+                        <div><Label htmlFor={`po-rolls-${index}`}>Rolls</Label><input id={`po-rolls-${index}`} type="number" min="1" step="1" value={line.itemCount} onChange={(event) => {
+                          const itemCount = event.target.value;
+                          const total = (Number(itemCount) || 0) * (Number(line.lengthPerItem) || 0);
+                          updateLine(index, { itemCount, quantity: total > 0 ? String(total) : line.quantity });
+                        }} className={controlClass()} /></div>
+                        <div><Label htmlFor={`po-length-${index}`}>{`Length each (${lineMaterial?.unit ?? ""})`}</Label><input id={`po-length-${index}`} type="number" min="0.0001" step="0.0001" value={line.lengthPerItem} onChange={(event) => {
+                          const lengthPerItem = event.target.value;
+                          const total = (Number(line.itemCount) || 0) * (Number(lengthPerItem) || 0);
+                          updateLine(index, { lengthPerItem, quantity: total > 0 ? String(total) : line.quantity });
+                        }} className={controlClass()} /></div>
+                        <div>
+                          <Label htmlFor={`po-total-${index}`}>Total</Label>
+                          <input id={`po-total-${index}`} readOnly value={computedTotal ? `${computedTotal} ${lineMaterial?.unit ?? ""}` : "—"} className={controlClass("bg-[#75482E]/[0.06]")} />
+                        </div>
+                      </>
+                    ) : (
+                      <div><Label htmlFor={`po-quantity-${index}`}>Quantity</Label><input id={`po-quantity-${index}`} type="number" min="0.001" step="0.001" value={line.quantity} onChange={(event) => updateLine(index, { quantity: event.target.value })} className={controlClass()} /></div>
+                    )}
+                    <div><Label htmlFor={`po-price-${index}`}>Unit price</Label><input id={`po-price-${index}`} inputMode="decimal" value={line.unitPrice} onChange={(event) => updateLine(index, { unitPrice: event.target.value })} className={controlClass()} placeholder="0.00" /></div>
+                    <div><Label htmlFor={`po-vat-${index}`}>VAT, total</Label><input id={`po-vat-${index}`} inputMode="decimal" value={line.vat} onChange={(event) => updateLine(index, { vat: event.target.value })} className={controlClass()} placeholder="0.00" /></div>
+                    <div className="flex items-end"><button type="button" disabled={purchaseForm.lines.length === 1} onClick={() => setPurchaseForm((current) => ({ ...current, lines: current.lines.filter((_, lineIndex) => lineIndex !== index) }))} className="flex size-11 cursor-pointer items-center justify-center rounded-xl text-[#641D1D] hover:bg-[#641D1D]/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#641D1D] disabled:cursor-not-allowed disabled:opacity-30" aria-label={`Remove material line ${index + 1}`}><X size={16} /></button></div>
+                  </div>
+                );
+              })}
             </div>
           </div>
 
@@ -655,16 +754,25 @@ function PurchaseOrdersList({ orders, expanded, onExpand, onEdit, onVoid }: { or
               {expanded === order.id ? (
                 <div className="bg-[#75482E]/[0.035] px-4 py-4 md:px-6">
                   <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-                    {order.items.map((item) => (
-                      <div key={item.id} className="rounded-xl border border-[#2D241E]/10 bg-white/55 p-3">
-                        <div className="flex justify-between gap-3"><p className="font-medium text-[#2D241E]">{item.materialName}</p><span className="text-xs text-[#2D241E]/50">Lot {item.id}</span></div>
-                        <div className="mt-3 grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-[#2D241E]/60">
-                          <span>Purchased</span><span className="text-right text-[#2D241E]">{item.quantityPurchased} {item.materialUnit}</span>
-                          <span>Remaining</span><span className="text-right font-semibold text-[#315B42]">{item.quantityRemaining} {item.materialUnit}</span>
-                          <span>Unit cost</span><span className="text-right">{moneyFromCents(item.unitPriceCents, order.currencyCode)}</span>
+                    {order.items.map((item) => {
+                      const breakdown = item.itemCount != null
+                        ? formatRollBreakdown(item.wholeItemsRemaining, item.partialRemainder, item.quantityRemaining, item.materialUnit)
+                        : null;
+                      return (
+                        <div key={item.id} className="rounded-xl border border-[#2D241E]/10 bg-white/55 p-3">
+                          <div className="flex justify-between gap-3"><p className="font-medium text-[#2D241E]">{item.materialName}</p><span className="text-xs text-[#2D241E]/50">Lot {item.id}</span></div>
+                          <div className="mt-3 grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-[#2D241E]/60">
+                            <span>Purchased</span>
+                            <span className="text-right text-[#2D241E]">
+                              {item.itemCount != null ? `${item.itemCount} rolls × ${item.lengthPerItem} ${item.materialUnit}` : `${item.quantityPurchased} ${item.materialUnit}`}
+                            </span>
+                            <span>Remaining</span><span className="text-right font-semibold text-[#315B42]">{item.quantityRemaining} {item.materialUnit}</span>
+                            <span>Unit cost</span><span className="text-right">{moneyFromCents(item.unitPriceCents, order.currencyCode)}</span>
+                          </div>
+                          {breakdown ? <p className="mt-2 text-xs text-[#2D241E]/50">{breakdown}</p> : null}
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                   {order.receiptUrl ? <a href={order.receiptUrl} target="_blank" rel="noreferrer" className="mt-4 inline-flex min-h-10 items-center gap-1.5 text-xs font-semibold uppercase tracking-[0.08em] text-[#75482E] hover:underline"><FileImage size={14} /> Open receipt <ExternalLink size={12} /></a> : null}
                 </div>

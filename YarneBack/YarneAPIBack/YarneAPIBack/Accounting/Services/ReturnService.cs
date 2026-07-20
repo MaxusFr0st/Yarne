@@ -105,6 +105,38 @@ public sealed class ReturnService : IReturnService
             if (request.RefundAmountCents > eligibleTotal)
                 throw new AccountingBusinessException("Refund exceeds the returned items' listed value.");
 
+            // Guided-cascade guard: a composed component (child) line cannot be returned in a
+            // quantity exceeding its parent (bag) line's total returned quantity — you can't
+            // return more lace than bags. Parent's total = previously returned + this request.
+            var childItems = saleItems.Values.Where(x => x.ParentOrderItemId.HasValue).ToList();
+            if (childItems.Count > 0)
+            {
+                var requestedQtyByItem = requestedByItem.ToDictionary(x => x.Key, x => x.Value.Quantity);
+                var parentIds = childItems.Select(x => x.ParentOrderItemId!.Value).Distinct().ToList();
+                var allIds = requestedByItem.Keys.Concat(parentIds).Distinct().ToList();
+                var returnedByItem = await _db.ReturnOrderItems
+                    .Where(x =>
+                        allIds.Contains(x.SalesOrderItemId) &&
+                        !x.IsVoid &&
+                        !x.ReturnOrder.IsVoid &&
+                        x.ReturnOrder.Status != "cancelled")
+                    .GroupBy(x => x.SalesOrderItemId)
+                    .Select(group => new { ItemId = group.Key, Quantity = group.Sum(x => x.Quantity) })
+                    .ToDictionaryAsync(x => x.ItemId, x => x.Quantity, ct);
+                foreach (var child in childItems)
+                {
+                    var parentId = child.ParentOrderItemId!.Value;
+                    var childTotal = returnedByItem.GetValueOrDefault(child.Id)
+                        + requestedQtyByItem.GetValueOrDefault(child.Id);
+                    var parentTotal = returnedByItem.GetValueOrDefault(parentId)
+                        + requestedQtyByItem.GetValueOrDefault(parentId);
+                    if (childTotal > parentTotal)
+                        throw new AccountingBusinessException(
+                            $"Cannot return more of '{child.ProductName}' than its parent line " +
+                            $"({parentTotal} returned).");
+                }
+            }
+
             var now = DateTime.UtcNow;
             var returnOrder = new ReturnOrder
             {

@@ -44,6 +44,7 @@ public sealed class SaveSalesChannelRequest
 public sealed record AccountingSalesOrderItemDto(
     int Id,
     int ProductId,
+    int? ParentOrderItemId,
     string ProductName,
     string ProductSku,
     int Quantity,
@@ -81,6 +82,18 @@ public sealed class CreateAccountingSalesOrderItemRequest
     public int Quantity { get; set; }
     public long? ListedPriceCents { get; set; }
     public long VatAmountCents { get; set; }
+
+    /// <summary>
+    /// When true, "with_lace" sale-time components of this product are composed onto the sale
+    /// as their own order lines (FIFO-costed separately). "always" components apply regardless.
+    /// </summary>
+    public bool WithLace { get; set; }
+
+    /// <summary>
+    /// The chosen lace color (Color.Id) when <see cref="WithLace"/> is true and the product has
+    /// configured "with_lace" color options; required in that case.
+    /// </summary>
+    public int? LaceColorId { get; set; }
 }
 
 public sealed class CreateAccountingSalesOrderRequest

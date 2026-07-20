@@ -149,6 +149,136 @@ public sealed class ProductAccountingService : IProductAccountingService
         return await GetProductAsync(productId, ct);
     }
 
+    public async Task<AccountingProductDto?> SetInternalComponentAsync(
+        int id,
+        bool isInternalComponent,
+        int? actorId,
+        CancellationToken ct = default)
+    {
+        var product = await _db.Products.SingleOrDefaultAsync(x => x.Id == id && !x.IsVoid, ct);
+        if (product is null)
+            return null;
+
+        // A product used as a component in another product's recipe cannot itself be sold on the
+        // storefront while also being internal — but marking it internal is exactly what we want.
+        // Guard the reverse: don't allow un-marking a product that is still referenced as a
+        // component elsewhere, otherwise it would leak into the public catalog.
+        if (!isInternalComponent && product.IsInternalComponent)
+        {
+            var stillReferenced = await _db.ProductSaleComponents
+                .AnyAsync(sc => !sc.IsVoid && sc.ComponentProductId == id, ct);
+            if (stillReferenced)
+                throw new AccountingBusinessException(
+                    "This product is still used as a sale component of another product. " +
+                    "Remove it from those recipes before making it public again.");
+        }
+
+        product.IsInternalComponent = isInternalComponent;
+        product.CreatedBy ??= actorId;
+        product.UpdatedAt = DateTime.UtcNow;
+        await _db.SaveChangesAsync(ct);
+        return await GetProductAsync(id, ct);
+    }
+
+    public async Task<AccountingProductDto?> SaveSaleComponentsAsync(
+        int productId,
+        SaveProductSaleComponentsRequest request,
+        int? actorId,
+        CancellationToken ct = default)
+    {
+        var items = request.Components ?? new List<SaveProductSaleComponentItemRequest>();
+        if (items.Any(x => x.ComponentProductId <= 0 || x.Quantity <= 0))
+            throw new AccountingBusinessException("Every component needs a product and positive quantity.");
+        foreach (var item in items)
+        {
+            if (item.Condition is not ("with_lace" or "always"))
+                throw new AccountingBusinessException("Component condition must be 'with_lace' or 'always'.");
+            if (item.ComponentProductId == productId)
+                throw new AccountingBusinessException("A product cannot be a component of itself.");
+            if (item.Condition == "with_lace" && item.ColorId is null)
+                throw new AccountingBusinessException("Every 'with_lace' row needs a lace color.");
+            if (item.Condition == "always" && item.ColorId is not null)
+                throw new AccountingBusinessException("'always' (packaging) rows cannot have a color.");
+        }
+        if (items.GroupBy(x => (x.ComponentProductId, x.Condition, x.ColorId)).Any(g => g.Count() > 1))
+            throw new AccountingBusinessException("Combine duplicate component + condition + color rows.");
+        if (items.Where(x => x.Condition == "with_lace")
+                .GroupBy(x => x.ColorId)
+                .Any(g => g.Count() > 1))
+            throw new AccountingBusinessException("Each lace color can only be mapped once per product.");
+
+        var product = await _db.Products.SingleOrDefaultAsync(x => x.Id == productId && !x.IsVoid, ct);
+        if (product is null)
+            return null;
+
+        var componentIds = items.Select(x => x.ComponentProductId).Distinct().ToArray();
+        if (componentIds.Length > 0)
+        {
+            var validComponents = await _db.Products
+                .Where(p => componentIds.Contains(p.Id) && !p.IsVoid)
+                .Select(p => p.Id)
+                .ToListAsync(ct);
+            var missing = componentIds.Except(validComponents).ToList();
+            if (missing.Count > 0)
+                throw new AccountingBusinessException("One or more component products were not found.");
+        }
+
+        var colorIds = items.Where(x => x.ColorId.HasValue).Select(x => x.ColorId!.Value).Distinct().ToArray();
+        if (colorIds.Length > 0)
+        {
+            var validColors = await _db.Colors
+                .Where(c => colorIds.Contains(c.Id))
+                .Select(c => c.Id)
+                .ToListAsync(ct);
+            var missingColors = colorIds.Except(validColors).ToList();
+            if (missingColors.Count > 0)
+                throw new AccountingBusinessException("One or more lace colors were not found.");
+        }
+
+        var existing = await _db.ProductSaleComponents
+            .Where(sc => sc.ProductId == productId)
+            .ToListAsync(ct);
+        var now = DateTime.UtcNow;
+        var requestedByKey = items.ToDictionary(x => (x.ComponentProductId, x.Condition, x.ColorId));
+
+        foreach (var row in existing)
+        {
+            if (requestedByKey.Remove((row.ComponentProductId, row.Condition, row.ColorId), out var requested))
+            {
+                row.Quantity = requested.Quantity;
+                row.IsVoid = false;
+                row.CreatedBy ??= actorId;
+                row.UpdatedAt = now;
+            }
+            else if (!row.IsVoid)
+            {
+                row.IsVoid = true;
+                row.CreatedBy ??= actorId;
+                row.UpdatedAt = now;
+            }
+        }
+
+        foreach (var requested in requestedByKey.Values)
+        {
+            _db.ProductSaleComponents.Add(new ProductSaleComponent
+            {
+                ProductId = productId,
+                ComponentProductId = requested.ComponentProductId,
+                Quantity = requested.Quantity,
+                Condition = requested.Condition,
+                ColorId = requested.ColorId,
+                CreatedBy = actorId,
+                CreatedAt = now,
+                UpdatedAt = now,
+            });
+        }
+
+        product.CreatedBy ??= actorId;
+        product.UpdatedAt = now;
+        await _db.SaveChangesAsync(ct);
+        return await GetProductAsync(productId, ct);
+    }
+
     private IQueryable<Product> ProductQuery()
     {
         return _db.Products
@@ -156,7 +286,11 @@ public sealed class ProductAccountingService : IProductAccountingService
             .Where(x => !x.IsVoid)
             .Include(x => x.Bom)
                 .ThenInclude(x => x!.Items.Where(item => !item.IsVoid))
-                    .ThenInclude(x => x.Material);
+                    .ThenInclude(x => x.Material)
+            .Include(x => x.SaleComponents.Where(sc => !sc.IsVoid))
+                .ThenInclude(sc => sc.ComponentProduct)
+            .Include(x => x.SaleComponents.Where(sc => !sc.IsVoid))
+                .ThenInclude(sc => sc.Color);
     }
 
     private async Task<IReadOnlyList<AccountingProductDto>> MapProductsAsync(
@@ -296,6 +430,24 @@ public sealed class ProductAccountingService : IProductAccountingService
                 product.Bom.LabourCostCents,
                 product.Bom.CurrencyCode,
                 bomItems);
+        var saleComponents = product.SaleComponents
+            .Where(sc => !sc.IsVoid)
+            .OrderBy(sc => sc.Condition)
+            .ThenBy(sc => sc.ComponentProduct.Name)
+            .Select(sc => new ProductSaleComponentDto(
+                sc.Id,
+                sc.ComponentProductId,
+                sc.ComponentProduct.Name,
+                sc.ComponentProduct.ProductCode,
+                sc.Quantity,
+                sc.Condition,
+                sc.ComponentProduct.SellingPriceCents,
+                sc.ComponentProduct.SellingCurrencyCode,
+                sc.ColorId,
+                sc.Color != null ? sc.Color.Name : null,
+                sc.Color != null ? sc.Color.HexCode : null))
+            .ToList();
+
         return new AccountingProductDto(
             product.Id,
             product.Name,
@@ -304,6 +456,7 @@ public sealed class ProductAccountingService : IProductAccountingService
             product.SellingPriceCents,
             product.SellingCurrencyCode,
             product.MarginThresholdPct,
+            product.IsInternalComponent,
             bom,
             new ProductMarginDto(
                 costAvailable,
@@ -312,7 +465,8 @@ public sealed class ProductAccountingService : IProductAccountingService
                 marginPct,
                 product.MarginThresholdPct,
                 flagged,
-                missingMaterials));
+                missingMaterials),
+            saleComponents);
     }
 
     private async Task EnsureCurrencyExistsAsync(string code, CancellationToken ct)

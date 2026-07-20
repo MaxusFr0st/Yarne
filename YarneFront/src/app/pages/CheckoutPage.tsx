@@ -89,6 +89,7 @@ export function CheckoutPage() {
           furnitureColorName: item.furnitureColor ?? undefined,
           sizeName: item.size,
           withLace: item.withLace ?? undefined,
+          laceColorId: item.laceColorId ?? undefined,
         })),
       });
       setPlacedOrder(order);

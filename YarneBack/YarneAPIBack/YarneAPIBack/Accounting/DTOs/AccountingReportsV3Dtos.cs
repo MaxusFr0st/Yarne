@@ -115,7 +115,8 @@ public sealed record ExpenseCategorySummaryDto(
 public sealed record InventoryValuationDto(
     long RawMaterialValueCents,
     long FinishedGoodsValueCents,
-    long TotalValueCents);
+    long TotalValueCents,
+    long FinishedGoodsPotentialRevenueCents);
 
 public sealed record AccountingDashboardV3Dto(
     DateTime? DateFrom,

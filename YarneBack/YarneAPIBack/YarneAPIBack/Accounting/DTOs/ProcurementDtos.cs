@@ -47,7 +47,11 @@ public sealed record PurchaseOrderItemDto(
     long VatAmountCents,
     long BaseUnitPriceCents,
     long BaseTotalCostCents,
-    long BaseVatAmountCents);
+    long BaseVatAmountCents,
+    int? ItemCount,
+    decimal? LengthPerItem,
+    int? WholeItemsRemaining,
+    decimal? PartialRemainder);
 
 public sealed record PurchaseOrderDto(
     int Id,
@@ -72,6 +76,8 @@ public sealed class SavePurchaseOrderItemRequest
     public decimal QuantityPurchased { get; set; }
     public long UnitPriceCents { get; set; }
     public long VatAmountCents { get; set; }
+    public int? ItemCount { get; set; }
+    public decimal? LengthPerItem { get; set; }
 }
 
 public sealed class SavePurchaseOrderRequest

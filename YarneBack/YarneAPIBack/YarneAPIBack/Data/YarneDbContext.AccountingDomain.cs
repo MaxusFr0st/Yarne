@@ -139,10 +139,15 @@ public partial class YarneDbContext
                     "\"UnitPriceCents\" >= 0 AND \"TotalCostCents\" >= 0 AND \"VatAmountCents\" >= 0 " +
                     "AND \"BaseUnitPriceCents\" >= 0 AND \"BaseTotalCostCents\" >= 0 " +
                     "AND \"BaseVatAmountCents\" >= 0");
+                table.HasCheckConstraint(
+                    "CK_PurchaseOrderItem_ItemShape",
+                    "(\"ItemCount\" IS NULL AND \"LengthPerItem\" IS NULL) " +
+                    "OR (\"ItemCount\" > 0 AND \"LengthPerItem\" > 0)");
             });
             entity.HasKey(x => x.Id);
             entity.Property(x => x.QuantityPurchased).HasPrecision(18, 4);
             entity.Property(x => x.QuantityRemaining).HasPrecision(18, 4);
+            entity.Property(x => x.LengthPerItem).HasPrecision(18, 4);
             entity.Property(x => x.IsVoid).HasDefaultValue(false);
             ConfigureAudit(entity);
             entity.HasOne(x => x.PurchaseOrder)
@@ -501,6 +506,8 @@ public partial class YarneDbContext
             entity.Property(x => x.ReorderThreshold).HasPrecision(18, 4);
             entity.Property(x => x.IsVoid).HasDefaultValue(false);
             entity.Property(x => x.UpdatedAt).HasDefaultValueSql("CURRENT_TIMESTAMP");
+            entity.Property(x => x.TrackByItem).HasDefaultValue(false);
+            entity.Property(x => x.DefaultLengthPerItem).HasPrecision(18, 4);
         });
 
         modelBuilder.Entity<Models.Product>(entity =>

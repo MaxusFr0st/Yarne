@@ -55,6 +55,8 @@ public partial class YarneDbContext : DbContext
 
     public virtual DbSet<ProductRecommendation> ProductRecommendations { get; set; }
 
+    public virtual DbSet<ProductSaleComponent> ProductSaleComponents { get; set; }
+
     public virtual DbSet<Size> Sizes { get; set; }
 
     public virtual DbSet<Role> Roles { get; set; }
@@ -388,6 +390,49 @@ public partial class YarneDbContext : DbContext
                 .HasForeignKey(d => d.ProductId)
                 .OnDelete(DeleteBehavior.SetNull)
                 .HasConstraintName("FK__OrderItem__Produ__6C190EBB");
+
+            entity.HasOne(d => d.ParentOrderItem)
+                .WithMany()
+                .HasForeignKey(d => d.ParentOrderItemId)
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.HasIndex(e => e.ParentOrderItemId);
+        });
+
+        modelBuilder.Entity<ProductSaleComponent>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.ToTable("ProductSaleComponent", table =>
+                table.HasCheckConstraint(
+                    "CK_ProductSaleComponent_Quantity_Positive",
+                    "\"Quantity\" > 0"));
+            entity.Property(e => e.Quantity).HasDefaultValue(1);
+            entity.Property(e => e.Condition).HasMaxLength(20).HasDefaultValue("with_lace");
+            entity.Property(e => e.IsVoid).HasDefaultValue(false);
+            entity.Property(e => e.CreatedAt).HasDefaultValueSql("CURRENT_TIMESTAMP");
+            entity.Property(e => e.UpdatedAt).HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+            // Two FKs to Product on Postgres must be no-cascade to avoid multiple cascade paths.
+            entity.HasOne(e => e.Product)
+                .WithMany(p => p.SaleComponents)
+                .HasForeignKey(e => e.ProductId)
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(e => e.ComponentProduct)
+                .WithMany()
+                .HasForeignKey(e => e.ComponentProductId)
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(e => e.Color)
+                .WithMany()
+                .HasForeignKey(e => e.ColorId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasIndex(e => new { e.ProductId, e.ComponentProductId, e.Condition })
+                .IsUnique()
+                .HasFilter("\"IsVoid\" = false");
+            entity.HasIndex(e => new { e.ProductId, e.Condition, e.ColorId })
+                .IsUnique()
+                .HasFilter("\"IsVoid\" = false");
+            entity.HasIndex(e => e.ComponentProductId);
+            entity.HasIndex(e => e.ColorId);
         });
 
         modelBuilder.Entity<PaymentMethod>(entity =>
@@ -429,6 +474,7 @@ public partial class YarneDbContext : DbContext
             entity.Property(e => e.IsNew).HasDefaultValue(false);
             entity.Property(e => e.IsBestseller).HasDefaultValue(false);
             entity.Property(e => e.Lace).HasDefaultValue(false);
+            entity.Property(e => e.IsInternalComponent).HasDefaultValue(false);
             entity.Property(e => e.Material).HasMaxLength(100);
             entity.Property(e => e.Name).HasMaxLength(255);
             entity.Property(e => e.Price).HasColumnType("decimal(18, 2)");

@@ -240,8 +240,13 @@ export function AdminAccountingReportsView() {
             <SectionTitle>Inventory valuation</SectionTitle>
             <Panel className="p-5">
               <MoneyRow label="Raw materials" cents={data.inventoryValuation.rawMaterialValueCents} currency={currency} />
-              <MoneyRow label="Finished goods" cents={data.inventoryValuation.finishedGoodsValueCents} currency={currency} />
-              <MoneyRow label="Total" cents={data.inventoryValuation.totalValueCents} currency={currency} emphasize />
+              <MoneyRow label="Finished goods (at cost)" cents={data.inventoryValuation.finishedGoodsValueCents} currency={currency} />
+              <MoneyRow label="Total (at cost)" cents={data.inventoryValuation.totalValueCents} currency={currency} emphasize />
+              <MoneyRow
+                label="Finished goods if sold at listed price"
+                cents={data.inventoryValuation.finishedGoodsPotentialRevenueCents}
+                currency={currency}
+              />
             </Panel>
           </section>
 

@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using YarneAPIBack.Data;
@@ -11,9 +12,11 @@ using YarneAPIBack.Data;
 namespace YarneAPIBack.Data.Migrations
 {
     [DbContext(typeof(YarneDbContext))]
-    partial class YarneDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260720123548_AddMaterialRollTracking")]
+    partial class AddMaterialRollTracking
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -2592,9 +2595,6 @@ namespace YarneAPIBack.Data.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
-                    b.Property<int?>("ColorId")
-                        .HasColumnType("integer");
-
                     b.Property<int>("ComponentProductId")
                         .HasColumnType("integer");
 
@@ -2633,15 +2633,9 @@ namespace YarneAPIBack.Data.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("ColorId");
-
                     b.HasIndex("ComponentProductId");
 
                     b.HasIndex("ProductId", "ComponentProductId", "Condition")
-                        .IsUnique()
-                        .HasFilter("\"IsVoid\" = false");
-
-                    b.HasIndex("ProductId", "Condition", "ColorId")
                         .IsUnique()
                         .HasFilter("\"IsVoid\" = false");
 
@@ -3396,11 +3390,6 @@ namespace YarneAPIBack.Data.Migrations
 
             modelBuilder.Entity("YarneAPIBack.Models.ProductSaleComponent", b =>
                 {
-                    b.HasOne("YarneAPIBack.Models.Color", "Color")
-                        .WithMany()
-                        .HasForeignKey("ColorId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
                     b.HasOne("YarneAPIBack.Models.Product", "ComponentProduct")
                         .WithMany()
                         .HasForeignKey("ComponentProductId")
@@ -3412,8 +3401,6 @@ namespace YarneAPIBack.Data.Migrations
                         .HasForeignKey("ProductId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
-
-                    b.Navigation("Color");
 
                     b.Navigation("ComponentProduct");
 

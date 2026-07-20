@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using YarneAPIBack.Data;
@@ -11,9 +12,11 @@ using YarneAPIBack.Data;
 namespace YarneAPIBack.Data.Migrations
 {
     [DbContext(typeof(YarneDbContext))]
-    partial class YarneDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260720115158_AddLaceSaleComposition")]
+    partial class AddLaceSaleComposition
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -635,10 +638,6 @@ namespace YarneAPIBack.Data.Migrations
                     b.Property<int?>("CreatedBy")
                         .HasColumnType("integer");
 
-                    b.Property<decimal?>("DefaultLengthPerItem")
-                        .HasPrecision(18, 4)
-                        .HasColumnType("numeric(18,4)");
-
                     b.Property<string>("Description")
                         .HasMaxLength(1000)
                         .HasColumnType("character varying(1000)");
@@ -665,11 +664,6 @@ namespace YarneAPIBack.Data.Migrations
                     b.Property<string>("Sku")
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");
-
-                    b.Property<bool>("TrackByItem")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("boolean")
-                        .HasDefaultValue(false);
 
                     b.Property<string>("Unit")
                         .IsRequired()
@@ -1238,13 +1232,6 @@ namespace YarneAPIBack.Data.Migrations
                         .HasColumnType("boolean")
                         .HasDefaultValue(false);
 
-                    b.Property<int?>("ItemCount")
-                        .HasColumnType("integer");
-
-                    b.Property<decimal?>("LengthPerItem")
-                        .HasPrecision(18, 4)
-                        .HasColumnType("numeric(18,4)");
-
                     b.Property<int>("MaterialId")
                         .HasColumnType("integer");
 
@@ -1283,8 +1270,6 @@ namespace YarneAPIBack.Data.Migrations
 
                     b.ToTable("PurchaseOrderItem", null, t =>
                         {
-                            t.HasCheckConstraint("CK_PurchaseOrderItem_ItemShape", "(\"ItemCount\" IS NULL AND \"LengthPerItem\" IS NULL) OR (\"ItemCount\" > 0 AND \"LengthPerItem\" > 0)");
-
                             t.HasCheckConstraint("CK_PurchaseOrderItem_Money_NonNegative", "\"UnitPriceCents\" >= 0 AND \"TotalCostCents\" >= 0 AND \"VatAmountCents\" >= 0 AND \"BaseUnitPriceCents\" >= 0 AND \"BaseTotalCostCents\" >= 0 AND \"BaseVatAmountCents\" >= 0");
 
                             t.HasCheckConstraint("CK_PurchaseOrderItem_QuantityPurchased_Positive", "\"QuantityPurchased\" > 0");
@@ -2592,9 +2577,6 @@ namespace YarneAPIBack.Data.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
-                    b.Property<int?>("ColorId")
-                        .HasColumnType("integer");
-
                     b.Property<int>("ComponentProductId")
                         .HasColumnType("integer");
 
@@ -2633,15 +2615,9 @@ namespace YarneAPIBack.Data.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("ColorId");
-
                     b.HasIndex("ComponentProductId");
 
                     b.HasIndex("ProductId", "ComponentProductId", "Condition")
-                        .IsUnique()
-                        .HasFilter("\"IsVoid\" = false");
-
-                    b.HasIndex("ProductId", "Condition", "ColorId")
                         .IsUnique()
                         .HasFilter("\"IsVoid\" = false");
 
@@ -3396,11 +3372,6 @@ namespace YarneAPIBack.Data.Migrations
 
             modelBuilder.Entity("YarneAPIBack.Models.ProductSaleComponent", b =>
                 {
-                    b.HasOne("YarneAPIBack.Models.Color", "Color")
-                        .WithMany()
-                        .HasForeignKey("ColorId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
                     b.HasOne("YarneAPIBack.Models.Product", "ComponentProduct")
                         .WithMany()
                         .HasForeignKey("ComponentProductId")
@@ -3412,8 +3383,6 @@ namespace YarneAPIBack.Data.Migrations
                         .HasForeignKey("ProductId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
-
-                    b.Navigation("Color");
 
                     b.Navigation("ComponentProduct");
 

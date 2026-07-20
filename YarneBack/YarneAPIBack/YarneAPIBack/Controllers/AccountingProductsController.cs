@@ -98,4 +98,62 @@ public sealed class AccountingProductsController : ControllerBase
             return BadRequest(new { message = "The calculated BOM cost is too large." });
         }
     }
+
+    [HttpPut("{id:int}/internal-component")]
+    public async Task<ActionResult<AccountingProductDto>> SetInternalComponent(
+        int id,
+        [FromBody] SetInternalComponentRequest request,
+        CancellationToken ct)
+    {
+        try
+        {
+            var (actorId, actorEmail) = AdminActivityLogHelper.GetActor(HttpContext);
+            var result = await _products.SetInternalComponentAsync(id, request.IsInternalComponent, actorId, ct);
+            if (result is null)
+                return NotFound();
+            await _activityLogs.LogAsync(
+                "accounting",
+                "updated",
+                $"Set '{result.Name}' internal component flag to {request.IsInternalComponent}",
+                entityId: id.ToString(),
+                entityLabel: result.Name,
+                actorUserId: actorId,
+                actorEmail: actorEmail,
+                ct: ct);
+            return Ok(result);
+        }
+        catch (AccountingBusinessException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    [HttpPut("{id:int}/sale-components")]
+    public async Task<ActionResult<AccountingProductDto>> SaveSaleComponents(
+        int id,
+        [FromBody] SaveProductSaleComponentsRequest request,
+        CancellationToken ct)
+    {
+        try
+        {
+            var (actorId, actorEmail) = AdminActivityLogHelper.GetActor(HttpContext);
+            var result = await _products.SaveSaleComponentsAsync(id, request, actorId, ct);
+            if (result is null)
+                return NotFound();
+            await _activityLogs.LogAsync(
+                "accounting",
+                "updated",
+                $"Updated sale components for '{result.Name}'",
+                entityId: id.ToString(),
+                entityLabel: result.Name,
+                actorUserId: actorId,
+                actorEmail: actorEmail,
+                ct: ct);
+            return Ok(result);
+        }
+        catch (AccountingBusinessException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
 }

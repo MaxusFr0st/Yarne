@@ -14,6 +14,8 @@ export interface MaterialDto {
   category: string | null;
   reorderThreshold: number;
   isActive: boolean;
+  trackByItem: boolean;
+  defaultLengthPerItem: number | null;
   createdAt: string;
 }
 
@@ -54,6 +56,10 @@ export interface PurchaseOrderItemDto {
   baseUnitPriceCents: number;
   baseTotalCostCents: number;
   baseVatAmountCents: number;
+  itemCount: number | null;
+  lengthPerItem: number | null;
+  wholeItemsRemaining: number | null;
+  partialRemainder: number | null;
 }
 
 export interface PurchaseOrderDto {
@@ -93,6 +99,9 @@ export interface MaterialStockDto {
   qtyOnHand: number;
   avgUnitCost: number;
   totalStockValue: number;
+  trackByItem: boolean;
+  wholeItemsRemaining: number;
+  looseRemainder: number;
 }
 
 export interface ImportTransactionLineDto {
@@ -240,6 +249,8 @@ export type CreateMaterialRequest = {
   category?: string | null;
   reorderThreshold?: number;
   isActive?: boolean;
+  trackByItem?: boolean;
+  defaultLengthPerItem?: number | null;
 };
 export type UpdateMaterialRequest = CreateMaterialRequest;
 
@@ -258,6 +269,8 @@ export type SavePurchaseOrderRequest = {
     quantityPurchased: number;
     unitPriceCents: number;
     vatAmountCents: number;
+    itemCount?: number | null;
+    lengthPerItem?: number | null;
   }[];
 };
 
@@ -663,6 +676,20 @@ export interface ProductMarginDto {
   missingMaterialNames: string[];
 }
 
+export interface ProductSaleComponentDto {
+  id: number;
+  componentProductId: number;
+  componentProductName: string;
+  componentProductSku: string;
+  quantity: number;
+  condition: "with_lace" | "always";
+  componentSellingPriceCents: number;
+  componentSellingCurrencyCode: string;
+  colorId: number | null;
+  colorName: string | null;
+  colorHex: string | null;
+}
+
 export interface AccountingProductDto {
   id: number;
   name: string;
@@ -671,9 +698,24 @@ export interface AccountingProductDto {
   sellingPriceCents: number;
   sellingCurrencyCode: string;
   marginThresholdPct: number;
+  isInternalComponent: boolean;
   bom: ProductBomDto | null;
   margin: ProductMarginDto;
+  saleComponents: ProductSaleComponentDto[];
 }
+
+export type SetInternalComponentRequest = {
+  isInternalComponent: boolean;
+};
+
+export type SaveProductSaleComponentsRequest = {
+  components: {
+    componentProductId: number;
+    quantity: number;
+    condition: "with_lace" | "always";
+    colorId?: number | null;
+  }[];
+};
 
 export type UpdateProductAccountingRequest = {
   sellingPriceCents: number;
@@ -834,6 +876,7 @@ export type SaveSalesChannelRequest = {
 export interface AccountingSalesOrderItemDto {
   id: number;
   productId: number;
+  parentOrderItemId: number | null;
   productName: string;
   productSku: string;
   quantity: number;
@@ -872,6 +915,8 @@ export type CreateAccountingSalesOrderItemRequest = {
   quantity: number;
   listedPriceCents?: number | null;
   vatAmountCents: number;
+  withLace?: boolean;
+  laceColorId?: number | null;
 };
 
 export type CreateAccountingSalesOrderRequest = {
@@ -997,6 +1042,7 @@ export interface InventoryValuationDto {
   rawMaterialValueCents: number;
   finishedGoodsValueCents: number;
   totalValueCents: number;
+  finishedGoodsPotentialRevenueCents: number;
 }
 
 export interface ReturnSummaryDto {
@@ -1128,6 +1174,26 @@ export async function updateProductBom(
   body: SaveProductBomRequest,
 ): Promise<AccountingProductDto> {
   return apiRequest<AccountingProductDto>(`/api/accounting/products/${id}/bom`, {
+    method: "PUT",
+    body: JSON.stringify(body),
+  });
+}
+
+export async function setProductInternalComponent(
+  id: number,
+  body: SetInternalComponentRequest,
+): Promise<AccountingProductDto> {
+  return apiRequest<AccountingProductDto>(`/api/accounting/products/${id}/internal-component`, {
+    method: "PUT",
+    body: JSON.stringify(body),
+  });
+}
+
+export async function updateProductSaleComponents(
+  id: number,
+  body: SaveProductSaleComponentsRequest,
+): Promise<AccountingProductDto> {
+  return apiRequest<AccountingProductDto>(`/api/accounting/products/${id}/sale-components`, {
     method: "PUT",
     body: JSON.stringify(body),
   });

@@ -232,10 +232,23 @@ public sealed class AccountingReportsV3Service : IAccountingReportsV3Service
                 quantityByMaterial.GetValueOrDefault(x.Id),
                 x.ReorderThreshold))
             .ToList();
+        // What you'd take in if every unit currently in finished-goods stock sold at its
+        // product's current listed price — a "potential revenue" figure distinct from the
+        // cost-based valuation above, using the same base-currency price the margin/alert
+        // system already resolves per product.
+        var sellingPriceBaseByProduct = productMargins
+            .Where(x => x.Margin.SellingPriceBaseCents.HasValue)
+            .ToDictionary(x => x.Id, x => x.Margin.SellingPriceBaseCents!.Value);
+        var finishedGoodsPotentialRevenue = finishedGoods.Sum(x =>
+            sellingPriceBaseByProduct.TryGetValue(x.ProductId, out var sellingBase)
+                ? checked(sellingBase * x.QuantityOnHand)
+                : 0);
+
         var valuation = new InventoryValuationDto(
             rawLots.Sum(x => x.ValueCents),
             finishedGoods.Sum(x => x.ValueCents),
-            rawLots.Sum(x => x.ValueCents) + finishedGoods.Sum(x => x.ValueCents));
+            rawLots.Sum(x => x.ValueCents) + finishedGoods.Sum(x => x.ValueCents),
+            finishedGoodsPotentialRevenue);
 
         var priceHistory = purchasesInPeriod
             .SelectMany(order => order.Items.Select(item => new MaterialPricePointDto(

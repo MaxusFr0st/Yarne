@@ -386,27 +386,37 @@ public sealed class SalesAccountingService : ISalesAccountingService
                 .ToDictionary(group => group.Key, group => group.Single());
             var prepared = new List<PreparedLine>();
 
-            foreach (var productId in requestedByProduct.Keys.OrderBy(x => x))
+            // Prepares one order line for a product+quantity: locks the product and its finished
+            // inventory, validates stock, runs FIFO lot consumption, decrements pooled counters,
+            // and appends a PreparedLine. Returns its index (so a component can point back at its
+            // base line's index for the parent/child link). Reused for both base and component
+            // lines — EF's identity map keeps repeated FOR UPDATE reads / decrements consistent
+            // within this transaction when two base lines share one component product.
+            async Task<int> PrepareLineAsync(
+                int lineProductId,
+                int quantity,
+                long? listedOverride,
+                long vatAmountCents,
+                int? parentIndex)
             {
-                var item = requestedByProduct[productId];
                 var product = await _db.Products
                     .FromSqlInterpolated(
-                        $"""SELECT * FROM "Product" WHERE "Id" = {productId} FOR UPDATE""")
+                        $"""SELECT * FROM "Product" WHERE "Id" = {lineProductId} FOR UPDATE""")
                     .SingleOrDefaultAsync(ct);
                 if (product is null || product.IsVoid || !product.IsActive)
-                    throw new AccountingBusinessException($"Product #{productId} is unavailable.");
+                    throw new AccountingBusinessException($"Product #{lineProductId} is unavailable.");
                 var inventory = await _db.FinishedGoodsInventories
                     .FromSqlInterpolated(
                         $"""
                          SELECT * FROM "FinishedGoodsInventory"
-                         WHERE "ProductId" = {productId}
+                         WHERE "ProductId" = {lineProductId}
                          FOR UPDATE
                          """)
                     .SingleOrDefaultAsync(ct);
-                if (inventory is null || inventory.IsVoid || inventory.QuantityOnHand < item.Quantity)
+                if (inventory is null || inventory.IsVoid || inventory.QuantityOnHand < quantity)
                     throw new AccountingBusinessException($"Not enough finished stock for '{product.Name}'.");
 
-                var listedPrice = item.ListedPriceCents ?? await ConvertMoneyAsync(
+                var listedPrice = listedOverride ?? await ConvertMoneyAsync(
                     product.SellingPriceCents,
                     product.SellingCurrencyCode,
                     currency,
@@ -414,26 +424,78 @@ public sealed class SalesAccountingService : ISalesAccountingService
                     ct);
                 if (listedPrice < 0)
                     throw new AccountingBusinessException("Listed price cannot be negative.");
-                if (item.VatAmountCents > checked(listedPrice * item.Quantity))
+                if (vatAmountCents > checked(listedPrice * quantity))
                     throw new AccountingBusinessException($"VAT exceeds the listed total for '{product.Name}'.");
 
-                var lotConsumptions = await ConsumeFinishedGoodsFifoAsync(productId, item.Quantity, ct);
+                var lotConsumptions = await ConsumeFinishedGoodsFifoAsync(lineProductId, quantity, ct);
                 var totalCogs = lotConsumptions.Sum(x => x.TotalCostCents);
-                var unitCogs = RoundToCents((decimal)totalCogs / item.Quantity);
+                var unitCogs = RoundToCents((decimal)totalCogs / quantity);
 
-                inventory.QuantityOnHand -= item.Quantity;
+                inventory.QuantityOnHand -= quantity;
                 inventory.UpdatedAt = now;
-                if (product.QuantityInStock < item.Quantity)
+                if (product.QuantityInStock < quantity)
                     throw new AccountingBusinessException($"Not enough storefront stock for '{product.Name}'.");
-                product.QuantityInStock -= item.Quantity;
+                product.QuantityInStock -= quantity;
                 product.UpdatedAt = now;
                 prepared.Add(new PreparedLine(
                     product,
-                    item.Quantity,
+                    quantity,
                     listedPrice,
                     unitCogs,
+                    vatAmountCents,
+                    lotConsumptions,
+                    parentIndex));
+                return prepared.Count - 1;
+            }
+
+            foreach (var productId in requestedByProduct.Keys.OrderBy(x => x))
+            {
+                var item = requestedByProduct[productId];
+                var baseIndex = await PrepareLineAsync(
+                    productId,
+                    item.Quantity,
+                    item.ListedPriceCents,
                     item.VatAmountCents,
-                    lotConsumptions));
+                    null);
+
+                // Expand sale-time composition into separate component lines (their own FIFO
+                // consumption + COGS), each linked to this base line. "always" components apply on
+                // every sale; "with_lace" only when this line opted into lace.
+                var components = await _db.ProductSaleComponents
+                    .Where(sc => !sc.IsVoid && sc.ProductId == productId)
+                    .OrderBy(sc => sc.Id)
+                    .ToListAsync(ct);
+
+                // If lace is requested and the base product has configured color options, the
+                // caller must name exactly one of them — never silently expand "all colors".
+                if (item.WithLace)
+                {
+                    var withLaceOptions = components.Where(c => c.Condition == "with_lace" && c.ColorId != null).ToList();
+                    if (withLaceOptions.Count > 0)
+                    {
+                        if (!item.LaceColorId.HasValue)
+                            throw new AccountingBusinessException(
+                                $"Product #{productId} requires a lace color selection.");
+                        if (!withLaceOptions.Any(c => c.ColorId == item.LaceColorId.Value))
+                            throw new AccountingBusinessException(
+                                $"Product #{productId} does not offer the selected lace color.");
+                    }
+                }
+
+                foreach (var component in components)
+                {
+                    var include = component.Condition == "always"
+                        || (component.Condition == "with_lace" && item.WithLace
+                            && item.LaceColorId.HasValue && component.ColorId == item.LaceColorId.Value);
+                    if (!include)
+                        continue;
+                    await PrepareLineAsync(
+                        component.ComponentProductId,
+                        checked(item.Quantity * component.Quantity),
+                        null,
+                        0,
+                        baseIndex);
+                }
             }
 
             var listedRevenue = prepared.Sum(x => checked(x.ListedPriceCents * x.Quantity));
@@ -599,6 +661,14 @@ public sealed class SalesAccountingService : ISalesAccountingService
             remainingFee -= share;
             remainingGross -= lineGross;
         }
+
+        // Wire component lines to their base line via navigation (EF sets ParentOrderItemId on
+        // save once the parent's Id is generated). result[i] corresponds to lines[i].
+        for (var index = 0; index < lines.Count; index++)
+        {
+            if (lines[index].ParentIndex is int parentIndex)
+                result[index].ParentOrderItem = result[parentIndex];
+        }
         return result;
     }
 
@@ -680,6 +750,7 @@ public sealed class SalesAccountingService : ISalesAccountingService
                 return new AccountingSalesOrderItemDto(
                     x.Id,
                     x.ProductId ?? 0,
+                    x.ParentOrderItemId,
                     x.ProductName,
                     x.ProductCode,
                     x.Quantity,
@@ -788,7 +859,8 @@ public sealed class SalesAccountingService : ISalesAccountingService
         long ListedPriceCents,
         long UnitCogsCents,
         long VatAmountCents,
-        IReadOnlyList<LotConsumption> LotConsumptions);
+        IReadOnlyList<LotConsumption> LotConsumptions,
+        int? ParentIndex);
 
     private sealed record LotConsumption(int LotId, int Quantity, long UnitCostCents, long TotalCostCents);
 }

@@ -45,6 +45,8 @@ public class AccountingService : IAccountingService
             Category    = string.IsNullOrWhiteSpace(req.Category) ? null : req.Category.Trim(),
             ReorderThreshold = req.ReorderThreshold,
             IsActive    = req.IsActive,
+            TrackByItem = req.TrackByItem,
+            DefaultLengthPerItem = req.TrackByItem ? req.DefaultLengthPerItem : null,
             CreatedAt   = DateTime.UtcNow,
             UpdatedAt   = DateTime.UtcNow,
         };
@@ -65,6 +67,8 @@ public class AccountingService : IAccountingService
         entity.Category    = string.IsNullOrWhiteSpace(req.Category) ? null : req.Category.Trim();
         entity.ReorderThreshold = req.ReorderThreshold;
         entity.IsActive    = req.IsActive;
+        entity.TrackByItem = req.TrackByItem;
+        entity.DefaultLengthPerItem = req.TrackByItem ? req.DefaultLengthPerItem : null;
         entity.UpdatedAt   = DateTime.UtcNow;
         await _context.SaveChangesAsync(ct);
         return MapMaterial(entity);
@@ -110,6 +114,38 @@ public class AccountingService : IAccountingService
 
         var lotMap = lotTotals.ToDictionary(x => x.MaterialId);
 
+        // Roll/item breakdown: derived per-lot (each lot snapshots its own ItemCount/
+        // LengthPerItem at purchase time), then summed per material. Only lots that were
+        // themselves item-tracked (both fields set) contribute; bulk lots are ignored.
+        var itemTrackedLots = await _context.PurchaseOrderItems
+            .AsNoTracking()
+            .Where(l =>
+                !l.IsVoid &&
+                !l.PurchaseOrder.IsVoid &&
+                l.PurchaseOrder.Status == "received" &&
+                l.ItemCount != null &&
+                l.LengthPerItem != null &&
+                l.LengthPerItem > 0)
+            .Select(l => new { l.MaterialId, l.QuantityRemaining, l.LengthPerItem })
+            .ToListAsync(ct);
+
+        var itemRollupMap = itemTrackedLots
+            .GroupBy(l => l.MaterialId)
+            .ToDictionary(g => g.Key, g =>
+            {
+                var wholeItems = 0;
+                var looseRemainder = 0m;
+                foreach (var lot in g)
+                {
+                    var length = lot.LengthPerItem!.Value;
+                    var whole = Math.Floor(lot.QuantityRemaining / length);
+                    var remainder = lot.QuantityRemaining - whole * length;
+                    wholeItems += (int)whole;
+                    looseRemainder += remainder;
+                }
+                return (WholeItems: wholeItems, LooseRemainder: looseRemainder);
+            });
+
         return materials.Select(m =>
         {
             lotMap.TryGetValue(m.Id, out var lot);
@@ -118,6 +154,7 @@ public class AccountingService : IAccountingService
             var qtyUsed = qtyImported - qtyOnHand;
             var onHandValueCents = lot?.OnHandValueCents ?? 0m;
             var avgUnitCost = qtyOnHand > 0 ? onHandValueCents / qtyOnHand / 100m : 0m;
+            itemRollupMap.TryGetValue(m.Id, out var rollup);
             return new MaterialStockDto
             {
                 MaterialId      = m.Id,
@@ -129,6 +166,9 @@ public class AccountingService : IAccountingService
                 QtyOnHand       = qtyOnHand,
                 AvgUnitCost     = avgUnitCost,
                 TotalStockValue = onHandValueCents / 100m,
+                TrackByItem     = m.TrackByItem,
+                WholeItemsRemaining = rollup.WholeItems,
+                LooseRemainder      = rollup.LooseRemainder,
             };
         }).ToList();
     }
@@ -679,6 +719,8 @@ public class AccountingService : IAccountingService
         Category    = m.Category,
         ReorderThreshold = m.ReorderThreshold,
         IsActive    = m.IsActive,
+        TrackByItem = m.TrackByItem,
+        DefaultLengthPerItem = m.DefaultLengthPerItem,
         CreatedAt   = m.CreatedAt,
         UpdatedAt   = m.UpdatedAt,
     };

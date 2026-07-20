@@ -41,6 +41,8 @@ type SalesLine = {
   quantity: string;
   listedPrice: string;
   vat: string;
+  withLace: boolean;
+  laceColorId: number | null;
 };
 
 const BASE_CURRENCY = "UAH";
@@ -110,7 +112,7 @@ export function AdminSalesView({ mode }: { mode: "channels" | "sales" }) {
     exchangeRate: "",
     overrideFee: false,
     channelFee: "",
-    lines: [{ productId: 0, quantity: "1", listedPrice: "", vat: "0" }] as SalesLine[],
+    lines: [{ productId: 0, quantity: "1", listedPrice: "", vat: "0", withLace: false, laceColorId: null }] as SalesLine[],
   });
   const [customerQuery, setCustomerQuery] = useState("");
   const [quickCustomerOpen, setQuickCustomerOpen] = useState(false);
@@ -264,6 +266,8 @@ export function AdminSalesView({ mode }: { mode: "channels" | "sales" }) {
         quantity: "1",
         listedPrice: autoPrice != null ? inputFromCents(autoPrice) : "",
         vat: "0",
+        withLace: false,
+        laceColorId: null,
       }],
     });
     setCustomerQuery("");
@@ -287,6 +291,8 @@ export function AdminSalesView({ mode }: { mode: "channels" | "sales" }) {
             );
             next.listedPrice = displayCents != null ? inputFromCents(displayCents) : "";
           }
+          // Product changed — the previous lace color selection no longer applies.
+          next.laceColorId = null;
         }
         return next;
       }),
@@ -320,6 +326,8 @@ export function AdminSalesView({ mode }: { mode: "channels" | "sales" }) {
           quantity: Number(line.quantity),
           listedPriceCents: line.listedPrice ? centsFromInput(line.listedPrice) : null,
           vatAmountCents: centsFromInput(line.vat),
+          withLace: line.withLace,
+          laceColorId: line.withLace ? line.laceColorId : null,
         })),
       });
       setOrderModal(false);
@@ -559,16 +567,33 @@ export function AdminSalesView({ mode }: { mode: "channels" | "sales" }) {
                   </div>
                   {open ? (
                     <div className="mt-4 space-y-2 rounded-2xl bg-white/60 p-4" style={{ border: "1px solid rgba(45,36,30,0.08)" }}>
-                      {order.items.map((item) => (
-                        <div key={item.id} className="flex flex-wrap justify-between gap-2 text-sm" style={{ fontFamily: "'DM Sans', sans-serif" }}>
-                          <span>{item.productName} × {item.quantity}</span>
-                          <span className="tabular-nums text-[#2D241E]/65">
-                            listed {moneyFromCents(item.listedTotalCents, order.currencyCode)}
-                            {" · "}net {moneyFromCents(item.netTotalCents, order.currencyCode)}
-                            {" · "}COGS {moneyFromCents(item.totalCogsCents, order.currencyCode)}
-                          </span>
-                        </div>
-                      ))}
+                      {order.items
+                        .filter((item) => item.parentOrderItemId == null)
+                        .map((parent) => {
+                          const children = order.items.filter((child) => child.parentOrderItemId === parent.id);
+                          return (
+                            <div key={parent.id} className="space-y-1">
+                              <div className="flex flex-wrap justify-between gap-2 text-sm" style={{ fontFamily: "'DM Sans', sans-serif" }}>
+                                <span>{parent.productName} × {parent.quantity}</span>
+                                <span className="tabular-nums text-[#2D241E]/65">
+                                  listed {moneyFromCents(parent.listedTotalCents, order.currencyCode)}
+                                  {" · "}net {moneyFromCents(parent.netTotalCents, order.currencyCode)}
+                                  {" · "}COGS {moneyFromCents(parent.totalCogsCents, order.currencyCode)}
+                                </span>
+                              </div>
+                              {children.map((child) => (
+                                <div key={child.id} className="flex flex-wrap justify-between gap-2 pl-4 text-xs text-[#2D241E]/60" style={{ fontFamily: "'DM Sans', sans-serif" }}>
+                                  <span>↳ {child.productName} × {child.quantity}</span>
+                                  <span className="tabular-nums">
+                                    listed {moneyFromCents(child.listedTotalCents, order.currencyCode)}
+                                    {" · "}net {moneyFromCents(child.netTotalCents, order.currencyCode)}
+                                    {" · "}COGS {moneyFromCents(child.totalCogsCents, order.currencyCode)}
+                                  </span>
+                                </div>
+                              ))}
+                            </div>
+                          );
+                        })}
                     </div>
                   ) : null}
                 </div>
@@ -688,31 +713,79 @@ export function AdminSalesView({ mode }: { mode: "channels" | "sales" }) {
             </div>
 
             <div className="space-y-3">
-              {orderForm.lines.map((line, index) => (
-                <div key={index} className="grid gap-3 sm:grid-cols-4">
-                  <div className="sm:col-span-2">
-                    <Label htmlFor={`sale-prod-${index}`}>Product</Label>
-                    <select id={`sale-prod-${index}`} className={controlClass()} value={line.productId || ""} onChange={(e) => updateLine(index, { productId: Number(e.target.value) })}>
-                      <option value="">Select</option>
-                      {products.map((product) => (
-                        <option key={product.id} value={product.id}>{product.name}</option>
-                      ))}
-                    </select>
+              {orderForm.lines.map((line, index) => {
+                const lineProduct = products.find((p) => p.id === line.productId);
+                // Only rows with a configured color count as selectable lace options — legacy
+                // un-migrated rows (colorId == null) don't compose anything.
+                const laceComponents = lineProduct?.saleComponents.filter(
+                  (sc) => sc.condition === "with_lace" && sc.colorId != null,
+                ) ?? [];
+                const offersLace = laceComponents.length > 0;
+                const selectedLaceComponent = laceComponents.find((sc) => sc.colorId === line.laceColorId) ?? null;
+                const laceSurchargeCents = selectedLaceComponent
+                  ? selectedLaceComponent.componentSellingPriceCents * selectedLaceComponent.quantity
+                  : 0;
+                return (
+                  <div key={index} className="space-y-2">
+                    <div className="grid gap-3 sm:grid-cols-4">
+                      <div className="sm:col-span-2">
+                        <Label htmlFor={`sale-prod-${index}`}>Product</Label>
+                        <select id={`sale-prod-${index}`} className={controlClass()} value={line.productId || ""} onChange={(e) => updateLine(index, { productId: Number(e.target.value), withLace: false })}>
+                          <option value="">Select</option>
+                          {products.map((product) => (
+                            <option key={product.id} value={product.id}>{product.name}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div>
+                        <Label htmlFor={`sale-qty-${index}`}>Qty</Label>
+                        <input id={`sale-qty-${index}`} inputMode="numeric" className={`${controlClass()} tabular-nums`} value={line.quantity} onChange={(e) => updateLine(index, { quantity: e.target.value })} />
+                      </div>
+                      <div>
+                        <Label htmlFor={`sale-price-${index}`}>Listed</Label>
+                        <input id={`sale-price-${index}`} inputMode="decimal" className={`${controlClass()} tabular-nums`} value={line.listedPrice} onChange={(e) => updateLine(index, { listedPrice: e.target.value })} />
+                      </div>
+                      <div>
+                        <Label htmlFor={`sale-vat-${index}`}>VAT</Label>
+                        <input id={`sale-vat-${index}`} inputMode="decimal" className={`${controlClass()} tabular-nums`} value={line.vat} onChange={(e) => updateLine(index, { vat: e.target.value })} />
+                      </div>
+                    </div>
+                    {offersLace ? (
+                      <div className="flex flex-wrap items-center gap-3">
+                        <label className="flex items-center gap-2 text-sm text-[#2D241E]/70" style={{ fontFamily: "'DM Sans', sans-serif" }}>
+                          <input
+                            type="checkbox"
+                            className="size-4 cursor-pointer"
+                            checked={line.withLace}
+                            onChange={(e) => updateLine(index, {
+                              withLace: e.target.checked,
+                              laceColorId: e.target.checked ? (line.laceColorId ?? laceComponents[0].colorId) : null,
+                            })}
+                          />
+                          With lace — adds a separate lace line
+                          {line.withLace && laceSurchargeCents > 0
+                            ? ` (+${moneyFromCents(laceSurchargeCents, lineProduct!.sellingCurrencyCode)})`
+                            : ""}
+                        </label>
+                        {line.withLace ? (
+                          <select
+                            className={controlClass()}
+                            value={line.laceColorId ?? ""}
+                            onChange={(e) => updateLine(index, { laceColorId: Number(e.target.value) })}
+                            aria-label="Lace color"
+                          >
+                            {laceComponents.map((sc) => (
+                              <option key={sc.colorId} value={sc.colorId!}>
+                                {sc.colorName ?? sc.componentProductName}
+                              </option>
+                            ))}
+                          </select>
+                        ) : null}
+                      </div>
+                    ) : null}
                   </div>
-                  <div>
-                    <Label htmlFor={`sale-qty-${index}`}>Qty</Label>
-                    <input id={`sale-qty-${index}`} inputMode="numeric" className={`${controlClass()} tabular-nums`} value={line.quantity} onChange={(e) => updateLine(index, { quantity: e.target.value })} />
-                  </div>
-                  <div>
-                    <Label htmlFor={`sale-price-${index}`}>Listed</Label>
-                    <input id={`sale-price-${index}`} inputMode="decimal" className={`${controlClass()} tabular-nums`} value={line.listedPrice} onChange={(e) => updateLine(index, { listedPrice: e.target.value })} />
-                  </div>
-                  <div>
-                    <Label htmlFor={`sale-vat-${index}`}>VAT</Label>
-                    <input id={`sale-vat-${index}`} inputMode="decimal" className={`${controlClass()} tabular-nums`} value={line.vat} onChange={(e) => updateLine(index, { vat: e.target.value })} />
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
             <Button
               tone="light"
@@ -733,6 +806,8 @@ export function AdminSalesView({ mode }: { mode: "channels" | "sales" }) {
                     quantity: "1",
                     listedPrice: displayCents != null ? inputFromCents(displayCents) : "",
                     vat: "0",
+                    withLace: false,
+                    laceColorId: null,
                   }],
                 };
               })}

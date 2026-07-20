@@ -12,6 +12,7 @@ export interface LaceSizeVariant {
 }
 
 export interface ColorVariant {
+  colorId?: number;
   name: string;
   nameUk?: string | null;
   hex: string;
@@ -20,6 +21,14 @@ export interface ColorVariant {
   sizeImages?: Record<string, ProductImage[]>;
   sizeStocks?: Record<string, number>;
   laceVariants?: Record<string, LaceSizeVariant>;
+}
+
+export interface LaceColorOption {
+  colorId: number;
+  colorName: string;
+  colorNameUk?: string | null;
+  colorHex: string;
+  surcharge: number;
 }
 
 export interface FurnitureColorVariant {
@@ -56,4 +65,6 @@ export interface Product {
   suggestedProducts?: Product[];
   hasConfiguredSuggestions?: boolean;
   producerName?: string;
+  laceSurcharge?: number;
+  laceColorOptions?: LaceColorOption[];
 }

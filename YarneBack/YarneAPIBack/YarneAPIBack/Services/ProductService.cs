@@ -53,6 +53,10 @@ public class ProductService : IProductService
 
         query = query.Where(p => !p.IsVoid);
 
+        // Internal composition components (e.g. Lace) are tracked like products for
+        // production/costing but must never appear in the public storefront catalog.
+        query = query.Where(p => !p.IsInternalComponent);
+
         if (!includeInactive)
             query = query.Where(p => p.IsActive);
 
@@ -101,9 +105,12 @@ public class ProductService : IProductService
             .Include(p => p.Recommendations)
                 .ThenInclude(r => r.RelatedProduct)
                     .ThenInclude(rp => rp.ProductImages)
-            .FirstOrDefaultAsync(p => p.Id == id && !p.IsVoid && (!activeOnly || p.IsActive), ct);
+            .FirstOrDefaultAsync(p => p.Id == id && !p.IsVoid && !p.IsInternalComponent && (!activeOnly || p.IsActive), ct);
 
-        return product == null ? null : MapToProductDetailDto(product, activeSuggestionsOnly: activeOnly);
+        if (product == null)
+            return null;
+        var laceColorOptions = await ComputeLaceColorOptionsAsync(product.Id, ct);
+        return MapToProductDetailDto(product, activeSuggestionsOnly: activeOnly, laceColorOptions: laceColorOptions);
     }
 
     public async Task<ProductDetailDto?> GetProductByCodeAsync(string productCode, CancellationToken ct = default)
@@ -137,9 +144,12 @@ public class ProductService : IProductService
             .Include(p => p.Recommendations)
                 .ThenInclude(r => r.RelatedProduct)
                     .ThenInclude(rp => rp.ProductImages)
-            .FirstOrDefaultAsync(p => p.ProductCode == productCode && p.IsActive, ct);
+            .FirstOrDefaultAsync(p => p.ProductCode == productCode && p.IsActive && !p.IsInternalComponent, ct);
 
-        return product == null ? null : MapToProductDetailDto(product, activeSuggestionsOnly: true);
+        if (product == null)
+            return null;
+        var laceColorOptions = await ComputeLaceColorOptionsAsync(product.Id, ct);
+        return MapToProductDetailDto(product, activeSuggestionsOnly: true, laceColorOptions: laceColorOptions);
     }
 
     public async Task<ProductDto> CreateProductAsync(CreateProductRequest request, CancellationToken ct = default)
@@ -557,6 +567,7 @@ public class ProductService : IProductService
                 var fallback = fallbackImg ?? new ProductImageDto { Src = "" };
                 return new ColorVariantDto
                 {
+                    ColorId = pc.ColorId,
                     Name = pc.Color.Name,
                     NameUk = pc.Color.NameUk,
                     Hex = pc.Color.HexCode,
@@ -619,9 +630,48 @@ public class ProductService : IProductService
         };
     }
 
-    private static ProductDetailDto MapToProductDetailDto(Models.Product p, bool activeSuggestionsOnly)
+    /// <summary>
+    /// A product's available lace-color options: one per active "with_lace" sale-composition row
+    /// that has a configured <c>ColorId</c> (rows without a color are legacy/un-migrated and are
+    /// excluded — lace stays unavailable for those until reconfigured). Each option's surcharge is
+    /// its component product's own catalog price × quantity, always computed fresh.
+    /// </summary>
+    private async Task<List<LaceColorOptionDto>> ComputeLaceColorOptionsAsync(int productId, CancellationToken ct)
     {
+        var rows = await _context.ProductSaleComponents
+            .AsNoTracking()
+            .Where(sc => sc.ProductId == productId && !sc.IsVoid && sc.Condition == "with_lace" && sc.ColorId != null)
+            .Select(sc => new
+            {
+                sc.Quantity,
+                Price = sc.ComponentProduct.Price,
+                ColorId = sc.ColorId!.Value,
+                ColorName = sc.Color!.Name,
+                ColorNameUk = sc.Color!.NameUk,
+                ColorHex = sc.Color!.HexCode,
+            })
+            .ToListAsync(ct);
+        return rows
+            .Select(r => new LaceColorOptionDto(r.ColorId, r.ColorName, r.ColorNameUk, r.ColorHex, r.Price * r.Quantity))
+            .ToList();
+    }
+
+    private static ProductDetailDto MapToProductDetailDto(
+        Models.Product p,
+        bool activeSuggestionsOnly,
+        List<LaceColorOptionDto>? laceColorOptions = null)
+    {
+        laceColorOptions ??= new List<LaceColorOptionDto>();
         var baseDto = MapToProductDto(p);
+
+        // Backwards-compat single surcharge: the default option's surcharge (bag's own default
+        // color if it's among the configured lace options, else the first option), else 0.
+        var defaultColorId = p.DefaultColor?.Id
+            ?? (baseDto.Colors.FirstOrDefault()?.ColorId);
+        var defaultLaceOption = (defaultColorId.HasValue
+            ? laceColorOptions.FirstOrDefault(o => o.ColorId == defaultColorId.Value)
+            : null) ?? laceColorOptions.FirstOrDefault();
+        var laceSurcharge = defaultLaceOption?.Surcharge ?? 0m;
         var recommendations = (p.Recommendations ?? new List<Models.ProductRecommendation>())
             .OrderBy(r => r.SortOrder)
             .ThenBy(r => r.RelatedProductId)
@@ -666,6 +716,8 @@ public class ProductService : IProductService
             FurnitureColors = baseDto.FurnitureColors,
             SuggestedProductCodes = suggestedCodes,
             HasConfiguredSuggestions = p.SuggestionsConfigured,
+            LaceSurcharge = laceSurcharge,
+            LaceColorOptions = laceColorOptions,
             SuggestedProducts = suggestedProducts,
         };
     }

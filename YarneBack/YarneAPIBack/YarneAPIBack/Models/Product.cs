@@ -48,6 +48,13 @@ public partial class Product
 
     public bool Lace { get; set; }
 
+    /// <summary>
+    /// Trackable in Production/BOM/Sales/Stock like any product, but never shown in or sold
+    /// through the public storefront catalog. Used for sale-time composition components such
+    /// as "Lace" (and later "Packaging").
+    /// </summary>
+    public bool IsInternalComponent { get; set; }
+
     public bool SuggestionsConfigured { get; set; }
 
     public DateTime CreatedAt { get; set; }
@@ -89,4 +96,7 @@ public partial class Product
     public virtual FinishedGoodsInventory? FinishedGoodsInventory { get; set; }
 
     public virtual ICollection<ProductionOrder> ProductionOrders { get; set; } = new List<ProductionOrder>();
+
+    /// <summary>Sale-time component recipe rows where this product is the base (e.g. a bag).</summary>
+    public virtual ICollection<ProductSaleComponent> SaleComponents { get; set; } = new List<ProductSaleComponent>();
 }

@@ -125,6 +125,28 @@ public static class DatabaseBootstrap
             logger.LogError(focalEx, "FocalPoint columns still missing after bootstrap; /api/products will 500 until fixed.");
         }
 
+        try
+        {
+            await SaleComponentSchemaPatches.ForceEnsureAsync(db, logger, cancellationToken);
+        }
+        catch (Exception saleComponentEx)
+        {
+            logger.LogError(
+                saleComponentEx,
+                "SaleComponent schema still missing after bootstrap; lace composition endpoints may 500 until fixed.");
+        }
+
+        try
+        {
+            await MaterialRollTrackingSchemaPatches.ForceEnsureAsync(db, logger, cancellationToken);
+        }
+        catch (Exception rollTrackingEx)
+        {
+            logger.LogError(
+                rollTrackingEx,
+                "Material roll-tracking schema still missing after bootstrap; purchase-order roll fields may 500 until fixed.");
+        }
+
         if (runStartupDbPatches)
         {
             await ApplyStartupPatchesAsync(db, logger, app.Environment, cancellationToken);
