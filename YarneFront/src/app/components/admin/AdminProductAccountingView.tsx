@@ -406,98 +406,142 @@ export function AdminProductAccountingView() {
 
             <div>
               <p className="mb-2 text-sm text-[#2D241E]/75" style={{ fontFamily: "'DM Sans', sans-serif" }}>
-                Components added when this product is sold. Each "With lace" row maps one internal
-                lace product to one color the customer can pick; the sale line composes only the
-                chosen color. "Always" applies on every sale (packaging). Each component is billed
-                and stocked as its own line at its own price.
+                Components added when this product is sold. For each "With lace" row, pick the
+                color the customer can choose, then confirm the lace product it maps to (a
+                matching lace product is pre-selected when its name contains the color, e.g.
+                "Lace Yellow" for "Yellow" — override it below if it picked the wrong one).
+                "Always" applies on every sale regardless of choice (packaging). Each component is
+                billed and stocked as its own line at its own price.
               </p>
               <div className="space-y-3">
-                {recipeForm.lines.map((line, index) => (
-                  <div key={index} className="grid gap-3 sm:grid-cols-[1.2fr_90px_120px_1fr_44px]">
-                    <div>
-                      <Label htmlFor={`recipe-comp-${index}`}>Component</Label>
-                      <select
-                        id={`recipe-comp-${index}`}
-                        className={controlClass()}
-                        value={line.componentProductId || ""}
-                        onChange={(e) => setRecipeForm((c) => ({
-                          ...c,
-                          lines: c.lines.map((row, i) => i === index ? { ...row, componentProductId: Number(e.target.value) } : row),
-                        }))}
-                      >
-                        <option value="">Select product</option>
-                        {products
-                          .filter((candidate) => candidate.id !== recipeTarget.id)
-                          .map((candidate) => (
-                            <option key={candidate.id} value={candidate.id}>
-                              {candidate.name}{candidate.isInternalComponent ? " (internal)" : ""}
-                            </option>
-                          ))}
-                      </select>
-                    </div>
-                    <div>
-                      <Label htmlFor={`recipe-qty-${index}`}>Qty</Label>
-                      <input
-                        id={`recipe-qty-${index}`}
-                        inputMode="numeric"
-                        className={`${controlClass()} tabular-nums`}
-                        value={line.quantity}
-                        onChange={(e) => setRecipeForm((c) => ({
-                          ...c,
-                          lines: c.lines.map((row, i) => i === index ? { ...row, quantity: e.target.value } : row),
-                        }))}
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor={`recipe-cond-${index}`}>Condition</Label>
-                      <select
-                        id={`recipe-cond-${index}`}
-                        className={controlClass()}
-                        value={line.condition}
-                        onChange={(e) => setRecipeForm((c) => ({
-                          ...c,
-                          lines: c.lines.map((row, i) => i === index
-                            ? { ...row, condition: e.target.value as RecipeLine["condition"], colorId: e.target.value === "always" ? null : row.colorId }
-                            : row),
-                        }))}
-                      >
-                        <option value="with_lace">With lace</option>
-                        <option value="always">Always</option>
-                      </select>
-                    </div>
-                    <div>
-                      {line.condition === "with_lace" ? (
-                        <>
-                          <Label htmlFor={`recipe-color-${index}`}>Color</Label>
+                {recipeForm.lines.map((line, index) => {
+                  const isLaceRow = line.condition === "with_lace";
+                  // Lace components are always internal products; narrowing the picklist to
+                  // those means the admin sees only lace-shaped options once a color is chosen,
+                  // instead of hunting through every storefront product.
+                  const componentCandidates = products
+                    .filter((candidate) => candidate.id !== recipeTarget.id)
+                    .filter((candidate) => !isLaceRow || candidate.isInternalComponent);
+                  const selectedColorName = colors.find((color) => color.id === line.colorId)?.name ?? null;
+                  return (
+                  <div key={index} className="rounded-2xl bg-white/40 p-3" style={{ border: "1px solid rgba(45,36,30,0.08)" }}>
+                    <div className="grid gap-3 sm:grid-cols-[120px_1fr_90px_44px]">
+                      <div>
+                        <Label htmlFor={`recipe-cond-${index}`}>Condition</Label>
+                        <select
+                          id={`recipe-cond-${index}`}
+                          className={controlClass()}
+                          value={line.condition}
+                          onChange={(e) => setRecipeForm((c) => ({
+                            ...c,
+                            lines: c.lines.map((row, i) => i === index
+                              ? { ...row, condition: e.target.value as RecipeLine["condition"], colorId: e.target.value === "always" ? null : row.colorId, componentProductId: 0 }
+                              : row),
+                          }))}
+                        >
+                          <option value="with_lace">With lace</option>
+                          <option value="always">Always</option>
+                        </select>
+                      </div>
+                      {isLaceRow ? (
+                        <div>
+                          <Label htmlFor={`recipe-color-${index}`}>Bag color this option offers</Label>
                           <select
                             id={`recipe-color-${index}`}
                             className={controlClass()}
                             value={line.colorId ?? ""}
-                            onChange={(e) => setRecipeForm((c) => ({
-                              ...c,
-                              lines: c.lines.map((row, i) => i === index ? { ...row, colorId: Number(e.target.value) || null } : row),
-                            }))}
+                            onChange={(e) => {
+                              const colorId = Number(e.target.value) || null;
+                              const colorName = colors.find((color) => color.id === colorId)?.name;
+                              // Auto-pick the lace product whose name contains the chosen color
+                              // (e.g. "Lace Yellow" for color "Yellow") — admin can still override below.
+                              const suggested = colorName
+                                ? componentCandidates.find((candidate) =>
+                                    candidate.name.toLowerCase().includes(colorName.toLowerCase()))
+                                : undefined;
+                              setRecipeForm((c) => ({
+                                ...c,
+                                lines: c.lines.map((row, i) => i === index
+                                  ? { ...row, colorId, componentProductId: suggested ? suggested.id : row.componentProductId }
+                                  : row),
+                              }));
+                            }}
                           >
                             <option value="">Select color</option>
                             {colors.map((color) => (
                               <option key={color.id} value={color.id}>{color.name}</option>
                             ))}
                           </select>
-                        </>
-                      ) : null}
+                        </div>
+                      ) : (
+                        <div>
+                          <Label htmlFor={`recipe-comp-${index}`}>Component</Label>
+                          <select
+                            id={`recipe-comp-${index}`}
+                            className={controlClass()}
+                            value={line.componentProductId || ""}
+                            onChange={(e) => setRecipeForm((c) => ({
+                              ...c,
+                              lines: c.lines.map((row, i) => i === index ? { ...row, componentProductId: Number(e.target.value) } : row),
+                            }))}
+                          >
+                            <option value="">Select product</option>
+                            {componentCandidates.map((candidate) => (
+                              <option key={candidate.id} value={candidate.id}>
+                                {candidate.name}{candidate.isInternalComponent ? " (internal)" : ""}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      )}
+                      <div>
+                        <Label htmlFor={`recipe-qty-${index}`}>Qty</Label>
+                        <input
+                          id={`recipe-qty-${index}`}
+                          inputMode="numeric"
+                          className={`${controlClass()} tabular-nums`}
+                          value={line.quantity}
+                          onChange={(e) => setRecipeForm((c) => ({
+                            ...c,
+                            lines: c.lines.map((row, i) => i === index ? { ...row, quantity: e.target.value } : row),
+                          }))}
+                        />
+                      </div>
+                      <div className="flex items-end">
+                        <button
+                          type="button"
+                          className="flex size-11 cursor-pointer items-center justify-center rounded-full text-[#641D1D] hover:bg-[#641D1D]/8 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#75482E]"
+                          aria-label="Remove component"
+                          onClick={() => setRecipeForm((c) => ({ ...c, lines: c.lines.filter((_, i) => i !== index) }))}
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      </div>
                     </div>
-                    <div className="flex items-end">
-                      <button
-                        type="button"
-                        className="flex size-11 cursor-pointer items-center justify-center rounded-full text-[#641D1D] hover:bg-[#641D1D]/8 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#75482E]"
-                        aria-label="Remove component"
-                        onClick={() => setRecipeForm((c) => ({ ...c, lines: c.lines.filter((_, i) => i !== index) }))}
-                      >
-                        <Trash2 size={16} />
-                      </button>
-                    </div>
+                    {isLaceRow ? (
+                      <div className="mt-2 flex items-center gap-2 pl-1">
+                        <span className="text-xs text-[#2D241E]/45" style={{ fontFamily: "'DM Sans', sans-serif" }}>
+                          {selectedColorName ? `${selectedColorName} lace product:` : "Lace product:"}
+                        </span>
+                        <select
+                          aria-label="Lace product for this color"
+                          className={`${controlClass()} max-w-xs`}
+                          value={line.componentProductId || ""}
+                          onChange={(e) => setRecipeForm((c) => ({
+                            ...c,
+                            lines: c.lines.map((row, i) => i === index ? { ...row, componentProductId: Number(e.target.value) } : row),
+                          }))}
+                        >
+                          <option value="">Select lace product</option>
+                          {componentCandidates.map((candidate) => (
+                            <option key={candidate.id} value={candidate.id}>{candidate.name}</option>
+                          ))}
+                        </select>
+                      </div>
+                    ) : null}
                   </div>
-                ))}
+                  );
+                })}
                 {recipeForm.lines.length === 0 ? (
                   <p className="text-xs text-[#2D241E]/45" style={{ fontFamily: "'DM Sans', sans-serif" }}>
                     No components yet. Add one to compose lace (or packaging) onto this product.

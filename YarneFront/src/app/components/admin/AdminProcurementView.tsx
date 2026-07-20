@@ -32,6 +32,7 @@ type PurchaseLineForm = {
   materialId: number;
   quantity: string;
   unitPrice: string;
+  rollPrice: string;
   vat: string;
   itemCount: string;
   lengthPerItem: string;
@@ -95,6 +96,22 @@ function centsFromInput(value: string): number {
 
 function inputFromCents(cents: number): string {
   return (cents / 100).toFixed(2);
+}
+
+// Roll-tracked materials are priced per roll on the invoice; the ledger still needs a
+// per-base-unit cost (cents/meter) for FIFO. Derive one from the other, extra precision
+// (4dp) to keep rounding error across many rolls negligible.
+function unitPriceCentsFromRoll(rollPrice: string, lengthPerItem: string): number {
+  const length = Number(lengthPerItem);
+  const roll = Number(rollPrice.replace(",", "."));
+  if (!Number.isFinite(length) || length <= 0 || !Number.isFinite(roll)) return 0;
+  return Math.round((roll / length + Number.EPSILON) * 100);
+}
+
+function rollPriceFromUnitCents(unitPriceCents: number, lengthPerItem: string): string {
+  const length = Number(lengthPerItem);
+  if (!Number.isFinite(length) || length <= 0) return "";
+  return ((unitPriceCents / 100) * length).toFixed(2);
 }
 
 function controlClass(extra = ""): string {
@@ -342,6 +359,7 @@ export function AdminProcurementView({ view }: { view: ProcurementView }) {
           materialId: firstMaterial,
           quantity: "1",
           unitPrice: "",
+          rollPrice: "",
           vat: "0",
           itemCount: "",
           lengthPerItem: firstMaterialDto?.trackByItem && firstMaterialDto.defaultLengthPerItem != null
@@ -362,6 +380,7 @@ export function AdminProcurementView({ view }: { view: ProcurementView }) {
           materialId: item.materialId,
           quantity: String(item.quantityPurchased),
           unitPrice: inputFromCents(item.unitPriceCents),
+          rollPrice: item.lengthPerItem != null ? rollPriceFromUnitCents(item.unitPriceCents, String(item.lengthPerItem)) : "",
           vat: inputFromCents(item.vatAmountCents),
           itemCount: item.itemCount != null ? String(item.itemCount) : "",
           lengthPerItem: item.lengthPerItem != null ? String(item.lengthPerItem) : "",
@@ -601,6 +620,7 @@ export function AdminProcurementView({ view }: { view: ProcurementView }) {
                     materialId: nextMaterialId,
                     quantity: "1",
                     unitPrice: "",
+                    rollPrice: "",
                     vat: "0",
                     itemCount: "",
                     lengthPerItem: nextMaterial?.trackByItem && nextMaterial.defaultLengthPerItem != null
@@ -633,6 +653,8 @@ export function AdminProcurementView({ view }: { view: ProcurementView }) {
                               ? String(nextMaterial.defaultLengthPerItem)
                               : "",
                             itemCount: "",
+                            rollPrice: "",
+                            unitPrice: "",
                           });
                         }}
                         className={controlClass()}
@@ -650,17 +672,34 @@ export function AdminProcurementView({ view }: { view: ProcurementView }) {
                         <div><Label htmlFor={`po-length-${index}`}>{`Length each (${lineMaterial?.unit ?? ""})`}</Label><input id={`po-length-${index}`} type="number" min="0.0001" step="0.0001" value={line.lengthPerItem} onChange={(event) => {
                           const lengthPerItem = event.target.value;
                           const total = (Number(line.itemCount) || 0) * (Number(lengthPerItem) || 0);
-                          updateLine(index, { lengthPerItem, quantity: total > 0 ? String(total) : line.quantity });
+                          updateLine(index, {
+                            lengthPerItem,
+                            quantity: total > 0 ? String(total) : line.quantity,
+                            unitPrice: line.rollPrice ? String(unitPriceCentsFromRoll(line.rollPrice, lengthPerItem) / 100) : line.unitPrice,
+                          });
                         }} className={controlClass()} /></div>
                         <div>
                           <Label htmlFor={`po-total-${index}`}>Total</Label>
                           <input id={`po-total-${index}`} readOnly value={computedTotal ? `${computedTotal} ${lineMaterial?.unit ?? ""}` : "—"} className={controlClass("bg-[#75482E]/[0.06]")} />
                         </div>
+                        <div>
+                          <Label htmlFor={`po-rollprice-${index}`}>Price per roll</Label>
+                          <input id={`po-rollprice-${index}`} inputMode="decimal" value={line.rollPrice} onChange={(event) => {
+                            const rollPrice = event.target.value;
+                            updateLine(index, {
+                              rollPrice,
+                              unitPrice: String(unitPriceCentsFromRoll(rollPrice, line.lengthPerItem) / 100),
+                            });
+                          }} className={controlClass()} placeholder="0.00" />
+                          <p className="mt-1 text-[11px] text-[#2D241E]/45">{`≈ ${line.unitPrice || "0.00"} / ${lineMaterial?.unit ?? "unit"}`}</p>
+                        </div>
                       </>
                     ) : (
-                      <div><Label htmlFor={`po-quantity-${index}`}>Quantity</Label><input id={`po-quantity-${index}`} type="number" min="0.001" step="0.001" value={line.quantity} onChange={(event) => updateLine(index, { quantity: event.target.value })} className={controlClass()} /></div>
+                      <>
+                        <div><Label htmlFor={`po-quantity-${index}`}>Quantity</Label><input id={`po-quantity-${index}`} type="number" min="0.001" step="0.001" value={line.quantity} onChange={(event) => updateLine(index, { quantity: event.target.value })} className={controlClass()} /></div>
+                        <div><Label htmlFor={`po-price-${index}`}>Unit price</Label><input id={`po-price-${index}`} inputMode="decimal" value={line.unitPrice} onChange={(event) => updateLine(index, { unitPrice: event.target.value })} className={controlClass()} placeholder="0.00" /></div>
+                      </>
                     )}
-                    <div><Label htmlFor={`po-price-${index}`}>Unit price</Label><input id={`po-price-${index}`} inputMode="decimal" value={line.unitPrice} onChange={(event) => updateLine(index, { unitPrice: event.target.value })} className={controlClass()} placeholder="0.00" /></div>
                     <div><Label htmlFor={`po-vat-${index}`}>VAT, total</Label><input id={`po-vat-${index}`} inputMode="decimal" value={line.vat} onChange={(event) => updateLine(index, { vat: event.target.value })} className={controlClass()} placeholder="0.00" /></div>
                     <div className="flex items-end"><button type="button" disabled={purchaseForm.lines.length === 1} onClick={() => setPurchaseForm((current) => ({ ...current, lines: current.lines.filter((_, lineIndex) => lineIndex !== index) }))} className="flex size-11 cursor-pointer items-center justify-center rounded-xl text-[#641D1D] hover:bg-[#641D1D]/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#641D1D] disabled:cursor-not-allowed disabled:opacity-30" aria-label={`Remove material line ${index + 1}`}><X size={16} /></button></div>
                   </div>

@@ -239,10 +239,19 @@ public sealed class AccountingReportsV3Service : IAccountingReportsV3Service
         var sellingPriceBaseByProduct = productMargins
             .Where(x => x.Margin.SellingPriceBaseCents.HasValue)
             .ToDictionary(x => x.Id, x => x.Margin.SellingPriceBaseCents!.Value);
-        var finishedGoodsPotentialRevenue = finishedGoods.Sum(x =>
-            sellingPriceBaseByProduct.TryGetValue(x.ProductId, out var sellingBase)
-                ? checked(sellingBase * x.QuantityOnHand)
-                : 0);
+        // Internal-only components (e.g. per-color lace) are held as finished-goods stock so they
+        // can be composed onto bags, but they're never sold on their own — counting their listed
+        // price here would double-count the same physical units already priced into the bag.
+        var internalComponentProductIds = productMargins
+            .Where(x => x.IsInternalComponent)
+            .Select(x => x.Id)
+            .ToHashSet();
+        var finishedGoodsPotentialRevenue = finishedGoods
+            .Where(x => !internalComponentProductIds.Contains(x.ProductId))
+            .Sum(x =>
+                sellingPriceBaseByProduct.TryGetValue(x.ProductId, out var sellingBase)
+                    ? checked(sellingBase * x.QuantityOnHand)
+                    : 0);
 
         var valuation = new InventoryValuationDto(
             rawLots.Sum(x => x.ValueCents),

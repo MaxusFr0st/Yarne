@@ -1726,7 +1726,7 @@ function ProductModal({
                                 className="w-20 bg-white/60 border rounded-[10px] px-2.5 py-1.5 text-xs text-[#2D241E] focus:outline-none"
                                 style={{ fontFamily: "'DM Sans', sans-serif", borderColor: "rgba(45,36,30,0.15)" }}
                               />
-                              {(producedAvailability[key] ?? 0) > 0 && (
+                              {(producedAvailability[key] ?? 0) > 0 ? (
                                 <button
                                   type="button"
                                   disabled={applyingVariantKey === key}
@@ -1737,6 +1737,14 @@ function ProductModal({
                                 >
                                   {applyingVariantKey === key ? "Applying…" : `Use stock (${producedAvailability[key]})`}
                                 </button>
+                              ) : (
+                                <span
+                                  className="px-2 py-1 rounded-[10px] text-[0.65rem]"
+                                  style={{ fontFamily: "'DM Sans', sans-serif", color: "#B5622A", backgroundColor: "rgba(181,98,42,0.1)" }}
+                                  title="No produced/purchased stock of this exact color-size-lace variant is in the warehouse. This number is set manually and won't be backed by real inventory until production is logged for this variant."
+                                >
+                                  fake number (no warehouse stock)
+                                </span>
                               )}
                               <label
                                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-[10px] text-xs border transition-all hover:bg-[#2D241E]/5 ${rowUploading || cropBusy ? "opacity-50 pointer-events-none" : "cursor-pointer"}`}
