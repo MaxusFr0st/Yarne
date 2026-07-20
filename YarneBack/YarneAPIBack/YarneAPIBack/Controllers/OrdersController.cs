@@ -239,20 +239,14 @@ public class OrdersController : ControllerBase
             .GroupBy(p => p.ProductCode, StringComparer.OrdinalIgnoreCase)
             .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
 
-        // Load sale-time composition recipes (lace, and any "always" component later) for the
-        // cart's base products, plus the component products they reference (for price + snapshot).
-        var baseProductIds = products.Select(p => p.Id).ToList();
-        var saleComponents = baseProductIds.Count == 0
-            ? new List<Models.ProductSaleComponent>()
-            : await _context.ProductSaleComponents
-                .AsNoTracking()
-                .Where(sc => !sc.IsVoid && baseProductIds.Contains(sc.ProductId))
-                .ToListAsync(ct);
-        var componentsByBaseProduct = saleComponents
-            .GroupBy(sc => sc.ProductId)
-            .ToDictionary(g => g.Key, g => g.ToList());
-        var componentProductIds = saleComponents.Select(sc => sc.ComponentProductId).Distinct().ToList();
-        var componentProducts = componentProductIds.Count == 0
+        // Global color -> lace-product mapping (edited once on the admin Colors tab). Applies
+        // identically to every lace-enabled bag (Product.Lace == true); no per-product recipe.
+        var laceByColorId = await _context.Colors
+            .AsNoTracking()
+            .Where(c => c.LaceProductId != null)
+            .ToDictionaryAsync(c => c.Id, c => c.LaceProductId!.Value, ct);
+        var laceProductIds = laceByColorId.Values.Distinct().ToList();
+        var componentProducts = laceProductIds.Count == 0
             ? new Dictionary<int, Product>()
             : (await _context.Products
                 .Include(p => p.ProductImages)
@@ -260,7 +254,7 @@ public class OrdersController : ControllerBase
                     .ThenInclude(pc => pc.Images)
                 .Include(p => p.ProductColors)
                     .ThenInclude(pc => pc.SizeImages)
-                .Where(p => componentProductIds.Contains(p.Id))
+                .Where(p => laceProductIds.Contains(p.Id))
                 .ToListAsync(ct))
                 .ToDictionary(p => p.Id);
 
@@ -325,41 +319,34 @@ public class OrdersController : ControllerBase
 
             quantityByProductId[product.Id] = quantityByProductId.GetValueOrDefault(product.Id) + item.Quantity;
 
-            // Expand sale-time composition into separate child OrderItems (each with its own
-            // pooled stock decrement + COGS). "always" components apply on every sale; "with_lace"
-            // components apply only when the line opted into lace. Never hardcode price — the
-            // component's own catalog price is the surcharge, added fresh here.
-            if (componentsByBaseProduct.TryGetValue(product.Id, out var components))
+            // Expand into a child lace OrderItem from the global color->lace-product mapping
+            // (each with its own pooled stock decrement + COGS). Never hardcode price — the
+            // lace product's own catalog price is the surcharge, added fresh here.
+            if (product.Lace && item.WithLace == true)
             {
-                // If the base product offers lace and the line opted in, the client must name
-                // exactly which configured color it wants — never silently expand "all colors".
-                // Legacy/un-migrated "with_lace" rows (ColorId == null) don't count as configured
-                // options: lace simply doesn't compose for those until the recipe is reconfigured.
-                if (item.WithLace == true)
+                // If the client named a color, it must be one of the globally-mapped lace colors
+                // (never silently substitute). If it didn't, default to the bag's own color only
+                // when that color is itself mapped; otherwise no forced selection and no error —
+                // the line simply doesn't compose a lace child.
+                int? effectiveColorId;
+                if (item.LaceColorId.HasValue)
                 {
-                    var withLaceOptions = components.Where(c => c.Condition == "with_lace" && c.ColorId != null).ToList();
-                    if (withLaceOptions.Count > 0)
-                    {
-                        if (!item.LaceColorId.HasValue)
-                            return BadRequest(new { message = $"Product '{productKey}' requires a lace color selection." });
-                        if (!withLaceOptions.Any(c => c.ColorId == item.LaceColorId.Value))
-                            return BadRequest(new { message = $"Product '{productKey}' does not offer the selected lace color." });
-                    }
+                    if (!laceByColorId.ContainsKey(item.LaceColorId.Value))
+                        return BadRequest(new { message = $"Product '{productKey}' does not offer the selected lace color." });
+                    effectiveColorId = item.LaceColorId.Value;
+                }
+                else
+                {
+                    effectiveColorId = product.DefaultColorId.HasValue && laceByColorId.ContainsKey(product.DefaultColorId.Value)
+                        ? product.DefaultColorId.Value
+                        : null;
                 }
 
-                foreach (var component in components)
+                if (effectiveColorId.HasValue
+                    && componentProducts.TryGetValue(laceByColorId[effectiveColorId.Value], out var componentProduct)
+                    && componentProduct.IsActive && !componentProduct.IsVoid)
                 {
-                    var include = component.Condition == "always"
-                        || (component.Condition == "with_lace" && item.WithLace == true
-                            && item.LaceColorId.HasValue && component.ColorId == item.LaceColorId.Value);
-                    if (!include)
-                        continue;
-                    if (!componentProducts.TryGetValue(component.ComponentProductId, out var componentProduct))
-                        continue;
-                    if (!componentProduct.IsActive || componentProduct.IsVoid)
-                        continue;
-
-                    var componentQuantity = checked(item.Quantity * component.Quantity);
+                    var componentQuantity = item.Quantity;
                     var componentPriceCents = checked((long)decimal.Round(
                         componentProduct.Price * 100m, 0, MidpointRounding.AwayFromZero));
                     var componentLine = new OrderItem

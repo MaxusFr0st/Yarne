@@ -109,7 +109,9 @@ public class ProductService : IProductService
 
         if (product == null)
             return null;
-        var laceColorOptions = await ComputeLaceColorOptionsAsync(product.Id, ct);
+        var laceColorOptions = product.Lace
+            ? await ComputeLaceColorOptionsAsync(ct)
+            : new List<LaceColorOptionDto>();
         return MapToProductDetailDto(product, activeSuggestionsOnly: activeOnly, laceColorOptions: laceColorOptions);
     }
 
@@ -148,7 +150,9 @@ public class ProductService : IProductService
 
         if (product == null)
             return null;
-        var laceColorOptions = await ComputeLaceColorOptionsAsync(product.Id, ct);
+        var laceColorOptions = product.Lace
+            ? await ComputeLaceColorOptionsAsync(ct)
+            : new List<LaceColorOptionDto>();
         return MapToProductDetailDto(product, activeSuggestionsOnly: true, laceColorOptions: laceColorOptions);
     }
 
@@ -187,6 +191,7 @@ public class ProductService : IProductService
             IsNew = request.IsNew,
             IsBestseller = request.IsBestseller,
             Lace = request.Lace,
+            IsInternalComponent = request.IsInternalComponent,
         };
         _context.Products.Add(product);
         await _context.SaveChangesAsync(ct);
@@ -631,28 +636,27 @@ public class ProductService : IProductService
     }
 
     /// <summary>
-    /// A product's available lace-color options: one per active "with_lace" sale-composition row
-    /// that has a configured <c>ColorId</c> (rows without a color are legacy/un-migrated and are
-    /// excluded — lace stays unavailable for those until reconfigured). Each option's surcharge is
-    /// its component product's own catalog price × quantity, always computed fresh.
+    /// The global lace-color options: one per <see cref="Models.Color"/> with a configured
+    /// <c>LaceProductId</c> pointing at an active, non-void lace product. Identical for every
+    /// lace-enabled bag (the global color→lace-product mapping edited on the admin Colors tab).
+    /// Each option's surcharge is the mapped lace product's own catalog price.
     /// </summary>
-    private async Task<List<LaceColorOptionDto>> ComputeLaceColorOptionsAsync(int productId, CancellationToken ct)
+    private async Task<List<LaceColorOptionDto>> ComputeLaceColorOptionsAsync(CancellationToken ct)
     {
-        var rows = await _context.ProductSaleComponents
+        var rows = await _context.Colors
             .AsNoTracking()
-            .Where(sc => sc.ProductId == productId && !sc.IsVoid && sc.Condition == "with_lace" && sc.ColorId != null)
-            .Select(sc => new
+            .Where(c => c.LaceProductId != null && c.LaceProduct!.IsActive && !c.LaceProduct.IsVoid)
+            .Select(c => new
             {
-                sc.Quantity,
-                Price = sc.ComponentProduct.Price,
-                ColorId = sc.ColorId!.Value,
-                ColorName = sc.Color!.Name,
-                ColorNameUk = sc.Color!.NameUk,
-                ColorHex = sc.Color!.HexCode,
+                ColorId = c.Id,
+                c.Name,
+                c.NameUk,
+                c.HexCode,
+                Price = c.LaceProduct!.Price,
             })
             .ToListAsync(ct);
         return rows
-            .Select(r => new LaceColorOptionDto(r.ColorId, r.ColorName, r.ColorNameUk, r.ColorHex, r.Price * r.Quantity))
+            .Select(r => new LaceColorOptionDto(r.ColorId, r.Name, r.NameUk, r.HexCode, r.Price))
             .ToList();
     }
 

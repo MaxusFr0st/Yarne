@@ -23,6 +23,7 @@ public static class MaterialRollTrackingSchemaPatches
 
             ALTER TABLE "PurchaseOrderItem" ADD COLUMN IF NOT EXISTS "ItemCount" integer NULL;
             ALTER TABLE "PurchaseOrderItem" ADD COLUMN IF NOT EXISTS "LengthPerItem" numeric(18,4) NULL;
+            ALTER TABLE "PurchaseOrderItem" ADD COLUMN IF NOT EXISTS "RollPriceCents" bigint NULL;
 
             IF NOT EXISTS (
                 SELECT 1

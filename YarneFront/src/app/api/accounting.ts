@@ -58,6 +58,7 @@ export interface PurchaseOrderItemDto {
   baseVatAmountCents: number;
   itemCount: number | null;
   lengthPerItem: number | null;
+  rollPriceCents: number | null;
   wholeItemsRemaining: number | null;
   partialRemainder: number | null;
 }
@@ -271,6 +272,7 @@ export type SavePurchaseOrderRequest = {
     vatAmountCents: number;
     itemCount?: number | null;
     lengthPerItem?: number | null;
+    rollPriceCents?: number | null;
   }[];
 };
 
@@ -699,22 +701,16 @@ export interface AccountingProductDto {
   sellingCurrencyCode: string;
   marginThresholdPct: number;
   isInternalComponent: boolean;
+  lace: boolean;
   bom: ProductBomDto | null;
   margin: ProductMarginDto;
+  /** @deprecated Per-bag "Sale recipe" is retired in favor of the global Color -> lace product
+   * mapping (Colors admin tab). Kept only because the backend projection stays dormant. */
   saleComponents: ProductSaleComponentDto[];
 }
 
 export type SetInternalComponentRequest = {
   isInternalComponent: boolean;
-};
-
-export type SaveProductSaleComponentsRequest = {
-  components: {
-    componentProductId: number;
-    quantity: number;
-    condition: "with_lace" | "always";
-    colorId?: number | null;
-  }[];
 };
 
 export type UpdateProductAccountingRequest = {
@@ -1184,16 +1180,6 @@ export async function setProductInternalComponent(
   body: SetInternalComponentRequest,
 ): Promise<AccountingProductDto> {
   return apiRequest<AccountingProductDto>(`/api/accounting/products/${id}/internal-component`, {
-    method: "PUT",
-    body: JSON.stringify(body),
-  });
-}
-
-export async function updateProductSaleComponents(
-  id: number,
-  body: SaveProductSaleComponentsRequest,
-): Promise<AccountingProductDto> {
-  return apiRequest<AccountingProductDto>(`/api/accounting/products/${id}/sale-components`, {
     method: "PUT",
     body: JSON.stringify(body),
   });

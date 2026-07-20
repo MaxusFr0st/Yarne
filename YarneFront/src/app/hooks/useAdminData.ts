@@ -22,6 +22,7 @@ import {
   createColor,
   updateColor,
   deleteColor,
+  fetchLaceProducts,
   fetchFurnitureColors,
   createFurnitureColor,
   updateFurnitureColor,
@@ -34,6 +35,7 @@ import {
   type CategoryDto,
   type CountryDto,
   type ColorDto,
+  type LaceProductOptionDto,
   type FurnitureColorDto,
   type SizeDto,
   type UserDto,
@@ -195,6 +197,7 @@ export function useAdminData() {
   const [categories, setCategories] = useState<CategoryDto[]>([]);
   const [countries, setCountries] = useState<CountryDto[]>([]);
   const [colors, setColors] = useState<ColorDto[]>([]);
+  const [laceProducts, setLaceProducts] = useState<LaceProductOptionDto[]>([]);
   const [furnitureColors, setFurnitureColors] = useState<FurnitureColorDto[]>([]);
   const [sizes, setSizes] = useState<SizeDto[]>([]);
   const [orders, setOrders] = useState<ReturnType<typeof mapOrderDtoToAdminOrder>[]>([]);
@@ -214,9 +217,10 @@ export function useAdminData() {
       fetchColors(),
       fetchFurnitureColors(),
       fetchSizes(),
+      fetchLaceProducts(),
     ]);
 
-    const [prodsResult, catsResult, ctrysResult, colsResult, furnitureResult, szsResult] = catalogResults;
+    const [prodsResult, catsResult, ctrysResult, colsResult, furnitureResult, szsResult, laceProductsResult] = catalogResults;
 
     if (prodsResult.status === "fulfilled") {
       setProducts(prodsResult.value.map(mapProductDtoToProduct));
@@ -260,6 +264,13 @@ export function useAdminData() {
     } else {
       setSizes([]);
       warnings.push(formatLoadError("Sizes", szsResult.reason));
+    }
+
+    if (laceProductsResult.status === "fulfilled") {
+      setLaceProducts(laceProductsResult.value);
+    } else {
+      setLaceProducts([]);
+      warnings.push(formatLoadError("Lace products", laceProductsResult.reason));
     }
 
     if (isAdmin) {
@@ -388,14 +399,14 @@ export function useAdminData() {
     setCountries((prev) => prev.filter((c) => c.id !== id));
   }, []);
 
-  const addColor = useCallback(async (name: string, hexCode?: string, nameUk?: string) => {
-    const created = await createColor(name, hexCode, nameUk);
+  const addColor = useCallback(async (name: string, hexCode?: string, nameUk?: string, laceProductId?: number | null) => {
+    const created = await createColor(name, hexCode, nameUk, laceProductId);
     setColors((prev) => [...prev, created].sort((a, b) => a.name.localeCompare(b.name)));
     return created;
   }, []);
 
-  const editColor = useCallback(async (id: number, name: string, hexCode?: string, nameUk?: string) => {
-    const updated = await updateColor(id, name, hexCode, nameUk);
+  const editColor = useCallback(async (id: number, name: string, hexCode?: string, nameUk?: string, laceProductId?: number | null) => {
+    const updated = await updateColor(id, name, hexCode, nameUk, laceProductId);
     setColors((prev) =>
       prev.map((c) => (c.id === id ? updated : c)).sort((a, b) => a.name.localeCompare(b.name))
     );
@@ -481,6 +492,7 @@ export function useAdminData() {
     addColor,
     editColor,
     removeColor,
+    laceProducts,
     furnitureColors,
     addFurnitureColor,
     editFurnitureColor,

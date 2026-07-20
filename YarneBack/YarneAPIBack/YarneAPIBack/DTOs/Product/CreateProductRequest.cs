@@ -43,6 +43,8 @@ public class CreateProductRequest
 
     public bool Lace { get; set; }
 
+    public bool IsInternalComponent { get; set; }
+
     public List<int> SizeIds { get; set; } = new();
 
     public List<string> ImageUrls { get; set; } = new();

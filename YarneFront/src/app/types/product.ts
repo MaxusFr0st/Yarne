@@ -53,6 +53,7 @@ export interface Product {
   isBestseller?: boolean;
   createdAt?: string;
   lace?: boolean;
+  isInternalComponent?: boolean;
   sizes: SizeOption[];
   defaultSize?: string;
   defaultColor?: string;

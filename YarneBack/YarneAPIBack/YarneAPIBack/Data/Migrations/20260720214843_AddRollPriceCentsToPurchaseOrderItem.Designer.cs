@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using YarneAPIBack.Data;
@@ -11,9 +12,11 @@ using YarneAPIBack.Data;
 namespace YarneAPIBack.Data.Migrations
 {
     [DbContext(typeof(YarneDbContext))]
-    partial class YarneDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260720214843_AddRollPriceCentsToPurchaseOrderItem")]
+    partial class AddRollPriceCentsToPurchaseOrderItem
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -1847,9 +1850,6 @@ namespace YarneAPIBack.Data.Migrations
                         .HasMaxLength(20)
                         .HasColumnType("character varying(20)");
 
-                    b.Property<int?>("LaceProductId")
-                        .HasColumnType("integer");
-
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(100)
@@ -1860,8 +1860,6 @@ namespace YarneAPIBack.Data.Migrations
                         .HasColumnType("character varying(100)");
 
                     b.HasKey("Id");
-
-                    b.HasIndex("LaceProductId");
 
                     b.ToTable("Color", (string)null);
                 });
@@ -3124,16 +3122,6 @@ namespace YarneAPIBack.Data.Migrations
                         .IsRequired();
 
                     b.Navigation("StockReport");
-                });
-
-            modelBuilder.Entity("YarneAPIBack.Models.Color", b =>
-                {
-                    b.HasOne("YarneAPIBack.Models.Product", "LaceProduct")
-                        .WithMany()
-                        .HasForeignKey("LaceProductId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
-                    b.Navigation("LaceProduct");
                 });
 
             modelBuilder.Entity("YarneAPIBack.Models.CustomerAddress", b =>

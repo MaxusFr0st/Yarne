@@ -157,6 +157,7 @@ export interface CreateProductRequest {
   isNew?: boolean;
   isBestseller?: boolean;
   lace?: boolean;
+  isInternalComponent?: boolean;
   suggestedProductCodes?: string[];
 }
 

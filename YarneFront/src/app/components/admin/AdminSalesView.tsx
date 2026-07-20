@@ -18,6 +18,7 @@ import {
   type AccountingSalesOrderDto,
   type SalesChannelDto,
 } from "../../api/accounting";
+import { fetchColors, type ColorDto } from "../../api/admin";
 import {
   Button,
   Dialog,
@@ -87,6 +88,7 @@ export function AdminSalesView({ mode }: { mode: "channels" | "sales" }) {
   const [channels, setChannels] = useState<SalesChannelDto[]>([]);
   const [orders, setOrders] = useState<AccountingSalesOrderDto[]>([]);
   const [products, setProducts] = useState<AccountingProductDto[]>([]);
+  const [colors, setColors] = useState<ColorDto[]>([]);
   const [customers, setCustomers] = useState<AccountingCustomerDto[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -126,18 +128,20 @@ export function AdminSalesView({ mode }: { mode: "channels" | "sales" }) {
       if (mode === "channels") {
         setChannels(await fetchSalesChannels());
       } else {
-        const [nextOrders, nextChannels, nextProducts, nextCustomers, currencies] = await Promise.all([
+        const [nextOrders, nextChannels, nextProducts, nextCustomers, currencies, , nextColors] = await Promise.all([
           fetchSalesOrders(),
           fetchSalesChannels(),
           fetchAccountingProducts(),
           fetchAccountingCustomers(),
           fetchAccountingCurrencies(),
           fetchExchangeRates(),
+          fetchColors(),
         ]);
         setOrders(nextOrders);
         setChannels(nextChannels);
         setProducts(nextProducts);
         setCustomers(nextCustomers);
+        setColors(nextColors);
         const base = currencies.find((c) => c.isBase)?.code ?? "UAH";
         setOrderForm((current) => ({
           ...current,
@@ -715,16 +719,24 @@ export function AdminSalesView({ mode }: { mode: "channels" | "sales" }) {
             <div className="space-y-3">
               {orderForm.lines.map((line, index) => {
                 const lineProduct = products.find((p) => p.id === line.productId);
-                // Only rows with a configured color count as selectable lace options — legacy
-                // un-migrated rows (colorId == null) don't compose anything.
-                const laceComponents = lineProduct?.saleComponents.filter(
-                  (sc) => sc.condition === "with_lace" && sc.colorId != null,
-                ) ?? [];
+                // Global lace-color list (Colors admin tab mapping) — identical for every
+                // lace-eligible product. Gate on the product's own `lace` flag.
+                const laceComponents = lineProduct?.lace
+                  ? colors
+                      .filter((c) => c.laceProductId != null)
+                      .map((c) => {
+                        const laceProduct = products.find((p) => p.id === c.laceProductId);
+                        return {
+                          colorId: c.id,
+                          colorName: c.name,
+                          priceCents: laceProduct?.sellingPriceCents ?? 0,
+                          currencyCode: laceProduct?.sellingCurrencyCode ?? "UAH",
+                        };
+                      })
+                  : [];
                 const offersLace = laceComponents.length > 0;
                 const selectedLaceComponent = laceComponents.find((sc) => sc.colorId === line.laceColorId) ?? null;
-                const laceSurchargeCents = selectedLaceComponent
-                  ? selectedLaceComponent.componentSellingPriceCents * selectedLaceComponent.quantity
-                  : 0;
+                const laceSurchargeCents = selectedLaceComponent?.priceCents ?? 0;
                 return (
                   <div key={index} className="space-y-2">
                     <div className="grid gap-3 sm:grid-cols-4">
@@ -764,7 +776,7 @@ export function AdminSalesView({ mode }: { mode: "channels" | "sales" }) {
                           />
                           With lace — adds a separate lace line
                           {line.withLace && laceSurchargeCents > 0
-                            ? ` (+${moneyFromCents(laceSurchargeCents, lineProduct!.sellingCurrencyCode)})`
+                            ? ` (+${moneyFromCents(laceSurchargeCents, selectedLaceComponent?.currencyCode ?? lineProduct?.sellingCurrencyCode ?? "UAH")})`
                             : ""}
                         </label>
                         {line.withLace ? (
@@ -775,8 +787,8 @@ export function AdminSalesView({ mode }: { mode: "channels" | "sales" }) {
                             aria-label="Lace color"
                           >
                             {laceComponents.map((sc) => (
-                              <option key={sc.colorId} value={sc.colorId!}>
-                                {sc.colorName ?? sc.componentProductName}
+                              <option key={sc.colorId} value={sc.colorId}>
+                                {sc.colorName}
                               </option>
                             ))}
                           </select>

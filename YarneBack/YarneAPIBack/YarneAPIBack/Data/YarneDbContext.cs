@@ -134,6 +134,11 @@ public partial class YarneDbContext : DbContext
             entity.Property(e => e.Name).HasMaxLength(100);
             entity.Property(e => e.NameUk).HasMaxLength(100);
             entity.Property(e => e.HexCode).HasMaxLength(20);
+            entity.HasOne(e => e.LaceProduct)
+                .WithMany()
+                .HasForeignKey(e => e.LaceProductId)
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.HasIndex(e => e.LaceProductId);
         });
 
         modelBuilder.Entity<FurnitureColor>(entity =>

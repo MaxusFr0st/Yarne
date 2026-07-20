@@ -46,6 +46,7 @@ public sealed record AccountingProductDto(
     string SellingCurrencyCode,
     decimal MarginThresholdPct,
     bool IsInternalComponent,
+    bool Lace,
     ProductBomDto? Bom,
     ProductMarginDto Margin,
     IReadOnlyList<ProductSaleComponentDto> SaleComponents);
@@ -60,21 +61,6 @@ public sealed class UpdateProductAccountingRequest
 public sealed class SetInternalComponentRequest
 {
     public bool IsInternalComponent { get; set; }
-}
-
-public sealed class SaveProductSaleComponentItemRequest
-{
-    public int ComponentProductId { get; set; }
-    public int Quantity { get; set; } = 1;
-    public string Condition { get; set; } = "with_lace";
-
-    /// <summary>Required when Condition == "with_lace"; must be null when Condition == "always".</summary>
-    public int? ColorId { get; set; }
-}
-
-public sealed class SaveProductSaleComponentsRequest
-{
-    public List<SaveProductSaleComponentItemRequest> Components { get; set; } = [];
 }
 
 public sealed class SaveProductBomItemRequest

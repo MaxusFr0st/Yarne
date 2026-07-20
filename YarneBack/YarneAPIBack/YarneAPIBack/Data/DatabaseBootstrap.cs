@@ -138,6 +138,17 @@ public static class DatabaseBootstrap
 
         try
         {
+            await ColorLaceMappingSchemaPatches.ForceEnsureAsync(db, logger, cancellationToken);
+        }
+        catch (Exception colorLaceMappingEx)
+        {
+            logger.LogError(
+                colorLaceMappingEx,
+                "ColorLaceMapping schema still missing after bootstrap; global lace mapping endpoints may 500 until fixed.");
+        }
+
+        try
+        {
             await MaterialRollTrackingSchemaPatches.ForceEnsureAsync(db, logger, cancellationToken);
         }
         catch (Exception rollTrackingEx)

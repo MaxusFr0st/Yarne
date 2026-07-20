@@ -380,7 +380,9 @@ export function AdminProcurementView({ view }: { view: ProcurementView }) {
           materialId: item.materialId,
           quantity: String(item.quantityPurchased),
           unitPrice: inputFromCents(item.unitPriceCents),
-          rollPrice: item.lengthPerItem != null ? rollPriceFromUnitCents(item.unitPriceCents, String(item.lengthPerItem)) : "",
+          rollPrice: item.rollPriceCents != null
+            ? inputFromCents(item.rollPriceCents)
+            : (item.lengthPerItem != null ? rollPriceFromUnitCents(item.unitPriceCents, String(item.lengthPerItem)) : ""),
           vat: inputFromCents(item.vatAmountCents),
           itemCount: item.itemCount != null ? String(item.itemCount) : "",
           lengthPerItem: item.lengthPerItem != null ? String(item.lengthPerItem) : "",
@@ -448,6 +450,7 @@ export function AdminProcurementView({ view }: { view: ProcurementView }) {
           vatAmountCents: centsFromInput(line.vat),
           itemCount,
           lengthPerItem,
+          rollPriceCents: isRollTracked && line.rollPrice ? centsFromInput(line.rollPrice) : null,
         };
       }),
     };

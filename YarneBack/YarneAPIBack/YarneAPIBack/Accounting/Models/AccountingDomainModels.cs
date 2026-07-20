@@ -80,6 +80,15 @@ public class PurchaseOrderItem
     /// </summary>
     public int? ItemCount { get; set; }
     public decimal? LengthPerItem { get; set; }
+    /// <summary>
+    /// Price per roll in cents, as written on the supplier invoice, when the line was
+    /// entered that way (roll-tracked materials). When set, TotalCostCents is computed
+    /// exactly as ItemCount * RollPriceCents rather than QuantityPurchased * UnitPriceCents —
+    /// the latter would compound rounding error from UnitPriceCents' whole-cent-per-base-unit
+    /// precision across a large quantity (e.g. 6 rolls x 120m loses cents vs. the true total).
+    /// UnitPriceCents is still derived and stored for per-unit FIFO/valuation purposes.
+    /// </summary>
+    public long? RollPriceCents { get; set; }
     public long VatAmountCents { get; set; }
     public long BaseUnitPriceCents { get; set; }
     public long BaseTotalCostCents { get; set; }

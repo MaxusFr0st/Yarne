@@ -21,9 +21,4 @@ public interface IProductAccountingService
         bool isInternalComponent,
         int? actorId,
         CancellationToken ct = default);
-    Task<AccountingProductDto?> SaveSaleComponentsAsync(
-        int productId,
-        SaveProductSaleComponentsRequest request,
-        int? actorId,
-        CancellationToken ct = default);
 }

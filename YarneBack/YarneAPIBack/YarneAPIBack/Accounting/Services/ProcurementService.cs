@@ -401,7 +401,13 @@ public sealed class ProcurementService : IProcurementService
         int? actorId,
         DateTime now)
     {
-        var totalCostCents = RoundToCents(request.QuantityPurchased * request.UnitPriceCents);
+        // Roll-tracked lines carry the exact per-roll invoice price; use it directly for the
+        // line total instead of QuantityPurchased * UnitPriceCents, which would compound the
+        // rounding baked into UnitPriceCents (a whole-cent-per-base-unit figure) across the
+        // full quantity and drift away from what was actually paid.
+        var totalCostCents = request.RollPriceCents.HasValue && request.ItemCount.HasValue
+            ? (long)request.ItemCount.Value * request.RollPriceCents.Value
+            : RoundToCents(request.QuantityPurchased * request.UnitPriceCents);
         // Lots only become consumable when the PO is received.
         var quantityRemaining = status == "received" ? request.QuantityPurchased : 0m;
         return new PurchaseOrderItem
@@ -417,6 +423,7 @@ public sealed class ProcurementService : IProcurementService
             BaseVatAmountCents = RoundToCents(request.VatAmountCents * exchangeRate),
             ItemCount = request.ItemCount,
             LengthPerItem = request.LengthPerItem,
+            RollPriceCents = request.RollPriceCents,
             CreatedBy = actorId,
             CreatedAt = now,
             UpdatedAt = now,
@@ -472,6 +479,7 @@ public sealed class ProcurementService : IProcurementService
                     x.BaseVatAmountCents,
                     x.ItemCount,
                     x.LengthPerItem,
+                    x.RollPriceCents,
                     wholeItems,
                     partial);
             })

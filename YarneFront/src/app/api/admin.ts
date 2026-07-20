@@ -15,6 +15,14 @@ export interface ColorDto {
   name: string;
   nameUk?: string | null;
   hexCode: string;
+  laceProductId?: number | null;
+  laceProductName?: string | null;
+}
+
+export interface LaceProductOptionDto {
+  id: number;
+  name: string;
+  price: number;
 }
 
 export interface FurnitureColorDto {
@@ -96,22 +104,38 @@ export async function fetchColors(): Promise<ColorDto[]> {
   return Array.isArray(data) ? data : [];
 }
 
-export async function createColor(name: string, hexCode?: string, nameUk?: string): Promise<ColorDto> {
+export async function createColor(
+  name: string,
+  hexCode?: string,
+  nameUk?: string,
+  laceProductId?: number | null,
+): Promise<ColorDto> {
   return apiRequest<ColorDto>("/api/colors", {
     method: "POST",
-    body: JSON.stringify({ name, nameUk: nameUk || null, hexCode: hexCode ?? "#2D241E" }),
+    body: JSON.stringify({ name, nameUk: nameUk || null, hexCode: hexCode ?? "#2D241E", laceProductId: laceProductId ?? null }),
   });
 }
 
-export async function updateColor(id: number, name: string, hexCode?: string, nameUk?: string): Promise<ColorDto> {
+export async function updateColor(
+  id: number,
+  name: string,
+  hexCode?: string,
+  nameUk?: string,
+  laceProductId?: number | null,
+): Promise<ColorDto> {
   return apiRequest<ColorDto>(`/api/colors/${id}`, {
     method: "PUT",
-    body: JSON.stringify({ name, nameUk: nameUk || null, hexCode: hexCode ?? "#2D241E" }),
+    body: JSON.stringify({ name, nameUk: nameUk || null, hexCode: hexCode ?? "#2D241E", laceProductId: laceProductId ?? null }),
   });
 }
 
 export async function deleteColor(id: number): Promise<void> {
   await apiRequest(`/api/colors/${id}`, { method: "DELETE" });
+}
+
+export async function fetchLaceProducts(): Promise<LaceProductOptionDto[]> {
+  const data = await apiRequest<LaceProductOptionDto[]>("/api/colors/lace-products");
+  return Array.isArray(data) ? data : [];
 }
 
 export async function fetchFurnitureColors(): Promise<FurnitureColorDto[]> {

@@ -180,105 +180,6 @@ public sealed class ProductAccountingService : IProductAccountingService
         return await GetProductAsync(id, ct);
     }
 
-    public async Task<AccountingProductDto?> SaveSaleComponentsAsync(
-        int productId,
-        SaveProductSaleComponentsRequest request,
-        int? actorId,
-        CancellationToken ct = default)
-    {
-        var items = request.Components ?? new List<SaveProductSaleComponentItemRequest>();
-        if (items.Any(x => x.ComponentProductId <= 0 || x.Quantity <= 0))
-            throw new AccountingBusinessException("Every component needs a product and positive quantity.");
-        foreach (var item in items)
-        {
-            if (item.Condition is not ("with_lace" or "always"))
-                throw new AccountingBusinessException("Component condition must be 'with_lace' or 'always'.");
-            if (item.ComponentProductId == productId)
-                throw new AccountingBusinessException("A product cannot be a component of itself.");
-            if (item.Condition == "with_lace" && item.ColorId is null)
-                throw new AccountingBusinessException("Every 'with_lace' row needs a lace color.");
-            if (item.Condition == "always" && item.ColorId is not null)
-                throw new AccountingBusinessException("'always' (packaging) rows cannot have a color.");
-        }
-        if (items.GroupBy(x => (x.ComponentProductId, x.Condition, x.ColorId)).Any(g => g.Count() > 1))
-            throw new AccountingBusinessException("Combine duplicate component + condition + color rows.");
-        if (items.Where(x => x.Condition == "with_lace")
-                .GroupBy(x => x.ColorId)
-                .Any(g => g.Count() > 1))
-            throw new AccountingBusinessException("Each lace color can only be mapped once per product.");
-
-        var product = await _db.Products.SingleOrDefaultAsync(x => x.Id == productId && !x.IsVoid, ct);
-        if (product is null)
-            return null;
-
-        var componentIds = items.Select(x => x.ComponentProductId).Distinct().ToArray();
-        if (componentIds.Length > 0)
-        {
-            var validComponents = await _db.Products
-                .Where(p => componentIds.Contains(p.Id) && !p.IsVoid)
-                .Select(p => p.Id)
-                .ToListAsync(ct);
-            var missing = componentIds.Except(validComponents).ToList();
-            if (missing.Count > 0)
-                throw new AccountingBusinessException("One or more component products were not found.");
-        }
-
-        var colorIds = items.Where(x => x.ColorId.HasValue).Select(x => x.ColorId!.Value).Distinct().ToArray();
-        if (colorIds.Length > 0)
-        {
-            var validColors = await _db.Colors
-                .Where(c => colorIds.Contains(c.Id))
-                .Select(c => c.Id)
-                .ToListAsync(ct);
-            var missingColors = colorIds.Except(validColors).ToList();
-            if (missingColors.Count > 0)
-                throw new AccountingBusinessException("One or more lace colors were not found.");
-        }
-
-        var existing = await _db.ProductSaleComponents
-            .Where(sc => sc.ProductId == productId)
-            .ToListAsync(ct);
-        var now = DateTime.UtcNow;
-        var requestedByKey = items.ToDictionary(x => (x.ComponentProductId, x.Condition, x.ColorId));
-
-        foreach (var row in existing)
-        {
-            if (requestedByKey.Remove((row.ComponentProductId, row.Condition, row.ColorId), out var requested))
-            {
-                row.Quantity = requested.Quantity;
-                row.IsVoid = false;
-                row.CreatedBy ??= actorId;
-                row.UpdatedAt = now;
-            }
-            else if (!row.IsVoid)
-            {
-                row.IsVoid = true;
-                row.CreatedBy ??= actorId;
-                row.UpdatedAt = now;
-            }
-        }
-
-        foreach (var requested in requestedByKey.Values)
-        {
-            _db.ProductSaleComponents.Add(new ProductSaleComponent
-            {
-                ProductId = productId,
-                ComponentProductId = requested.ComponentProductId,
-                Quantity = requested.Quantity,
-                Condition = requested.Condition,
-                ColorId = requested.ColorId,
-                CreatedBy = actorId,
-                CreatedAt = now,
-                UpdatedAt = now,
-            });
-        }
-
-        product.CreatedBy ??= actorId;
-        product.UpdatedAt = now;
-        await _db.SaveChangesAsync(ct);
-        return await GetProductAsync(productId, ct);
-    }
-
     private IQueryable<Product> ProductQuery()
     {
         return _db.Products
@@ -457,6 +358,7 @@ public sealed class ProductAccountingService : IProductAccountingService
             product.SellingCurrencyCode,
             product.MarginThresholdPct,
             product.IsInternalComponent,
+            product.Lace,
             bom,
             new ProductMarginDto(
                 costAvailable,

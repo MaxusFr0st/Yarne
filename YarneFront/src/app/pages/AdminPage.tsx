@@ -365,6 +365,7 @@ interface ProductFormData {
   isNew: boolean;
   isBestseller: boolean;
   lace: boolean;
+  isInternalComponent: boolean;
   description: string;
   stock: string;
   sku: string;
@@ -572,6 +573,7 @@ function ProductModal({
           isNew: product.isNew ?? false,
           isBestseller: product.isBestseller ?? false,
           lace: product.lace ?? false,
+          isInternalComponent: product.isInternalComponent ?? false,
           description: product.description,
           stock: String(product.stock ?? 0),
           sku: product.sku ?? product.id,
@@ -594,6 +596,7 @@ function ProductModal({
           isNew: false,
           isBestseller: false,
           lace: false,
+          isInternalComponent: false,
           description: "",
           stock: "",
           sku: "",
@@ -1075,7 +1078,9 @@ function ProductModal({
     });
 
     if (!form.name.trim()) errors.name = "This field must not be empty.";
-    if (!form.description.trim()) errors.description = "This field must not be empty.";
+    // Internal products (e.g. per-color lace components) are never shown on the storefront, so
+    // the description and minimum-photos requirements below don't apply to them.
+    if (!form.isInternalComponent && !form.description.trim()) errors.description = "This field must not be empty.";
     if (!Number.isFinite(parsedPrice) || parsedPrice <= 0) errors.price = "Enter a valid price greater than 0.";
     if (form.stock.trim() && (!Number.isFinite(parsedStock) || parsedStock < 0)) {
       errors.stock = "Enter a valid stock (0 or more).";
@@ -1089,7 +1094,7 @@ function ProductModal({
     if (!form.defaultSizeId || !selectedSizeIds.includes(form.defaultSizeId)) {
       errors.defaultSizeId = "Choose a default size from selected color-size sets.";
     }
-    if (variantsWithTooFewPhotos.length > 0) {
+    if (!form.isInternalComponent && variantsWithTooFewPhotos.length > 0) {
       errors.photos = "Each selected color-size record must contain at least 3 photos.";
     }
     if (unresolvedSuggestedCodes.length > 0) {
@@ -1907,6 +1912,7 @@ function ProductModal({
               { label: "Mark as New", key: "isNew" as const },
               { label: "Mark as Bestseller", key: "isBestseller" as const },
               { label: "Has lace option", key: "lace" as const },
+              { label: "Internal product", key: "isInternalComponent" as const },
             ].map((flag) => (
               <label key={flag.key} className="flex items-center gap-3 cursor-pointer">
                 <div
@@ -2244,24 +2250,29 @@ function ColorModal({
   onClose,
   onSave,
   labels,
+  laceProducts,
 }: {
-  editing: { id: number; name: string; nameUk?: string | null; hexCode: string } | null;
+  editing: { id: number; name: string; nameUk?: string | null; hexCode: string; laceProductId?: number | null } | null;
   onClose: () => void;
-  onSave: (name: string, hexCode?: string, nameUk?: string) => void;
+  onSave: (name: string, hexCode?: string, nameUk?: string, laceProductId?: number | null) => void;
   labels?: {
     eyebrowNew?: string;
     eyebrowEdit?: string;
     titleNew?: string;
   };
+  /** When provided, shows the "Lace product" mapping select (Colors tab only). */
+  laceProducts?: { id: number; name: string }[];
 }) {
   const [name, setName] = useState(editing?.name ?? "");
   const [nameUk, setNameUk] = useState(editing?.nameUk ?? "");
   const [hexCode, setHexCode] = useState(editing?.hexCode ?? "#2D241E");
+  const [laceProductId, setLaceProductId] = useState<number | null>(editing?.laceProductId ?? null);
   useEffect(() => {
     setName(editing?.name ?? "");
     setNameUk(editing?.nameUk ?? "");
     setHexCode(editing?.hexCode ?? "#2D241E");
-  }, [editing?.id, editing?.name, editing?.nameUk, editing?.hexCode]);
+    setLaceProductId(editing?.laceProductId ?? null);
+  }, [editing?.id, editing?.name, editing?.nameUk, editing?.hexCode, editing?.laceProductId]);
   const isEditing = !!editing;
   const eyebrowNew = labels?.eyebrowNew ?? "New Color";
   const eyebrowEdit = labels?.eyebrowEdit ?? "Edit Color";
@@ -2287,7 +2298,7 @@ function ColorModal({
       footer={
         <>
           <AdminModalCancelButton onClick={onClose} />
-          <AdminModalPrimaryButton onClick={() => onSave(name, sanitizeColorHex(hexCode), nameUk.trim() || undefined)}>
+          <AdminModalPrimaryButton onClick={() => onSave(name, sanitizeColorHex(hexCode), nameUk.trim() || undefined, laceProductId)}>
             {isEditing ? "Save" : "Add"}
           </AdminModalPrimaryButton>
         </>
@@ -2305,6 +2316,22 @@ function ColorModal({
         <label className="block text-xs mb-2 tracking-widest uppercase" style={fieldLabelStyle}>Color</label>
         <AdminColorPicker value={hexCode} onChange={setHexCode} />
       </div>
+      {laceProducts ? (
+        <div>
+          <label className="block text-xs mb-2 tracking-widest uppercase" style={fieldLabelStyle}>Lace product (optional)</label>
+          <select
+            value={laceProductId ?? ""}
+            onChange={(e) => setLaceProductId(e.target.value ? Number(e.target.value) : null)}
+            className={fieldInput}
+            style={fieldInputStyle}
+          >
+            <option value="">No lace mapping</option>
+            {laceProducts.map((p) => (
+              <option key={p.id} value={p.id}>{p.name}</option>
+            ))}
+          </select>
+        </div>
+      ) : null}
     </AdminModalShell>
   );
 }
@@ -2656,6 +2683,7 @@ export function AdminPage() {
     addColor,
     editColor,
     removeColor,
+    laceProducts,
     furnitureColors,
     addFurnitureColor,
     editFurnitureColor,
@@ -2722,7 +2750,7 @@ export function AdminPage() {
   const [userModal, setUserModal] = useState<{ open: boolean }>({ open: false });
   const [categoryModal, setCategoryModal] = useState<{ open: boolean; editing: { id: number; name: string } | null }>({ open: false, editing: null });
   const [countryModal, setCountryModal] = useState<{ open: boolean; editing: { id: number; name: string } | null }>({ open: false, editing: null });
-  const [colorModal, setColorModal] = useState<{ open: boolean; editing: { id: number; name: string; nameUk?: string | null; hexCode: string } | null }>({ open: false, editing: null });
+  const [colorModal, setColorModal] = useState<{ open: boolean; editing: { id: number; name: string; nameUk?: string | null; hexCode: string; laceProductId?: number | null } | null }>({ open: false, editing: null });
   const [furnitureModal, setFurnitureModal] = useState<{ open: boolean; editing: { id: number; name: string; nameUk?: string | null; hexCode: string } | null }>({ open: false, editing: null });
   const [sizeModal, setSizeModal] = useState<{ open: boolean; editing: { id: number; name: string; nameUk?: string | null } | null }>({ open: false, editing: null });
   const [deleteModal, setDeleteModal] = useState<{ open: boolean; type: "product" | "user" | "category" | "country" | "color" | "furniture" | "size"; id: string; idNum?: number; name: string } | null>(null);
@@ -3248,6 +3276,7 @@ export function AdminPage() {
         isNew: data.isNew,
         isBestseller: data.isBestseller,
         lace: data.lace,
+        isInternalComponent: data.isInternalComponent,
         ...(productModal.editing
           ? data.suggestionsHydrated
             ? { suggestedProductCodes: data.suggestedProductCodes }
@@ -3336,13 +3365,13 @@ export function AdminPage() {
     }
   };
 
-  const handleSaveColor = async (name: string, hexCode?: string, nameUk?: string) => {
+  const handleSaveColor = async (name: string, hexCode?: string, nameUk?: string, laceProductId?: number | null) => {
     setSaveError(null);
     try {
       if (colorModal.editing) {
-        await editColor(colorModal.editing.id, name, hexCode, nameUk);
+        await editColor(colorModal.editing.id, name, hexCode, nameUk, laceProductId);
       } else {
-        await addColor(name, hexCode, nameUk);
+        await addColor(name, hexCode, nameUk, laceProductId);
       }
       setColorModal({ open: false, editing: null });
       refetch();
@@ -5461,7 +5490,7 @@ export function AdminPage() {
                 <div
                   className="grid px-6 py-4 text-xs tracking-widest uppercase"
                   style={{
-                    gridTemplateColumns: "1fr 1fr 100px",
+                    gridTemplateColumns: "1fr 1fr 1fr 100px",
                     fontFamily: "'DM Sans', sans-serif",
                     letterSpacing: "0.12em",
                     color: "rgba(45,36,30,0.4)",
@@ -5471,6 +5500,7 @@ export function AdminPage() {
                 >
                   <span>Color</span>
                   <span>Preview</span>
+                  <span>Lace product</span>
                   <span className="text-right">Actions</span>
                 </div>
                 <div className="divide-y" style={{ borderColor: "rgba(45,36,30,0.06)" }}>
@@ -5478,7 +5508,7 @@ export function AdminPage() {
                     <p className="py-12 text-center text-[#2D241E]/40 px-6" style={{ fontFamily: "'DM Sans', sans-serif" }}>No colors yet</p>
                   ) : (
                     colors.map((c) => (
-                      <div key={c.id} className={ADMIN_ROW} style={{ gridTemplateColumns: "1fr 1fr 100px" }}>
+                      <div key={c.id} className={ADMIN_ROW} style={{ gridTemplateColumns: "1fr 1fr 1fr 100px" }}>
                         <p className="text-[#2D241E]" style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "1.15rem" }}>
                           {adminBilingualLabel(c.name, c.nameUk)}
                         </p>
@@ -5486,6 +5516,7 @@ export function AdminPage() {
                           <span className="w-6 h-6 rounded-full border shadow-sm" style={{ backgroundColor: c.hexCode || "#2D241E", borderColor: "rgba(45,36,30,0.2)" }} />
                           <span className="text-[#2D241E]/50 text-sm uppercase tracking-wider" style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "0.75rem" }}>{c.hexCode}</span>
                         </div>
+                        <span className="text-[#2D241E]/60 text-sm" style={{ fontFamily: "'DM Sans', sans-serif" }}>{c.laceProductName || "—"}</span>
                         <div className="flex items-center justify-end gap-2">
                           <button type="button" onClick={() => setColorModal({ open: true, editing: c })} className={ADMIN_ICON_EDIT} title="Edit" aria-label={`Edit ${c.name}`}><Pencil size={13} style={{ color: "#2D241E", opacity: 0.5 }} /></button>
                           <button type="button" onClick={() => { setDeleteModalError(null); setDeleteModal({ open: true, type: "color", id: String(c.id), idNum: c.id, name: c.name }); }} className={ADMIN_ICON_DELETE} title="Delete" aria-label={`Delete ${c.name}`}><Trash2 size={13} style={{ color: "#4A0E0E", opacity: 0.6 }} /></button>
@@ -5801,7 +5832,12 @@ export function AdminPage() {
           <CountryModal editing={countryModal.editing} onClose={() => setCountryModal({ open: false, editing: null })} onSave={handleSaveCountry} />
         )}
         {colorModal.open && (
-          <ColorModal editing={colorModal.editing} onClose={() => setColorModal({ open: false, editing: null })} onSave={handleSaveColor} />
+          <ColorModal
+            editing={colorModal.editing}
+            onClose={() => setColorModal({ open: false, editing: null })}
+            onSave={handleSaveColor}
+            laceProducts={laceProducts}
+          />
         )}
         {furnitureModal.open && (
           <ColorModal

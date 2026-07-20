@@ -458,40 +458,27 @@ public sealed class SalesAccountingService : ISalesAccountingService
                     item.VatAmountCents,
                     null);
 
-                // Expand sale-time composition into separate component lines (their own FIFO
-                // consumption + COGS), each linked to this base line. "always" components apply on
-                // every sale; "with_lace" only when this line opted into lace.
-                var components = await _db.ProductSaleComponents
-                    .Where(sc => !sc.IsVoid && sc.ProductId == productId)
-                    .OrderBy(sc => sc.Id)
-                    .ToListAsync(ct);
-
-                // If lace is requested and the base product has configured color options, the
-                // caller must name exactly one of them — never silently expand "all colors".
+                // Expand into a component lace line (its own FIFO consumption + COGS), linked to
+                // this base line, sourced from the global color->lace-product mapping. Offline
+                // sale lines carry no "bag color" to fall back on, so an explicit LaceColorId is
+                // required when WithLace is set; otherwise composition is skipped (no error).
                 if (item.WithLace)
                 {
-                    var withLaceOptions = components.Where(c => c.Condition == "with_lace" && c.ColorId != null).ToList();
-                    if (withLaceOptions.Count > 0)
-                    {
-                        if (!item.LaceColorId.HasValue)
-                            throw new AccountingBusinessException(
-                                $"Product #{productId} requires a lace color selection.");
-                        if (!withLaceOptions.Any(c => c.ColorId == item.LaceColorId.Value))
-                            throw new AccountingBusinessException(
-                                $"Product #{productId} does not offer the selected lace color.");
-                    }
-                }
+                    if (!item.LaceColorId.HasValue)
+                        throw new AccountingBusinessException(
+                            $"Product #{productId} requires a lace color selection.");
 
-                foreach (var component in components)
-                {
-                    var include = component.Condition == "always"
-                        || (component.Condition == "with_lace" && item.WithLace
-                            && item.LaceColorId.HasValue && component.ColorId == item.LaceColorId.Value);
-                    if (!include)
-                        continue;
+                    var laceProductId = await _db.Colors
+                        .Where(c => c.Id == item.LaceColorId.Value && c.LaceProductId != null)
+                        .Select(c => (int?)c.LaceProductId)
+                        .FirstOrDefaultAsync(ct);
+                    if (!laceProductId.HasValue)
+                        throw new AccountingBusinessException(
+                            $"Product #{productId} does not offer the selected lace color.");
+
                     await PrepareLineAsync(
-                        component.ComponentProductId,
-                        checked(item.Quantity * component.Quantity),
+                        laceProductId.Value,
+                        item.Quantity,
                         null,
                         0,
                         baseIndex);
