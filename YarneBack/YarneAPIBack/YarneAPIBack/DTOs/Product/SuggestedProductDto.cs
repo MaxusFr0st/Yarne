@@ -15,4 +15,10 @@ public class SuggestedProductDto
     public bool IsNew { get; set; }
 
     public bool IsBestseller { get; set; }
+
+    public string? DefaultColorName { get; set; }
+
+    public string? DefaultColorNameUk { get; set; }
+
+    public string? DefaultColorHex { get; set; }
 }

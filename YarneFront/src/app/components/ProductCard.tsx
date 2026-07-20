@@ -284,6 +284,7 @@ function ProductCardInner({
             <PriceTag amount={product.price} locale={locale} variant="card" className="flex-shrink-0" />
           </div>
 
+          {(product.colors.length > 1 || activeColorLabel) && (
           <div
             className={`flex items-center gap-2 ${isCarouselCard ? "mt-2 py-1.5 pl-1 -ml-1" : "mt-3"} ${previewMode ? "overflow-x-auto pb-1 -mx-0.5 px-0.5" : ""}`}
           >
@@ -319,6 +320,7 @@ function ProductCardInner({
               {activeColorLabel}
             </span>
           </div>
+          )}
         </div>
     </>
   );

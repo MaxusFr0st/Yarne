@@ -123,7 +123,16 @@ function mapSuggestedToProduct(s: SuggestedProductDto): Product {
     sizes: FALLBACK_SIZES,
     description: "",
     details: [],
-    colors: [{ name: "Default", hex: "#2D241E", image, images: [image] }],
+    // Suggestion cards don't carry the full color list — just the related product's own
+    // default color, if it has one, so the card shows a real swatch/name instead of a
+    // placeholder ("Default" used to leak into the UI as literal customer-facing text).
+    colors: [{
+      name: s.defaultColorName ?? "",
+      nameUk: s.defaultColorNameUk ?? null,
+      hex: s.defaultColorHex ?? "#2D241E",
+      image,
+      images: [image],
+    }],
   };
 }
 

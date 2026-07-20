@@ -95,6 +95,9 @@ export interface SuggestedProductDto {
   categoryName: string;
   isNew: boolean;
   isBestseller: boolean;
+  defaultColorName: string | null;
+  defaultColorNameUk: string | null;
+  defaultColorHex: string | null;
 }
 
 export async function fetchProducts(params?: {

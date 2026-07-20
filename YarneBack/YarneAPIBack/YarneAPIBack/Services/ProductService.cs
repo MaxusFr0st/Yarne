@@ -107,6 +107,9 @@ public class ProductService : IProductService
             .Include(p => p.Recommendations)
                 .ThenInclude(r => r.RelatedProduct)
                     .ThenInclude(rp => rp.ProductImages)
+            .Include(p => p.Recommendations)
+                .ThenInclude(r => r.RelatedProduct)
+                    .ThenInclude(rp => rp.DefaultColor)
             .FirstOrDefaultAsync(p => p.Id == id && !p.IsVoid && !p.IsInternalComponent && (!activeOnly || p.IsActive), ct);
 
         if (product == null)
@@ -148,6 +151,9 @@ public class ProductService : IProductService
             .Include(p => p.Recommendations)
                 .ThenInclude(r => r.RelatedProduct)
                     .ThenInclude(rp => rp.ProductImages)
+            .Include(p => p.Recommendations)
+                .ThenInclude(r => r.RelatedProduct)
+                    .ThenInclude(rp => rp.DefaultColor)
             .FirstOrDefaultAsync(p => p.ProductCode == productCode && p.IsActive && !p.IsInternalComponent, ct);
 
         if (product == null)
@@ -741,6 +747,9 @@ public class ProductService : IProductService
             CategoryName = p.Category?.Name ?? string.Empty,
             IsNew = p.IsNew,
             IsBestseller = p.IsBestseller,
+            DefaultColorName = p.DefaultColor?.Name,
+            DefaultColorNameUk = p.DefaultColor?.NameUk,
+            DefaultColorHex = p.DefaultColor?.HexCode,
         };
     }
 
