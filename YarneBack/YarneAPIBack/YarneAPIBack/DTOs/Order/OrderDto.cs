@@ -54,6 +54,8 @@ public class OrderItemDto
 
     public bool? WithLace { get; set; }
 
+    public string? LaceColorName { get; set; }
+
     public int Quantity { get; set; }
 
     public decimal UnitPrice { get; set; }

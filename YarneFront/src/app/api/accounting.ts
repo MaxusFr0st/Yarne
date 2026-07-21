@@ -853,6 +853,7 @@ export type SaveAccountingCustomerRequest = {
 export interface SalesChannelDto {
   id: number;
   name: string;
+  nameUk: string | null;
   feeType: string;
   feePercentage: number;
   feeFlatCents: number;
@@ -863,6 +864,7 @@ export interface SalesChannelDto {
 
 export type SaveSalesChannelRequest = {
   name: string;
+  nameUk?: string | null;
   feeType: string;
   feePercentage: number;
   feeFlatCents: number;
@@ -891,6 +893,7 @@ export interface AccountingSalesOrderDto {
   customerName: string;
   channelId: number | null;
   channelName: string;
+  channelNameUk: string | null;
   orderDate: string;
   status: string;
   currencyCode: string;
@@ -911,8 +914,6 @@ export type CreateAccountingSalesOrderItemRequest = {
   quantity: number;
   listedPriceCents?: number | null;
   vatAmountCents: number;
-  withLace?: boolean;
-  laceColorId?: number | null;
 };
 
 export type CreateAccountingSalesOrderRequest = {

@@ -21,6 +21,7 @@ public static class OrderItemSchemaPatches
             ALTER TABLE "OrderItem" ADD COLUMN IF NOT EXISTS "SizeName" character varying(20) NULL;
             ALTER TABLE "OrderItem" ADD COLUMN IF NOT EXISTS "WithLace" boolean NULL;
             ALTER TABLE "OrderItem" ADD COLUMN IF NOT EXISTS "FurnitureColorName" character varying(100) NULL;
+            ALTER TABLE "OrderItem" ADD COLUMN IF NOT EXISTS "LaceColorName" character varying(100) NULL;
 
             UPDATE "OrderItem" oi
             SET "ProductName" = p."Name",

@@ -2247,6 +2247,75 @@ function CategoryModal({
 }
 
 /* ─────────────────────────────────────────────
+   INTERNAL PRODUCT MODAL (admin-only stock items, e.g. lace colors)
+───────────────────────────────────────────── */
+function InternalProductModal({
+  colors,
+  onClose,
+  onSave,
+}: {
+  colors: { id: number; name: string }[];
+  onClose: () => void;
+  onSave: (data: { name: string; price: string; colorId: number | null; sku: string }) => void;
+}) {
+  const [name, setName] = useState("");
+  const [price, setPrice] = useState("");
+  const [colorId, setColorId] = useState<number | null>(colors[0]?.id ?? null);
+  const [sku, setSku] = useState("");
+  const fieldLabelStyle: React.CSSProperties = {
+    fontFamily: "'DM Sans', sans-serif",
+    color: "rgba(45,36,30,0.4)",
+    letterSpacing: "0.14em",
+  };
+  const fieldInput =
+    "w-full bg-transparent border rounded-[14px] px-4 py-3 text-[#2D241E] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#2D241E]/20 placeholder:text-[#2D241E]/20";
+  const fieldInputStyle: React.CSSProperties = {
+    fontFamily: "'DM Sans', sans-serif",
+    fontSize: "0.9rem",
+    borderColor: "rgba(45,36,30,0.15)",
+  };
+  return (
+    <AdminModalShell
+      eyebrow="New Internal Product"
+      title="Add Internal Product"
+      onClose={onClose}
+      bodyClassName="p-8 space-y-5"
+      footer={
+        <>
+          <AdminModalCancelButton onClick={onClose} />
+          <AdminModalPrimaryButton onClick={() => onSave({ name, price, colorId, sku })}>Add</AdminModalPrimaryButton>
+        </>
+      }
+    >
+      <p className="text-xs" style={{ fontFamily: "'DM Sans', sans-serif", color: "rgba(45,36,30,0.5)" }}>
+        Admin-only stock item (e.g. a lace color) — never shown on the storefront. Edit it afterward in
+        Accounting → Products to add its BOM, margin, and cost, exactly like any regular product.
+      </p>
+      <div>
+        <label className="block text-xs mb-2 tracking-widest uppercase" style={fieldLabelStyle}>Name</label>
+        <input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Lace White" className={fieldInput} style={fieldInputStyle} />
+      </div>
+      <div>
+        <label className="block text-xs mb-2 tracking-widest uppercase" style={fieldLabelStyle}>Price</label>
+        <input inputMode="decimal" value={price} onChange={(e) => setPrice(e.target.value)} placeholder="0.00" className={`${fieldInput} tabular-nums`} style={fieldInputStyle} />
+      </div>
+      <div>
+        <label className="block text-xs mb-2 tracking-widest uppercase" style={fieldLabelStyle}>Color</label>
+        <select value={colorId ?? ""} onChange={(e) => setColorId(e.target.value ? Number(e.target.value) : null)} className={fieldInput} style={fieldInputStyle}>
+          {colors.map((c) => (
+            <option key={c.id} value={c.id}>{c.name}</option>
+          ))}
+        </select>
+      </div>
+      <div>
+        <label className="block text-xs mb-2 tracking-widest uppercase" style={fieldLabelStyle}>SKU (optional)</label>
+        <input type="text" value={sku} onChange={(e) => setSku(e.target.value)} placeholder="Auto-generated if left blank" className={fieldInput} style={fieldInputStyle} />
+      </div>
+    </AdminModalShell>
+  );
+}
+
+/* ─────────────────────────────────────────────
    COLOR MODAL
 ───────────────────────────────────────────── */
 function ColorModal({
@@ -2751,6 +2820,7 @@ export function AdminPage() {
   const [logsLoading, setLogsLoading] = useState(false);
 
   const [productModal, setProductModal] = useState<{ open: boolean; editing: AdminProduct | null }>({ open: false, editing: null });
+  const [internalProductModal, setInternalProductModal] = useState(false);
   const [userModal, setUserModal] = useState<{ open: boolean }>({ open: false });
   const [categoryModal, setCategoryModal] = useState<{ open: boolean; editing: { id: number; name: string } | null }>({ open: false, editing: null });
   const [countryModal, setCountryModal] = useState<{ open: boolean; editing: { id: number; name: string } | null }>({ open: false, editing: null });
@@ -3307,6 +3377,37 @@ export function AdminPage() {
           : "Failed to save product";
       setProductSaveError(message);
       setSaveError(message);
+    }
+  };
+
+  const handleSaveInternalProduct = async (data: { name: string; price: string; colorId: number | null; sku: string }) => {
+    setSaveError(null);
+    if (!data.name.trim()) {
+      setSaveError("Name is required.");
+      return;
+    }
+    try {
+      const categoryId = categories.find((c) => c.name === "Accessories")?.id ?? categories[0]?.id;
+      const sizeId = sizes.find((s) => s.name === "One Size")?.id ?? sizes[0]?.id;
+      if (!categoryId || !sizeId) {
+        setSaveError("Add at least one category and size before creating an internal product.");
+        return;
+      }
+      await addProduct({
+        productCode: data.sku.trim() ? data.sku.trim() : undefined,
+        name: data.name.trim(),
+        price: parseFloat(data.price) || 0,
+        categoryId,
+        defaultSizeId: sizeId,
+        sizeIds: [sizeId],
+        defaultColorId: data.colorId ?? undefined,
+        colorIds: data.colorId ? [data.colorId] : [],
+        isInternalComponent: true,
+      });
+      setInternalProductModal(false);
+      refetch();
+    } catch (e) {
+      setSaveError(e instanceof Error ? e.message : "Failed to create internal product");
     }
   };
 
@@ -4592,14 +4693,24 @@ export function AdminPage() {
                     style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "0.85rem", borderColor: "rgba(45,36,30,0.15)" }}
                   />
                 </div>
-                <button
-                  onClick={() => setProductModal({ open: true, editing: null })}
-                  className="flex items-center gap-2 px-6 py-3 rounded-full text-[#F5F2ED] transition-all hover:opacity-90 flex-shrink-0"
-                  style={{ backgroundColor: "#2D241E", fontFamily: "'DM Sans', sans-serif", fontSize: "0.78rem", letterSpacing: "0.12em" }}
-                >
-                  <Plus size={15} />
-                  <span className="uppercase tracking-widest">Add Product</span>
-                </button>
+                <div className="flex gap-2 flex-shrink-0">
+                  <button
+                    onClick={() => setInternalProductModal(true)}
+                    className="flex items-center gap-2 px-6 py-3 rounded-full transition-all hover:opacity-80"
+                    style={{ border: "1px solid rgba(45,36,30,0.15)", color: "#2D241E", fontFamily: "'DM Sans', sans-serif", fontSize: "0.78rem", letterSpacing: "0.12em" }}
+                  >
+                    <Plus size={15} />
+                    <span className="uppercase tracking-widest">Add Internal Product</span>
+                  </button>
+                  <button
+                    onClick={() => setProductModal({ open: true, editing: null })}
+                    className="flex items-center gap-2 px-6 py-3 rounded-full text-[#F5F2ED] transition-all hover:opacity-90"
+                    style={{ backgroundColor: "#2D241E", fontFamily: "'DM Sans', sans-serif", fontSize: "0.78rem", letterSpacing: "0.12em" }}
+                  >
+                    <Plus size={15} />
+                    <span className="uppercase tracking-widest">Add Product</span>
+                  </button>
+                </div>
               </div>
 
               {/* Mobile Products List */}
@@ -5827,6 +5938,14 @@ export function AdminPage() {
             }}
             saveError={productSaveError}
             onSave={handleSaveProduct}
+          />
+        )}
+        {internalProductModal && (
+          <InternalProductModal
+            key="internal-product-modal"
+            colors={colors}
+            onClose={() => setInternalProductModal(false)}
+            onSave={handleSaveInternalProduct}
           />
         )}
         {userModal.open && (

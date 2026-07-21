@@ -53,6 +53,13 @@ public partial class OrderItem
     public bool? WithLace { get; set; }
 
     /// <summary>
+    /// Snapshot of the lace color name the customer picked (when <see cref="WithLace"/> is true).
+    /// Informational only — staff read this when manually composing the matching lace production
+    /// line in Accounting; nothing auto-derives stock/COGS from it.
+    /// </summary>
+    public string? LaceColorName { get; set; }
+
+    /// <summary>
     /// When a composed sale creates a bag line and a component (lace) line, the component line's
     /// <see cref="ParentOrderItemId"/> points at the bag line. Null for standalone / base lines.
     /// </summary>

@@ -368,6 +368,7 @@ public partial class YarneDbContext
             });
             entity.HasKey(x => x.Id);
             entity.Property(x => x.Name).HasMaxLength(150).IsRequired();
+            entity.Property(x => x.NameUk).HasMaxLength(150);
             entity.Property(x => x.FeeType).HasMaxLength(30).HasDefaultValue("none");
             entity.Property(x => x.FeePercentage).HasPrecision(7, 4);
             entity.Property(x => x.CurrencyCode).HasMaxLength(3).HasDefaultValue("UAH");

@@ -276,6 +276,7 @@ public sealed class SalesAccountingService : ISalesAccountingService
         var entity = new SalesChannel
         {
             Name = name,
+            NameUk = string.IsNullOrWhiteSpace(request.NameUk) ? null : request.NameUk.Trim(),
             FeeType = request.FeeType,
             FeePercentage = request.FeePercentage,
             FeeFlatCents = request.FeeFlatCents,
@@ -306,6 +307,7 @@ public sealed class SalesAccountingService : ISalesAccountingService
         await EnsureCurrencyAsync(currency, ct);
 
         entity.Name = name;
+        entity.NameUk = string.IsNullOrWhiteSpace(request.NameUk) ? null : request.NameUk.Trim();
         entity.FeeType = request.FeeType;
         entity.FeePercentage = request.FeePercentage;
         entity.FeeFlatCents = request.FeeFlatCents;
@@ -451,39 +453,17 @@ public sealed class SalesAccountingService : ISalesAccountingService
             foreach (var productId in requestedByProduct.Keys.OrderBy(x => x))
             {
                 var item = requestedByProduct[productId];
-                var baseIndex = await PrepareLineAsync(
+                await PrepareLineAsync(
                     productId,
                     item.Quantity,
                     item.ListedPriceCents,
                     item.VatAmountCents,
                     null);
-
-                // Expand into a component lace line (its own FIFO consumption + COGS), linked to
-                // this base line, sourced from the global color->lace-product mapping. Offline
-                // sale lines carry no "bag color" to fall back on, so an explicit LaceColorId is
-                // required when WithLace is set; otherwise composition is skipped (no error).
-                if (item.WithLace)
-                {
-                    if (!item.LaceColorId.HasValue)
-                        throw new AccountingBusinessException(
-                            $"Product #{productId} requires a lace color selection.");
-
-                    var laceProductId = await _db.Colors
-                        .Where(c => c.Id == item.LaceColorId.Value && c.LaceProductId != null)
-                        .Select(c => (int?)c.LaceProductId)
-                        .FirstOrDefaultAsync(ct);
-                    if (!laceProductId.HasValue)
-                        throw new AccountingBusinessException(
-                            $"Product #{productId} does not offer the selected lace color.");
-
-                    await PrepareLineAsync(
-                        laceProductId.Value,
-                        item.Quantity,
-                        null,
-                        0,
-                        baseIndex);
-                }
             }
+
+            // Lace is manufactured and sold as its own product now — staff add it as a plain,
+            // independent line (same as any other product) instead of it being auto-composed from
+            // a bag's "with lace" flag.
 
             var listedRevenue = prepared.Sum(x => checked(x.ListedPriceCents * x.Quantity));
             var channelFee = request.ChannelFeeCents ?? await CalculateChannelFeeAsync(
@@ -520,6 +500,90 @@ public sealed class SalesAccountingService : ISalesAccountingService
         });
 
         return (await GetSalesOrderAsync(orderId, ct))!;
+    }
+
+    private const string OnlineStoreChannelName = "Онлайн магазин";
+
+    public async Task ComposeReceivedOrderAsync(int orderId, int? actorId, CancellationToken ct = default)
+    {
+        var strategy = _db.Database.CreateExecutionStrategy();
+        await strategy.ExecuteAsync(async () =>
+        {
+            await using var transaction = await _db.Database.BeginTransactionAsync(
+                IsolationLevel.Serializable,
+                ct);
+
+            var order = await _db.Orders
+                .Include(o => o.OrderItems)
+                .FirstOrDefaultAsync(o => o.Id == orderId && !o.IsVoid, ct);
+            if (order is null)
+            {
+                await transaction.RollbackAsync(ct);
+                return;
+            }
+
+            var items = order.OrderItems.Where(i => !i.IsVoid && i.ProductId.HasValue).ToList();
+            if (items.Count == 0)
+            {
+                await transaction.RollbackAsync(ct);
+                return;
+            }
+
+            // Idempotency: this order's items already have FIFO consumption recorded (composed
+            // before, e.g. a Received -> Shipped -> Received bounce) — nothing left to do.
+            var itemIds = items.Select(i => i.Id).ToList();
+            var alreadyComposed = await _db.SalesFinishedGoodsConsumptions
+                .AnyAsync(c => itemIds.Contains(c.SalesOrderItemId), ct);
+            if (alreadyComposed)
+            {
+                await transaction.RollbackAsync(ct);
+                return;
+            }
+
+            var channel = await _db.SalesChannels
+                .SingleOrDefaultAsync(x => x.Name == OnlineStoreChannelName && !x.IsVoid, ct)
+                ?? throw new AccountingBusinessException(
+                    $"Sales channel \"{OnlineStoreChannelName}\" was not found.");
+
+            var now = DateTime.UtcNow;
+            // Website checkout already decremented Product.QuantityInStock / FinishedGoodsInventory
+            // for these items — only the FIFO lot ledger (used for COGS) hasn't been consumed yet.
+            // Consume it now; do NOT touch the stock counters again here.
+            foreach (var item in items.OrderBy(i => i.Id))
+            {
+                var lotConsumptions = await ConsumeFinishedGoodsFifoAsync(item.ProductId!.Value, item.Quantity, ct);
+                var totalCogs = lotConsumptions.Sum(x => x.TotalCostCents);
+                item.UnitCogsCents = item.Quantity == 0 ? 0 : RoundToCents((decimal)totalCogs / item.Quantity);
+                item.UpdatedAt = now;
+                foreach (var lc in lotConsumptions)
+                {
+                    _db.SalesFinishedGoodsConsumptions.Add(new SalesFinishedGoodsConsumption
+                    {
+                        SalesOrderItemId = item.Id,
+                        FinishedGoodsLotId = lc.LotId,
+                        Quantity = lc.Quantity,
+                        UnitCostAtSaleCents = lc.UnitCostCents,
+                        TotalCostCents = lc.TotalCostCents,
+                        CreatedBy = actorId,
+                        CreatedAt = now,
+                        UpdatedAt = now,
+                    });
+                }
+            }
+
+            var listedRevenue = items.Sum(i => checked(i.ListedPriceCents * i.Quantity));
+            // ponytail: fee assumed to apply to the whole order (no per-line ChannelFeeShareCents
+            // split) — "Онлайн магазин" is a feeType="none" channel today, so this is always 0.
+            // If it's ever given a real fee, mirror AllocateFee's proportional split here too.
+            order.ChannelId = channel.Id;
+            order.ChannelFeeCents = await CalculateChannelFeeAsync(
+                channel, listedRevenue, order.CurrencyCode, order.OrderDate, ct);
+            order.IsChannelFeeOverridden = false;
+            order.UpdatedAt = now;
+
+            await _db.SaveChangesAsync(ct);
+            await transaction.CommitAsync(ct);
+        });
     }
 
     private IQueryable<Order> SalesOrderQuery()
@@ -757,6 +821,7 @@ public sealed class SalesAccountingService : ISalesAccountingService
             $"{entity.Customer.FirstName} {entity.Customer.LastName}".Trim(),
             entity.ChannelId,
             entity.Channel?.Name ?? "Own store",
+            entity.Channel?.NameUk,
             entity.CreatedAt,
             entity.Status,
             entity.CurrencyCode,
@@ -776,6 +841,7 @@ public sealed class SalesAccountingService : ISalesAccountingService
         new(
             entity.Id,
             entity.Name,
+            entity.NameUk,
             entity.FeeType,
             entity.FeePercentage,
             entity.FeeFlatCents,
@@ -787,6 +853,8 @@ public sealed class SalesAccountingService : ISalesAccountingService
     {
         if (string.IsNullOrWhiteSpace(request.Name) || request.Name.Trim().Length > 150)
             throw new AccountingBusinessException("Channel name is required and cannot exceed 150 characters.");
+        if (request.NameUk?.Trim().Length > 150)
+            throw new AccountingBusinessException("Ukrainian channel name cannot exceed 150 characters.");
         if (!FeeTypes.Contains(request.FeeType))
             throw new AccountingBusinessException("Fee type is invalid.");
         if (request.FeePercentage is < 0 or > 100 || request.FeeFlatCents < 0)

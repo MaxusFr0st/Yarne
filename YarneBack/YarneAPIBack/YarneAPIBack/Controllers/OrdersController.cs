@@ -3,6 +3,7 @@ using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using YarneAPIBack.Accounting.Services.Contracts;
 using YarneAPIBack.Configuration;
 using YarneAPIBack.Data;
 using YarneAPIBack.DTOs.Order;
@@ -38,19 +39,22 @@ public class OrdersController : ControllerBase
     private readonly IEmailService _emailService;
     private readonly ILogger<OrdersController> _logger;
     private readonly IConfiguration _configuration;
+    private readonly ISalesAccountingService _salesAccountingService;
 
     public OrdersController(
         YarneDbContext context,
         IAdminActivityLogService activityLogs,
         IEmailService emailService,
         IConfiguration configuration,
-        ILogger<OrdersController> logger)
+        ILogger<OrdersController> logger,
+        ISalesAccountingService salesAccountingService)
     {
         _context = context;
         _activityLogs = activityLogs;
         _emailService = emailService;
         _configuration = configuration;
         _logger = logger;
+        _salesAccountingService = salesAccountingService;
     }
 
     [HttpGet("my")]
@@ -239,24 +243,22 @@ public class OrdersController : ControllerBase
             .GroupBy(p => p.ProductCode, StringComparer.OrdinalIgnoreCase)
             .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
 
-        // Global color -> lace-product mapping (edited once on the admin Colors tab). Applies
-        // identically to every lace-enabled bag (Product.Lace == true); no per-product recipe.
-        var laceByColorId = await _context.Colors
+        // Global color -> lace-product mapping (edited once on the admin Colors tab) is used here
+        // only to price the chosen lace color and validate it's offered. It does NOT auto-compose
+        // a second order line/stock consumption any more: lace is manufactured and sold as its own
+        // line only when staff manually add it while reconciling the sale in Accounting.
+        var laceColorInfo = await _context.Colors
             .AsNoTracking()
             .Where(c => c.LaceProductId != null)
-            .ToDictionaryAsync(c => c.Id, c => c.LaceProductId!.Value, ct);
-        var laceProductIds = laceByColorId.Values.Distinct().ToList();
-        var componentProducts = laceProductIds.Count == 0
-            ? new Dictionary<int, Product>()
-            : (await _context.Products
-                .Include(p => p.ProductImages)
-                .Include(p => p.ProductColors)
-                    .ThenInclude(pc => pc.Images)
-                .Include(p => p.ProductColors)
-                    .ThenInclude(pc => pc.SizeImages)
+            .Select(c => new { c.Id, c.Name, LaceProductId = c.LaceProductId!.Value })
+            .ToDictionaryAsync(c => c.Id, c => c);
+        var laceProductIds = laceColorInfo.Values.Select(c => c.LaceProductId).Distinct().ToList();
+        var laceProductPrices = laceProductIds.Count == 0
+            ? new Dictionary<int, decimal>()
+            : await _context.Products
                 .Where(p => laceProductIds.Contains(p.Id))
-                .ToListAsync(ct))
-                .ToDictionary(p => p.Id);
+                .Select(p => new { p.Id, p.Price })
+                .ToDictionaryAsync(p => p.Id, p => p.Price, ct);
 
         var requestedCountryIds = request.Items
             .Where(i => i.CountryId.HasValue)
@@ -319,56 +321,34 @@ public class OrdersController : ControllerBase
 
             quantityByProductId[product.Id] = quantityByProductId.GetValueOrDefault(product.Id) + item.Quantity;
 
-            // Expand into a child lace OrderItem from the global color->lace-product mapping
-            // (each with its own pooled stock decrement + COGS). Never hardcode price — the
-            // lace product's own catalog price is the surcharge, added fresh here.
+            // Price + record the chosen lace color on this same line (no second order item, no
+            // stock/FIFO consumption here). If the client named a color, it must be one of the
+            // globally-mapped lace colors; otherwise default to the bag's own color if that color
+            // is itself mapped, else no color (surcharge stays zero, no error).
             if (product.Lace && item.WithLace == true)
             {
-                // If the client named a color, it must be one of the globally-mapped lace colors
-                // (never silently substitute). If it didn't, default to the bag's own color only
-                // when that color is itself mapped; otherwise no forced selection and no error —
-                // the line simply doesn't compose a lace child.
                 int? effectiveColorId;
                 if (item.LaceColorId.HasValue)
                 {
-                    if (!laceByColorId.ContainsKey(item.LaceColorId.Value))
+                    if (!laceColorInfo.ContainsKey(item.LaceColorId.Value))
                         return BadRequest(new { message = $"Product '{productKey}' does not offer the selected lace color." });
                     effectiveColorId = item.LaceColorId.Value;
                 }
                 else
                 {
-                    effectiveColorId = product.DefaultColorId.HasValue && laceByColorId.ContainsKey(product.DefaultColorId.Value)
+                    effectiveColorId = product.DefaultColorId.HasValue && laceColorInfo.ContainsKey(product.DefaultColorId.Value)
                         ? product.DefaultColorId.Value
                         : null;
                 }
 
                 if (effectiveColorId.HasValue
-                    && componentProducts.TryGetValue(laceByColorId[effectiveColorId.Value], out var componentProduct)
-                    && componentProduct.IsActive && !componentProduct.IsVoid)
+                    && laceProductPrices.TryGetValue(laceColorInfo[effectiveColorId.Value].LaceProductId, out var laceSurcharge))
                 {
-                    var componentQuantity = item.Quantity;
-                    var componentPriceCents = checked((long)decimal.Round(
-                        componentProduct.Price * 100m, 0, MidpointRounding.AwayFromZero));
-                    var componentLine = new OrderItem
-                    {
-                        CountryId = item.CountryId,
-                        Quantity = componentQuantity,
-                        UnitPrice = componentProduct.Price,
-                        ListedPriceCents = componentPriceCents,
-                        NetPriceCents = componentPriceCents,
-                        UnitCogsCents = 0,
-                        VatAmountCents = 0,
-                        CreatedBy = customerId.Value,
-                        CreatedAt = now,
-                        UpdatedAt = now,
-                        // Component line links back to its bag line so order/return views group them.
-                        ParentOrderItem = orderItem,
-                    };
-                    OrderItemSnapshotHelper.ApplyProductSnapshot(componentLine, componentProduct);
-                    orderItems.Add(componentLine);
-
-                    quantityByProductId[componentProduct.Id] =
-                        quantityByProductId.GetValueOrDefault(componentProduct.Id) + componentQuantity;
+                    orderItem.LaceColorName = laceColorInfo[effectiveColorId.Value].Name;
+                    var surchargeCents = checked((long)decimal.Round(laceSurcharge * 100m, 0, MidpointRounding.AwayFromZero));
+                    orderItem.UnitPrice += laceSurcharge;
+                    orderItem.ListedPriceCents += surchargeCents;
+                    orderItem.NetPriceCents += surchargeCents;
                 }
             }
         }
@@ -662,6 +642,22 @@ public class OrdersController : ControllerBase
 
             if (statusEmailEvent.HasValue)
                 QueueOrderStatusEmail(updatedOrder, statusEmailEvent.Value);
+
+            // Marking an order Received is a fulfillment fact and must succeed regardless of
+            // accounting state — auto-composing the Sales-tab entry never blocks it; failures are
+            // only logged for manual follow-up.
+            if (string.Equals(canonicalStatus, "Received", StringComparison.OrdinalIgnoreCase))
+            {
+                try
+                {
+                    var (composeActorId, _) = AdminActivityLogHelper.GetActor(HttpContext);
+                    await _salesAccountingService.ComposeReceivedOrderAsync(id, composeActorId, ct);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Failed to auto-compose accounting sale for order #{OrderId} after marking Received.", id);
+                }
+            }
         }
 
         var (actorUserId, actorEmail) = AdminActivityLogHelper.GetActor(HttpContext);
@@ -778,6 +774,7 @@ public class OrdersController : ControllerBase
                     FurnitureColorName = i.FurnitureColorName,
                     SizeName = i.SizeName,
                     WithLace = i.WithLace,
+                    LaceColorName = i.LaceColorName,
                     Quantity = i.Quantity,
                     UnitPrice = i.UnitPrice,
                     LineTotal = i.UnitPrice * i.Quantity,

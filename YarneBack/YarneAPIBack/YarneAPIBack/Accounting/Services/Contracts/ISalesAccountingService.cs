@@ -37,4 +37,12 @@ public interface ISalesAccountingService
         int? actorId,
         CancellationToken ct = default);
     Task<bool> VoidSalesOrderAsync(int id, int? actorId, CancellationToken ct = default);
+
+    /// <summary>
+    /// Retroactively runs FIFO COGS consumption on an already-existing website <c>Order</c>'s
+    /// items and assigns it to the "Онлайн магазин" channel, so it starts showing correctly in
+    /// the Accounting Sales list. Does not create a new order or touch stock counters (those were
+    /// already decremented at checkout) — idempotent, safe to call more than once.
+    /// </summary>
+    Task ComposeReceivedOrderAsync(int orderId, int? actorId, CancellationToken ct = default);
 }

@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Ban, ChevronDown, ChevronUp, Loader2, Pencil, Plus, RefreshCw } from "lucide-react";
 import {
   createAccountingCustomer,
@@ -18,7 +19,6 @@ import {
   type AccountingSalesOrderDto,
   type SalesChannelDto,
 } from "../../api/accounting";
-import { fetchColors, type ColorDto } from "../../api/admin";
 import {
   Button,
   Dialog,
@@ -42,11 +42,16 @@ type SalesLine = {
   quantity: string;
   listedPrice: string;
   vat: string;
-  withLace: boolean;
-  laceColorId: number | null;
 };
 
 const BASE_CURRENCY = "UAH";
+
+/** Picks the channel's Ukrainian name when the site's active language is Ukrainian and one is
+ *  set, falling back to the (required) English name otherwise. */
+function channelDisplayName(channel: { name: string; nameUk?: string | null }, language: string) {
+  if (language.startsWith("uk") && channel.nameUk?.trim()) return channel.nameUk.trim();
+  return channel.name;
+}
 
 /** Prefill listed price in the order currency from the product's selling price.
  *  Returns null when conversion is ambiguous so the field stays blank and the
@@ -85,10 +90,10 @@ function estimateChannelFee(
 }
 
 export function AdminSalesView({ mode }: { mode: "channels" | "sales" }) {
+  const { i18n } = useTranslation();
   const [channels, setChannels] = useState<SalesChannelDto[]>([]);
   const [orders, setOrders] = useState<AccountingSalesOrderDto[]>([]);
   const [products, setProducts] = useState<AccountingProductDto[]>([]);
-  const [colors, setColors] = useState<ColorDto[]>([]);
   const [customers, setCustomers] = useState<AccountingCustomerDto[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -98,6 +103,7 @@ export function AdminSalesView({ mode }: { mode: "channels" | "sales" }) {
   const [channelModal, setChannelModal] = useState<SalesChannelDto | "new" | null>(null);
   const [channelForm, setChannelForm] = useState({
     name: "",
+    nameUk: "",
     feeType: "none",
     feePercentage: "0",
     feeFlat: "0",
@@ -114,7 +120,7 @@ export function AdminSalesView({ mode }: { mode: "channels" | "sales" }) {
     exchangeRate: "",
     overrideFee: false,
     channelFee: "",
-    lines: [{ productId: 0, quantity: "1", listedPrice: "", vat: "0", withLace: false, laceColorId: null }] as SalesLine[],
+    lines: [{ productId: 0, quantity: "1", listedPrice: "", vat: "0" }] as SalesLine[],
   });
   const [customerQuery, setCustomerQuery] = useState("");
   const [quickCustomerOpen, setQuickCustomerOpen] = useState(false);
@@ -128,20 +134,18 @@ export function AdminSalesView({ mode }: { mode: "channels" | "sales" }) {
       if (mode === "channels") {
         setChannels(await fetchSalesChannels());
       } else {
-        const [nextOrders, nextChannels, nextProducts, nextCustomers, currencies, , nextColors] = await Promise.all([
+        const [nextOrders, nextChannels, nextProducts, nextCustomers, currencies] = await Promise.all([
           fetchSalesOrders(),
           fetchSalesChannels(),
           fetchAccountingProducts(),
           fetchAccountingCustomers(),
           fetchAccountingCurrencies(),
           fetchExchangeRates(),
-          fetchColors(),
         ]);
         setOrders(nextOrders);
         setChannels(nextChannels);
         setProducts(nextProducts);
         setCustomers(nextCustomers);
-        setColors(nextColors);
         const base = currencies.find((c) => c.isBase)?.code ?? "UAH";
         setOrderForm((current) => ({
           ...current,
@@ -193,6 +197,7 @@ export function AdminSalesView({ mode }: { mode: "channels" | "sales" }) {
   const openChannel = (channel: SalesChannelDto | "new") => {
     setChannelForm({
       name: channel === "new" ? "" : channel.name,
+      nameUk: channel === "new" ? "" : channel.nameUk ?? "",
       feeType: channel === "new" ? "none" : channel.feeType,
       feePercentage: channel === "new" ? "0" : String(channel.feePercentage),
       feeFlat: channel === "new" ? "0" : inputFromCents(channel.feeFlatCents),
@@ -211,6 +216,7 @@ export function AdminSalesView({ mode }: { mode: "channels" | "sales" }) {
     try {
       const body = {
         name: channelForm.name.trim(),
+        nameUk: channelForm.nameUk.trim() || null,
         feeType: channelForm.feeType,
         feePercentage: Number(channelForm.feePercentage) || 0,
         feeFlatCents: centsFromInput(channelForm.feeFlat),
@@ -270,8 +276,6 @@ export function AdminSalesView({ mode }: { mode: "channels" | "sales" }) {
         quantity: "1",
         listedPrice: autoPrice != null ? inputFromCents(autoPrice) : "",
         vat: "0",
-        withLace: false,
-        laceColorId: null,
       }],
     });
     setCustomerQuery("");
@@ -295,8 +299,6 @@ export function AdminSalesView({ mode }: { mode: "channels" | "sales" }) {
             );
             next.listedPrice = displayCents != null ? inputFromCents(displayCents) : "";
           }
-          // Product changed — the previous lace color selection no longer applies.
-          next.laceColorId = null;
         }
         return next;
       }),
@@ -330,8 +332,6 @@ export function AdminSalesView({ mode }: { mode: "channels" | "sales" }) {
           quantity: Number(line.quantity),
           listedPriceCents: line.listedPrice ? centsFromInput(line.listedPrice) : null,
           vatAmountCents: centsFromInput(line.vat),
-          withLace: line.withLace,
-          laceColorId: line.withLace ? line.laceColorId : null,
         })),
       });
       setOrderModal(false);
@@ -413,7 +413,7 @@ export function AdminSalesView({ mode }: { mode: "channels" | "sales" }) {
               {channels.map((channel) => (
                 <div key={channel.id} className="flex flex-wrap items-center justify-between gap-3 px-5 py-4">
                   <div>
-                    <p className="text-lg text-[#2D241E]" style={{ fontFamily: "'Cormorant Garamond', serif" }}>{channel.name}</p>
+                    <p className="text-lg text-[#2D241E]" style={{ fontFamily: "'Cormorant Garamond', serif" }}>{channelDisplayName(channel, i18n.language)}</p>
                     <p className="mt-1 text-xs text-[#2D241E]/55" style={{ fontFamily: "'DM Sans', sans-serif" }}>
                       Fee: {channel.feeType}
                       {channel.feeType.includes("percentage") || channel.feeType === "percentage"
@@ -424,10 +424,10 @@ export function AdminSalesView({ mode }: { mode: "channels" | "sales" }) {
                     </p>
                   </div>
                   <div className="flex gap-1">
-                    <button type="button" className="flex size-10 cursor-pointer items-center justify-center rounded-full hover:bg-[#2D241E]/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#75482E]" aria-label={`Edit ${channel.name}`} onClick={() => openChannel(channel)}>
+                    <button type="button" className="flex size-10 cursor-pointer items-center justify-center rounded-full hover:bg-[#2D241E]/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#75482E]" aria-label={`Edit ${channelDisplayName(channel, i18n.language)}`} onClick={() => openChannel(channel)}>
                       <Pencil size={15} />
                     </button>
-                    <button type="button" className="flex size-10 cursor-pointer items-center justify-center rounded-full text-[#641D1D] hover:bg-[#641D1D]/8 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#75482E]" aria-label={`Void ${channel.name}`} onClick={() => setVoidChannelId(channel.id)}>
+                    <button type="button" className="flex size-10 cursor-pointer items-center justify-center rounded-full text-[#641D1D] hover:bg-[#641D1D]/8 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#75482E]" aria-label={`Void ${channelDisplayName(channel, i18n.language)}`} onClick={() => setVoidChannelId(channel.id)}>
                       <Ban size={15} />
                     </button>
                   </div>
@@ -441,8 +441,12 @@ export function AdminSalesView({ mode }: { mode: "channels" | "sales" }) {
           <Dialog title={channelModal === "new" ? "New channel" : "Edit channel"} onClose={() => setChannelModal(null)}>
             <div className="space-y-4">
               <div>
-                <Label htmlFor="ch-name">Name</Label>
+                <Label htmlFor="ch-name">Name (English)</Label>
                 <input id="ch-name" className={controlClass()} value={channelForm.name} onChange={(e) => setChannelForm((c) => ({ ...c, name: e.target.value }))} />
+              </div>
+              <div>
+                <Label htmlFor="ch-name-uk">Name (Ukrainian)</Label>
+                <input id="ch-name-uk" className={controlClass()} value={channelForm.nameUk} onChange={(e) => setChannelForm((c) => ({ ...c, nameUk: e.target.value }))} placeholder={channelForm.name || "e.g. Онлайн магазин"} />
               </div>
               <div>
                 <Label htmlFor="ch-fee-type">Fee type</Label>
@@ -539,7 +543,7 @@ export function AdminSalesView({ mode }: { mode: "channels" | "sales" }) {
                           {order.customerName}
                         </p>
                         <p className="mt-1 text-xs text-[#2D241E]/55" style={{ fontFamily: "'DM Sans', sans-serif" }}>
-                          #{order.id} · {formatLocalDate(order.orderDate)} · {order.channelName}
+                          #{order.id} · {formatLocalDate(order.orderDate)} · {channelDisplayName({ name: order.channelName, nameUk: order.channelNameUk }, i18n.language)}
                           {order.isChannelFeeOverridden ? " · fee overridden" : ""}
                         </p>
                         <p className="mt-2 text-sm tabular-nums text-[#2D241E]" style={{ fontFamily: "'DM Sans', sans-serif" }}>
@@ -645,7 +649,7 @@ export function AdminSalesView({ mode }: { mode: "channels" | "sales" }) {
                 <select id="sale-channel" className={controlClass()} value={orderForm.channelId || ""} onChange={(e) => setOrderForm((c) => ({ ...c, channelId: Number(e.target.value) }))}>
                   <option value="">Select channel</option>
                   {channels.map((channel) => (
-                    <option key={channel.id} value={channel.id}>{channel.name}</option>
+                    <option key={channel.id} value={channel.id}>{channelDisplayName(channel, i18n.language)}</option>
                   ))}
                 </select>
               </div>
@@ -718,83 +722,29 @@ export function AdminSalesView({ mode }: { mode: "channels" | "sales" }) {
 
             <div className="space-y-3">
               {orderForm.lines.map((line, index) => {
-                const lineProduct = products.find((p) => p.id === line.productId);
-                // Global lace-color list (Colors admin tab mapping) — identical for every
-                // lace-eligible product. Gate on the product's own `lace` flag.
-                const laceComponents = lineProduct?.lace
-                  ? colors
-                      .filter((c) => c.laceProductId != null)
-                      .map((c) => {
-                        const laceProduct = products.find((p) => p.id === c.laceProductId);
-                        return {
-                          colorId: c.id,
-                          colorName: c.name,
-                          priceCents: laceProduct?.sellingPriceCents ?? 0,
-                          currencyCode: laceProduct?.sellingCurrencyCode ?? "UAH",
-                        };
-                      })
-                  : [];
-                const offersLace = laceComponents.length > 0;
-                const selectedLaceComponent = laceComponents.find((sc) => sc.colorId === line.laceColorId) ?? null;
-                const laceSurchargeCents = selectedLaceComponent?.priceCents ?? 0;
                 return (
-                  <div key={index} className="space-y-2">
-                    <div className="grid gap-3 sm:grid-cols-4">
-                      <div className="sm:col-span-2">
-                        <Label htmlFor={`sale-prod-${index}`}>Product</Label>
-                        <select id={`sale-prod-${index}`} className={controlClass()} value={line.productId || ""} onChange={(e) => updateLine(index, { productId: Number(e.target.value), withLace: false })}>
-                          <option value="">Select</option>
-                          {products.map((product) => (
-                            <option key={product.id} value={product.id}>{product.name}</option>
-                          ))}
-                        </select>
-                      </div>
-                      <div>
-                        <Label htmlFor={`sale-qty-${index}`}>Qty</Label>
-                        <input id={`sale-qty-${index}`} inputMode="numeric" className={`${controlClass()} tabular-nums`} value={line.quantity} onChange={(e) => updateLine(index, { quantity: e.target.value })} />
-                      </div>
-                      <div>
-                        <Label htmlFor={`sale-price-${index}`}>Listed</Label>
-                        <input id={`sale-price-${index}`} inputMode="decimal" className={`${controlClass()} tabular-nums`} value={line.listedPrice} onChange={(e) => updateLine(index, { listedPrice: e.target.value })} />
-                      </div>
-                      <div>
-                        <Label htmlFor={`sale-vat-${index}`}>VAT</Label>
-                        <input id={`sale-vat-${index}`} inputMode="decimal" className={`${controlClass()} tabular-nums`} value={line.vat} onChange={(e) => updateLine(index, { vat: e.target.value })} />
-                      </div>
+                  <div key={index} className="grid gap-3 sm:grid-cols-4">
+                    <div className="sm:col-span-2">
+                      <Label htmlFor={`sale-prod-${index}`}>Product</Label>
+                      <select id={`sale-prod-${index}`} className={controlClass()} value={line.productId || ""} onChange={(e) => updateLine(index, { productId: Number(e.target.value) })}>
+                        <option value="">Select</option>
+                        {products.map((product) => (
+                          <option key={product.id} value={product.id}>{product.name}</option>
+                        ))}
+                      </select>
                     </div>
-                    {offersLace ? (
-                      <div className="flex flex-wrap items-center gap-3">
-                        <label className="flex items-center gap-2 text-sm text-[#2D241E]/70" style={{ fontFamily: "'DM Sans', sans-serif" }}>
-                          <input
-                            type="checkbox"
-                            className="size-4 cursor-pointer"
-                            checked={line.withLace}
-                            onChange={(e) => updateLine(index, {
-                              withLace: e.target.checked,
-                              laceColorId: e.target.checked ? (line.laceColorId ?? laceComponents[0].colorId) : null,
-                            })}
-                          />
-                          With lace — adds a separate lace line
-                          {line.withLace && laceSurchargeCents > 0
-                            ? ` (+${moneyFromCents(laceSurchargeCents, selectedLaceComponent?.currencyCode ?? lineProduct?.sellingCurrencyCode ?? "UAH")})`
-                            : ""}
-                        </label>
-                        {line.withLace ? (
-                          <select
-                            className={controlClass()}
-                            value={line.laceColorId ?? ""}
-                            onChange={(e) => updateLine(index, { laceColorId: Number(e.target.value) })}
-                            aria-label="Lace color"
-                          >
-                            {laceComponents.map((sc) => (
-                              <option key={sc.colorId} value={sc.colorId}>
-                                {sc.colorName}
-                              </option>
-                            ))}
-                          </select>
-                        ) : null}
-                      </div>
-                    ) : null}
+                    <div>
+                      <Label htmlFor={`sale-qty-${index}`}>Qty</Label>
+                      <input id={`sale-qty-${index}`} inputMode="numeric" className={`${controlClass()} tabular-nums`} value={line.quantity} onChange={(e) => updateLine(index, { quantity: e.target.value })} />
+                    </div>
+                    <div>
+                      <Label htmlFor={`sale-price-${index}`}>Listed</Label>
+                      <input id={`sale-price-${index}`} inputMode="decimal" className={`${controlClass()} tabular-nums`} value={line.listedPrice} onChange={(e) => updateLine(index, { listedPrice: e.target.value })} />
+                    </div>
+                    <div>
+                      <Label htmlFor={`sale-vat-${index}`}>VAT</Label>
+                      <input id={`sale-vat-${index}`} inputMode="decimal" className={`${controlClass()} tabular-nums`} value={line.vat} onChange={(e) => updateLine(index, { vat: e.target.value })} />
+                    </div>
                   </div>
                 );
               })}
@@ -818,8 +768,6 @@ export function AdminSalesView({ mode }: { mode: "channels" | "sales" }) {
                     quantity: "1",
                     listedPrice: displayCents != null ? inputFromCents(displayCents) : "",
                     vat: "0",
-                    withLace: false,
-                    laceColorId: null,
                   }],
                 };
               })}

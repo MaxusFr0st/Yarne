@@ -254,6 +254,11 @@ public class SalesChannel
 {
     public int Id { get; set; }
     public string Name { get; set; } = null!;
+
+    /// <summary>Ukrainian display name, shown instead of <see cref="Name"/> when the site's
+    /// active language is Ukrainian. Falls back to <see cref="Name"/> when null.</summary>
+    public string? NameUk { get; set; }
+
     public string FeeType { get; set; } = "none";
     public decimal FeePercentage { get; set; }
     public long FeeFlatCents { get; set; }

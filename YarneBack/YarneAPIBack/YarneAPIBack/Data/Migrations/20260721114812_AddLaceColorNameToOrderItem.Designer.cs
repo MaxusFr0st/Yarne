@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using YarneAPIBack.Data;
@@ -11,9 +12,11 @@ using YarneAPIBack.Data;
 namespace YarneAPIBack.Data.Migrations
 {
     [DbContext(typeof(YarneDbContext))]
-    partial class YarneDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260721114812_AddLaceColorNameToOrderItem")]
+    partial class AddLaceColorNameToOrderItem
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -1499,10 +1502,6 @@ namespace YarneAPIBack.Data.Migrations
 
                     b.Property<string>("Name")
                         .IsRequired()
-                        .HasMaxLength(150)
-                        .HasColumnType("character varying(150)");
-
-                    b.Property<string>("NameUk")
                         .HasMaxLength(150)
                         .HasColumnType("character varying(150)");
 
