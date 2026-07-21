@@ -3595,12 +3595,12 @@ export function AdminPage() {
 
   const totalRevenue = Number(ordersSummary.totalRevenue ?? 0);
   const activeUsers = users.filter((u) => u.status === "active").length;
-  const lowStockCount = products.filter((p) => (p.stock ?? 0) < 10).length;
-  const criticalLowStockCount = products.filter((p) => (p.stock ?? 0) <= 2).length;
+  const lowStockCount = products.filter((p) => !p.isInternalComponent && (p.stock ?? 0) < 10).length;
+  const criticalLowStockCount = products.filter((p) => !p.isInternalComponent && (p.stock ?? 0) <= 2).length;
   const criticalLowStockProducts = useMemo(
     () =>
       products
-        .filter((p) => (p.stock ?? 0) <= 2)
+        .filter((p) => !p.isInternalComponent && (p.stock ?? 0) <= 2)
         .sort((a, b) => (a.stock ?? 0) - (b.stock ?? 0)),
     [products]
   );

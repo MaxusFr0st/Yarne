@@ -287,6 +287,17 @@ public class ProductService : IProductService
         await ReplaceVariantStocksAsync(product.Id, request.VariantStocks, ct);
         await ReplaceProductRecommendationsAsync(product.Id, product.ProductCode, request.SuggestedProductCodes, ct);
 
+        // Internal lace-color products (e.g. "Lace Brown") auto-link to their own color in the
+        // global lace price map, so creating one with color=Brown is enough for bags to price
+        // lace by that color — no separate manual step on the Colors tab. Never overwrite an
+        // existing mapping (an admin may have deliberately pointed that color elsewhere).
+        if (request.IsInternalComponent && defaultColorId.HasValue)
+        {
+            var laceColor = await _context.Colors.FindAsync(new object[] { defaultColorId.Value }, ct);
+            if (laceColor != null && laceColor.LaceProductId == null)
+                laceColor.LaceProductId = product.Id;
+        }
+
         await _context.SaveChangesAsync(ct);
 
         var created = await _context.Products
