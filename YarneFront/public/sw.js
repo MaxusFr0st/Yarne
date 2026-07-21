@@ -1,4 +1,4 @@
-const CACHE_VERSION = "yarne-shell-v2";
+const CACHE_VERSION = "yarne-shell-v3";
 const APP_SHELL = [
   "/",
   "/index.html",
@@ -24,35 +24,38 @@ self.addEventListener("activate", (event) => {
             .filter((key) => key !== CACHE_VERSION)
             .map((key) => caches.delete(key)),
         ),
-      ),
+      )
+      .then(() => self.clients.claim()),
   );
-  self.clients.claim();
 });
 
 self.addEventListener("fetch", (event) => {
   const request = event.request;
   if (request.method !== "GET") return;
 
-  const url = new URL(request.url);
-  // Skip API, third-party hosts, Cloudflare beacons, and cross-origin assets —
-  // caching those multiplies in-flight requests and trips CSP / RUM noise.
-  if (
-    url.origin !== self.location.origin ||
-    url.pathname.startsWith("/api/") ||
-    url.pathname.startsWith("/cdn-cgi/")
-  ) {
+  let url;
+  try {
+    url = new URL(request.url);
+  } catch {
     return;
   }
+
+  // Only handle same-origin app-shell assets. Never touch cross-origin (fonts, CDN,
+  // Apple/Google SDKs, Cloudflare beacons) — those were causing CSP + RUM console noise.
+  if (url.origin !== self.location.origin) return;
+  if (url.pathname.startsWith("/api/") || url.pathname.startsWith("/cdn-cgi/")) return;
 
   if (request.mode === "navigate") {
     event.respondWith(
       fetch(request)
         .then((response) => {
-          const copy = response.clone();
-          caches.open(CACHE_VERSION).then((cache) => cache.put("/index.html", copy));
+          if (response.ok) {
+            const copy = response.clone();
+            caches.open(CACHE_VERSION).then((cache) => cache.put("/index.html", copy));
+          }
           return response;
         })
-        .catch(() => caches.match("/index.html")),
+        .catch(() => caches.match("/index.html").then((cached) => cached || Response.error())),
     );
     return;
   }
@@ -68,8 +71,6 @@ self.addEventListener("fetch", (event) => {
             caches.open(CACHE_VERSION).then((cache) => cache.put(request, copy));
             return response;
           })
-          // A failed fetch (network hiccup) must resolve to a Response, not reject —
-          // otherwise it surfaces as an unhandled promise rejection.
           .catch(() => Response.error()),
     ),
   );

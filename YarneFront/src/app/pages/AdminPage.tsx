@@ -2827,6 +2827,7 @@ export function AdminPage() {
   const [logsSubTab, setLogsSubTab] = useState<LogsSubTab>("all");
   const [activityLogs, setActivityLogs] = useState<AdminActivityLogDto[]>([]);
   const [logsLoading, setLogsLoading] = useState(false);
+  const [logsError, setLogsError] = useState<string | null>(null);
 
   const [productModal, setProductModal] = useState<{ open: boolean; editing: AdminProduct | null }>({ open: false, editing: null });
   const [internalProductModal, setInternalProductModal] = useState(false);
@@ -2916,6 +2917,7 @@ export function AdminPage() {
     if (activeTab !== "logs" || !apiAvailable) return;
     let cancelled = false;
     setLogsLoading(true);
+    setLogsError(null);
     fetchActivityLogs({
       category: logsSubTab === "all" ? undefined : logsSubTab,
       limit: 200,
@@ -2923,8 +2925,11 @@ export function AdminPage() {
       .then((rows) => {
         if (!cancelled) setActivityLogs(rows);
       })
-      .catch(() => {
-        if (!cancelled) setActivityLogs([]);
+      .catch((reason) => {
+        if (!cancelled) {
+          setActivityLogs([]);
+          setLogsError(reason instanceof Error ? reason.message : "Could not load activity logs.");
+        }
       })
       .finally(() => {
         if (!cancelled) setLogsLoading(false);
@@ -5758,12 +5763,16 @@ export function AdminPage() {
                   onClick={() => {
                     if (!apiAvailable) return;
                     setLogsLoading(true);
+                    setLogsError(null);
                     fetchActivityLogs({
                       category: logsSubTab === "all" ? undefined : logsSubTab,
                       limit: 200,
                     })
                       .then(setActivityLogs)
-                      .catch(() => setActivityLogs([]))
+                      .catch((reason) => {
+                        setActivityLogs([]);
+                        setLogsError(reason instanceof Error ? reason.message : "Could not load activity logs.");
+                      })
                       .finally(() => setLogsLoading(false));
                   }}
                   className="px-5 py-2.5 rounded-full text-[#2D241E] transition-colors hover:bg-[#2D241E]/5"
@@ -5772,6 +5781,16 @@ export function AdminPage() {
                   <span className="uppercase tracking-widest">Refresh</span>
                 </button>
               </div>
+
+              {logsError ? (
+                <div
+                  className="mb-6 rounded-[16px] px-4 py-3 text-sm"
+                  style={{ backgroundColor: "rgba(196,48,48,0.1)", color: "#641D1D", fontFamily: "'DM Sans', sans-serif" }}
+                  role="alert"
+                >
+                  {logsError}
+                </div>
+              ) : null}
 
               <div className="flex flex-wrap gap-2 mb-8">
                 {([

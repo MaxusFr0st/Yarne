@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using YarneAPIBack.Accounting;
 using YarneAPIBack.Accounting.DTOs;
 using YarneAPIBack.Accounting.Services.Contracts;
@@ -139,6 +140,17 @@ public sealed class AccountingProductionController : ControllerBase
         catch (AccountingBusinessException ex)
         {
             return BadRequest(new { message = ex.Message });
+        }
+        catch (DbUpdateException)
+        {
+            return BadRequest(new
+            {
+                message = "Could not void this production run because stock or cost records no longer match. Refresh and try again.",
+            });
+        }
+        catch (OverflowException)
+        {
+            return BadRequest(new { message = "The production quantity or cost is too large to void." });
         }
     }
 }

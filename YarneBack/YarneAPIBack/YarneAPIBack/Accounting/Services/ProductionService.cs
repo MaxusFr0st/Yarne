@@ -512,7 +512,9 @@ public sealed class ProductionService : IProductionService
                     .SingleOrDefaultAsync(ct);
                 if (lot is not null)
                 {
-                    lot.QuantityRemaining += consumption.QuantityUsed;
+                    lot.QuantityRemaining = Math.Min(
+                        lot.QuantityPurchased,
+                        lot.QuantityRemaining + consumption.QuantityUsed);
                     lot.UpdatedAt = now;
                 }
                 consumption.IsVoid = true;
@@ -520,7 +522,7 @@ public sealed class ProductionService : IProductionService
             }
 
             order.IsVoid = true;
-            order.Status = "voided";
+            order.Status = "cancelled";
             order.UpdatedAt = now;
 
             await _db.SaveChangesAsync(ct);

@@ -190,7 +190,7 @@ export function AdminProductionView() {
                       </div>
                     </button>
                     <div className="flex items-center gap-2">
-                      <StatusPill tone={order.status === "completed" ? "ok" : order.status === "voided" ? "danger" : "neutral"}>{order.status}</StatusPill>
+                      <StatusPill tone={order.status === "completed" ? "ok" : order.status === "cancelled" || order.status === "voided" ? "danger" : "neutral"}>{order.status}</StatusPill>
                       {order.status === "completed" ? (
                         <Button
                           tone="danger"

@@ -9,7 +9,14 @@ initStableViewport();
 
 if (import.meta.env.PROD && "serviceWorker" in navigator) {
   window.addEventListener("load", () => {
-    void navigator.serviceWorker.register("/sw.js");
+    void navigator.serviceWorker
+      .getRegistrations()
+      .then((registrations) =>
+        Promise.all(registrations.map((registration) => registration.update().catch(() => undefined))),
+      )
+      .finally(() => {
+        void navigator.serviceWorker.register("/sw.js").catch(() => undefined);
+      });
   });
 }
 

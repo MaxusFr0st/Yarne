@@ -553,6 +553,21 @@ public class OrdersController : ControllerBase
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult<OrderDto>> UpdateOrderStatus(int id, [FromBody] UpdateOrderStatusRequest request, CancellationToken ct = default)
     {
+        try
+        {
+            return await UpdateOrderStatusCore(id, request, ct);
+        }
+        catch (AccountingBusinessException ex)
+        {
+            // Cancel/reopen can touch FIFO lots (e.g. re-consuming stock for a reopened order,
+            // or an order whose stock ledger predates accounting) — surface that as a 400
+            // instead of a raw 500.
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    private async Task<ActionResult<OrderDto>> UpdateOrderStatusCore(int id, UpdateOrderStatusRequest request, CancellationToken ct)
+    {
         var normalized = request.Status.Trim();
         if (!AllowedStatuses.TryGetValue(normalized, out var canonicalStatus))
             return BadRequest(new { message = "Unsupported order status." });
