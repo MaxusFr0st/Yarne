@@ -79,6 +79,8 @@ public class ProductService : IProductService
     public async Task<ProductDetailDto?> GetProductByIdAsync(int id, bool activeOnly = false, CancellationToken ct = default)
     {
         var product = await _context.Products
+            .AsNoTracking()
+            .AsSplitQuery()
             .Include(p => p.Category)
             .Include(p => p.Collection)
             .Include(p => p.DefaultSize)
@@ -150,6 +152,8 @@ public class ProductService : IProductService
     public async Task<ProductDetailDto?> GetProductByCodeAsync(string productCode, CancellationToken ct = default)
     {
         var product = await _context.Products
+            .AsNoTracking()
+            .AsSplitQuery()
             .Include(p => p.Category)
             .Include(p => p.Collection)
             .Include(p => p.DefaultSize)
