@@ -158,6 +158,17 @@ public static class DatabaseBootstrap
                 "Material roll-tracking schema still missing after bootstrap; purchase-order roll fields may 500 until fixed.");
         }
 
+        try
+        {
+            await CategoryTrackStockSchemaPatches.ForceEnsureAsync(db, logger, cancellationToken);
+        }
+        catch (Exception trackStockEx)
+        {
+            logger.LogError(
+                trackStockEx,
+                "Category.TrackStock schema still missing after bootstrap; category stock flags may 500 until fixed.");
+        }
+
         if (runStartupDbPatches)
         {
             await ApplyStartupPatchesAsync(db, logger, app.Environment, cancellationToken);

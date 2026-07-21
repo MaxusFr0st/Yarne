@@ -97,3 +97,15 @@ public sealed class CreateAccountingSalesOrderRequest
     public long? ChannelFeeCents { get; set; }
     public List<CreateAccountingSalesOrderItemRequest> Items { get; set; } = [];
 }
+
+/// <summary>
+/// One FIFO slice consumed from a <c>FinishedGoodsLot</c> — returned by
+/// <see cref="Services.Contracts.ISalesAccountingService.ConsumeFinishedGoodsFifoAsync"/> so callers
+/// (accounting sales, storefront checkout) can cost the line and record
+/// <c>SalesFinishedGoodsConsumption</c> rows without duplicating the FIFO walk.
+/// </summary>
+public sealed record FinishedGoodsFifoConsumption(
+    int LotId,
+    int Quantity,
+    long UnitCostCents,
+    long TotalCostCents);

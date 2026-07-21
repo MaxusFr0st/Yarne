@@ -19,7 +19,7 @@ function variantLabel(lot: {
   lace: boolean;
 }): string {
   if (!lot.colorName && !lot.sizeName) return "—";
-  return [lot.colorName, lot.sizeName, lot.lace ? "lace" : null].filter(Boolean).join(", ");
+  return [lot.colorName, lot.sizeName, lot.lace ? "strap" : null].filter(Boolean).join(", ");
 }
 
 function marginTone(marginPct: number | null): string {

@@ -205,6 +205,27 @@ public sealed class AccountingSalesController : ControllerBase
         }
     }
 
+    /// <summary>
+    /// Self-heal: resets Product.QuantityInStock and FinishedGoodsInventory.QuantityOnHand from
+    /// Σ FinishedGoodsLot.QuantityRemaining (non-void lots). Use if pooled counters ever drift
+    /// from the lot-authoritative ledger.
+    /// </summary>
+    [HttpPost("reconcile-finished-goods")]
+    public async Task<ActionResult<object>> ReconcileFinishedGoods(CancellationToken ct)
+    {
+        var (actorId, actorEmail) = AdminActivityLogHelper.GetActor(HttpContext);
+        var adjusted = await _sales.ReconcileFinishedGoodsAsync(actorId, ct);
+        await LogAsync(
+            "reconciled",
+            $"Reconciled finished-goods stock counters ({adjusted} row(s) adjusted)",
+            0,
+            null,
+            actorId,
+            actorEmail,
+            ct);
+        return Ok(new { adjustedCount = adjusted });
+    }
+
     private Task LogAsync(
         string action,
         string summary,

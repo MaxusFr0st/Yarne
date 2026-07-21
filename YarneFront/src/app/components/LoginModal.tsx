@@ -4,19 +4,8 @@ import { X, Eye, EyeOff } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useOverlay, useAuth } from "../context/AppContext";
 import { useTouchMobileLayout } from "../hooks/useTouchMobileLayout";
-import { appleClientId, appleRedirectUri, isAppleOAuthEnabled, isGoogleOAuthEnabled, isOAuthEnabled } from "../config/oauth";
+import { isGoogleOAuthEnabled, isOAuthEnabled } from "../config/oauth";
 import { LoginGoogleButton } from "./LoginGoogleButton";
-
-declare global {
-  interface Window {
-    AppleID?: {
-      auth: {
-        init: (config: object) => void;
-        signIn: () => Promise<{ authorization: { id_token: string } }>;
-      };
-    };
-  }
-}
 
 const easing = [0.25, 0.1, 0.25, 1] as const;
 
@@ -168,34 +157,6 @@ export function LoginModal() {
       }
     } catch {
       setError(t("auth.errors.generic"));
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleAppleLogin = async () => {
-    if (!isAppleOAuthEnabled) {
-      setError(t("auth.errors.appleNotConfigured"));
-      return;
-    }
-    if (!window.AppleID) {
-      setError(t("auth.errors.appleNotAvailable"));
-      return;
-    }
-    try {
-      setLoading(true);
-      setError("");
-      window.AppleID.auth.init({
-        clientId: appleClientId,
-        scope: "name email",
-        redirectURI: appleRedirectUri || window.location.origin,
-        usePopup: true,
-      });
-      const data = await window.AppleID.auth.signIn();
-      const result = await loginWithOAuth(data.authorization.id_token, "apple");
-      if (!result.ok) setError(result.error ?? t("auth.errors.appleFailed"));
-    } catch {
-      setError(t("auth.errors.appleCancelled"));
     } finally {
       setLoading(false);
     }
@@ -365,21 +326,6 @@ export function LoginModal() {
                               setError={setError}
                               onToken={(token) => loginWithOAuth(token, "google")}
                             />
-                          )}
-
-                          {isAppleOAuthEnabled && (
-                            <button
-                              type="button"
-                              disabled={loading}
-                              onClick={handleAppleLogin}
-                              className="w-full flex items-center justify-center gap-3 py-3.5 rounded-full transition-colors duration-200 disabled:opacity-50 cursor-pointer"
-                              style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "0.875rem", backgroundColor: "#000", color: "#fff" }}
-                            >
-                              <svg width="16" height="19" viewBox="0 0 814 1000" aria-hidden="true" fill="currentColor">
-                                <path d="M788.1 340.9c-5.8 4.5-108.2 62.2-108.2 190.5 0 148.4 130.3 200.9 134.2 202.2-.6 3.2-20.7 71.9-68.7 141.9-42.8 61.6-87.5 123.1-155.5 123.1s-85.5-39.5-164-39.5c-76 0-103.7 40.8-165.9 40.8s-105-43.4-150.3-109.2c-52.5-73.5-96-191.9-96-304.5 0-151 103.7-230.3 205.3-230.3 64.1 0 117.6 42.5 157.9 42.5 38.1 0 97.5-44.9 164-44.9 26.5 0 108.2 2.6 168.6 81.3zm-201.8-176.8c31.1-36.9 53.1-88.1 53.1-139.3 0-7.1-.6-14.3-1.9-20.1-50.6 1.9-110.8 33.7-147.1 75.8-28.5 32.4-55.1 83.6-55.1 135.5 0 7.8 1.3 15.6 1.9 18.1 3.2.6 8.4 1.3 13.6 1.3 45.4 0 102.5-30.4 135.5-71.3z" />
-                              </svg>
-                              {t("auth.continueWithApple")}
-                            </button>
                           )}
 
                           <div className="flex items-center gap-3 pt-1">

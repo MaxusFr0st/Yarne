@@ -1,4 +1,4 @@
-const CACHE_VERSION = "yarne-shell-v1";
+const CACHE_VERSION = "yarne-shell-v2";
 const APP_SHELL = [
   "/",
   "/index.html",
@@ -34,7 +34,13 @@ self.addEventListener("fetch", (event) => {
   if (request.method !== "GET") return;
 
   const url = new URL(request.url);
-  if (url.pathname.startsWith("/api/") || url.hostname.endsWith("cloudinary.com")) {
+  // Skip API, third-party hosts, Cloudflare beacons, and cross-origin assets —
+  // caching those multiplies in-flight requests and trips CSP / RUM noise.
+  if (
+    url.origin !== self.location.origin ||
+    url.pathname.startsWith("/api/") ||
+    url.pathname.startsWith("/cdn-cgi/")
+  ) {
     return;
   }
 
@@ -62,9 +68,8 @@ self.addEventListener("fetch", (event) => {
             caches.open(CACHE_VERSION).then((cache) => cache.put(request, copy));
             return response;
           })
-          // A failed fetch (network hiccup, blocked cross-origin request) must resolve
-          // to a Response, not reject — otherwise it surfaces as an unhandled promise
-          // rejection instead of a normal failed-resource load.
+          // A failed fetch (network hiccup) must resolve to a Response, not reject —
+          // otherwise it surfaces as an unhandled promise rejection.
           .catch(() => Response.error()),
     ),
   );

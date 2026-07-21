@@ -27,7 +27,7 @@ public class CategoriesController : ControllerBase
     {
         var categories = await _context.Categories
             .OrderBy(c => c.Name)
-            .Select(c => new { c.Id, c.Name })
+            .Select(c => new { c.Id, c.Name, c.TrackStock })
             .ToListAsync(ct);
 
         return Ok(categories);
@@ -43,7 +43,7 @@ public class CategoriesController : ControllerBase
         if (await _context.Categories.AnyAsync(c => c.Name == request.Name, ct))
             return BadRequest(new { message = "Category with this name already exists" });
 
-        var category = new Models.Category { Name = request.Name };
+        var category = new Models.Category { Name = request.Name, TrackStock = request.TrackStock };
         _context.Categories.Add(category);
         await _context.SaveChangesAsync(ct);
 
@@ -59,7 +59,7 @@ public class CategoriesController : ControllerBase
             actorEmail,
             ct);
 
-        return Created($"/api/categories/{category.Id}", new { id = category.Id, name = category.Name });
+        return Created($"/api/categories/{category.Id}", new { id = category.Id, name = category.Name, trackStock = category.TrackStock });
     }
 
     [HttpPut("{id}")]
@@ -78,6 +78,7 @@ public class CategoriesController : ControllerBase
 
         var previousName = category.Name;
         category.Name = request.Name;
+        category.TrackStock = request.TrackStock;
         await _context.SaveChangesAsync(ct);
 
         var (actorUserId, actorEmail) = AdminActivityLogHelper.GetActor(HttpContext);
@@ -92,7 +93,7 @@ public class CategoriesController : ControllerBase
             actorEmail,
             ct);
 
-        return Ok(new { id = category.Id, name = category.Name });
+        return Ok(new { id = category.Id, name = category.Name, trackStock = category.TrackStock });
     }
 
     [HttpDelete("{id}")]

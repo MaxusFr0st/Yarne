@@ -60,7 +60,7 @@ public sealed class ProductionService : IProductionService
                 "A variant tag needs both a color and a size (or neither).");
         if (request.Lace && !request.ColorId.HasValue)
             throw new AccountingBusinessException(
-                "Lace can only be set together with a color and size tag.");
+                "Strap (ремінець) can only be set together with a color and size tag.");
 
         var strategy = _db.Database.CreateExecutionStrategy();
         int productionOrderId = 0;
@@ -113,8 +113,81 @@ public sealed class ProductionService : IProductionService
 
             // Lock every material's FIFO lot list once up front, and verify the whole run
             // fits before consuming anything — same guarantees as before the per-unit rewrite.
-            var requirements = bom.Items.OrderBy(x => x.MaterialId).ToList();
+            // Requirements are in the material base unit (e.g. meters). When producing with
+            // strap (lace=true), also merge the color's linked ремінець product BOM.
+            var requirementMap = new Dictionary<int, MaterialRequirement>();
+            foreach (var item in bom.Items)
+            {
+                requirementMap[item.MaterialId] = new MaterialRequirement(
+                    item.MaterialId,
+                    item.QuantityRequired,
+                    item.Material);
+            }
+
+            long labourPerUnitBaseCents;
+            {
+                var labourRate = await ResolveRateToBaseAsync(
+                    bom.CurrencyCode,
+                    productionDate,
+                    ct);
+                labourPerUnitBaseCents = RoundToCents(bom.LabourCostCents * labourRate);
+            }
+
+            if (request.Lace)
+            {
+                var color = await _db.Colors
+                    .AsNoTracking()
+                    .SingleOrDefaultAsync(x => x.Id == request.ColorId!.Value, ct);
+                if (color?.LaceProductId is not int strapProductId)
+                {
+                    throw new AccountingBusinessException(
+                        "This color has no linked ремінець product. Link one on the color before producing with strap.");
+                }
+                if (strapProductId == product.Id)
+                {
+                    throw new AccountingBusinessException(
+                        "A product cannot use itself as its ремінець BOM.");
+                }
+
+                var strapBom = await _db.ProductBoms
+                    .Include(x => x.Items.Where(item => !item.IsVoid))
+                        .ThenInclude(x => x.Material)
+                    .SingleOrDefaultAsync(x => x.ProductId == strapProductId && !x.IsVoid, ct);
+                if (strapBom is null || strapBom.Items.Count == 0)
+                {
+                    throw new AccountingBusinessException(
+                        "Set up the linked ремінець product's BOM before producing with strap.");
+                }
+
+                foreach (var item in strapBom.Items)
+                {
+                    if (requirementMap.TryGetValue(item.MaterialId, out var existing))
+                    {
+                        requirementMap[item.MaterialId] = existing with
+                        {
+                            QuantityRequired = existing.QuantityRequired + item.QuantityRequired,
+                        };
+                    }
+                    else
+                    {
+                        requirementMap[item.MaterialId] = new MaterialRequirement(
+                            item.MaterialId,
+                            item.QuantityRequired,
+                            item.Material);
+                    }
+                }
+
+                var strapLabourRate = await ResolveRateToBaseAsync(
+                    strapBom.CurrencyCode,
+                    productionDate,
+                    ct);
+                labourPerUnitBaseCents = checked(
+                    labourPerUnitBaseCents + RoundToCents(strapBom.LabourCostCents * strapLabourRate));
+            }
+
+            var requirements = requirementMap.Values.OrderBy(x => x.MaterialId).ToList();
             var lotCursors = new Dictionary<int, LotCursor>();
+            var touchedLots = new List<PurchaseOrderItem>();
             foreach (var requirement in requirements)
             {
                 var lots = await _db.PurchaseOrderItems
@@ -143,13 +216,24 @@ public sealed class ProductionService : IProductionService
                         $"available {available:0.####} {requirement.Material.Unit}.");
                 }
                 lotCursors[requirement.MaterialId] = new LotCursor(lots);
+                touchedLots.AddRange(lots);
             }
 
-            var labourRate = await ResolveRateToBaseAsync(
-                bom.CurrencyCode,
-                productionDate,
-                ct);
-            var labourPerUnitBaseCents = RoundToCents(bom.LabourCostCents * labourRate);
+            // BaseUnitPriceCents is a whole-cent-per-unit snapshot and understates cost for
+            // lots bought as a lump sum (e.g. rolls priced per-roll, not per-meter) — it
+            // loses fractional cents across a large quantity. Cost slices off the exact
+            // BaseTotalCostCents instead, proportional to quantity, with the slice that
+            // drains a lot absorbing whatever rounding residual is left so the sum of every
+            // slice ever costed against a lot exactly equals BaseTotalCostCents.
+            var touchedLotIds = touchedLots.Select(x => x.Id).Distinct().ToList();
+            var priorAllocatedCost = await _db.ProductionMaterialConsumptions
+                .Where(x => !x.IsVoid && touchedLotIds.Contains(x.PurchaseOrderItemId))
+                .GroupBy(x => x.PurchaseOrderItemId)
+                .Select(group => new { LotId = group.Key, Cost = group.Sum(x => x.TotalCostCents) })
+                .ToDictionaryAsync(x => x.LotId, x => x.Cost, ct);
+            var allocatedCostByLot = touchedLotIds.ToDictionary(
+                id => id,
+                id => priorAllocatedCost.GetValueOrDefault(id));
 
             // Consume material one unit at a time so a run that crosses from a cheaper
             // raw-material lot into a dearer one mid-run keeps distinct per-unit costs
@@ -171,7 +255,17 @@ public sealed class ProductionService : IProductionService
                             ?? throw new AccountingBusinessException(
                                 $"Not enough {requirement.Material.Name} in stock.");
                         var quantityUsed = decimal.Min(lot.QuantityRemaining, quantityLeft);
-                        var sliceCost = RoundToCents(quantityUsed * lot.BaseUnitPriceCents);
+                        // Draining the lot entirely: cost it as "whatever's left of the exact
+                        // total", not another proportional share — that's what keeps the sum
+                        // of every slice exactly equal to BaseTotalCostCents.
+                        var drainsLot = quantityUsed >= lot.QuantityRemaining;
+                        var alreadyCosted = allocatedCostByLot.GetValueOrDefault(lot.Id);
+                        var sliceCost = drainsLot
+                            ? Math.Max(0, lot.BaseTotalCostCents - alreadyCosted)
+                            : lot.QuantityPurchased > 0
+                                ? RoundToCents(quantityUsed / lot.QuantityPurchased * lot.BaseTotalCostCents)
+                                : 0;
+                        allocatedCostByLot[lot.Id] = checked(alreadyCosted + sliceCost);
                         lot.QuantityRemaining -= quantityUsed;
                         lot.UpdatedAt = now;
                         unitMaterialCost = checked(unitMaterialCost + sliceCost);
@@ -354,9 +448,10 @@ public sealed class ProductionService : IProductionService
                      """)
                 .ToListAsync(ct);
 
-            // Can only reverse a run cleanly if none of its units have sold yet — check
-            // every lot this run created, not the pooled product total, since other runs'
-            // stock must not block (or falsely permit) voiding this one.
+            // Can only reverse a run cleanly if none of its units have sold via FIFO lots.
+            // Gate on lots only — pooled Product.QuantityInStock can still diverge from lots
+            // for legacy orders placed before checkout-time FIFO; AppliedToStorefrontQuantity
+            // is reversed below when present.
             if (inventory is null || inventory.IsVoid ||
                 fgLots.Count == 0 ||
                 fgLots.Any(lot => lot.IsVoid || lot.QuantityRemaining < lot.QuantityProduced))
@@ -364,16 +459,13 @@ public sealed class ProductionService : IProductionService
                 throw new AccountingBusinessException(
                     "Some units from this run are no longer in stock (already sold or moved) — cannot void.");
             }
-            if (product.QuantityInStock < acceptedQuantity)
-                throw new AccountingBusinessException(
-                    "Storefront stock for this product is lower than this run's quantity — cannot void.");
 
-            var newQuantity = inventory.QuantityOnHand - acceptedQuantity;
+            var newQuantity = Math.Max(0, inventory.QuantityOnHand - acceptedQuantity);
             var oldValue = (decimal)inventory.QuantityOnHand * inventory.AverageUnitCostCents;
             inventory.QuantityOnHand = newQuantity;
             inventory.AverageUnitCostCents = newQuantity == 0
                 ? 0
-                : RoundToCents((oldValue - order.CapitalizedCogsCents) / newQuantity);
+                : RoundToCents(Math.Max(0, oldValue - order.CapitalizedCogsCents) / newQuantity);
             inventory.UpdatedAt = now;
 
             foreach (var fgLot in fgLots)
@@ -405,7 +497,7 @@ public sealed class ProductionService : IProductionService
                 fgLot.UpdatedAt = now;
             }
 
-            product.QuantityInStock -= acceptedQuantity;
+            product.QuantityInStock = Math.Max(0, product.QuantityInStock - acceptedQuantity);
             product.UpdatedAt = now;
 
             foreach (var consumption in order.MaterialConsumptions)
@@ -755,6 +847,12 @@ public sealed class ProductionService : IProductionService
 
     private static long RoundToCents(decimal value) =>
         checked((long)decimal.Round(value, 0, MidpointRounding.AwayFromZero));
+
+    /// <summary>
+    /// Per-unit material need in the material's base unit (meters, pcs, …).
+    /// Bag BOM lines are merged with the color-linked ремінець BOM when producing with strap.
+    /// </summary>
+    private sealed record MaterialRequirement(int MaterialId, decimal QuantityRequired, Material Material);
 
     /// <summary>
     /// Rolling FIFO position over a material's locked purchase lots. Consumption keeps

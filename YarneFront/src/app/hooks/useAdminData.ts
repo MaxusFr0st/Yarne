@@ -90,6 +90,7 @@ function mapProductDtoToProduct(d: ProductDto): Product & { idNum: number; sku: 
     subtitle: d.material ?? d.producerName ?? "",
     price: Number(d.price),
     category: d.categoryName,
+    categoryTrackStock: d.categoryTrackStock ?? true,
     isNew: d.isNew ?? false,
     isBestseller: d.isBestseller ?? false,
     lace: d.lace ?? false,
@@ -362,14 +363,14 @@ export function useAdminData() {
     setProducts((prev) => prev.filter((p) => p.idNum !== id));
   }, []);
 
-  const addCategory = useCallback(async (name: string) => {
-    const created = await createCategory(name);
+  const addCategory = useCallback(async (name: string, trackStock: boolean = true) => {
+    const created = await createCategory(name, trackStock);
     setCategories((prev) => [...prev, created].sort((a, b) => a.name.localeCompare(b.name)));
     return created;
   }, []);
 
-  const editCategory = useCallback(async (id: number, name: string) => {
-    const updated = await updateCategory(id, name);
+  const editCategory = useCallback(async (id: number, name: string, trackStock: boolean = true) => {
+    const updated = await updateCategory(id, name, trackStock);
     setCategories((prev) =>
       prev.map((c) => (c.id === id ? updated : c)).sort((a, b) => a.name.localeCompare(b.name))
     );

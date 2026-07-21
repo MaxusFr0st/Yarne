@@ -387,6 +387,11 @@ public sealed class SalesAccountingService : ISalesAccountingService
                 .GroupBy(x => x.ProductId)
                 .ToDictionary(group => group.Key, group => group.Single());
             var prepared = new List<PreparedLine>();
+            // Categories with TrackStock=false skip inventory/lot checks and decrements below —
+            // small reference table, cheap to load whole.
+            var trackStockByCategoryId = await _db.Categories
+                .AsNoTracking()
+                .ToDictionaryAsync(c => c.Id, c => c.TrackStock, ct);
 
             // Prepares one order line for a product+quantity: locks the product and its finished
             // inventory, validates stock, runs FIFO lot consumption, decrements pooled counters,
@@ -407,16 +412,8 @@ public sealed class SalesAccountingService : ISalesAccountingService
                     .SingleOrDefaultAsync(ct);
                 if (product is null || product.IsVoid || !product.IsActive)
                     throw new AccountingBusinessException($"Product #{lineProductId} is unavailable.");
-                var inventory = await _db.FinishedGoodsInventories
-                    .FromSqlInterpolated(
-                        $"""
-                         SELECT * FROM "FinishedGoodsInventory"
-                         WHERE "ProductId" = {lineProductId}
-                         FOR UPDATE
-                         """)
-                    .SingleOrDefaultAsync(ct);
-                if (inventory is null || inventory.IsVoid || inventory.QuantityOnHand < quantity)
-                    throw new AccountingBusinessException($"Not enough finished stock for '{product.Name}'.");
+
+                var tracksStock = !trackStockByCategoryId.TryGetValue(product.CategoryId, out var tracks) || tracks;
 
                 var listedPrice = listedOverride ?? await ConvertMoneyAsync(
                     product.SellingPriceCents,
@@ -429,16 +426,33 @@ public sealed class SalesAccountingService : ISalesAccountingService
                 if (vatAmountCents > checked(listedPrice * quantity))
                     throw new AccountingBusinessException($"VAT exceeds the listed total for '{product.Name}'.");
 
-                var lotConsumptions = await ConsumeFinishedGoodsFifoAsync(lineProductId, quantity, ct);
-                var totalCogs = lotConsumptions.Sum(x => x.TotalCostCents);
-                var unitCogs = RoundToCents((decimal)totalCogs / quantity);
+                IReadOnlyList<FinishedGoodsFifoConsumption> lotConsumptions = Array.Empty<FinishedGoodsFifoConsumption>();
+                var unitCogs = 0L;
+                if (tracksStock)
+                {
+                    var inventory = await _db.FinishedGoodsInventories
+                        .FromSqlInterpolated(
+                            $"""
+                             SELECT * FROM "FinishedGoodsInventory"
+                             WHERE "ProductId" = {lineProductId}
+                             FOR UPDATE
+                             """)
+                        .SingleOrDefaultAsync(ct);
+                    if (inventory is null || inventory.IsVoid || inventory.QuantityOnHand < quantity)
+                        throw new AccountingBusinessException($"Not enough finished stock for '{product.Name}'.");
 
-                inventory.QuantityOnHand -= quantity;
-                inventory.UpdatedAt = now;
-                if (product.QuantityInStock < quantity)
-                    throw new AccountingBusinessException($"Not enough storefront stock for '{product.Name}'.");
-                product.QuantityInStock -= quantity;
-                product.UpdatedAt = now;
+                    lotConsumptions = await ConsumeFinishedGoodsFifoAsync(lineProductId, quantity, ct);
+                    var totalCogs = lotConsumptions.Sum(x => x.TotalCostCents);
+                    unitCogs = RoundToCents((decimal)totalCogs / quantity);
+
+                    inventory.QuantityOnHand -= quantity;
+                    inventory.UpdatedAt = now;
+                    if (product.QuantityInStock < quantity)
+                        throw new AccountingBusinessException($"Not enough storefront stock for '{product.Name}'.");
+                    product.QuantityInStock -= quantity;
+                    product.UpdatedAt = now;
+                }
+
                 prepared.Add(new PreparedLine(
                     product,
                     quantity,
@@ -529,8 +543,11 @@ public sealed class SalesAccountingService : ISalesAccountingService
                 return;
             }
 
-            // Idempotency: this order's items already have FIFO consumption recorded (composed
-            // before, e.g. a Received -> Shipped -> Received bounce) — nothing left to do.
+            // Idempotency: this order's items already have FIFO consumption recorded — either
+            // checkout itself consumed the lots (see OrdersController.CreateOrderCore, which calls
+            // ConsumeFinishedGoodsFifoAsync at order-placement time), or this method already ran
+            // for this order before (e.g. a Received -> Shipped -> Received bounce). Either way,
+            // there's nothing left to do.
             var itemIds = items.Select(i => i.Id).ToList();
             var alreadyComposed = await _db.SalesFinishedGoodsConsumptions
                 .AnyAsync(c => itemIds.Contains(c.SalesOrderItemId), ct);
@@ -546,11 +563,37 @@ public sealed class SalesAccountingService : ISalesAccountingService
                     $"Sales channel \"{OnlineStoreChannelName}\" was not found.");
 
             var now = DateTime.UtcNow;
-            // Website checkout already decremented Product.QuantityInStock / FinishedGoodsInventory
-            // for these items — only the FIFO lot ledger (used for COGS) hasn't been consumed yet.
-            // Consume it now; do NOT touch the stock counters again here.
+
+            var productIds = items.Select(i => i.ProductId!.Value).Distinct().ToList();
+            var categoryIdByProductId = await _db.Products
+                .AsNoTracking()
+                .Where(p => productIds.Contains(p.Id))
+                .ToDictionaryAsync(p => p.Id, p => p.CategoryId, ct);
+            // Categories with TrackStock=false skip inventory/lot checks and decrements — same
+            // pattern as PrepareLineAsync / CreateOrderCore. Small reference table, cheap to load
+            // whole.
+            var trackStockByCategoryId = await _db.Categories
+                .AsNoTracking()
+                .ToDictionaryAsync(c => c.Id, c => c.TrackStock, ct);
+
+            // Legacy path: orders placed before checkout started FIFO-consuming lots itself only
+            // decremented Product.QuantityInStock / FinishedGoodsInventory at checkout — the FIFO
+            // lot ledger (used for COGS) was never consumed. Consume it now; do NOT touch the
+            // pooled stock counters again here (checkout already did that).
             foreach (var item in items.OrderBy(i => i.Id))
             {
+                if (categoryIdByProductId.TryGetValue(item.ProductId!.Value, out var categoryId))
+                {
+                    var tracksStock = !trackStockByCategoryId.TryGetValue(categoryId, out var tracks) || tracks;
+                    if (!tracksStock)
+                    {
+                        // Category doesn't track stock — nothing was decremented/consumed for
+                        // this product at checkout, so there's nothing to reverse or re-consume.
+                        // Skip just this item rather than failing the whole compose.
+                        continue;
+                    }
+                }
+
                 var lotConsumptions = await ConsumeFinishedGoodsFifoAsync(item.ProductId!.Value, item.Quantity, ct);
                 var totalCogs = lotConsumptions.Sum(x => x.TotalCostCents);
                 item.UnitCogsCents = item.Quantity == 0 ? 0 : RoundToCents((decimal)totalCogs / item.Quantity);
@@ -618,10 +661,10 @@ public sealed class SalesAccountingService : ISalesAccountingService
         return checked(percentageFee + flatFee);
     }
 
-    private async Task<List<LotConsumption>> ConsumeFinishedGoodsFifoAsync(
+    public async Task<IReadOnlyList<FinishedGoodsFifoConsumption>> ConsumeFinishedGoodsFifoAsync(
         int productId,
         int quantity,
-        CancellationToken ct)
+        CancellationToken ct = default)
     {
         var lots = await _db.FinishedGoodsLots
             .FromSqlInterpolated(
@@ -639,7 +682,7 @@ public sealed class SalesAccountingService : ISalesAccountingService
         if (available < quantity)
             throw new AccountingBusinessException("Not enough finished stock for this product.");
 
-        var result = new List<LotConsumption>();
+        var result = new List<FinishedGoodsFifoConsumption>();
         var quantityLeft = quantity;
         foreach (var lot in lots)
         {
@@ -648,10 +691,79 @@ public sealed class SalesAccountingService : ISalesAccountingService
             var quantityUsed = Math.Min(lot.QuantityRemaining, quantityLeft);
             lot.QuantityRemaining -= quantityUsed;
             lot.UpdatedAt = DateTime.UtcNow;
-            result.Add(new LotConsumption(lot.Id, quantityUsed, lot.UnitCostCents, checked(lot.UnitCostCents * quantityUsed)));
+            result.Add(new FinishedGoodsFifoConsumption(lot.Id, quantityUsed, lot.UnitCostCents, checked(lot.UnitCostCents * quantityUsed)));
             quantityLeft -= quantityUsed;
         }
         return result;
+    }
+
+    /// <summary>
+    /// Self-heal for pooled counter drift: recomputes <c>Product.QuantityInStock</c> and
+    /// <c>FinishedGoodsInventory.QuantityOnHand</c> from Σ non-void <c>FinishedGoodsLot.QuantityRemaining</c>
+    /// for every product that has a finished-goods ledger row or lot. The lot ledger is the
+    /// source of truth (it's what void-production and FIFO costing key off), so this repairs any
+    /// pooled counter that has drifted from it — e.g. from data fixed up directly in the database.
+    /// </summary>
+    public async Task<int> ReconcileFinishedGoodsAsync(int? actorId, CancellationToken ct = default)
+    {
+        var strategy = _db.Database.CreateExecutionStrategy();
+        var adjusted = 0;
+        await strategy.ExecuteAsync(async () =>
+        {
+            adjusted = 0;
+            await using var transaction = await _db.Database.BeginTransactionAsync(
+                IsolationLevel.Serializable,
+                ct);
+
+            var productIds = (await _db.FinishedGoodsInventories
+                    .Select(x => x.ProductId)
+                    .ToListAsync(ct))
+                .Union(await _db.FinishedGoodsLots
+                    .Where(x => !x.IsVoid)
+                    .Select(x => x.ProductId)
+                    .Distinct()
+                    .ToListAsync(ct))
+                .Distinct()
+                .OrderBy(x => x)
+                .ToList();
+
+            var now = DateTime.UtcNow;
+            foreach (var productId in productIds)
+            {
+                var truth = await _db.FinishedGoodsLots
+                    .Where(x => x.ProductId == productId && !x.IsVoid)
+                    .SumAsync(x => (int?)x.QuantityRemaining, ct) ?? 0;
+
+                var inventory = await _db.FinishedGoodsInventories
+                    .FromSqlInterpolated(
+                        $"""
+                         SELECT * FROM "FinishedGoodsInventory"
+                         WHERE "ProductId" = {productId}
+                         FOR UPDATE
+                         """)
+                    .SingleOrDefaultAsync(ct);
+                if (inventory is not null && inventory.QuantityOnHand != truth)
+                {
+                    inventory.QuantityOnHand = truth;
+                    inventory.UpdatedAt = now;
+                    adjusted++;
+                }
+
+                var product = await _db.Products
+                    .FromSqlInterpolated($"""SELECT * FROM "Product" WHERE "Id" = {productId} FOR UPDATE""")
+                    .SingleOrDefaultAsync(ct);
+                if (product is not null && product.QuantityInStock != truth)
+                {
+                    product.QuantityInStock = truth;
+                    product.UpdatedAt = now;
+                    adjusted++;
+                }
+            }
+
+            await _db.SaveChangesAsync(ct);
+            await transaction.CommitAsync(ct);
+        });
+        return adjusted;
     }
 
     private static List<OrderItem> AllocateFee(
@@ -914,8 +1026,6 @@ public sealed class SalesAccountingService : ISalesAccountingService
         long ListedPriceCents,
         long UnitCogsCents,
         long VatAmountCents,
-        IReadOnlyList<LotConsumption> LotConsumptions,
+        IReadOnlyList<FinishedGoodsFifoConsumption> LotConsumptions,
         int? ParentIndex);
-
-    private sealed record LotConsumption(int LotId, int Quantity, long UnitCostCents, long TotalCostCents);
 }

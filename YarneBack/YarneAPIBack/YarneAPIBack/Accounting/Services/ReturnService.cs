@@ -445,10 +445,20 @@ public sealed class ReturnService : IReturnService
                     materialLot.QuantityPurchased,
                     materialLot.QuantityRemaining + reclaimQty);
                 materialLot.UpdatedAt = now;
-                reclaimedValueCents = checked(reclaimedValueCents + RoundToCents(reclaimQty * materialLot.BaseUnitPriceCents));
+                // Match production/report residual basis: cost off BaseTotalCostCents share,
+                // not BaseUnitPriceCents (which understates roll-priced lots).
+                var sliceValue = materialLot.QuantityPurchased > 0
+                    ? RoundToCents(reclaimQty / materialLot.QuantityPurchased * materialLot.BaseTotalCostCents)
+                    : RoundToCents(reclaimQty * materialLot.BaseUnitPriceCents);
+                reclaimedValueCents = checked(reclaimedValueCents + sliceValue);
             }
         }
         item.MaterialsReclaimedCents = reclaimedValueCents;
+        // The reclaimed raw-material value must leave COGS too, or it's double-counted:
+        // still expensed as COGS on the original sale AND back in raw inventory. Labour is
+        // deliberately excluded (not reversed) — it's a real loss, matching the doc comment
+        // above on ReclaimRawMaterialsAsync.
+        item.CogsReversedCents = reclaimedValueCents;
         item.UpdatedAt = now;
     }
 

@@ -53,6 +53,7 @@ export interface ProductDto {
   defaultColor?: string | null;
   defaultFurnitureColor?: string | null;
   categoryName: string;
+  categoryTrackStock: boolean;
   collectionName: string | null;
   producerName: string | null;
   isActive: boolean;

@@ -81,11 +81,3 @@ export async function loginWithGoogle(idToken: string): Promise<AuthResponse> {
     skipAuthExpire: true,
   });
 }
-
-export async function loginWithApple(idToken: string): Promise<AuthResponse> {
-  return apiRequest<AuthResponse>("/api/auth/apple", {
-    method: "POST",
-    body: JSON.stringify({ idToken }),
-    skipAuthExpire: true,
-  });
-}

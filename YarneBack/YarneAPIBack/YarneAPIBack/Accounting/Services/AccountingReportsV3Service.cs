@@ -204,7 +204,13 @@ public sealed class AccountingReportsV3Service : IAccountingReportsV3Service
             x.QuantityPurchased,
             x.QuantityRemaining,
             x.BaseUnitPriceCents,
-            RoundToCents(x.QuantityRemaining * x.BaseUnitPriceCents))).ToList();
+            // Value proportionally off the exact BaseTotalCostCents rather than
+            // QuantityRemaining * BaseUnitPriceCents — the latter understates lots bought as
+            // a lump sum (e.g. rolls priced per-roll), since BaseUnitPriceCents is a
+            // whole-cent-per-unit snapshot that loses fractional cents across a large quantity.
+            x.QuantityPurchased > 0
+                ? RoundToCents(x.QuantityRemaining / x.QuantityPurchased * x.BaseTotalCostCents)
+                : 0)).ToList();
         // Value off the actual remaining FIFO lots where they exist — more precise than the
         // pooled average, since lots carry each production run's true locked-in cost.
         var finishedGoods = finishedGoodsRows.Select(x =>

@@ -21,7 +21,6 @@ const connectSrc = new Set([
   "https://accounts.google.com",
   "https://oauth2.googleapis.com",
   "https://www.googleapis.com",
-  "https://appleid.apple.com",
   "https://static.cloudflareinsights.com",
   "https://cloudflareinsights.com",
   "https://fonts.googleapis.com",
@@ -34,12 +33,12 @@ connectSrc.add("http://localhost:5000");
 
 const csp = [
   "default-src 'self'",
-  "script-src 'self' https://accounts.google.com https://appleid.cdn-apple.com https://static.cloudflareinsights.com",
+  "script-src 'self' https://accounts.google.com https://static.cloudflareinsights.com",
   "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://accounts.google.com",
   "img-src 'self' https: data: blob:",
   `connect-src ${[...connectSrc].join(" ")}`,
   "font-src 'self' data: https://fonts.gstatic.com",
-  "frame-src https://accounts.google.com https://appleid.apple.com",
+  "frame-src https://accounts.google.com",
   "frame-ancestors 'none'",
   "base-uri 'self'",
   "form-action 'self'",

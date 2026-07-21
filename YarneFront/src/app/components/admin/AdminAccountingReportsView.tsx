@@ -84,7 +84,7 @@ function MarginFlagRow({ product, currency }: { product: AccountingProductDto; c
         <p className="mt-1.5 flex items-start gap-1.5 text-xs text-[#641D1D]" style={{ fontFamily: "'DM Sans', sans-serif" }}>
           <AlertTriangle size={12} className="mt-0.5 shrink-0" />
           Current margin {pct.toFixed(1)}% is below your threshold of {product.margin.thresholdPct}%.
-          BOM cost is {moneyFromCents(product.margin.currentBomCostCents ?? 0, currency)}, selling at {moneyFromCents(product.margin.sellingPriceBaseCents ?? product.sellingPriceCents, currency)}.
+          Current FIFO cost is {moneyFromCents(product.margin.currentBomCostCents ?? 0, currency)}, selling at {moneyFromCents(product.margin.sellingPriceBaseCents ?? product.sellingPriceCents, currency)}.
         </p>
       ) : null}
     </div>

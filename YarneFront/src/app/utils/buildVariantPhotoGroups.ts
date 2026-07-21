@@ -83,7 +83,7 @@ export function buildVariantPhotoGroups(
             sizeId,
             sizeName,
             lace,
-            laceLabel: lace ? "With lace" : "Without lace",
+            laceLabel: lace ? "With strap" : "Without strap",
             variantKey: key,
             photoIndex,
             url,

@@ -1669,7 +1669,7 @@ function ProductModal({
                     </label>
                     <p className="text-xs text-[#2D241E]/55 mb-2" style={{ fontFamily: "'DM Sans', sans-serif" }}>
                       {form.lace
-                        ? "Every color-size pair has a Without lace and With lace record. Minimum 3 photos per record."
+                        ? "Every color-size pair has a Without strap and With strap record. Minimum 3 photos per record."
                         : "Every selected color-size pair is shown below. Minimum 3 photos per pair."}
                       {" "}Photos are saved as <code>/uploads/…</code> on the API server and linked per color-size in the database.
                     </p>
@@ -1711,7 +1711,7 @@ function ProductModal({
                                     color: lace ? "#F5F2ED" : "#2D241E",
                                   }}
                                 >
-                                  {lace ? "With lace" : "Without lace"}
+                                  {lace ? "With strap" : "Without strap"}
                                 </span>
                               )}
                             </div>
@@ -1914,7 +1914,7 @@ function ProductModal({
             {[
               { label: "Mark as New", key: "isNew" as const },
               { label: "Mark as Bestseller", key: "isBestseller" as const },
-              { label: "Has lace option", key: "lace" as const },
+              { label: "Has strap option", key: "lace" as const },
               { label: "Internal product", key: "isInternalComponent" as const },
             ].map((flag) => (
               <label key={flag.key} className="flex items-center gap-3 cursor-pointer">
@@ -2221,12 +2221,14 @@ function CategoryModal({
   onClose,
   onSave,
 }: {
-  editing: { id: number; name: string } | null;
+  editing: { id: number; name: string; trackStock?: boolean } | null;
   onClose: () => void;
-  onSave: (name: string) => void;
+  onSave: (name: string, trackStock: boolean) => void;
 }) {
   const [name, setName] = useState(editing?.name ?? "");
+  const [trackStock, setTrackStock] = useState(editing?.trackStock ?? true);
   useEffect(() => { setName(editing?.name ?? ""); }, [editing?.id, editing?.name]);
+  useEffect(() => { setTrackStock(editing?.trackStock ?? true); }, [editing?.id, editing?.trackStock]);
   const isEditing = !!editing;
   return (
     <AdminModalShell
@@ -2236,12 +2238,19 @@ function CategoryModal({
       footer={
         <>
           <AdminModalCancelButton onClick={onClose} />
-          <AdminModalPrimaryButton onClick={() => onSave(name)}>{isEditing ? "Save" : "Add"}</AdminModalPrimaryButton>
+          <AdminModalPrimaryButton onClick={() => onSave(name, trackStock)}>{isEditing ? "Save" : "Add"}</AdminModalPrimaryButton>
         </>
       }
     >
       <label className="block text-xs mb-2 tracking-widest uppercase" style={{ fontFamily: "'DM Sans', sans-serif", color: "rgba(45,36,30,0.4)", letterSpacing: "0.14em" }}>Category Name</label>
       <input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Sweaters" className="w-full bg-transparent border rounded-[14px] px-4 py-3 text-[#2D241E] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#2D241E]/20 placeholder:text-[#2D241E]/20" style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "0.9rem", borderColor: "rgba(45,36,30,0.15)" }} />
+      <label className="mt-4 flex items-center gap-2.5 cursor-pointer select-none">
+        <input type="checkbox" checked={trackStock} onChange={(e) => setTrackStock(e.target.checked)} className="w-4 h-4 rounded accent-[#2D241E]" />
+        <span className="text-sm text-[#2D241E]/70" style={{ fontFamily: "'DM Sans', sans-serif" }}>Track stock?</span>
+      </label>
+      <p className="mt-1.5 text-xs text-[#2D241E]/40" style={{ fontFamily: "'DM Sans', sans-serif" }}>
+        When off, products in this category are excluded from low-stock alerts (e.g. lace or internal materials).
+      </p>
     </AdminModalShell>
   );
 }
@@ -2293,7 +2302,7 @@ function InternalProductModal({
       </p>
       <div>
         <label className="block text-xs mb-2 tracking-widest uppercase" style={fieldLabelStyle}>Name</label>
-        <input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Lace White" className={fieldInput} style={fieldInputStyle} />
+        <input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Strap White" className={fieldInput} style={fieldInputStyle} />
       </div>
       <div>
         <label className="block text-xs mb-2 tracking-widest uppercase" style={fieldLabelStyle}>Price</label>
@@ -2391,14 +2400,14 @@ function ColorModal({
       </div>
       {laceProducts ? (
         <div>
-          <label className="block text-xs mb-2 tracking-widest uppercase" style={fieldLabelStyle}>Lace product (optional)</label>
+          <label className="block text-xs mb-2 tracking-widest uppercase" style={fieldLabelStyle}>Strap product (optional)</label>
           <select
             value={laceProductId ?? ""}
             onChange={(e) => setLaceProductId(e.target.value ? Number(e.target.value) : null)}
             className={fieldInput}
             style={fieldInputStyle}
           >
-            <option value="">No lace mapping</option>
+            <option value="">No strap mapping</option>
             {laceProducts.map((p) => (
               <option key={p.id} value={p.id}>{p.name}</option>
             ))}
@@ -2822,7 +2831,7 @@ export function AdminPage() {
   const [productModal, setProductModal] = useState<{ open: boolean; editing: AdminProduct | null }>({ open: false, editing: null });
   const [internalProductModal, setInternalProductModal] = useState(false);
   const [userModal, setUserModal] = useState<{ open: boolean }>({ open: false });
-  const [categoryModal, setCategoryModal] = useState<{ open: boolean; editing: { id: number; name: string } | null }>({ open: false, editing: null });
+  const [categoryModal, setCategoryModal] = useState<{ open: boolean; editing: { id: number; name: string; trackStock?: boolean } | null }>({ open: false, editing: null });
   const [countryModal, setCountryModal] = useState<{ open: boolean; editing: { id: number; name: string } | null }>({ open: false, editing: null });
   const [colorModal, setColorModal] = useState<{ open: boolean; editing: { id: number; name: string; nameUk?: string | null; hexCode: string; laceProductId?: number | null } | null }>({ open: false, editing: null });
   const [furnitureModal, setFurnitureModal] = useState<{ open: boolean; editing: { id: number; name: string; nameUk?: string | null; hexCode: string } | null }>({ open: false, editing: null });
@@ -3440,13 +3449,13 @@ export function AdminPage() {
     }
   };
 
-  const handleSaveCategory = async (name: string) => {
+  const handleSaveCategory = async (name: string, trackStock: boolean) => {
     setSaveError(null);
     try {
       if (categoryModal.editing) {
-        await editCategory(categoryModal.editing.id, name);
+        await editCategory(categoryModal.editing.id, name, trackStock);
       } else {
-        await addCategory(name);
+        await addCategory(name, trackStock);
       }
       setCategoryModal({ open: false, editing: null });
       refetch();
@@ -3595,12 +3604,13 @@ export function AdminPage() {
 
   const totalRevenue = Number(ordersSummary.totalRevenue ?? 0);
   const activeUsers = users.filter((u) => u.status === "active").length;
-  const lowStockCount = products.filter((p) => !p.isInternalComponent && (p.stock ?? 0) < 10).length;
-  const criticalLowStockCount = products.filter((p) => !p.isInternalComponent && (p.stock ?? 0) <= 2).length;
+  const isStockTracked = (p: AdminProduct) => !p.isInternalComponent && p.categoryTrackStock !== false;
+  const lowStockCount = products.filter((p) => isStockTracked(p) && (p.stock ?? 0) < 10).length;
+  const criticalLowStockCount = products.filter((p) => isStockTracked(p) && (p.stock ?? 0) <= 2).length;
   const criticalLowStockProducts = useMemo(
     () =>
       products
-        .filter((p) => !p.isInternalComponent && (p.stock ?? 0) <= 2)
+        .filter((p) => isStockTracked(p) && (p.stock ?? 0) <= 2)
         .sort((a, b) => (a.stock ?? 0) - (b.stock ?? 0)),
     [products]
   );
@@ -3929,7 +3939,7 @@ export function AdminPage() {
                         </div>
                         <div className="text-right">
                           <p className="text-[#2D241E] text-sm" style={{ fontFamily: "'Cormorant Garamond', serif" }}>{formatPriceCompact(p.price, "uk")}</p>
-                          <p className="text-xs" style={{ fontFamily: "'DM Sans', sans-serif", color: p.stock < 10 ? "#9B6B2E" : "rgba(45,36,30,0.4)" }}>
+                          <p className="text-xs" style={{ fontFamily: "'DM Sans', sans-serif", color: isStockTracked(p) && p.stock < 10 ? "#9B6B2E" : "rgba(45,36,30,0.4)" }}>
                             {p.stock} in stock
                           </p>
                         </div>
@@ -4736,13 +4746,13 @@ export function AdminPage() {
                         <div
                           className="rounded-[18px] p-3.5"
                           style={{
-                            border: (p.stock ?? 0) <= 2 ? "1px solid rgba(196,48,48,0.35)" : "1px solid rgba(45,36,30,0.09)",
-                            backgroundColor: (p.stock ?? 0) <= 2 ? "rgba(196,48,48,0.12)" : "rgba(245,242,237,0.8)",
+                            border: isStockTracked(p) && (p.stock ?? 0) <= 2 ? "1px solid rgba(196,48,48,0.35)" : "1px solid rgba(45,36,30,0.09)",
+                            backgroundColor: isStockTracked(p) && (p.stock ?? 0) <= 2 ? "rgba(196,48,48,0.12)" : "rgba(245,242,237,0.8)",
                           }}
                         >
                           <div className="flex items-start gap-3">
                             <div className="w-12 h-12 rounded-[12px] overflow-hidden shrink-0" style={{ backgroundColor: "#EDE9E2" }}>
-                              <img src={getProductPreviewUrl(p)} alt={p.name} className="w-full h-full object-cover" />
+                              <img src={getProductPreviewUrl(p)} alt={p.name} className="w-full h-full object-contain" />
                             </div>
                             <div className="min-w-0 flex-1">
                               <div className="flex items-start justify-between gap-2">
@@ -4888,13 +4898,13 @@ export function AdminPage() {
                         className="grid items-center px-6 py-4 hover:bg-[#2D241E]/[0.02] transition-colors"
                         style={{
                           gridTemplateColumns: "2fr 1fr 80px 80px 100px 80px 100px",
-                          backgroundColor: (p.stock ?? 0) <= 2 ? "rgba(196,48,48,0.12)" : "transparent",
+                          backgroundColor: isStockTracked(p) && (p.stock ?? 0) <= 2 ? "rgba(196,48,48,0.12)" : "transparent",
                         }}
                       >
                         {/* Product */}
                         <div className="flex items-center gap-3">
                           <div className="w-14 h-14 rounded-[12px] overflow-hidden flex-shrink-0" style={{ backgroundColor: "#EDE9E2" }}>
-                            <img src={getProductPreviewUrl(p)} alt={p.name} className="w-full h-full object-cover" />
+                            <img src={getProductPreviewUrl(p)} alt={p.name} className="w-full h-full object-contain" />
                           </div>
                           <div className="min-w-0">
                             <p className="text-[#2D241E] truncate" style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "0.88rem" }}>{p.name}</p>
@@ -4910,7 +4920,7 @@ export function AdminPage() {
                           className="text-sm"
                           style={{
                             fontFamily: "'DM Sans', sans-serif",
-                            color: p.stock < 10 ? "#9B6B2E" : p.stock === 0 ? "#4A0E0E" : "rgba(45,36,30,0.6)",
+                            color: !isStockTracked(p) ? "rgba(45,36,30,0.6)" : p.stock < 10 ? "#9B6B2E" : p.stock === 0 ? "#4A0E0E" : "rgba(45,36,30,0.6)",
                           }}
                         >
                           {p.stock}
@@ -5491,7 +5501,7 @@ export function AdminPage() {
                 <div
                   className="grid px-6 py-4 text-xs tracking-widest uppercase"
                   style={{
-                    gridTemplateColumns: "1fr 100px",
+                    gridTemplateColumns: "1fr 120px 100px",
                     fontFamily: "'DM Sans', sans-serif",
                     letterSpacing: "0.12em",
                     color: "rgba(45,36,30,0.4)",
@@ -5500,6 +5510,7 @@ export function AdminPage() {
                   }}
                 >
                   <span>Category</span>
+                  <span>Track Stock</span>
                   <span className="text-right">Actions</span>
                 </div>
                 <div className="divide-y" style={{ borderColor: "rgba(45,36,30,0.06)" }}>
@@ -5507,8 +5518,18 @@ export function AdminPage() {
                     <p className="py-12 text-center text-[#2D241E]/40 px-6" style={{ fontFamily: "'DM Sans', sans-serif" }}>No categories yet</p>
                   ) : (
                     categories.map((c) => (
-                      <div key={c.id} className={ADMIN_ROW} style={{ gridTemplateColumns: "1fr 100px" }}>
+                      <div key={c.id} className={ADMIN_ROW} style={{ gridTemplateColumns: "1fr 120px 100px" }}>
                         <p className="text-[#2D241E]" style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "1.15rem" }}>{c.name}</p>
+                        <span
+                          className="w-fit px-2.5 py-1 rounded-full text-xs"
+                          style={{
+                            fontFamily: "'DM Sans', sans-serif",
+                            backgroundColor: c.trackStock ? "rgba(45,106,79,0.1)" : "rgba(45,36,30,0.06)",
+                            color: c.trackStock ? "#2D6A4F" : "rgba(45,36,30,0.45)",
+                          }}
+                        >
+                          {c.trackStock ? "Yes" : "No"}
+                        </span>
                         <div className="flex items-center justify-end gap-2">
                           <button type="button" onClick={() => setCategoryModal({ open: true, editing: c })} className={ADMIN_ICON_EDIT} title="Edit" aria-label={`Edit ${c.name}`}><Pencil size={13} style={{ color: "#2D241E", opacity: 0.5 }} /></button>
                           <button type="button" onClick={() => setDeleteModal({ open: true, type: "category", id: String(c.id), idNum: c.id, name: c.name })} className={ADMIN_ICON_DELETE} title="Delete" aria-label={`Delete ${c.name}`}><Trash2 size={13} style={{ color: "#4A0E0E", opacity: 0.6 }} /></button>
@@ -5623,7 +5644,7 @@ export function AdminPage() {
                 >
                   <span>Color</span>
                   <span>Preview</span>
-                  <span>Lace product</span>
+                  <span>Strap product</span>
                   <span className="text-right">Actions</span>
                 </div>
                 <div className="divide-y" style={{ borderColor: "rgba(45,36,30,0.06)" }}>

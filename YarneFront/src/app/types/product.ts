@@ -49,6 +49,7 @@ export interface Product {
   price: number;
   stock?: number;
   category: string;
+  categoryTrackStock?: boolean;
   isNew?: boolean;
   isBestseller?: boolean;
   createdAt?: string;

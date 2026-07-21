@@ -113,7 +113,7 @@ public static class OrderConfirmationEmailBuilder
                                   <th align="left" style="padding:8px;border:1px solid #e5e7eb;">Опис</th>
                                   <th align="left" style="padding:8px;border:1px solid #e5e7eb;">Колір</th>
                                   <th align="center" style="padding:8px;border:1px solid #e5e7eb;">Розмір</th>
-                                  <th align="left" style="padding:8px;border:1px solid #e5e7eb;">Мереживо</th>
+                                  <th align="left" style="padding:8px;border:1px solid #e5e7eb;">Ремінець</th>
                                   <th align="center" style="padding:8px;border:1px solid #e5e7eb;">Кількість</th>
                                   <th align="right" style="padding:8px;border:1px solid #e5e7eb;">Ціна</th>
                                   <th align="right" style="padding:8px;border:1px solid #e5e7eb;">Разом</th>
@@ -141,8 +141,8 @@ public static class OrderConfirmationEmailBuilder
     private static string FormatLaceLabel(bool? withLace)
         => withLace switch
         {
-            true => "З мереживом",
-            false => "Без мережива",
+            true => "З ремінцем",
+            false => "Без ремінця",
             _ => "—",
         };
 

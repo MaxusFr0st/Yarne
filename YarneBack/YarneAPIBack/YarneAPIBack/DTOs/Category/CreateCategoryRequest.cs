@@ -7,4 +7,6 @@ public class CreateCategoryRequest
     [Required]
     [StringLength(100)]
     public string Name { get; set; } = null!;
+
+    public bool TrackStock { get; set; } = true;
 }

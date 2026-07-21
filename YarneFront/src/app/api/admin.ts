@@ -3,6 +3,7 @@ import { apiRequest } from "./client";
 export interface CategoryDto {
   id: number;
   name: string;
+  trackStock: boolean;
 }
 
 export interface CountryDto {
@@ -50,22 +51,22 @@ export interface UserDto {
 }
 
 export async function fetchCategories(): Promise<CategoryDto[]> {
-  const data = await apiRequest<{ id: number; name: string }[]>("/api/categories");
+  const data = await apiRequest<CategoryDto[]>("/api/categories");
   return Array.isArray(data) ? data : [];
 }
 
-export async function createCategory(name: string): Promise<CategoryDto> {
-  const data = await apiRequest<{ id: number; name: string }>("/api/categories", {
+export async function createCategory(name: string, trackStock: boolean = true): Promise<CategoryDto> {
+  const data = await apiRequest<CategoryDto>("/api/categories", {
     method: "POST",
-    body: JSON.stringify({ name }),
+    body: JSON.stringify({ name, trackStock }),
   });
   return data;
 }
 
-export async function updateCategory(id: number, name: string): Promise<CategoryDto> {
-  const data = await apiRequest<{ id: number; name: string }>(`/api/categories/${id}`, {
+export async function updateCategory(id: number, name: string, trackStock: boolean = true): Promise<CategoryDto> {
+  const data = await apiRequest<CategoryDto>(`/api/categories/${id}`, {
     method: "PUT",
-    body: JSON.stringify({ name }),
+    body: JSON.stringify({ name, trackStock }),
   });
   return data;
 }

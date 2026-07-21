@@ -11,7 +11,6 @@ import {
   login as apiLogin,
   register as apiRegister,
   loginWithGoogle as apiLoginWithGoogle,
-  loginWithApple as apiLoginWithApple,
   logout as apiLogout,
   fetchAuthSession,
 } from "../api/auth";
@@ -66,7 +65,7 @@ interface AuthContextType {
   user: { name: string; email: string; role: string } | null;
   isAdmin: boolean;
   login: (email: string, password: string) => Promise<{ ok: boolean; error?: string }>;
-  loginWithOAuth: (idToken: string, provider: "google" | "apple") => Promise<{ ok: boolean; error?: string }>;
+  loginWithOAuth: (idToken: string, provider: "google") => Promise<{ ok: boolean; error?: string }>;
   register: (data: { firstName: string; lastName: string; userName: string; email: string; password: string }) => Promise<{ ok: boolean; error?: string }>;
   logout: () => void;
 }
@@ -293,9 +292,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  const loginWithOAuth = useCallback(async (idToken: string, provider: "google" | "apple"): Promise<{ ok: boolean; error?: string }> => {
+  const loginWithOAuth = useCallback(async (idToken: string, provider: "google"): Promise<{ ok: boolean; error?: string }> => {
     try {
-      const res = provider === "google" ? await apiLoginWithGoogle(idToken) : await apiLoginWithApple(idToken);
+      if (provider !== "google") {
+        return { ok: false, error: "Unsupported sign-in provider." };
+      }
+      const res = await apiLoginWithGoogle(idToken);
       const role = res.role ?? "Customer";
       clearLegacyAuthStorage();
       setUser({ name: res.fullName, email: res.email, role });

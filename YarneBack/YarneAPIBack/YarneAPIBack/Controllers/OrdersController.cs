@@ -3,6 +3,9 @@ using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using YarneAPIBack.Accounting;
+using YarneAPIBack.Accounting.DTOs;
+using YarneAPIBack.Accounting.Models;
 using YarneAPIBack.Accounting.Services.Contracts;
 using YarneAPIBack.Configuration;
 using YarneAPIBack.Data;
@@ -353,12 +356,25 @@ public class OrdersController : ControllerBase
             }
         }
 
+        // Categories with TrackStock=false (e.g. made-to-order items) skip availability checks,
+        // pooled decrements, and FIFO consumption entirely — small reference table, cheap to load whole.
+        var trackStockByCategoryId = await _context.Categories
+            .AsNoTracking()
+            .ToDictionaryAsync(c => c.Id, c => c.TrackStock, ct);
+
         var orderTotalCents = orderItems.Sum(i => checked(i.ListedPriceCents * i.Quantity));
+        // Prefer the exact channel ComposeReceivedOrderAsync assigns on "Received" ("Онлайн
+        // магазин") so a Pending/Accepted order already shows the right channel even before it's
+        // marked Received. Falls back to the first fee-free channel if that one doesn't exist yet.
         var ownStoreChannelId = await _context.SalesChannels
-            .Where(x => !x.IsVoid && x.FeeType == "none")
-            .OrderBy(x => x.Id)
+            .Where(x => !x.IsVoid && x.Name == "Онлайн магазин")
             .Select(x => (int?)x.Id)
-            .FirstOrDefaultAsync(ct);
+            .FirstOrDefaultAsync(ct)
+            ?? await _context.SalesChannels
+                .Where(x => !x.IsVoid && x.FeeType == "none")
+                .OrderBy(x => x.Id)
+                .Select(x => (int?)x.Id)
+                .FirstOrDefaultAsync(ct);
 
         var order = new Order
         {
@@ -386,6 +402,16 @@ public class OrdersController : ControllerBase
             await using var transaction = await _context.Database.BeginTransactionAsync(
                 IsolationLevel.Serializable,
                 ct);
+
+            // Insert the order first (within this same transaction) so its items get real Ids —
+            // FIFO consumption below records SalesFinishedGoodsConsumption rows keyed on
+            // OrderItem.Id. If stock validation fails further down, the whole transaction (this
+            // insert included) is rolled back.
+            customer.PhoneNumber = contactPhone;
+            _context.Entry(customer).Property(c => c.PhoneNumber).IsModified = true;
+            _context.Orders.Add(order);
+            await _context.SaveChangesAsync(ct);
+
             foreach (var productId in quantityByProductId.Keys.OrderBy(id => id))
             {
                 var requestedQty = quantityByProductId[productId];
@@ -398,6 +424,14 @@ public class OrdersController : ControllerBase
                     stockFailure = BadRequest(new { message = "One or more products in the order were not found." });
                     await transaction.RollbackAsync(ct);
                     return;
+                }
+
+                var tracksStock = !trackStockByCategoryId.TryGetValue(product.CategoryId, out var tracks) || tracks;
+                if (!tracksStock)
+                {
+                    // Category doesn't track stock — allow the sale without touching
+                    // availability, pooled counters, or FIFO lots for this product.
+                    continue;
                 }
 
                 var finishedInventory = await _context.FinishedGoodsInventories
@@ -433,13 +467,50 @@ public class OrdersController : ControllerBase
                 finishedInventory.QuantityOnHand -= requestedQty;
                 finishedInventory.UpdatedAt = now;
 
-                foreach (var orderItem in orderItems.Where(item => item.ProductId == productId))
-                    orderItem.UnitCogsCents = finishedInventory.AverageUnitCostCents;
+                // Consume the same finished-goods FIFO lots accounting sales use, right at
+                // checkout — keeps the lot ledger (COGS + void-production guard) in lockstep with
+                // the pooled counters instead of only catching up later in
+                // ComposeReceivedOrderAsync. One call per order line (not per productId) so lines
+                // that happen to share a product each get their own consumption slice/record.
+                foreach (var orderItem in orderItems.Where(item => item.ProductId == productId).OrderBy(item => item.Id))
+                {
+                    IReadOnlyList<FinishedGoodsFifoConsumption> lotConsumptions;
+                    try
+                    {
+                        lotConsumptions = await _salesAccountingService.ConsumeFinishedGoodsFifoAsync(
+                            productId,
+                            orderItem.Quantity,
+                            ct);
+                    }
+                    catch (AccountingBusinessException ex)
+                    {
+                        stockFailure = BadRequest(new { message = ex.Message });
+                        await transaction.RollbackAsync(ct);
+                        return;
+                    }
+
+                    var totalCogs = lotConsumptions.Sum(x => x.TotalCostCents);
+                    orderItem.UnitCogsCents = orderItem.Quantity == 0
+                        ? 0
+                        : RoundToCents((decimal)totalCogs / orderItem.Quantity);
+                    orderItem.UpdatedAt = now;
+                    foreach (var lc in lotConsumptions)
+                    {
+                        _context.SalesFinishedGoodsConsumptions.Add(new SalesFinishedGoodsConsumption
+                        {
+                            SalesOrderItemId = orderItem.Id,
+                            FinishedGoodsLotId = lc.LotId,
+                            Quantity = lc.Quantity,
+                            UnitCostAtSaleCents = lc.UnitCostCents,
+                            TotalCostCents = lc.TotalCostCents,
+                            CreatedBy = customerId.Value,
+                            CreatedAt = now,
+                            UpdatedAt = now,
+                        });
+                    }
+                }
             }
 
-            customer.PhoneNumber = contactPhone;
-            _context.Entry(customer).Property(c => c.PhoneNumber).IsModified = true;
-            _context.Orders.Add(order);
             try
             {
                 await _context.SaveChangesAsync(ct);
@@ -502,6 +573,13 @@ public class OrdersController : ControllerBase
                 .GroupBy(item => item.ProductId!.Value)
                 .ToDictionary(group => group.Key, group => group.Sum(item => item.Quantity));
 
+            // Categories with TrackStock=false skip stock reverse/re-consume entirely — small
+            // reference table, cheap to load whole.
+            var trackStockByCategoryId = await _context.Categories
+                .AsNoTracking()
+                .ToDictionaryAsync(c => c.Id, c => c.TrackStock, ct);
+
+            var (fifoActorId, _) = AdminActivityLogHelper.GetActor(HttpContext);
             ActionResult<OrderDto>? stockFailure = null;
             string? lockedPreviousStatus = null;
             var strategy = _context.Database.CreateExecutionStrategy();
@@ -536,6 +614,16 @@ public class OrdersController : ControllerBase
                     return;
                 }
 
+                // Same identity-mapped Order/OrderItem instances as `order` above (already
+                // FOR UPDATE-locked via lockedOrder) — load each item's existing FIFO
+                // consumptions so cancel can reverse them and reopen can tell they're gone.
+                await _context.Entry(lockedOrder)
+                    .Collection(x => x.OrderItems)
+                    .Query()
+                    .Where(item => !item.IsVoid)
+                    .Include(item => item.FinishedGoodsConsumptions.Where(c => !c.IsVoid))
+                    .LoadAsync(ct);
+
                 var now = DateTime.UtcNow;
                 foreach (var productId in quantities.Keys.OrderBy(pid => pid))
                 {
@@ -544,6 +632,21 @@ public class OrdersController : ControllerBase
                         .FromSqlInterpolated(
                             $"""SELECT * FROM "Product" WHERE "Id" = {productId} FOR UPDATE""")
                         .SingleOrDefaultAsync(ct);
+                    if (product is null || product.IsVoid)
+                    {
+                        stockFailure = BadRequest(new { message = "Order stock records are incomplete." });
+                        await transaction.RollbackAsync(ct);
+                        return;
+                    }
+
+                    var tracksStock = !trackStockByCategoryId.TryGetValue(product.CategoryId, out var tracks) || tracks;
+                    if (!tracksStock)
+                    {
+                        // Category doesn't track stock — nothing was decremented/consumed for
+                        // this product at checkout, so there's nothing to reverse or re-consume.
+                        continue;
+                    }
+
                     var inventory = await _context.FinishedGoodsInventories
                         .FromSqlInterpolated(
                             $"""
@@ -552,7 +655,7 @@ public class OrdersController : ControllerBase
                              FOR UPDATE
                              """)
                         .SingleOrDefaultAsync(ct);
-                    if (product is null || product.IsVoid || inventory is null || inventory.IsVoid)
+                    if (inventory is null || inventory.IsVoid)
                     {
                         stockFailure = BadRequest(new { message = "Order stock records are incomplete." });
                         await transaction.RollbackAsync(ct);
@@ -577,6 +680,76 @@ public class OrdersController : ControllerBase
                     }
                     product.UpdatedAt = now;
                     inventory.UpdatedAt = now;
+
+                    var itemsForProduct = lockedOrder.OrderItems
+                        .Where(item => item.ProductId == productId)
+                        .OrderBy(item => item.Id);
+                    if (willBeCanceled)
+                    {
+                        // Mirror the pooled-counter reversal above in the FIFO lot ledger: give
+                        // back every unit this order's items consumed so void-production and COGS
+                        // stay accurate for a canceled order.
+                        foreach (var item in itemsForProduct)
+                        {
+                            foreach (var consumption in item.FinishedGoodsConsumptions.Where(c => !c.IsVoid).ToList())
+                            {
+                                var lot = await _context.FinishedGoodsLots
+                                    .FromSqlInterpolated(
+                                        $"""SELECT * FROM "FinishedGoodsLot" WHERE "Id" = {consumption.FinishedGoodsLotId} FOR UPDATE""")
+                                    .SingleOrDefaultAsync(ct);
+                                if (lot is not null)
+                                {
+                                    lot.QuantityRemaining = checked(lot.QuantityRemaining + consumption.Quantity);
+                                    lot.UpdatedAt = now;
+                                }
+                                consumption.IsVoid = true;
+                                consumption.UpdatedAt = now;
+                            }
+                        }
+                    }
+                    else
+                    {
+                        // Reopening re-decrements the pooled counters above, so re-consume FIFO
+                        // lots the same way checkout does — this order's items had no live
+                        // consumption while canceled (reversed above), so they need fresh slices.
+                        foreach (var item in itemsForProduct)
+                        {
+                            IReadOnlyList<FinishedGoodsFifoConsumption> lotConsumptions;
+                            try
+                            {
+                                lotConsumptions = await _salesAccountingService.ConsumeFinishedGoodsFifoAsync(
+                                    productId,
+                                    item.Quantity,
+                                    ct);
+                            }
+                            catch (AccountingBusinessException ex)
+                            {
+                                stockFailure = BadRequest(new { message = ex.Message });
+                                await transaction.RollbackAsync(ct);
+                                return;
+                            }
+
+                            var totalCogs = lotConsumptions.Sum(x => x.TotalCostCents);
+                            item.UnitCogsCents = item.Quantity == 0
+                                ? 0
+                                : RoundToCents((decimal)totalCogs / item.Quantity);
+                            item.UpdatedAt = now;
+                            foreach (var lc in lotConsumptions)
+                            {
+                                _context.SalesFinishedGoodsConsumptions.Add(new SalesFinishedGoodsConsumption
+                                {
+                                    SalesOrderItemId = item.Id,
+                                    FinishedGoodsLotId = lc.LotId,
+                                    Quantity = lc.Quantity,
+                                    UnitCostAtSaleCents = lc.UnitCostCents,
+                                    TotalCostCents = lc.TotalCostCents,
+                                    CreatedBy = fifoActorId,
+                                    CreatedAt = now,
+                                    UpdatedAt = now,
+                                });
+                            }
+                        }
+                    }
                 }
 
                 lockedOrder.Status = canonicalStatus;
@@ -856,6 +1029,9 @@ public class OrdersController : ControllerBase
         if (trimmed.Length < 8 || trimmed.Length > 32) return null;
         return trimmed;
     }
+
+    private static long RoundToCents(decimal value) =>
+        checked((long)decimal.Round(value, 0, MidpointRounding.AwayFromZero));
 
     private OrderConfirmationEmailMessage BuildOrderStatusMessage(Order order, OrderEmailEvent emailEvent)
     {

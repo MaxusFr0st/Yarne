@@ -113,7 +113,7 @@ export function AdminProductionView() {
       setModalOpen(false);
       await load();
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "Could not complete production order.");
+      setError(reason instanceof Error ? reason.message : "Could not record production.");
     } finally {
       setSaving(false);
     }
@@ -138,7 +138,7 @@ export function AdminProductionView() {
     <div>
       <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <p className="text-sm text-[#2D241E]/55" style={{ fontFamily: "'DM Sans', sans-serif" }}>
-          Completing production consumes materials FIFO and adds finished goods stock.
+          Recording production consumes materials FIFO and adds finished goods stock — independent of customer orders.
         </p>
         <div className="flex gap-2">
           <Button tone="light" onClick={() => void load()} disabled={loading} aria-label="Refresh production">
@@ -146,7 +146,7 @@ export function AdminProductionView() {
             Refresh
           </Button>
           <Button onClick={openCreate} disabled={!products.length}>
-            <Plus size={14} /> Complete order
+            <Plus size={14} /> Record production
           </Button>
         </div>
       </div>
@@ -159,7 +159,7 @@ export function AdminProductionView() {
             <Loader2 size={16} className="animate-spin" /> Loading production…
           </div>
         ) : orders.length === 0 ? (
-          <EmptyState title="No production yet" detail="Complete a production order to consume BOM materials and build finished goods." />
+          <EmptyState title="No production yet" detail="Record a production run to consume BOM materials and build finished goods." />
         ) : (
           <div className="divide-y divide-[#2D241E]/08">
             {orders.map((order) => {
@@ -242,7 +242,7 @@ export function AdminProductionView() {
                                 <span className="text-[#2D241E]">
                                   Lot #{lot.id}
                                   {lot.colorName || lot.sizeName
-                                    ? ` · ${[lot.colorName, lot.sizeName, lot.lace ? "lace" : null].filter(Boolean).join(", ")}`
+                                    ? ` · ${[lot.colorName, lot.sizeName, lot.lace ? "strap" : null].filter(Boolean).join(", ")}`
                                     : ""}
                                 </span>
                                 <span className="tabular-nums text-[#2D241E]/65">
@@ -268,7 +268,7 @@ export function AdminProductionView() {
       </Panel>
 
       {modalOpen ? (
-        <Dialog title="Complete production" subtitle="Materials are consumed FIFO from purchase lots" onClose={() => setModalOpen(false)}>
+        <Dialog title="Record production" subtitle="Materials are consumed FIFO from purchase lots" onClose={() => setModalOpen(false)}>
           <div className="space-y-4">
             <div>
               <Label htmlFor="prod-product">Product</Label>
@@ -300,7 +300,7 @@ export function AdminProductionView() {
             </div>
             <div>
               <p className="mb-2 text-[0.68rem] uppercase tracking-[0.12em] text-[#2D241E]/45" style={{ fontFamily: "'DM Sans', sans-serif" }}>
-                Variant tag (optional — label only, does not change BOM or cost)
+                Variant (color + size). «З ремінцем» also consumes that color&apos;s ремінець BOM materials.
               </p>
               <div className="grid gap-4 sm:grid-cols-3">
                 <div>
@@ -340,7 +340,7 @@ export function AdminProductionView() {
                       disabled={!form.colorId}
                       onChange={(e) => setForm((c) => ({ ...c, lace: e.target.checked }))}
                     />
-                    With lace
+                    With strap (ремінець)
                   </label>
                 </div>
               </div>
@@ -353,7 +353,7 @@ export function AdminProductionView() {
               <Button tone="light" onClick={() => setModalOpen(false)}>Cancel</Button>
               <Button onClick={() => void save()} disabled={saving}>
                 {saving ? <Loader2 size={14} className="animate-spin" /> : null}
-                Complete
+                Produce
               </Button>
             </div>
           </div>

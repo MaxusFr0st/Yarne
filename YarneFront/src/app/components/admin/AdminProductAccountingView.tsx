@@ -22,7 +22,34 @@ import {
   moneyFromCents,
 } from "./accountingAdminUi";
 
-type BomLine = { materialId: number; quantity: string };
+type BomLine = { materialId: number; quantity: string; unitMode: "base" | "rolls" };
+
+function canTrackRolls(material: MaterialDto | undefined): boolean {
+  return !!material && material.trackByItem && (material.defaultLengthPerItem ?? 0) > 0;
+}
+
+function bomLineFromItem(materialId: number, quantityRequired: number, materials: MaterialDto[]): BomLine {
+  const material = materials.find((m) => m.id === materialId);
+  if (canTrackRolls(material)) {
+    const lengthPerItem = material!.defaultLengthPerItem as number;
+    const rolls = quantityRequired / lengthPerItem;
+    const roundedRolls = Math.round(rolls);
+    if (roundedRolls > 0 && Math.abs(rolls - roundedRolls) < 1e-6) {
+      return { materialId, quantity: String(roundedRolls), unitMode: "rolls" };
+    }
+  }
+  return { materialId, quantity: String(quantityRequired), unitMode: "base" };
+}
+
+function bomLineToQuantityRequired(line: BomLine, materials: MaterialDto[]): number {
+  const qty = Number(line.quantity);
+  if (!Number.isFinite(qty)) return 0;
+  const material = materials.find((m) => m.id === line.materialId);
+  if (line.unitMode === "rolls" && canTrackRolls(material)) {
+    return qty * (material!.defaultLengthPerItem as number);
+  }
+  return qty;
+}
 
 export function AdminProductAccountingView() {
   const [products, setProducts] = useState<AccountingProductDto[]>([]);
@@ -70,11 +97,8 @@ export function AdminProductAccountingView() {
       labour: inputFromCents(product.bom?.labourCostCents ?? 0),
       currency: product.bom?.currencyCode || product.sellingCurrencyCode || "UAH",
       lines: product.bom?.items.length
-        ? product.bom.items.map((item) => ({
-            materialId: item.materialId,
-            quantity: String(item.quantityRequired),
-          }))
-        : [{ materialId: materials[0]?.id ?? 0, quantity: "1" }],
+        ? product.bom.items.map((item) => bomLineFromItem(item.materialId, item.quantityRequired, materials))
+        : [{ materialId: materials[0]?.id ?? 0, quantity: "1", unitMode: "base" as const }],
     });
     setBomTarget(product);
   };
@@ -117,7 +141,7 @@ export function AdminProductAccountingView() {
         currencyCode: bomForm.currency.trim() || "UAH",
         items: bomForm.lines.map((line) => ({
           materialId: line.materialId,
-          quantityRequired: Number(line.quantity),
+          quantityRequired: bomLineToQuantityRequired(line, materials),
         })),
       });
       setBomTarget(null);
@@ -160,7 +184,7 @@ export function AdminProductAccountingView() {
                 <span>Product</span>
                 <span>SKU</span>
                 <span>Selling</span>
-                <span>BOM cost</span>
+                <span>Current FIFO cost</span>
                 <span>Margin</span>
                 <span>Actions</span>
               </div>
@@ -221,57 +245,93 @@ export function AdminProductAccountingView() {
               </div>
             </div>
             <div className="space-y-3">
-              {bomForm.lines.map((line, index) => (
-                <div key={index} className="grid gap-3 sm:grid-cols-[1fr_120px_44px]">
-                  <div>
-                    <Label htmlFor={`bom-mat-${index}`}>Material</Label>
-                    <select
-                      id={`bom-mat-${index}`}
-                      className={controlClass()}
-                      value={line.materialId || ""}
-                      onChange={(e) => setBomForm((c) => ({
-                        ...c,
-                        lines: c.lines.map((row, i) => i === index ? { ...row, materialId: Number(e.target.value) } : row),
-                      }))}
-                    >
-                      <option value="">Select material</option>
-                      {materials.map((material) => (
-                        <option key={material.id} value={material.id}>{material.name} ({material.unit})</option>
-                      ))}
-                    </select>
+              {bomForm.lines.map((line, index) => {
+                const material = materials.find((m) => m.id === line.materialId);
+                const rollTrackable = canTrackRolls(material);
+                const lengthPerItem = material?.defaultLengthPerItem ?? 0;
+                const qtyNum = Number(line.quantity);
+                return (
+                  <div key={index}>
+                    <div className={`grid gap-3 ${rollTrackable ? "sm:grid-cols-[1fr_100px_110px_44px]" : "sm:grid-cols-[1fr_120px_44px]"}`}>
+                      <div>
+                        <Label htmlFor={`bom-mat-${index}`}>Material</Label>
+                        <select
+                          id={`bom-mat-${index}`}
+                          className={controlClass()}
+                          value={line.materialId || ""}
+                          onChange={(e) => {
+                            const nextMaterialId = Number(e.target.value);
+                            const nextMaterial = materials.find((m) => m.id === nextMaterialId);
+                            setBomForm((c) => ({
+                              ...c,
+                              lines: c.lines.map((row, i) => i === index
+                                ? { ...row, materialId: nextMaterialId, unitMode: canTrackRolls(nextMaterial) ? row.unitMode : "base" }
+                                : row),
+                            }));
+                          }}
+                        >
+                          <option value="">Select material</option>
+                          {materials.map((mat) => (
+                            <option key={mat.id} value={mat.id}>{mat.name} ({mat.unit})</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div>
+                        <Label htmlFor={`bom-qty-${index}`}>Qty</Label>
+                        <input
+                          id={`bom-qty-${index}`}
+                          inputMode="decimal"
+                          className={`${controlClass()} tabular-nums`}
+                          value={line.quantity}
+                          onChange={(e) => setBomForm((c) => ({
+                            ...c,
+                            lines: c.lines.map((row, i) => i === index ? { ...row, quantity: e.target.value } : row),
+                          }))}
+                        />
+                      </div>
+                      {rollTrackable ? (
+                        <div>
+                          <Label htmlFor={`bom-unit-${index}`}>Unit</Label>
+                          <select
+                            id={`bom-unit-${index}`}
+                            className={controlClass()}
+                            value={line.unitMode}
+                            onChange={(e) => setBomForm((c) => ({
+                              ...c,
+                              lines: c.lines.map((row, i) => i === index ? { ...row, unitMode: e.target.value as "base" | "rolls" } : row),
+                            }))}
+                          >
+                            <option value="rolls">rolls</option>
+                            <option value="base">{material?.unit}</option>
+                          </select>
+                        </div>
+                      ) : null}
+                      <div className="flex items-end">
+                        <button
+                          type="button"
+                          className="flex size-11 cursor-pointer items-center justify-center rounded-full text-[#641D1D] hover:bg-[#641D1D]/8 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#75482E]"
+                          aria-label="Remove BOM line"
+                          onClick={() => setBomForm((c) => ({ ...c, lines: c.lines.filter((_, i) => i !== index) }))}
+                          disabled={bomForm.lines.length <= 1}
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      </div>
+                    </div>
+                    {rollTrackable && line.unitMode === "rolls" && Number.isFinite(qtyNum) ? (
+                      <p className="mt-1 text-xs text-[#2D241E]/50" style={{ fontFamily: "'DM Sans', sans-serif" }}>
+                        1 roll = {lengthPerItem} {material?.unit} → saves as {qtyNum * lengthPerItem} {material?.unit}
+                      </p>
+                    ) : null}
                   </div>
-                  <div>
-                    <Label htmlFor={`bom-qty-${index}`}>Qty</Label>
-                    <input
-                      id={`bom-qty-${index}`}
-                      inputMode="decimal"
-                      className={`${controlClass()} tabular-nums`}
-                      value={line.quantity}
-                      onChange={(e) => setBomForm((c) => ({
-                        ...c,
-                        lines: c.lines.map((row, i) => i === index ? { ...row, quantity: e.target.value } : row),
-                      }))}
-                    />
-                  </div>
-                  <div className="flex items-end">
-                    <button
-                      type="button"
-                      className="flex size-11 cursor-pointer items-center justify-center rounded-full text-[#641D1D] hover:bg-[#641D1D]/8 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#75482E]"
-                      aria-label="Remove BOM line"
-                      onClick={() => setBomForm((c) => ({ ...c, lines: c.lines.filter((_, i) => i !== index) }))}
-                      disabled={bomForm.lines.length <= 1}
-                    >
-                      <Trash2 size={16} />
-                    </button>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
             <Button
               tone="light"
               onClick={() => setBomForm((c) => ({
                 ...c,
-                lines: [...c.lines, { materialId: materials[0]?.id ?? 0, quantity: "1" }],
+                lines: [...c.lines, { materialId: materials[0]?.id ?? 0, quantity: "1", unitMode: "base" }],
               }))}
             >
               <Plus size={14} /> Add material
@@ -311,7 +371,7 @@ function FlagWarning({ product }: { product: AccountingProductDto }) {
       <AlertTriangle size={14} className="mt-0.5 shrink-0" />
       <span>
         Current margin {product.margin.currentMarginPct.toFixed(1)}% is below your threshold of {product.margin.thresholdPct}%.
-        BOM cost is {moneyFromCents(bom, product.sellingCurrencyCode)}, selling at {moneyFromCents(sell, product.sellingCurrencyCode)}.
+        Current FIFO cost is {moneyFromCents(bom, product.sellingCurrencyCode)}, selling at {moneyFromCents(sell, product.sellingCurrencyCode)}.
       </span>
     </p>
   );
@@ -388,7 +448,7 @@ function ProductCard({
       <p className="mt-3 text-sm tabular-nums text-[#2D241E]" style={{ fontFamily: "'DM Sans', sans-serif" }}>
         Selling {moneyFromCents(product.sellingPriceCents, product.sellingCurrencyCode)}
         {product.margin.currentBomCostCents != null
-          ? ` · BOM ${moneyFromCents(product.margin.currentBomCostCents, product.sellingCurrencyCode)}`
+          ? ` · Current FIFO cost ${moneyFromCents(product.margin.currentBomCostCents, product.sellingCurrencyCode)}`
           : ""}
       </p>
       <FlagWarning product={product} />

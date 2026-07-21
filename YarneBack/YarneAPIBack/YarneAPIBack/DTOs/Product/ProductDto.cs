@@ -34,6 +34,8 @@ public class ProductDto
 
     public string CategoryName { get; set; } = null!;
 
+    public bool CategoryTrackStock { get; set; } = true;
+
     public string? CollectionName { get; set; }
 
     public string? ProducerName { get; set; }

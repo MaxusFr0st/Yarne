@@ -134,7 +134,7 @@ export function ProductCardPreviewPanel({ form, colors, sizes, categoryName }: P
         </p>
         <p className="text-sm text-[#2D241E]/55" style={{ fontFamily: "'DM Sans', sans-serif" }}>
           Click color swatches on the card or pick any variant photo below. Scroll through colors and browse every
-          size and lace photo.
+          size and strap photo.
         </p>
       </div>
 
@@ -232,7 +232,7 @@ export function ProductCardPreviewPanel({ form, colors, sizes, categoryName }: P
                 All variant photos
               </p>
               <p className="text-sm text-[#2D241E]/55" style={{ fontFamily: "'DM Sans', sans-serif" }}>
-                Every color, size, and lace combination you uploaded. Click a thumbnail to preview it on the card.
+                Every color, size, and strap combination you uploaded. Click a thumbnail to preview it on the card.
               </p>
             </div>
 
