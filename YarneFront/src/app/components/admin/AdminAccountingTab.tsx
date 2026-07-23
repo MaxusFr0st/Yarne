@@ -10,7 +10,7 @@ import {
 import {
   fetchAccountingDashboard, fetchSoldOrders,
   fetchMaterials, createMaterial, updateMaterial, deleteMaterial,
-  fetchMaterialStock, fetchStockReports, fetchStockReport, createStockReport,
+  fetchMaterialStock, fetchStockReports, fetchStockReport, createStockReport, voidStockReport,
   fetchAccountingReport, downloadAccountingReportPdf,
   type MaterialDto,
   type MaterialStockDto,
@@ -411,7 +411,7 @@ export function AdminAccountingTab() {
 
   // ── Delete confirm ────────────────────────────────────────────────────────
   const [deleteTarget, setDeleteTarget] = useState<{
-    type: "material"; id: number; name: string;
+    type: "material" | "stock-report"; id: number; name: string;
   } | null>(null);
 
   // ── Stock report expansion ────────────────────────────────────────────────
@@ -531,9 +531,20 @@ export function AdminAccountingTab() {
     setModalLoading(true);
     setError(null);
     try {
-      await deleteMaterial(deleteTarget.id);
-      setDeleteTarget(null);
-      await loadMaterials();
+      if (deleteTarget.type === "stock-report") {
+        await voidStockReport(deleteTarget.id);
+        setDeleteTarget(null);
+        setExpandedReports((prev) => {
+          const next = { ...prev };
+          delete next[deleteTarget.id];
+          return next;
+        });
+        setStockReports(await fetchStockReports());
+      } else {
+        await deleteMaterial(deleteTarget.id);
+        setDeleteTarget(null);
+        await loadMaterials();
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : "Void failed");
     } finally {
@@ -998,13 +1009,29 @@ export function AdminAccountingTab() {
                         </p>
                         {sr.notes && <p className="text-xs text-[#2D241E]/45 mt-1" style={{ fontFamily: "'DM Sans', sans-serif" }}>{sr.notes}</p>}
                       </div>
-                      <button
-                        type="button"
-                        onClick={() => void toggleExpandReport(sr.id)}
-                        className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-[#2D241E]/8 transition-colors cursor-pointer flex-shrink-0"
-                      >
-                        {expanded ? <ChevronUp size={16} style={{ color: "#2D241E", opacity: 0.5 }} /> : <ChevronDown size={16} style={{ color: "#2D241E", opacity: 0.5 }} />}
-                      </button>
+                      <div className="flex items-center gap-1 flex-shrink-0">
+                        <button
+                          type="button"
+                          onClick={() => setDeleteTarget({
+                            type: "stock-report",
+                            id: sr.id,
+                            name: sr.label || formatDate(sr.snapshotDate),
+                          })}
+                          className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-[#4A0E0E]/8 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2D241E]/30"
+                          title="Void"
+                          aria-label={`Void stock report ${sr.id}`}
+                        >
+                          <Trash2 size={13} style={{ color: "#4A0E0E", opacity: 0.6 }} />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => void toggleExpandReport(sr.id)}
+                          className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-[#2D241E]/8 transition-colors cursor-pointer flex-shrink-0"
+                          aria-label={expanded ? "Collapse stock report" : "Expand stock report"}
+                        >
+                          {expanded ? <ChevronUp size={16} style={{ color: "#2D241E", opacity: 0.5 }} /> : <ChevronDown size={16} style={{ color: "#2D241E", opacity: 0.5 }} />}
+                        </button>
+                      </div>
                     </div>
                     {expanded && (
                       <div style={{ borderTop: "1px solid rgba(45,36,30,0.06)" }}>
@@ -1228,7 +1255,7 @@ export function AdminAccountingTab() {
         {srModal && (
           <ModalShell title="Verify & lock stock report" onClose={() => setSrModal(false)}>
             <p className="text-sm text-[#2D241E]/60 mb-5" style={{ fontFamily: "'DM Sans', sans-serif" }}>
-              This will snapshot the current stock levels and lock the report. It cannot be undone.
+              This will snapshot the current stock levels and lock the report. Locked snapshots can later be voided if needed.
             </p>
             <div className="space-y-4 mb-6">
               <div>

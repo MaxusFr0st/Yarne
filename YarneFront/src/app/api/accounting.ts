@@ -612,6 +612,10 @@ export async function createStockReport(body: { label?: string | null; notes?: s
   return apiRequest<StockReportDetailDto>("/api/accounting/stock-reports", { method: "POST", body: JSON.stringify(body) });
 }
 
+export async function voidStockReport(id: number): Promise<void> {
+  await apiRequest(`/api/accounting/stock-reports/${id}`, { method: "DELETE" });
+}
+
 // ─── Dashboard & reports ───────────────────────────────────────────────────
 
 export async function fetchAccountingDashboard(from?: string, to?: string): Promise<AccountingDashboardDto> {

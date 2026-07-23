@@ -8,6 +8,7 @@ public class StockReport
     public string? Notes { get; set; }
     public DateTime CreatedAt { get; set; }
     public bool IsLocked { get; set; } = true;
+    public bool IsVoid { get; set; }
 
     public ICollection<StockReportLine> Lines { get; set; } = new List<StockReportLine>();
 }

@@ -542,6 +542,21 @@ public class AccountingController : ControllerBase
         return CreatedAtAction(nameof(GetStockReport), new { id = result.Id }, result);
     }
 
+    [HttpDelete("stock-reports/{id:int}")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> VoidStockReport(int id, CancellationToken ct = default)
+    {
+        var voided = await _accounting.VoidStockReportAsync(id, ct);
+        if (!voided) return NotFound();
+
+        var (actorId, actorEmail) = AdminActivityLogHelper.GetActor(HttpContext);
+        await _activityLogs.LogAsync("accounting", "voided", $"Voided stock report #{id}",
+            entityId: id.ToString(), actorUserId: actorId, actorEmail: actorEmail, ct: ct);
+
+        return NoContent();
+    }
+
     // ─── Dashboard & Reports ──────────────────────────────────────────────────
 
     [HttpGet("dashboard")]
