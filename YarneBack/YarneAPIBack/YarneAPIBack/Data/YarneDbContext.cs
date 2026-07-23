@@ -698,8 +698,10 @@ public partial class YarneDbContext : DbContext
             entity.Property(e => e.Label).HasMaxLength(255);
             entity.Property(e => e.Notes).HasMaxLength(1000);
             entity.Property(e => e.IsLocked).HasDefaultValue(true);
+            entity.Property(e => e.IsVoid).HasDefaultValue(false);
             entity.Property(e => e.CreatedAt).HasDefaultValueSql("CURRENT_TIMESTAMP");
             entity.HasIndex(e => e.SnapshotDate);
+            entity.HasIndex(e => e.IsVoid);
         });
 
         modelBuilder.Entity<StockReportLine>(entity =>

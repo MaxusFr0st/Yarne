@@ -48,10 +48,11 @@ public interface IAccountingService
     Task<ExternalOrderDto> CreateExternalOrderAsync(CreateExternalOrderRequest req, CancellationToken ct = default);
     Task<IReadOnlyList<ExternalOrderDto>> GetExternalOrdersAsync(CancellationToken ct = default);
 
-    // Stock reports (immutable snapshots)
+    // Stock reports (locked snapshots; soft-voidable)
     Task<IReadOnlyList<StockReportSummaryDto>> GetStockReportsAsync(CancellationToken ct = default);
     Task<StockReportDetailDto?> GetStockReportByIdAsync(int id, CancellationToken ct = default);
     Task<StockReportDetailDto> CreateStockReportAsync(CreateStockReportRequest req, CancellationToken ct = default);
+    Task<bool> VoidStockReportAsync(int id, CancellationToken ct = default);
 
     // Dashboard & report
     Task<AccountingDashboardDto> GetDashboardAsync(DateTime? from, DateTime? to, CancellationToken ct = default);

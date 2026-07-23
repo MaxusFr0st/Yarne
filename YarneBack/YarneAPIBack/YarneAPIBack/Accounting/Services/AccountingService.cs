@@ -536,6 +536,7 @@ public class AccountingService : IAccountingService
         var rows = await _context.StockReports
             .AsNoTracking()
             .Include(r => r.Lines)
+            .Where(r => !r.IsVoid)
             .OrderByDescending(r => r.SnapshotDate)
             .ToListAsync(ct);
 
@@ -557,7 +558,7 @@ public class AccountingService : IAccountingService
         var row = await _context.StockReports
             .AsNoTracking()
             .Include(r => r.Lines)
-            .FirstOrDefaultAsync(r => r.Id == id, ct);
+            .FirstOrDefaultAsync(r => r.Id == id && !r.IsVoid, ct);
         return row == null ? null : MapStockReportDetail(row);
     }
 
@@ -574,6 +575,7 @@ public class AccountingService : IAccountingService
             Notes        = string.IsNullOrWhiteSpace(req.Notes) ? null : req.Notes.Trim(),
             CreatedAt    = now,
             IsLocked     = true,
+            IsVoid       = false,
             Lines        = stock.Select(s => new StockReportLine
             {
                 MaterialId   = s.MaterialId,
@@ -589,6 +591,18 @@ public class AccountingService : IAccountingService
         _context.StockReports.Add(report);
         await _context.SaveChangesAsync(ct);
         return MapStockReportDetail(report);
+    }
+
+    public async Task<bool> VoidStockReportAsync(int id, CancellationToken ct = default)
+    {
+        var report = await _context.StockReports
+            .FirstOrDefaultAsync(r => r.Id == id && !r.IsVoid, ct);
+        if (report is null)
+            return false;
+
+        report.IsVoid = true;
+        await _context.SaveChangesAsync(ct);
+        return true;
     }
 
     // ─── Dashboard ────────────────────────────────────────────────────────────
