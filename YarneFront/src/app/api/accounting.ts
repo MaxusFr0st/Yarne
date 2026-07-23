@@ -101,8 +101,8 @@ export interface MaterialStockDto {
   avgUnitCost: number;
   totalStockValue: number;
   trackByItem: boolean;
-  wholeItemsRemaining: number;
-  looseRemainder: number;
+  wholeItemsRemaining: number | null;
+  looseRemainder: number | null;
 }
 
 export interface ImportTransactionLineDto {
@@ -1077,7 +1077,7 @@ export interface AccountingDashboardV3Dto {
     orderDate: string;
     quantityPurchased: number;
     quantityRemaining: number;
-    baseUnitPriceCents: number;
+    unitCostCents: number;
     valueCents: number;
   }[];
   finishedGoods: {

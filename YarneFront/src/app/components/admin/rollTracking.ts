@@ -27,6 +27,9 @@ export function formatRollBreakdown(
   const parts: string[] = [];
   if (wholeItems > 0) parts.push(`${wholeItems} full ${rollWord}`);
   if (looseRemainder > 0.0001) parts.push(`${formatLength(looseRemainder)} ${unit} loose`);
-  if (parts.length === 0) return `0 ${unit} (empty)`;
+  // On-hand meters can exist without a roll breakdown (bulk lots). Don't claim empty.
+  if (parts.length === 0) {
+    return totalRemaining > 0.0001 ? null : `0 ${unit} (empty)`;
+  }
   return `${parts.join(" + ")} (${formatLength(totalRemaining)} ${unit} total)`;
 }

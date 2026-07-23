@@ -94,23 +94,41 @@ public class AccountingService : IAccountingService
 
         var materials = await materialQuery.OrderBy(m => m.Name).ToListAsync(ct);
 
-        // Canonical material ledger = received purchase-order lots (FIFO source of truth).
-        // Legacy ImportTransaction / MaterialUsageRecord totals are intentionally ignored.
-        var lotTotals = await _context.PurchaseOrderItems
+        // Value lots from the exact BaseTotalCostCents share remaining — never
+        // QuantityRemaining * BaseUnitPriceCents. The latter rounds per meter to whole
+        // cents and invents phantom value (e.g. 330 m × 2.73 ₴ = 900.90 when the roll
+        // purchase was exactly 900 ₴).
+        var lotRows = await _context.PurchaseOrderItems
             .AsNoTracking()
             .Where(l =>
                 !l.IsVoid &&
                 !l.PurchaseOrder.IsVoid &&
                 l.PurchaseOrder.Status == "received")
+            .Select(l => new
+            {
+                l.MaterialId,
+                l.QuantityPurchased,
+                l.QuantityRemaining,
+                l.BaseTotalCostCents,
+            })
+            .ToListAsync(ct);
+
+        var lotTotals = lotRows
             .GroupBy(l => l.MaterialId)
             .Select(g => new
             {
                 MaterialId = g.Key,
                 TotalQty = g.Sum(l => l.QuantityPurchased),
                 QtyOnHand = g.Sum(l => l.QuantityRemaining),
-                OnHandValueCents = g.Sum(l => l.QuantityRemaining * l.BaseUnitPriceCents),
+                OnHandValueCents = g.Sum(l =>
+                    l.QuantityPurchased > 0
+                        ? (long)decimal.Round(
+                            l.QuantityRemaining / l.QuantityPurchased * l.BaseTotalCostCents,
+                            0,
+                            MidpointRounding.AwayFromZero)
+                        : 0L),
             })
-            .ToListAsync(ct);
+            .ToList();
 
         var lotMap = lotTotals.ToDictionary(x => x.MaterialId);
 
@@ -154,7 +172,7 @@ public class AccountingService : IAccountingService
             var qtyUsed = qtyImported - qtyOnHand;
             var onHandValueCents = lot?.OnHandValueCents ?? 0m;
             var avgUnitCost = qtyOnHand > 0 ? onHandValueCents / qtyOnHand / 100m : 0m;
-            itemRollupMap.TryGetValue(m.Id, out var rollup);
+            var hasItemRollup = itemRollupMap.TryGetValue(m.Id, out var rollup);
             return new MaterialStockDto
             {
                 MaterialId      = m.Id,
@@ -164,11 +182,15 @@ public class AccountingService : IAccountingService
                 QtyImported     = qtyImported,
                 QtyUsed         = qtyUsed,
                 QtyOnHand       = qtyOnHand,
+                // Display-only implied unit cost from exact stock value. Not used for
+                // valuation math — TotalStockValue is the source of truth.
                 AvgUnitCost     = avgUnitCost,
                 TotalStockValue = onHandValueCents / 100m,
                 TrackByItem     = m.TrackByItem,
-                WholeItemsRemaining = rollup.WholeItems,
-                LooseRemainder      = rollup.LooseRemainder,
+                // Only expose roll breakdown when this material has item-tracked lots.
+                // Defaulting to (0,0) made non-roll stock show "0 m (empty)" while On hand > 0.
+                WholeItemsRemaining = hasItemRollup ? rollup.WholeItems : null,
+                LooseRemainder      = hasItemRollup ? rollup.LooseRemainder : null,
             };
         }).ToList();
     }

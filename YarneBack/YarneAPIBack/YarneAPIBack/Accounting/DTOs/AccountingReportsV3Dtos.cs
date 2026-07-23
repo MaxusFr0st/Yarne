@@ -31,7 +31,7 @@ public sealed record RawMaterialLotReportDto(
     DateTime OrderDate,
     decimal QuantityPurchased,
     decimal QuantityRemaining,
-    long BaseUnitPriceCents,
+    long UnitCostCents,
     long ValueCents);
 
 public sealed record FinishedGoodsStockReportDto(

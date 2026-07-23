@@ -2659,16 +2659,36 @@ function LogDiffPills({ pills }: { pills: LogDiffPill[] }) {
 
 type LogImageGroups = { added: string[]; removed: string[]; current: string[] };
 
+/** Prefer durable image hosts in logs. /uploads/ files are often purged after product edits. */
+function isReliableLogImageUrl(url: string): boolean {
+  const trimmed = url.trim();
+  if (!trimmed) return false;
+  if (trimmed.startsWith("data:")) return true;
+  try {
+    const resolved = resolveMediaUrl(trimmed);
+    const parsed = new URL(resolved, typeof window !== "undefined" ? window.location.origin : "https://local.invalid");
+    if (parsed.pathname.startsWith("/uploads/")) return false;
+    return true;
+  } catch {
+    return !trimmed.includes("/uploads/");
+  }
+}
+
+function filterLogImageUrls(urls: string[]): string[] {
+  return urls.filter(isReliableLogImageUrl);
+}
+
 function extractLogImageGroups(detailsJson: string | null, action: string, category: string): LogImageGroups {
   if (!detailsJson) return { added: [], removed: [], current: [] };
   try {
     const obj = JSON.parse(detailsJson) as Record<string, unknown>;
     const imageUrl = typeof obj.imageUrl === "string" ? obj.imageUrl : null;
-    const imageUrls = asStringArray(obj.imageUrls);
-    const addedImageUrls = asStringArray(obj.addedImageUrls);
+    const imageUrls = filterLogImageUrls(asStringArray(obj.imageUrls));
+    const addedImageUrls = filterLogImageUrls(asStringArray(obj.addedImageUrls));
+    // Keep removed URLs even if /uploads/ — we render placeholders, never fetch them.
     const removedImageUrls = asStringArray(obj.removedImageUrls);
 
-    if (category === "image" && imageUrl) {
+    if (category === "image" && imageUrl && isReliableLogImageUrl(imageUrl)) {
       return { added: [imageUrl], removed: [], current: [imageUrl] };
     }
 
@@ -2677,7 +2697,7 @@ function extractLogImageGroups(detailsJson: string | null, action: string, categ
         return { added: imageUrls, removed: [], current: [] };
       }
       if (action === "deleted") {
-        const removed = removedImageUrls.length > 0 ? removedImageUrls : imageUrls;
+        const removed = removedImageUrls.length > 0 ? removedImageUrls : asStringArray(obj.imageUrls);
         return { added: [], removed, current: [] };
       }
       if (action === "updated") {
@@ -2714,13 +2734,32 @@ function LogImageStrip({ groups }: { groups: LogImageGroups }) {
           <div
             key={`${label}-${url}`}
             className={thumbClass}
+            title={url}
             style={{
               backgroundColor: "#EDE9E2",
               opacity: faded ? 0.55 : 1,
               border: faded ? "1px dashed rgba(74,14,14,0.35)" : "1px solid rgba(45,36,30,0.08)",
             }}
           >
-            <img src={resolveMediaUrl(url)} alt="" className="w-full h-full object-cover" />
+            {faded ? (
+              // Removed images are purged from /uploads/ on save — never fetch them (avoids 404 spam).
+              <div className="flex h-full w-full items-center justify-center text-[9px] uppercase tracking-wider text-[#4A0E0E]/55" style={{ fontFamily: "'DM Sans', sans-serif" }}>
+                del
+              </div>
+            ) : (
+              <img
+                src={resolveMediaUrl(url)}
+                alt=""
+                className="w-full h-full object-cover"
+                loading="lazy"
+                onError={(event) => {
+                  const img = event.currentTarget;
+                  img.style.display = "none";
+                  const parent = img.parentElement;
+                  if (parent) parent.style.display = "none";
+                }}
+              />
+            )}
           </div>
         ))}
         {urls.length > maxVisible && (

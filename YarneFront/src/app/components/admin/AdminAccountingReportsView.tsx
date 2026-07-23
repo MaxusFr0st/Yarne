@@ -281,7 +281,7 @@ export function AdminAccountingReportsView() {
             <SectionTitle>Finished goods stock</SectionTitle>
             <Panel className="p-4">
               <SimpleTable
-                headers={["Product", "SKU", "On hand", "Avg cost", "Value"]}
+                headers={["Product", "SKU", "On hand", "Unit cost", "Value"]}
                 rows={data.finishedGoods.map((row) => [
                   row.productName,
                   row.sku,
@@ -302,7 +302,7 @@ export function AdminAccountingReportsView() {
                   row.materialName,
                   row.supplierName,
                   `${row.quantityRemaining} ${row.unit}`,
-                  moneyFromCents(row.baseUnitPriceCents, currency),
+                  moneyFromCents(row.unitCostCents, currency),
                   moneyFromCents(row.valueCents, currency),
                 ])}
               />

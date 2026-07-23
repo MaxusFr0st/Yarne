@@ -890,7 +890,7 @@ export function AdminAccountingTab() {
               return (
                 <>
                   <div className="rounded-[28px] overflow-x-auto hidden md:block" style={cardBorder}>
-                    <TableHeader cols={["Material", "SKU", "Unit", "Imported", "Used", "On hand", "Avg cost", "Stock value"]} widths="1.4fr 0.8fr 0.6fr 0.7fr 0.7fr 0.7fr 0.8fr 0.9fr" />
+                    <TableHeader cols={["Material", "SKU", "Unit", "Imported", "Used", "On hand", "Stock value"]} widths="1.5fr 0.8fr 0.6fr 0.8fr 0.8fr 0.8fr 1.0fr" />
                     <div className="divide-y" style={{ borderColor: "rgba(45,36,30,0.06)" }}>
                       {visibleStock.length === 0 ? (
                         <EmptyRow message="No stock data yet" />
@@ -904,7 +904,7 @@ export function AdminAccountingTab() {
                             <div
                               key={s.materialId}
                               className="grid items-center px-6 py-4 hover:bg-[#2D241E]/[0.03] transition-colors duration-200 text-sm"
-                              style={{ gridTemplateColumns: "1.4fr 0.8fr 0.6fr 0.7fr 0.7fr 0.7fr 0.8fr 0.9fr", fontFamily: "'DM Sans', sans-serif" }}
+                              style={{ gridTemplateColumns: "1.5fr 0.8fr 0.6fr 0.8fr 0.8fr 0.8fr 1.0fr", fontFamily: "'DM Sans', sans-serif" }}
                             >
                               <span className="text-[#2D241E] font-medium">{s.name}</span>
                               <span className="text-[#2D241E]/60">{s.sku || "—"}</span>
@@ -917,7 +917,6 @@ export function AdminAccountingTab() {
                                   <span className="block text-xs text-[#2D241E]/50 font-normal">{breakdown}</span>
                                 )}
                               </span>
-                              <span className="text-[#2D241E]/60">{formatMoney(s.avgUnitCost)}</span>
                               <span style={{ color: isNeg ? "#4A0E0E" : "#2D241E", fontWeight: 500 }}>{formatMoney(s.totalStockValue)}</span>
                             </div>
                           );
@@ -947,7 +946,6 @@ export function AdminAccountingTab() {
                               <span className="text-[#2D241E]/65">Imported: {s.qtyImported}</span>
                               <span className="text-[#2D241E]/65">Used: {s.qtyUsed}</span>
                               <span style={{ color: isNeg ? "#4A0E0E" : "rgba(45,36,30,0.65)", fontWeight: isNeg ? 500 : undefined }}>On hand: {s.qtyOnHand}</span>
-                              <span className="text-[#2D241E]/65">Avg cost: {formatMoney(s.avgUnitCost)}</span>
                             </div>
                             {breakdown && (
                               <p className="text-xs text-[#2D241E]/50 mt-2" style={{ fontFamily: "'DM Sans', sans-serif" }}>{breakdown}</p>

@@ -28,10 +28,10 @@ public class MaterialStockDto
     public decimal AvgUnitCost { get; set; }
     public decimal TotalStockValue { get; set; }
     public bool TrackByItem { get; set; }
-    /// <summary>Sum of floor(lot.QuantityRemaining / lot.LengthPerItem) across this material's item-tracked, non-void lots.</summary>
-    public int WholeItemsRemaining { get; set; }
-    /// <summary>Sum of each item-tracked lot's remainder (QuantityRemaining mod LengthPerItem).</summary>
-    public decimal LooseRemainder { get; set; }
+    /// <summary>Sum of floor(lot.QuantityRemaining / lot.LengthPerItem) across this material's item-tracked, non-void lots. Null when this material has no item-tracked lots.</summary>
+    public int? WholeItemsRemaining { get; set; }
+    /// <summary>Sum of each item-tracked lot's remainder (QuantityRemaining mod LengthPerItem). Null when this material has no item-tracked lots.</summary>
+    public decimal? LooseRemainder { get; set; }
 }
 
 public class CreateMaterialRequest

@@ -193,38 +193,51 @@ public sealed class AccountingReportsV3Service : IAccountingReportsV3Service
             totalInputVat,
             netOutputVat - totalInputVat);
 
-        var rawLots = currentLots.Select(x => new RawMaterialLotReportDto(
-            x.Id,
-            x.PurchaseOrderId,
-            x.MaterialId,
-            x.Material.Name,
-            x.Material.Unit,
-            x.PurchaseOrder.Supplier.Name,
-            x.PurchaseOrder.OrderDate,
-            x.QuantityPurchased,
-            x.QuantityRemaining,
-            x.BaseUnitPriceCents,
+        var rawLots = currentLots.Select(x =>
+        {
             // Value proportionally off the exact BaseTotalCostCents rather than
             // QuantityRemaining * BaseUnitPriceCents — the latter understates lots bought as
             // a lump sum (e.g. rolls priced per-roll), since BaseUnitPriceCents is a
             // whole-cent-per-unit snapshot that loses fractional cents across a large quantity.
-            x.QuantityPurchased > 0
+            var valueCents = x.QuantityPurchased > 0
                 ? RoundToCents(x.QuantityRemaining / x.QuantityPurchased * x.BaseTotalCostCents)
-                : 0)).ToList();
-        // Value off the actual remaining FIFO lots where they exist — more precise than the
-        // pooled average, since lots carry each production run's true locked-in cost.
+                : 0;
+            // Unit cost displayed alongside that value must be derived from the same
+            // value/quantity so the two columns agree — BaseUnitPriceCents alone would
+            // understate cost for the reason above.
+            var unitCostCents = x.QuantityRemaining > 0
+                ? RoundToCents(valueCents / x.QuantityRemaining)
+                : x.BaseUnitPriceCents;
+            return new RawMaterialLotReportDto(
+                x.Id,
+                x.PurchaseOrderId,
+                x.MaterialId,
+                x.Material.Name,
+                x.Material.Unit,
+                x.PurchaseOrder.Supplier.Name,
+                x.PurchaseOrder.OrderDate,
+                x.QuantityPurchased,
+                x.QuantityRemaining,
+                unitCostCents,
+                valueCents);
+        }).ToList();
+        // Finished-goods truth always comes from remaining FIFO lots, never the pooled
+        // AverageUnitCostCents/QuantityOnHand fields — those drift over time (e.g. after
+        // partial sells/returns) and can produce nonsense like a positive average cost
+        // with no lots actually backing it. If there are no remaining lots, the material
+        // has zero value on hand, full stop.
         var finishedGoods = finishedGoodsRows.Select(x =>
         {
             if (finishedGoodsLotsByProduct.TryGetValue(x.ProductId, out var lotAgg) && lotAgg.Quantity > 0)
             {
-                var lotAverageCost = RoundToCents((decimal)lotAgg.ValueCents / lotAgg.Quantity);
+                var lotUnitCost = RoundToCents((decimal)lotAgg.ValueCents / lotAgg.Quantity);
                 return new FinishedGoodsStockReportDto(
                     x.ProductId, x.Product.Name, x.Product.ProductCode,
-                    lotAgg.Quantity, lotAverageCost, lotAgg.ValueCents);
+                    lotAgg.Quantity, lotUnitCost, lotAgg.ValueCents);
             }
             return new FinishedGoodsStockReportDto(
                 x.ProductId, x.Product.Name, x.Product.ProductCode,
-                x.QuantityOnHand, x.AverageUnitCostCents, checked(x.AverageUnitCostCents * x.QuantityOnHand));
+                0, 0, 0);
         }).ToList();
         var quantityByMaterial = currentLots
             .GroupBy(x => x.MaterialId)
