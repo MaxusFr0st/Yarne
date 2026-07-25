@@ -13,6 +13,4 @@ public class CreateColorRequest
 
     [StringLength(20)]
     public string? HexCode { get; set; }
-
-    public int? LaceProductId { get; set; }
 }

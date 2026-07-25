@@ -95,10 +95,8 @@ import {
   Crosshair,
 } from "lucide-react";
 import { fetchActivityLogs, type AdminActivityLogDto } from "../api/admin";
-import { fetchVariantProducedAvailability, applyVariantStock } from "../api/accounting";
 import { fetchProduct } from "../api/products";
 import { FocalPointEditor } from "../components/admin/FocalPointEditor";
-import { AdminAccountingTab } from "../components/admin/AdminAccountingTab";
 import { AdminHomeCopyEditor } from "../components/admin/AdminHomeCopyEditor";
 import { AdminOurHistoryEditor } from "../components/admin/AdminOurHistoryEditor";
 import { AdminCollectionsTab } from "../components/admin/AdminCollectionsTab";
@@ -365,7 +363,6 @@ interface ProductFormData {
   isNew: boolean;
   isBestseller: boolean;
   lace: boolean;
-  isInternalComponent: boolean;
   description: string;
   stock: string;
   sku: string;
@@ -574,7 +571,6 @@ function ProductModal({
           isNew: product.isNew ?? false,
           isBestseller: product.isBestseller ?? false,
           lace: product.lace ?? false,
-          isInternalComponent: product.isInternalComponent ?? false,
           description: product.description,
           stock: String(product.stock ?? 0),
           sku: product.sku ?? product.id,
@@ -597,7 +593,6 @@ function ProductModal({
           isNew: false,
           isBestseller: false,
           lace: false,
-          isInternalComponent: false,
           description: "",
           stock: "",
           sku: "",
@@ -686,66 +681,6 @@ function ProductModal({
   });
 
   const [activeTab, setActiveTab] = useState<ProductModalTab>("details");
-
-  // Produced-but-not-yet-listed stock per variant, from accounting production runs that
-  // were tagged with a color/size/lace. Applying moves real produced units onto the
-  // storefront variant quantity instead of the admin typing a number blind.
-  const [producedAvailability, setProducedAvailability] = useState<Record<string, number>>({});
-  const [applyingVariantKey, setApplyingVariantKey] = useState<string | null>(null);
-  const [applyStockError, setApplyStockError] = useState<string | null>(null);
-
-  useEffect(() => {
-    const productId = product?.idNum;
-    if (!productId) return;
-    let cancelled = false;
-    void fetchVariantProducedAvailability(productId)
-      .then((rows) => {
-        if (cancelled) return;
-        const next: Record<string, number> = {};
-        rows.forEach((row) => {
-          next[`${row.colorId}:${row.sizeId}:${row.lace}`] = row.availableQuantity;
-        });
-        setProducedAvailability(next);
-      })
-      .catch(() => {
-        // Availability is a convenience overlay — the editor still works without it.
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [product?.idNum]);
-
-  const handleApplyProducedStock = async (colorId: number, sizeId: number, lace: boolean) => {
-    const productId = product?.idNum;
-    if (!productId) return;
-    const key = variantKey(colorId, sizeId, lace);
-    const available = producedAvailability[key] ?? 0;
-    if (available <= 0) return;
-    const answer = window.prompt(
-      `Apply how many produced units to this variant's storefront stock? (up to ${available})`,
-      String(available),
-    );
-    if (answer == null) return;
-    const quantity = Number(answer.trim());
-    if (!Number.isInteger(quantity) || quantity <= 0 || quantity > available) {
-      setApplyStockError(`Enter a whole number between 1 and ${available}.`);
-      return;
-    }
-    setApplyingVariantKey(key);
-    setApplyStockError(null);
-    try {
-      const result = await applyVariantStock({ productId, colorId, sizeId, lace, quantity });
-      setForm((p) => ({
-        ...p,
-        variantStocks: { ...p.variantStocks, [key]: String(result.variantQuantityInStock) },
-      }));
-      setProducedAvailability((prev) => ({ ...prev, [key]: result.remainingAvailableQuantity }));
-    } catch (e) {
-      setApplyStockError(e instanceof Error ? e.message : "Could not apply produced stock.");
-    } finally {
-      setApplyingVariantKey(null);
-    }
-  };
 
   const suggestedProductSet = useMemo(
     () => new Set(form.suggestedProductCodes),
@@ -1079,9 +1014,7 @@ function ProductModal({
     });
 
     if (!form.name.trim()) errors.name = "This field must not be empty.";
-    // Internal products (e.g. per-color lace components) are never shown on the storefront, so
-    // the description and minimum-photos requirements below don't apply to them.
-    if (!form.isInternalComponent && !form.description.trim()) errors.description = "This field must not be empty.";
+    if (!form.description.trim()) errors.description = "This field must not be empty.";
     if (!Number.isFinite(parsedPrice) || parsedPrice <= 0) errors.price = "Enter a valid price greater than 0.";
     if (form.stock.trim() && (!Number.isFinite(parsedStock) || parsedStock < 0)) {
       errors.stock = "Enter a valid stock (0 or more).";
@@ -1095,7 +1028,7 @@ function ProductModal({
     if (!form.defaultSizeId || !selectedSizeIds.includes(form.defaultSizeId)) {
       errors.defaultSizeId = "Choose a default size from selected color-size sets.";
     }
-    if (!form.isInternalComponent && variantsWithTooFewPhotos.length > 0) {
+    if (variantsWithTooFewPhotos.length > 0) {
       errors.photos = "Each selected color-size record must contain at least 3 photos.";
     }
     if (unresolvedSuggestedCodes.length > 0) {
@@ -1679,11 +1612,6 @@ function ProductModal({
                       {uploadError}
                     </p>
                   )}
-                  {applyStockError && (
-                    <p className="text-sm text-[#4A0E0E] mb-3 p-3 rounded-[12px] bg-[#4A0E0E]/8" style={{ fontFamily: "'DM Sans', sans-serif" }}>
-                      {applyStockError}
-                    </p>
-                  )}
                   <div className="grid gap-3 sm:gap-4 lg:grid-cols-2">
                     {form.colorIds.flatMap((colorId) =>
                       (form.colorSizeIds[colorId] ?? []).flatMap((sizeId) =>
@@ -1734,26 +1662,6 @@ function ProductModal({
                                 className="w-20 bg-white/60 border rounded-[10px] px-2.5 py-1.5 text-xs text-[#2D241E] focus:outline-none"
                                 style={{ fontFamily: "'DM Sans', sans-serif", borderColor: "rgba(45,36,30,0.15)" }}
                               />
-                              {(producedAvailability[key] ?? 0) > 0 ? (
-                                <button
-                                  type="button"
-                                  disabled={applyingVariantKey === key}
-                                  onClick={() => void handleApplyProducedStock(colorId, sizeId, lace)}
-                                  className={`px-3 py-1.5 rounded-[10px] text-xs border transition-all hover:bg-[#227850]/10 ${applyingVariantKey === key ? "opacity-50 pointer-events-none" : "cursor-pointer"}`}
-                                  style={{ fontFamily: "'DM Sans', sans-serif", borderColor: "rgba(34,120,80,0.4)", color: "#227850" }}
-                                  title={`${producedAvailability[key]} produced unit(s) of this exact variant are not yet on the storefront listing`}
-                                >
-                                  {applyingVariantKey === key ? "Applying…" : `Use stock (${producedAvailability[key]})`}
-                                </button>
-                              ) : (
-                                <span
-                                  className="px-2 py-1 rounded-[10px] text-[0.65rem]"
-                                  style={{ fontFamily: "'DM Sans', sans-serif", color: "#B5622A", backgroundColor: "rgba(181,98,42,0.1)" }}
-                                  title="No produced/purchased stock of this exact color-size-lace variant is in the warehouse. This number is set manually and won't be backed by real inventory until production is logged for this variant."
-                                >
-                                  fake number (no warehouse stock)
-                                </span>
-                              )}
                               <label
                                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-[10px] text-xs border transition-all hover:bg-[#2D241E]/5 ${rowUploading || cropBusy ? "opacity-50 pointer-events-none" : "cursor-pointer"}`}
                                 style={{ fontFamily: "'DM Sans', sans-serif", borderColor: "rgba(45,36,30,0.2)", color: "#2D241E" }}
@@ -1915,7 +1823,6 @@ function ProductModal({
               { label: "Mark as New", key: "isNew" as const },
               { label: "Mark as Bestseller", key: "isBestseller" as const },
               { label: "Has strap option", key: "lace" as const },
-              { label: "Internal product", key: "isInternalComponent" as const },
             ].map((flag) => (
               <label key={flag.key} className="flex items-center gap-3 cursor-pointer">
                 <div
@@ -2256,75 +2163,6 @@ function CategoryModal({
 }
 
 /* ─────────────────────────────────────────────
-   INTERNAL PRODUCT MODAL (admin-only stock items, e.g. lace colors)
-───────────────────────────────────────────── */
-function InternalProductModal({
-  colors,
-  onClose,
-  onSave,
-}: {
-  colors: { id: number; name: string }[];
-  onClose: () => void;
-  onSave: (data: { name: string; price: string; colorId: number | null; sku: string }) => void;
-}) {
-  const [name, setName] = useState("");
-  const [price, setPrice] = useState("");
-  const [colorId, setColorId] = useState<number | null>(colors[0]?.id ?? null);
-  const [sku, setSku] = useState("");
-  const fieldLabelStyle: React.CSSProperties = {
-    fontFamily: "'DM Sans', sans-serif",
-    color: "rgba(45,36,30,0.4)",
-    letterSpacing: "0.14em",
-  };
-  const fieldInput =
-    "w-full bg-transparent border rounded-[14px] px-4 py-3 text-[#2D241E] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#2D241E]/20 placeholder:text-[#2D241E]/20";
-  const fieldInputStyle: React.CSSProperties = {
-    fontFamily: "'DM Sans', sans-serif",
-    fontSize: "0.9rem",
-    borderColor: "rgba(45,36,30,0.15)",
-  };
-  return (
-    <AdminModalShell
-      eyebrow="New Internal Product"
-      title="Add Internal Product"
-      onClose={onClose}
-      bodyClassName="p-8 space-y-5"
-      footer={
-        <>
-          <AdminModalCancelButton onClick={onClose} />
-          <AdminModalPrimaryButton onClick={() => onSave({ name, price, colorId, sku })}>Add</AdminModalPrimaryButton>
-        </>
-      }
-    >
-      <p className="text-xs" style={{ fontFamily: "'DM Sans', sans-serif", color: "rgba(45,36,30,0.5)" }}>
-        Admin-only stock item (e.g. a lace color) — never shown on the storefront. Edit it afterward in
-        Accounting → Products to add its BOM, margin, and cost, exactly like any regular product.
-      </p>
-      <div>
-        <label className="block text-xs mb-2 tracking-widest uppercase" style={fieldLabelStyle}>Name</label>
-        <input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Strap White" className={fieldInput} style={fieldInputStyle} />
-      </div>
-      <div>
-        <label className="block text-xs mb-2 tracking-widest uppercase" style={fieldLabelStyle}>Price</label>
-        <input inputMode="decimal" value={price} onChange={(e) => setPrice(e.target.value)} placeholder="0.00" className={`${fieldInput} tabular-nums`} style={fieldInputStyle} />
-      </div>
-      <div>
-        <label className="block text-xs mb-2 tracking-widest uppercase" style={fieldLabelStyle}>Color</label>
-        <select value={colorId ?? ""} onChange={(e) => setColorId(e.target.value ? Number(e.target.value) : null)} className={fieldInput} style={fieldInputStyle}>
-          {colors.map((c) => (
-            <option key={c.id} value={c.id}>{c.name}</option>
-          ))}
-        </select>
-      </div>
-      <div>
-        <label className="block text-xs mb-2 tracking-widest uppercase" style={fieldLabelStyle}>SKU (optional)</label>
-        <input type="text" value={sku} onChange={(e) => setSku(e.target.value)} placeholder="Auto-generated if left blank" className={fieldInput} style={fieldInputStyle} />
-      </div>
-    </AdminModalShell>
-  );
-}
-
-/* ─────────────────────────────────────────────
    COLOR MODAL
 ───────────────────────────────────────────── */
 function ColorModal({
@@ -2332,29 +2170,24 @@ function ColorModal({
   onClose,
   onSave,
   labels,
-  laceProducts,
 }: {
-  editing: { id: number; name: string; nameUk?: string | null; hexCode: string; laceProductId?: number | null } | null;
+  editing: { id: number; name: string; nameUk?: string | null; hexCode: string } | null;
   onClose: () => void;
-  onSave: (name: string, hexCode?: string, nameUk?: string, laceProductId?: number | null) => void;
+  onSave: (name: string, hexCode?: string, nameUk?: string) => void;
   labels?: {
     eyebrowNew?: string;
     eyebrowEdit?: string;
     titleNew?: string;
   };
-  /** When provided, shows the "Lace product" mapping select (Colors tab only). */
-  laceProducts?: { id: number; name: string }[];
 }) {
   const [name, setName] = useState(editing?.name ?? "");
   const [nameUk, setNameUk] = useState(editing?.nameUk ?? "");
   const [hexCode, setHexCode] = useState(editing?.hexCode ?? "#2D241E");
-  const [laceProductId, setLaceProductId] = useState<number | null>(editing?.laceProductId ?? null);
   useEffect(() => {
     setName(editing?.name ?? "");
     setNameUk(editing?.nameUk ?? "");
     setHexCode(editing?.hexCode ?? "#2D241E");
-    setLaceProductId(editing?.laceProductId ?? null);
-  }, [editing?.id, editing?.name, editing?.nameUk, editing?.hexCode, editing?.laceProductId]);
+  }, [editing?.id, editing?.name, editing?.nameUk, editing?.hexCode]);
   const isEditing = !!editing;
   const eyebrowNew = labels?.eyebrowNew ?? "New Color";
   const eyebrowEdit = labels?.eyebrowEdit ?? "Edit Color";
@@ -2380,7 +2213,7 @@ function ColorModal({
       footer={
         <>
           <AdminModalCancelButton onClick={onClose} />
-          <AdminModalPrimaryButton onClick={() => onSave(name, sanitizeColorHex(hexCode), nameUk.trim() || undefined, laceProductId)}>
+          <AdminModalPrimaryButton onClick={() => onSave(name, sanitizeColorHex(hexCode), nameUk.trim() || undefined)}>
             {isEditing ? "Save" : "Add"}
           </AdminModalPrimaryButton>
         </>
@@ -2398,22 +2231,6 @@ function ColorModal({
         <label className="block text-xs mb-2 tracking-widest uppercase" style={fieldLabelStyle}>Color</label>
         <AdminColorPicker value={hexCode} onChange={setHexCode} />
       </div>
-      {laceProducts ? (
-        <div>
-          <label className="block text-xs mb-2 tracking-widest uppercase" style={fieldLabelStyle}>Strap product (optional)</label>
-          <select
-            value={laceProductId ?? ""}
-            onChange={(e) => setLaceProductId(e.target.value ? Number(e.target.value) : null)}
-            className={fieldInput}
-            style={fieldInputStyle}
-          >
-            <option value="">No strap mapping</option>
-            {laceProducts.map((p) => (
-              <option key={p.id} value={p.id}>{p.name}</option>
-            ))}
-          </select>
-        </div>
-      ) : null}
     </AdminModalShell>
   );
 }
@@ -2555,7 +2372,7 @@ function DeleteModal({
 /* ─────────────────────────────────────────────
    MAIN ADMIN PAGE
 ───────────────────────────────────────────── */
-type AdminTab = "dashboard" | "contents" | "products" | "users" | "orders" | "logs" | "accounting" | "categories" | "collections" | "countries" | "colors" | "furniture" | "sizes";
+type AdminTab = "dashboard" | "contents" | "products" | "users" | "orders" | "logs" | "categories" | "collections" | "countries" | "colors" | "furniture" | "sizes";
 type LogsSubTab = "all" | "product" | "user" | "push" | "order" | "catalog" | "image";
 
 function formatLogTimestamp(iso: string) {
@@ -2804,7 +2621,6 @@ export function AdminPage() {
     addColor,
     editColor,
     removeColor,
-    laceProducts,
     furnitureColors,
     addFurnitureColor,
     editFurnitureColor,
@@ -2869,11 +2685,10 @@ export function AdminPage() {
   const [logsError, setLogsError] = useState<string | null>(null);
 
   const [productModal, setProductModal] = useState<{ open: boolean; editing: AdminProduct | null }>({ open: false, editing: null });
-  const [internalProductModal, setInternalProductModal] = useState(false);
   const [userModal, setUserModal] = useState<{ open: boolean }>({ open: false });
   const [categoryModal, setCategoryModal] = useState<{ open: boolean; editing: { id: number; name: string; trackStock?: boolean } | null }>({ open: false, editing: null });
   const [countryModal, setCountryModal] = useState<{ open: boolean; editing: { id: number; name: string } | null }>({ open: false, editing: null });
-  const [colorModal, setColorModal] = useState<{ open: boolean; editing: { id: number; name: string; nameUk?: string | null; hexCode: string; laceProductId?: number | null } | null }>({ open: false, editing: null });
+  const [colorModal, setColorModal] = useState<{ open: boolean; editing: { id: number; name: string; nameUk?: string | null; hexCode: string } | null }>({ open: false, editing: null });
   const [furnitureModal, setFurnitureModal] = useState<{ open: boolean; editing: { id: number; name: string; nameUk?: string | null; hexCode: string } | null }>({ open: false, editing: null });
   const [sizeModal, setSizeModal] = useState<{ open: boolean; editing: { id: number; name: string; nameUk?: string | null } | null }>({ open: false, editing: null });
   const [deleteModal, setDeleteModal] = useState<{ open: boolean; type: "product" | "user" | "category" | "country" | "color" | "furniture" | "size"; id: string; idNum?: number; name: string } | null>(null);
@@ -3403,7 +3218,6 @@ export function AdminPage() {
         isNew: data.isNew,
         isBestseller: data.isBestseller,
         lace: data.lace,
-        isInternalComponent: data.isInternalComponent,
         ...(productModal.editing
           ? data.suggestionsHydrated
             ? { suggestedProductCodes: data.suggestedProductCodes }
@@ -3430,37 +3244,6 @@ export function AdminPage() {
           : "Failed to save product";
       setProductSaveError(message);
       setSaveError(message);
-    }
-  };
-
-  const handleSaveInternalProduct = async (data: { name: string; price: string; colorId: number | null; sku: string }) => {
-    setSaveError(null);
-    if (!data.name.trim()) {
-      setSaveError("Name is required.");
-      return;
-    }
-    try {
-      const categoryId = categories.find((c) => c.name === "Accessories")?.id ?? categories[0]?.id;
-      const sizeId = sizes.find((s) => s.name === "One Size")?.id ?? sizes[0]?.id;
-      if (!categoryId || !sizeId) {
-        setSaveError("Add at least one category and size before creating an internal product.");
-        return;
-      }
-      await addProduct({
-        productCode: data.sku.trim() ? data.sku.trim() : undefined,
-        name: data.name.trim(),
-        price: parseFloat(data.price) || 0,
-        categoryId,
-        defaultSizeId: sizeId,
-        sizeIds: [sizeId],
-        defaultColorId: data.colorId ?? undefined,
-        colorIds: data.colorId ? [data.colorId] : [],
-        isInternalComponent: true,
-      });
-      setInternalProductModal(false);
-      refetch();
-    } catch (e) {
-      setSaveError(e instanceof Error ? e.message : "Failed to create internal product");
     }
   };
 
@@ -3523,13 +3306,13 @@ export function AdminPage() {
     }
   };
 
-  const handleSaveColor = async (name: string, hexCode?: string, nameUk?: string, laceProductId?: number | null) => {
+  const handleSaveColor = async (name: string, hexCode?: string, nameUk?: string) => {
     setSaveError(null);
     try {
       if (colorModal.editing) {
-        await editColor(colorModal.editing.id, name, hexCode, nameUk, laceProductId);
+        await editColor(colorModal.editing.id, name, hexCode, nameUk);
       } else {
-        await addColor(name, hexCode, nameUk, laceProductId);
+        await addColor(name, hexCode, nameUk);
       }
       setColorModal({ open: false, editing: null });
       refetch();
@@ -3648,7 +3431,7 @@ export function AdminPage() {
 
   const totalRevenue = Number(ordersSummary.totalRevenue ?? 0);
   const activeUsers = users.filter((u) => u.status === "active").length;
-  const isStockTracked = (p: AdminProduct) => !p.isInternalComponent && p.categoryTrackStock !== false;
+  const isStockTracked = (p: AdminProduct) => p.categoryTrackStock !== false;
   const lowStockCount = products.filter((p) => isStockTracked(p) && (p.stock ?? 0) < 10).length;
   const criticalLowStockCount = products.filter((p) => isStockTracked(p) && (p.stock ?? 0) <= 2).length;
   const criticalLowStockProducts = useMemo(
@@ -3803,7 +3586,6 @@ export function AdminPage() {
               { key: "users" as AdminTab, label: "Users", icon: <Users size={14} /> },
               { key: "orders" as AdminTab, label: "Orders", icon: <ShoppingCart size={14} /> },
               { key: "logs" as AdminTab, label: "Logs", icon: <ScrollText size={14} /> },
-              { key: "accounting" as AdminTab, label: "Accounting", icon: <DollarSign size={14} /> },
               { key: "categories" as AdminTab, label: "Categories", icon: <Tag size={14} /> },
               { key: "collections" as AdminTab, label: "Collections", icon: <Star size={14} /> },
               { key: "countries" as AdminTab, label: "Countries", icon: <Globe size={14} /> },
@@ -3853,7 +3635,7 @@ export function AdminPage() {
               transition={{ duration: 0.4, ease: easing }}
             >
               {/* Stat Cards */}
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-5 mb-12">
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-5 mb-12">
                 {[
                   { icon: <DollarSign size={20} />, label: "Est. Revenue", value: formatPriceCompact(totalRevenue, "uk"), sub: "Sum of all placed orders", color: "#2D6A4F" },
                   { icon: <ShoppingCart size={20} />, label: "Total Orders", value: String(ordersSummary.totalOrders ?? 0), sub: `${pendingOrdersCount} pending`, color: "#0A1128", goTo: "orders" as AdminTab },
@@ -3867,7 +3649,6 @@ export function AdminPage() {
                     color: criticalLowStockCount > 0 ? "#9B6B2E" : "#2D241E",
                     goTo: "products" as AdminTab,
                   },
-                  { icon: <DollarSign size={20} />, label: "Accounting", value: "Finance", sub: "Purchases, revenue & reports", color: "#1E3A5F", goTo: "accounting" as AdminTab },
                 ].map((card, i) => (
                   <motion.div
                     key={card.label}
@@ -4749,14 +4530,6 @@ export function AdminPage() {
                 </div>
                 <div className="flex gap-2 flex-shrink-0">
                   <button
-                    onClick={() => setInternalProductModal(true)}
-                    className="flex items-center gap-2 px-6 py-3 rounded-full transition-all hover:opacity-80"
-                    style={{ border: "1px solid rgba(45,36,30,0.15)", color: "#2D241E", fontFamily: "'DM Sans', sans-serif", fontSize: "0.78rem", letterSpacing: "0.12em" }}
-                  >
-                    <Plus size={15} />
-                    <span className="uppercase tracking-widest">Add Internal Product</span>
-                  </button>
-                  <button
                     onClick={() => setProductModal({ open: true, editing: null })}
                     className="flex items-center gap-2 px-6 py-3 rounded-full text-[#F5F2ED] transition-all hover:opacity-90"
                     style={{ backgroundColor: "#2D241E", fontFamily: "'DM Sans', sans-serif", fontSize: "0.78rem", letterSpacing: "0.12em" }}
@@ -4821,11 +4594,6 @@ export function AdminPage() {
                               {formatPriceCompact(p.price, "uk")}
                             </p>
                             <div className="flex items-center gap-2">
-                              {p.isInternalComponent && (
-                                <span className="px-2 py-0.5 rounded-full text-[10px]" style={{ backgroundColor: "rgba(154,103,26,0.14)", color: "#9A671A", fontFamily: "'DM Sans', sans-serif" }} title="Internal product — never shown on the public storefront">
-                                  Internal
-                                </span>
-                              )}
                               {p.isNew && (
                                 <span className="px-2 py-0.5 rounded-full text-[10px]" style={{ backgroundColor: "rgba(74,14,14,0.08)", color: "#4A0E0E", fontFamily: "'DM Sans', sans-serif" }}>
                                   New
@@ -4971,16 +4739,13 @@ export function AdminPage() {
                         </span>
                         {/* Status */}
                         <div className="flex flex-wrap gap-1">
-                          {p.isInternalComponent && (
-                            <span className="px-2 py-0.5 rounded-full text-xs" style={{ backgroundColor: "rgba(154,103,26,0.14)", color: "#9A671A", fontFamily: "'DM Sans', sans-serif" }} title="Internal product — never shown on the public storefront">Internal</span>
-                          )}
                           {p.isNew && (
                             <span className="px-2 py-0.5 rounded-full text-xs" style={{ backgroundColor: "rgba(74,14,14,0.08)", color: "#4A0E0E", fontFamily: "'DM Sans', sans-serif" }}>New</span>
                           )}
                           {p.isBestseller && (
                             <span className="px-2 py-0.5 rounded-full text-xs" style={{ backgroundColor: "rgba(45,36,30,0.06)", color: "#2D241E", fontFamily: "'DM Sans', sans-serif" }}>Best</span>
                           )}
-                          {!p.isNew && !p.isBestseller && !p.isInternalComponent && (
+                          {!p.isNew && !p.isBestseller && (
                             <span className="text-xs" style={{ color: "rgba(45,36,30,0.3)", fontFamily: "'DM Sans', sans-serif" }}>—</span>
                           )}
                         </div>
@@ -5515,11 +5280,6 @@ export function AdminPage() {
             </motion.div>
           )}
 
-          {/* ── ACCOUNTING ── */}
-          {activeTab === "accounting" && (
-            <AdminAccountingTab />
-          )}
-
           {/* ── CATEGORIES ── */}
           {activeTab === "categories" && (
             <motion.div
@@ -5678,7 +5438,7 @@ export function AdminPage() {
                 <div
                   className="grid px-6 py-4 text-xs tracking-widest uppercase"
                   style={{
-                    gridTemplateColumns: "1fr 1fr 1fr 100px",
+                    gridTemplateColumns: "1fr 1fr 100px",
                     fontFamily: "'DM Sans', sans-serif",
                     letterSpacing: "0.12em",
                     color: "rgba(45,36,30,0.4)",
@@ -5688,7 +5448,6 @@ export function AdminPage() {
                 >
                   <span>Color</span>
                   <span>Preview</span>
-                  <span>Strap product</span>
                   <span className="text-right">Actions</span>
                 </div>
                 <div className="divide-y" style={{ borderColor: "rgba(45,36,30,0.06)" }}>
@@ -5696,7 +5455,7 @@ export function AdminPage() {
                     <p className="py-12 text-center text-[#2D241E]/40 px-6" style={{ fontFamily: "'DM Sans', sans-serif" }}>No colors yet</p>
                   ) : (
                     colors.map((c) => (
-                      <div key={c.id} className={ADMIN_ROW} style={{ gridTemplateColumns: "1fr 1fr 1fr 100px" }}>
+                      <div key={c.id} className={ADMIN_ROW} style={{ gridTemplateColumns: "1fr 1fr 100px" }}>
                         <p className="text-[#2D241E]" style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "1.15rem" }}>
                           {adminBilingualLabel(c.name, c.nameUk)}
                         </p>
@@ -5704,7 +5463,6 @@ export function AdminPage() {
                           <span className="w-6 h-6 rounded-full border shadow-sm" style={{ backgroundColor: c.hexCode || "#2D241E", borderColor: "rgba(45,36,30,0.2)" }} />
                           <span className="text-[#2D241E]/50 text-sm uppercase tracking-wider" style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "0.75rem" }}>{c.hexCode}</span>
                         </div>
-                        <span className="text-[#2D241E]/60 text-sm" style={{ fontFamily: "'DM Sans', sans-serif" }}>{c.laceProductName || "—"}</span>
                         <div className="flex items-center justify-end gap-2">
                           <button type="button" onClick={() => setColorModal({ open: true, editing: c })} className={ADMIN_ICON_EDIT} title="Edit" aria-label={`Edit ${c.name}`}><Pencil size={13} style={{ color: "#2D241E", opacity: 0.5 }} /></button>
                           <button type="button" onClick={() => { setDeleteModalError(null); setDeleteModal({ open: true, type: "color", id: String(c.id), idNum: c.id, name: c.name }); }} className={ADMIN_ICON_DELETE} title="Delete" aria-label={`Delete ${c.name}`}><Trash2 size={13} style={{ color: "#4A0E0E", opacity: 0.6 }} /></button>
@@ -6019,14 +5777,6 @@ export function AdminPage() {
             onSave={handleSaveProduct}
           />
         )}
-        {internalProductModal && (
-          <InternalProductModal
-            key="internal-product-modal"
-            colors={colors}
-            onClose={() => setInternalProductModal(false)}
-            onSave={handleSaveInternalProduct}
-          />
-        )}
         {userModal.open && (
           <UserModal
             key="user-modal"
@@ -6046,7 +5796,6 @@ export function AdminPage() {
             editing={colorModal.editing}
             onClose={() => setColorModal({ open: false, editing: null })}
             onSave={handleSaveColor}
-            laceProducts={laceProducts}
           />
         )}
         {furnitureModal.open && (

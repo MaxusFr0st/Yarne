@@ -64,7 +64,6 @@ export function ProductDetail() {
   const [activeSize, setActiveSize] = useState<string | null>(null);
   const [activeImage, setActiveImage] = useState(0);
   const [activeLace, setActiveLace] = useState(false);
-  const [activeLaceColorId, setActiveLaceColorId] = useState<number | null>(null);
   const [addedToBag, setAddedToBag] = useState(false);
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [sizeError, setSizeError] = useState(false);
@@ -192,24 +191,6 @@ export function ProductDetail() {
     : [];
   const safeImageIndex = images.length ? Math.min(activeImage, images.length - 1) : 0;
 
-  // Lace color options: only present once the bag's recipe has been reconfigured with colors
-  // (see admin recipe editor). Default resolution — match the bag's own selected color, else
-  // fall back to the first configured option — happens client-side; the server only validates.
-  const laceColorOptions = product?.laceColorOptions ?? [];
-  const selectedLaceOption = laceColorOptions.find((o) => o.colorId === activeLaceColorId) ?? null;
-
-  useEffect(() => {
-    if (!activeLace || laceColorOptions.length === 0) return;
-    const bagColorId = selectedColor?.colorId;
-    const stillValid = laceColorOptions.some((o) => o.colorId === activeLaceColorId);
-    if (stillValid) return;
-    const matched = bagColorId != null
-      ? laceColorOptions.find((o) => o.colorId === bagColorId)
-      : undefined;
-    setActiveLaceColorId((matched ?? laceColorOptions[0]).colorId);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeLace, selectedColor?.colorId, laceColorOptions.map((o) => o.colorId).join(",")]);
-
   const handleColorChange = (i: number) => {
     setActiveColor(i);
     setActiveImage(0);
@@ -224,14 +205,6 @@ export function ProductDetail() {
     setActiveImage(0);
   };
 
-  const handleLaceColorChange = (colorId: number) => {
-    setActiveLaceColorId(colorId);
-  };
-
-  const laceSurchargeForCart = laceColorOptions.length > 0
-    ? selectedLaceOption?.surcharge ?? 0
-    : product?.laceSurcharge ?? 0;
-
   const handleAddToBag = () => {
     if (!product || !selectedColor) return;
     if (!activeSize) {
@@ -244,14 +217,13 @@ export function ProductDetail() {
       productId: product.id,
       name: product.name,
       subtitle: product.subtitle,
-      price: product.price + (product.lace === true && activeLace ? laceSurchargeForCart : 0),
+      price: product.price,
       color: selectedColor.name,
       colorHex: selectedColor.hex,
       furnitureColor: selectedFurniture?.name,
       furnitureColorHex: selectedFurniture?.hex,
       size: activeSize,
       withLace: product.lace ? activeLace : null,
-      laceColorId: product.lace && activeLace ? (selectedLaceOption?.colorId ?? null) : null,
       quantity: 1,
       maxQuantity: displayStock,
       image: images[0]?.src ?? selectedColor.image.src,
@@ -262,12 +234,7 @@ export function ProductDetail() {
 
   const outOfStock = displayStock <= 0;
 
-  // With-lace price is computed fresh: base price + the server-provided lace surcharge (the
-  // selected color's component price when color options are configured, else the legacy
-  // single surcharge for un-migrated products). Never hardcoded.
-  const displayPrice = product
-    ? product.price + (product.lace === true && activeLace ? laceSurchargeForCart : 0)
-    : 0;
+  const displayPrice = product ? product.price : 0;
 
   return (
     <main className="overflow-x-hidden min-h-[100svh]" style={{ backgroundColor: "#F5F2ED" }}>
@@ -292,9 +259,6 @@ export function ProductDetail() {
         laceEnabled={product!.lace === true}
         activeLace={activeLace}
         onLaceChange={handleLaceChange}
-        laceColorOptions={laceColorOptions}
-        activeLaceColorId={activeLaceColorId}
-        onLaceColorChange={handleLaceColorChange}
         onBack={() => navigate(-1)}
         onToggleWishlist={() => toggleWishlist(product.id)}
         onColorChange={handleColorChange}
@@ -565,36 +529,6 @@ export function ProductDetail() {
                   </div>
                 </LayoutGroup>
 
-                {activeLace && laceColorOptions.length > 0 && (
-                  <div className="flex flex-wrap gap-2.5 mt-3">
-                    {laceColorOptions.map((opt) => {
-                      const laceColorLabel = localizedCatalogName(opt.colorName, opt.colorNameUk, locale);
-                      const isActive = opt.colorId === activeLaceColorId;
-                      return (
-                        <motion.button
-                          key={opt.colorId}
-                          type="button"
-                          onClick={() => handleLaceColorChange(opt.colorId)}
-                          title={laceColorLabel}
-                          aria-label={laceColorLabel}
-                          aria-pressed={isActive}
-                          className="cursor-pointer touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2D241E]/40 focus-visible:ring-offset-2 focus-visible:ring-offset-[#F5F2ED]"
-                          animate={{ scale: isActive ? 1.06 : 1 }}
-                          transition={{ duration: 0.2, ease: easing }}
-                          style={{
-                            width: 26,
-                            height: 26,
-                            borderRadius: "50%",
-                            backgroundColor: opt.colorHex,
-                            border: isActive ? "2px solid #2D241E" : "1.5px solid rgba(45,36,30,0.2)",
-                            boxShadow: isActive ? "0 0 0 3px #F5F2ED, 0 0 0 5px #2D241E" : "none",
-                            transition: "border-color 0.2s ease, box-shadow 0.2s ease",
-                          }}
-                        />
-                      );
-                    })}
-                  </div>
-                )}
               </div>
             )}
 

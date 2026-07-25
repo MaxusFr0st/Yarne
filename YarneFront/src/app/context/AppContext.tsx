@@ -29,7 +29,6 @@ export interface CartItem {
   furnitureColorHex?: string;
   size: string;
   withLace?: boolean | null;
-  laceColorId?: number | null;
   quantity: number;
   image: string;
   maxQuantity: number;
@@ -230,8 +229,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           i.color === item.color &&
           (i.furnitureColor ?? null) === (item.furnitureColor ?? null) &&
           i.size === item.size &&
-          i.withLace === item.withLace &&
-          (i.laceColorId ?? null) === (item.laceColorId ?? null)
+          i.withLace === item.withLace
       );
       if (existing) {
         const nextQty = Math.min(existing.quantity + item.quantity, maxQty);
@@ -247,7 +245,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           ...item,
           quantity,
           maxQuantity: maxQty,
-          cartId: `${item.productId}-${item.color}-${item.furnitureColor ?? "na"}-${item.size}-${item.withLace ?? "na"}-${item.laceColorId ?? "na"}-${Date.now()}`,
+          cartId: `${item.productId}-${item.color}-${item.furnitureColor ?? "na"}-${item.size}-${item.withLace ?? "na"}-${Date.now()}`,
         },
       ];
     });

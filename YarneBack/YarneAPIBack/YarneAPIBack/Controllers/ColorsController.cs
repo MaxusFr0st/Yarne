@@ -33,25 +33,9 @@ public class ColorsController : ControllerBase
                 Name = c.Name,
                 NameUk = c.NameUk,
                 HexCode = c.HexCode,
-                LaceProductId = c.LaceProductId,
-                LaceProductName = c.LaceProduct != null ? c.LaceProduct.Name : null,
             })
             .ToListAsync(ct);
         return Ok(colors);
-    }
-
-    [HttpGet("lace-products")]
-    [ProducesResponseType(typeof(IEnumerable<object>), StatusCodes.Status200OK)]
-    public async Task<ActionResult<IEnumerable<object>>> GetLaceProducts(CancellationToken ct = default)
-    {
-        var products = await _context.Products
-            // Must stay in sync with ProductService.ComputeLaceColorOptionsAsync: the storefront
-            // only surfaces lace colors whose mapped product is active, so only offer those here.
-            .Where(p => p.IsInternalComponent && !p.IsVoid && p.IsActive)
-            .OrderBy(p => p.Name)
-            .Select(p => new { id = p.Id, name = p.Name, price = p.Price })
-            .ToListAsync(ct);
-        return Ok(products);
     }
 
     [HttpPost]
@@ -64,20 +48,11 @@ public class ColorsController : ControllerBase
         if (await _context.Colors.AnyAsync(c => c.Name == request.Name, ct))
             return BadRequest(new { message = "Color with this name already exists" });
 
-        if (request.LaceProductId.HasValue)
-        {
-            var laceProductValid = await _context.Products.AnyAsync(
-                p => p.Id == request.LaceProductId.Value && p.IsInternalComponent && !p.IsVoid && p.IsActive, ct);
-            if (!laceProductValid)
-                return BadRequest(new { message = "Selected lace product must be an active internal product" });
-        }
-
         var color = new Models.Color
         {
             Name = request.Name.Trim(),
             NameUk = string.IsNullOrWhiteSpace(request.NameUk) ? null : request.NameUk.Trim(),
             HexCode = request.HexCode ?? "#2D241E",
-            LaceProductId = request.LaceProductId,
         };
         _context.Colors.Add(color);
         await _context.SaveChangesAsync(ct);
@@ -89,12 +64,12 @@ public class ColorsController : ControllerBase
             $"Created color \"{color.Name}\"",
             color.Id.ToString(),
             color.Name,
-            new { catalogType = "color", color.Id, color.Name, color.NameUk, color.HexCode, color.LaceProductId },
+            new { catalogType = "color", color.Id, color.Name, color.NameUk, color.HexCode },
             actorUserId,
             actorEmail,
             ct);
 
-        return Created($"/api/colors/{color.Id}", new ColorDto { Id = color.Id, Name = color.Name, NameUk = color.NameUk, HexCode = color.HexCode, LaceProductId = color.LaceProductId });
+        return Created($"/api/colors/{color.Id}", new ColorDto { Id = color.Id, Name = color.Name, NameUk = color.NameUk, HexCode = color.HexCode });
     }
 
     [HttpPut("{id}")]
@@ -111,21 +86,11 @@ public class ColorsController : ControllerBase
         if (await _context.Colors.AnyAsync(c => c.Name == request.Name && c.Id != id, ct))
             return BadRequest(new { message = "Color with this name already exists" });
 
-        if (request.LaceProductId.HasValue)
-        {
-            var laceProductValid = await _context.Products.AnyAsync(
-                p => p.Id == request.LaceProductId.Value && p.IsInternalComponent && !p.IsVoid && p.IsActive, ct);
-            if (!laceProductValid)
-                return BadRequest(new { message = "Selected lace product must be an active internal product" });
-        }
-
         var previousName = color.Name;
         var previousHex = color.HexCode;
-        var previousLaceProductId = color.LaceProductId;
         color.Name = request.Name.Trim();
         color.NameUk = string.IsNullOrWhiteSpace(request.NameUk) ? null : request.NameUk.Trim();
         color.HexCode = request.HexCode ?? "#2D241E";
-        color.LaceProductId = request.LaceProductId;
         await _context.SaveChangesAsync(ct);
 
         var (actorUserId, actorEmail) = AdminActivityLogHelper.GetActor(HttpContext);
@@ -144,14 +109,12 @@ public class ColorsController : ControllerBase
                 nameUk = color.NameUk,
                 previousHex,
                 newHex = color.HexCode,
-                previousLaceProductId,
-                newLaceProductId = color.LaceProductId,
             },
             actorUserId,
             actorEmail,
             ct);
 
-        return Ok(new ColorDto { Id = color.Id, Name = color.Name, NameUk = color.NameUk, HexCode = color.HexCode, LaceProductId = color.LaceProductId });
+        return Ok(new ColorDto { Id = color.Id, Name = color.Name, NameUk = color.NameUk, HexCode = color.HexCode });
     }
 
     [HttpDelete("{id}")]

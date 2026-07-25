@@ -3,7 +3,7 @@ import { useEmblaCarouselWithGestures } from "../hooks/useEmblaCarouselWithGestu
 import { motion, AnimatePresence, LayoutGroup, useReducedMotion } from "motion/react";
 import { ArrowLeft, Heart, ShoppingBag, Check, ChevronDown } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import type { Product, ProductImage, LaceColorOption } from "../types/product";
+import type { Product, ProductImage } from "../types/product";
 import type { Locale } from "../i18n/config";
 import { PriceTag } from "./PriceTag";
 import { ImageWithFallback } from "./figma/ImageWithFallback";
@@ -31,9 +31,6 @@ type MobileProductDetailViewProps = {
   laceEnabled: boolean;
   activeLace: boolean;
   onLaceChange: (next: boolean) => void;
-  laceColorOptions: LaceColorOption[];
-  activeLaceColorId: number | null;
-  onLaceColorChange: (colorId: number) => void;
   onBack: () => void;
   onToggleWishlist: () => void;
   onColorChange: (index: number) => void;
@@ -60,9 +57,6 @@ export function MobileProductDetailView({
   laceEnabled,
   activeLace,
   onLaceChange,
-  laceColorOptions,
-  activeLaceColorId,
-  onLaceColorChange,
   onBack,
   onToggleWishlist,
   onColorChange,
@@ -526,33 +520,6 @@ export function MobileProductDetailView({
                 </div>
               </LayoutGroup>
 
-              {activeLace && laceColorOptions.length > 0 && (
-                <div className="flex flex-wrap gap-[clamp(8px,2vw,10px)] pl-[6px] pr-[4px] py-[4px] mt-[clamp(4px,1vw,6px)]">
-                  {laceColorOptions.map((opt) => {
-                    const isActive = opt.colorId === activeLaceColorId;
-                    const laceColorLabel = localizedCatalogName(opt.colorName, opt.colorNameUk, locale);
-                    const laceColorStyle = {
-                      width: "clamp(26px, 6.5vw, 30px)",
-                      height: "clamp(26px, 6.5vw, 30px)",
-                      backgroundColor: opt.colorHex,
-                      border: isActive ? "2px solid #2D241E" : "1.5px solid rgba(45,36,30,0.18)",
-                      boxShadow: isActive ? "0 0 0 2px #FAF8F5, 0 0 0 4px #2D241E" : "none",
-                    } as const;
-                    return (
-                      <button
-                        key={opt.colorId}
-                        type="button"
-                        onClick={() => onLaceColorChange(opt.colorId)}
-                        title={laceColorLabel}
-                        aria-label={laceColorLabel}
-                        aria-pressed={isActive}
-                        className="relative shrink-0 rounded-full cursor-pointer touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2D241E]/40"
-                        style={laceColorStyle}
-                      />
-                    );
-                  })}
-                </div>
-              )}
             </div>
           )}
 

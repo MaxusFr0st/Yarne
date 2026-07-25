@@ -4,8 +4,8 @@ using Microsoft.Extensions.Logging;
 namespace YarneAPIBack.Data;
 
 /// <summary>
-/// Idempotent self-heal for Category.TrackStock. Mirrors ADD COLUMN IF NOT EXISTS
-/// used by MaterialRollTrackingSchemaPatches so a partially-migrated DB recovers on boot.
+/// Idempotent self-heal for Category.TrackStock using ADD COLUMN IF NOT EXISTS
+/// so a partially-migrated DB recovers on boot.
 /// Also backfills TrackStock=false for lace/ремінець category names.
 /// </summary>
 public static class CategoryTrackStockSchemaPatches

@@ -50,7 +50,6 @@ export interface CreateOrderItemRequest {
   furnitureColorName?: string;
   sizeName?: string;
   withLace?: boolean | null;
-  laceColorId?: number | null;
 }
 
 export interface CreateOrderRequest {

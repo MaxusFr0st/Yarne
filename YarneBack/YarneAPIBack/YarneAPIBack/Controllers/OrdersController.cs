@@ -3,10 +3,6 @@ using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using YarneAPIBack.Accounting;
-using YarneAPIBack.Accounting.DTOs;
-using YarneAPIBack.Accounting.Models;
-using YarneAPIBack.Accounting.Services.Contracts;
 using YarneAPIBack.Configuration;
 using YarneAPIBack.Data;
 using YarneAPIBack.DTOs.Order;
@@ -42,22 +38,19 @@ public class OrdersController : ControllerBase
     private readonly IEmailService _emailService;
     private readonly ILogger<OrdersController> _logger;
     private readonly IConfiguration _configuration;
-    private readonly ISalesAccountingService _salesAccountingService;
 
     public OrdersController(
         YarneDbContext context,
         IAdminActivityLogService activityLogs,
         IEmailService emailService,
         IConfiguration configuration,
-        ILogger<OrdersController> logger,
-        ISalesAccountingService salesAccountingService)
+        ILogger<OrdersController> logger)
     {
         _context = context;
         _activityLogs = activityLogs;
         _emailService = emailService;
         _configuration = configuration;
         _logger = logger;
-        _salesAccountingService = salesAccountingService;
     }
 
     [HttpGet("my")]
@@ -246,23 +239,6 @@ public class OrdersController : ControllerBase
             .GroupBy(p => p.ProductCode, StringComparer.OrdinalIgnoreCase)
             .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
 
-        // Global color -> lace-product mapping (edited once on the admin Colors tab) is used here
-        // only to price the chosen lace color and validate it's offered. It does NOT auto-compose
-        // a second order line/stock consumption any more: lace is manufactured and sold as its own
-        // line only when staff manually add it while reconciling the sale in Accounting.
-        var laceColorInfo = await _context.Colors
-            .AsNoTracking()
-            .Where(c => c.LaceProductId != null)
-            .Select(c => new { c.Id, c.Name, LaceProductId = c.LaceProductId!.Value })
-            .ToDictionaryAsync(c => c.Id, c => c);
-        var laceProductIds = laceColorInfo.Values.Select(c => c.LaceProductId).Distinct().ToList();
-        var laceProductPrices = laceProductIds.Count == 0
-            ? new Dictionary<int, decimal>()
-            : await _context.Products
-                .Where(p => laceProductIds.Contains(p.Id))
-                .Select(p => new { p.Id, p.Price })
-                .ToDictionaryAsync(p => p.Id, p => p.Price, ct);
-
         var requestedCountryIds = request.Items
             .Where(i => i.CountryId.HasValue)
             .Select(i => i.CountryId!.Value)
@@ -317,71 +293,27 @@ public class OrdersController : ControllerBase
                 ColorName = NormalizeOptional(item.ColorName),
                 FurnitureColorName = NormalizeOptional(item.FurnitureColorName),
                 SizeName = NormalizeOptional(item.SizeName),
-                WithLace = item.WithLace,
+                WithLace = product.Lace && item.WithLace == true,
             };
             OrderItemSnapshotHelper.ApplyProductSnapshot(orderItem, product);
             orderItems.Add(orderItem);
 
             quantityByProductId[product.Id] = quantityByProductId.GetValueOrDefault(product.Id) + item.Quantity;
-
-            // Price + record the chosen lace color on this same line (no second order item, no
-            // stock/FIFO consumption here). If the client named a color, it must be one of the
-            // globally-mapped lace colors; otherwise default to the bag's own color if that color
-            // is itself mapped, else no color (surcharge stays zero, no error).
-            if (product.Lace && item.WithLace == true)
-            {
-                int? effectiveColorId;
-                if (item.LaceColorId.HasValue)
-                {
-                    if (!laceColorInfo.ContainsKey(item.LaceColorId.Value))
-                        return BadRequest(new { message = $"Product '{productKey}' does not offer the selected lace color." });
-                    effectiveColorId = item.LaceColorId.Value;
-                }
-                else
-                {
-                    effectiveColorId = product.DefaultColorId.HasValue && laceColorInfo.ContainsKey(product.DefaultColorId.Value)
-                        ? product.DefaultColorId.Value
-                        : null;
-                }
-
-                if (effectiveColorId.HasValue
-                    && laceProductPrices.TryGetValue(laceColorInfo[effectiveColorId.Value].LaceProductId, out var laceSurcharge))
-                {
-                    orderItem.LaceColorName = laceColorInfo[effectiveColorId.Value].Name;
-                    var surchargeCents = checked((long)decimal.Round(laceSurcharge * 100m, 0, MidpointRounding.AwayFromZero));
-                    orderItem.UnitPrice += laceSurcharge;
-                    orderItem.ListedPriceCents += surchargeCents;
-                    orderItem.NetPriceCents += surchargeCents;
-                }
-            }
         }
 
         // Categories with TrackStock=false (e.g. made-to-order items) skip availability checks,
-        // pooled decrements, and FIFO consumption entirely — small reference table, cheap to load whole.
+        // pooled decrements, and variant stock checks entirely — small reference table, cheap to load whole.
         var trackStockByCategoryId = await _context.Categories
             .AsNoTracking()
             .ToDictionaryAsync(c => c.Id, c => c.TrackStock, ct);
 
         var orderTotalCents = orderItems.Sum(i => checked(i.ListedPriceCents * i.Quantity));
-        // Prefer the exact channel ComposeReceivedOrderAsync assigns on "Received" ("Онлайн
-        // магазин") so a Pending/Accepted order already shows the right channel even before it's
-        // marked Received. Falls back to the first fee-free channel if that one doesn't exist yet.
-        var ownStoreChannelId = await _context.SalesChannels
-            .Where(x => !x.IsVoid && x.Name == "Онлайн магазин")
-            .Select(x => (int?)x.Id)
-            .FirstOrDefaultAsync(ct)
-            ?? await _context.SalesChannels
-                .Where(x => !x.IsVoid && x.FeeType == "none")
-                .OrderBy(x => x.Id)
-                .Select(x => (int?)x.Id)
-                .FirstOrDefaultAsync(ct);
-
         var order = new Order
         {
             CustomerId = customerId.Value,
             PaymentMethodId = paymentMethodId,
             ShippingAddrId = request.ShippingAddrId,
-            ChannelId = ownStoreChannelId,
+            ChannelId = null,
             ChannelFeeCents = 0,
             IsChannelFeeOverridden = false,
             CurrencyCode = "UAH",
@@ -403,10 +335,8 @@ public class OrdersController : ControllerBase
                 IsolationLevel.Serializable,
                 ct);
 
-            // Insert the order first (within this same transaction) so its items get real Ids —
-            // FIFO consumption below records SalesFinishedGoodsConsumption rows keyed on
-            // OrderItem.Id. If stock validation fails further down, the whole transaction (this
-            // insert included) is rolled back.
+            // Insert the order first within this transaction. If stock validation fails below,
+            // the insert is rolled back with the stock updates.
             customer.PhoneNumber = contactPhone;
             _context.Entry(customer).Property(c => c.PhoneNumber).IsModified = true;
             _context.Orders.Add(order);
@@ -430,29 +360,11 @@ public class OrdersController : ControllerBase
                 if (!tracksStock)
                 {
                     // Category doesn't track stock — allow the sale without touching
-                    // availability, pooled counters, or FIFO lots for this product.
+                    // availability, pooled counters, or variant stock for this product.
                     continue;
                 }
 
-                var finishedInventory = await _context.FinishedGoodsInventories
-                    .FromSqlInterpolated(
-                        $"""
-                         SELECT * FROM "FinishedGoodsInventory"
-                         WHERE "ProductId" = {productId}
-                         FOR UPDATE
-                         """)
-                    .SingleOrDefaultAsync(ct);
-                if (finishedInventory is null || finishedInventory.IsVoid)
-                {
-                    stockFailure = BadRequest(new
-                    {
-                        message = $"'{product.ProductCode}' has no finished-goods stock ledger. Produce the item before selling.",
-                    });
-                    await transaction.RollbackAsync(ct);
-                    return;
-                }
-
-                if (product.QuantityInStock < requestedQty || finishedInventory.QuantityOnHand < requestedQty)
+                if (product.QuantityInStock < requestedQty)
                 {
                     stockFailure = BadRequest(new
                     {
@@ -464,50 +376,13 @@ public class OrdersController : ControllerBase
 
                 product.QuantityInStock -= requestedQty;
                 product.UpdatedAt = now;
-                finishedInventory.QuantityOnHand -= requestedQty;
-                finishedInventory.UpdatedAt = now;
-
-                // Consume the same finished-goods FIFO lots accounting sales use, right at
-                // checkout — keeps the lot ledger (COGS + void-production guard) in lockstep with
-                // the pooled counters instead of only catching up later in
-                // ComposeReceivedOrderAsync. One call per order line (not per productId) so lines
-                // that happen to share a product each get their own consumption slice/record.
-                foreach (var orderItem in orderItems.Where(item => item.ProductId == productId).OrderBy(item => item.Id))
+                var itemsForProduct = orderItems.Where(item => item.ProductId == productId);
+                var variantFailure = await DecrementVariantStockAsync(productId, itemsForProduct, ct);
+                if (variantFailure != null)
                 {
-                    IReadOnlyList<FinishedGoodsFifoConsumption> lotConsumptions;
-                    try
-                    {
-                        lotConsumptions = await _salesAccountingService.ConsumeFinishedGoodsFifoAsync(
-                            productId,
-                            orderItem.Quantity,
-                            ct);
-                    }
-                    catch (AccountingBusinessException ex)
-                    {
-                        stockFailure = BadRequest(new { message = ex.Message });
-                        await transaction.RollbackAsync(ct);
-                        return;
-                    }
-
-                    var totalCogs = lotConsumptions.Sum(x => x.TotalCostCents);
-                    orderItem.UnitCogsCents = orderItem.Quantity == 0
-                        ? 0
-                        : RoundToCents((decimal)totalCogs / orderItem.Quantity);
-                    orderItem.UpdatedAt = now;
-                    foreach (var lc in lotConsumptions)
-                    {
-                        _context.SalesFinishedGoodsConsumptions.Add(new SalesFinishedGoodsConsumption
-                        {
-                            SalesOrderItemId = orderItem.Id,
-                            FinishedGoodsLotId = lc.LotId,
-                            Quantity = lc.Quantity,
-                            UnitCostAtSaleCents = lc.UnitCostCents,
-                            TotalCostCents = lc.TotalCostCents,
-                            CreatedBy = customerId.Value,
-                            CreatedAt = now,
-                            UpdatedAt = now,
-                        });
-                    }
+                    stockFailure = BadRequest(new { message = variantFailure });
+                    await transaction.RollbackAsync(ct);
+                    return;
                 }
             }
 
@@ -553,17 +428,7 @@ public class OrdersController : ControllerBase
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult<OrderDto>> UpdateOrderStatus(int id, [FromBody] UpdateOrderStatusRequest request, CancellationToken ct = default)
     {
-        try
-        {
-            return await UpdateOrderStatusCore(id, request, ct);
-        }
-        catch (AccountingBusinessException ex)
-        {
-            // Cancel/reopen can touch FIFO lots (e.g. re-consuming stock for a reopened order,
-            // or an order whose stock ledger predates accounting) — surface that as a 400
-            // instead of a raw 500.
-            return BadRequest(new { message = ex.Message });
-        }
+        return await UpdateOrderStatusCore(id, request, ct);
     }
 
     private async Task<ActionResult<OrderDto>> UpdateOrderStatusCore(int id, UpdateOrderStatusRequest request, CancellationToken ct)
@@ -588,13 +453,12 @@ public class OrdersController : ControllerBase
                 .GroupBy(item => item.ProductId!.Value)
                 .ToDictionary(group => group.Key, group => group.Sum(item => item.Quantity));
 
-            // Categories with TrackStock=false skip stock reverse/re-consume entirely — small
+            // Categories with TrackStock=false skip stock reverse/re-decrement entirely — small
             // reference table, cheap to load whole.
             var trackStockByCategoryId = await _context.Categories
                 .AsNoTracking()
                 .ToDictionaryAsync(c => c.Id, c => c.TrackStock, ct);
 
-            var (fifoActorId, _) = AdminActivityLogHelper.GetActor(HttpContext);
             ActionResult<OrderDto>? stockFailure = null;
             string? lockedPreviousStatus = null;
             var strategy = _context.Database.CreateExecutionStrategy();
@@ -629,14 +493,12 @@ public class OrdersController : ControllerBase
                     return;
                 }
 
-                // Same identity-mapped Order/OrderItem instances as `order` above (already
-                // FOR UPDATE-locked via lockedOrder) — load each item's existing FIFO
-                // consumptions so cancel can reverse them and reopen can tell they're gone.
+                // Same identity-mapped Order/OrderItem instances as `order` above, already
+                // FOR UPDATE-locked via lockedOrder.
                 await _context.Entry(lockedOrder)
                     .Collection(x => x.OrderItems)
                     .Query()
                     .Where(item => !item.IsVoid)
-                    .Include(item => item.FinishedGoodsConsumptions.Where(c => !c.IsVoid))
                     .LoadAsync(ct);
 
                 var now = DateTime.UtcNow;
@@ -657,114 +519,38 @@ public class OrdersController : ControllerBase
                     var tracksStock = !trackStockByCategoryId.TryGetValue(product.CategoryId, out var tracks) || tracks;
                     if (!tracksStock)
                     {
-                        // Category doesn't track stock — nothing was decremented/consumed for
-                        // this product at checkout, so there's nothing to reverse or re-consume.
+                        // Category doesn't track stock — nothing was decremented at checkout,
+                        // so there's nothing to reverse or re-decrement.
                         continue;
                     }
 
-                    var inventory = await _context.FinishedGoodsInventories
-                        .FromSqlInterpolated(
-                            $"""
-                             SELECT * FROM "FinishedGoodsInventory"
-                             WHERE "ProductId" = {productId}
-                             FOR UPDATE
-                             """)
-                        .SingleOrDefaultAsync(ct);
-                    if (inventory is null || inventory.IsVoid)
-                    {
-                        stockFailure = BadRequest(new { message = "Order stock records are incomplete." });
-                        await transaction.RollbackAsync(ct);
-                        return;
-                    }
-
+                    var itemsForProduct = lockedOrder.OrderItems
+                        .Where(item => item.ProductId == productId)
+                        .OrderBy(item => item.Id)
+                        .ToList();
                     if (willBeCanceled)
                     {
                         product.QuantityInStock = checked(product.QuantityInStock + quantity);
-                        inventory.QuantityOnHand = checked(inventory.QuantityOnHand + quantity);
+                        await RestoreVariantStockAsync(productId, itemsForProduct, ct);
                     }
                     else
                     {
-                        if (product.QuantityInStock < quantity || inventory.QuantityOnHand < quantity)
+                        if (product.QuantityInStock < quantity)
                         {
                             stockFailure = BadRequest(new { message = "Not enough stock to reopen this canceled order." });
                             await transaction.RollbackAsync(ct);
                             return;
                         }
                         product.QuantityInStock -= quantity;
-                        inventory.QuantityOnHand -= quantity;
+                        var variantFailure = await DecrementVariantStockAsync(productId, itemsForProduct, ct);
+                        if (variantFailure != null)
+                        {
+                            stockFailure = BadRequest(new { message = variantFailure });
+                            await transaction.RollbackAsync(ct);
+                            return;
+                        }
                     }
                     product.UpdatedAt = now;
-                    inventory.UpdatedAt = now;
-
-                    var itemsForProduct = lockedOrder.OrderItems
-                        .Where(item => item.ProductId == productId)
-                        .OrderBy(item => item.Id);
-                    if (willBeCanceled)
-                    {
-                        // Mirror the pooled-counter reversal above in the FIFO lot ledger: give
-                        // back every unit this order's items consumed so void-production and COGS
-                        // stay accurate for a canceled order.
-                        foreach (var item in itemsForProduct)
-                        {
-                            foreach (var consumption in item.FinishedGoodsConsumptions.Where(c => !c.IsVoid).ToList())
-                            {
-                                var lot = await _context.FinishedGoodsLots
-                                    .FromSqlInterpolated(
-                                        $"""SELECT * FROM "FinishedGoodsLot" WHERE "Id" = {consumption.FinishedGoodsLotId} FOR UPDATE""")
-                                    .SingleOrDefaultAsync(ct);
-                                if (lot is not null)
-                                {
-                                    lot.QuantityRemaining = checked(lot.QuantityRemaining + consumption.Quantity);
-                                    lot.UpdatedAt = now;
-                                }
-                                consumption.IsVoid = true;
-                                consumption.UpdatedAt = now;
-                            }
-                        }
-                    }
-                    else
-                    {
-                        // Reopening re-decrements the pooled counters above, so re-consume FIFO
-                        // lots the same way checkout does — this order's items had no live
-                        // consumption while canceled (reversed above), so they need fresh slices.
-                        foreach (var item in itemsForProduct)
-                        {
-                            IReadOnlyList<FinishedGoodsFifoConsumption> lotConsumptions;
-                            try
-                            {
-                                lotConsumptions = await _salesAccountingService.ConsumeFinishedGoodsFifoAsync(
-                                    productId,
-                                    item.Quantity,
-                                    ct);
-                            }
-                            catch (AccountingBusinessException ex)
-                            {
-                                stockFailure = BadRequest(new { message = ex.Message });
-                                await transaction.RollbackAsync(ct);
-                                return;
-                            }
-
-                            var totalCogs = lotConsumptions.Sum(x => x.TotalCostCents);
-                            item.UnitCogsCents = item.Quantity == 0
-                                ? 0
-                                : RoundToCents((decimal)totalCogs / item.Quantity);
-                            item.UpdatedAt = now;
-                            foreach (var lc in lotConsumptions)
-                            {
-                                _context.SalesFinishedGoodsConsumptions.Add(new SalesFinishedGoodsConsumption
-                                {
-                                    SalesOrderItemId = item.Id,
-                                    FinishedGoodsLotId = lc.LotId,
-                                    Quantity = lc.Quantity,
-                                    UnitCostAtSaleCents = lc.UnitCostCents,
-                                    TotalCostCents = lc.TotalCostCents,
-                                    CreatedBy = fifoActorId,
-                                    CreatedAt = now,
-                                    UpdatedAt = now,
-                                });
-                            }
-                        }
-                    }
                 }
 
                 lockedOrder.Status = canonicalStatus;
@@ -831,21 +617,6 @@ public class OrdersController : ControllerBase
             if (statusEmailEvent.HasValue)
                 QueueOrderStatusEmail(updatedOrder, statusEmailEvent.Value);
 
-            // Marking an order Received is a fulfillment fact and must succeed regardless of
-            // accounting state — auto-composing the Sales-tab entry never blocks it; failures are
-            // only logged for manual follow-up.
-            if (string.Equals(canonicalStatus, "Received", StringComparison.OrdinalIgnoreCase))
-            {
-                try
-                {
-                    var (composeActorId, _) = AdminActivityLogHelper.GetActor(HttpContext);
-                    await _salesAccountingService.ComposeReceivedOrderAsync(id, composeActorId, ct);
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogError(ex, "Failed to auto-compose accounting sale for order #{OrderId} after marking Received.", id);
-                }
-            }
         }
 
         var (actorUserId, actorEmail) = AdminActivityLogHelper.GetActor(HttpContext);
@@ -962,7 +733,6 @@ public class OrdersController : ControllerBase
                     FurnitureColorName = i.FurnitureColorName,
                     SizeName = i.SizeName,
                     WithLace = i.WithLace,
-                    LaceColorName = i.LaceColorName,
                     Quantity = i.Quantity,
                     UnitPrice = i.UnitPrice,
                     LineTotal = i.UnitPrice * i.Quantity,
@@ -1037,6 +807,112 @@ public class OrdersController : ControllerBase
         return value.Trim();
     }
 
+    private async Task<string?> DecrementVariantStockAsync(
+        int productId,
+        IEnumerable<OrderItem> items,
+        CancellationToken ct)
+    {
+        var stocks = await LoadVariantStocksForUpdateAsync(productId, ct);
+        if (stocks.Count == 0)
+            return null;
+
+        var requested = BuildVariantQuantityMap(stocks, items, requireMatch: true, out var failure);
+        if (failure != null)
+            return failure;
+
+        foreach (var ((colorId, sizeId, lace), quantity) in requested)
+        {
+            var stock = stocks.FirstOrDefault(s => s.ColorId == colorId && s.SizeId == sizeId && s.Lace == lace);
+            if (stock == null)
+                return "Selected product variant is not available.";
+
+            if (stock.QuantityInStock < quantity)
+                return "Not enough stock for the selected product variant.";
+
+            stock.QuantityInStock -= quantity;
+        }
+
+        return null;
+    }
+
+    private async Task RestoreVariantStockAsync(
+        int productId,
+        IEnumerable<OrderItem> items,
+        CancellationToken ct)
+    {
+        var stocks = await LoadVariantStocksForUpdateAsync(productId, ct);
+        if (stocks.Count == 0)
+            return;
+
+        var requested = BuildVariantQuantityMap(stocks, items, requireMatch: false, out _);
+        foreach (var ((colorId, sizeId, lace), quantity) in requested)
+        {
+            var stock = stocks.FirstOrDefault(s => s.ColorId == colorId && s.SizeId == sizeId && s.Lace == lace);
+            if (stock != null)
+                stock.QuantityInStock = checked(stock.QuantityInStock + quantity);
+        }
+    }
+
+    private async Task<List<ProductVariantStock>> LoadVariantStocksForUpdateAsync(int productId, CancellationToken ct)
+    {
+        return await _context.ProductVariantStocks
+            .Where(s => s.ProductId == productId)
+            .Include(s => s.ProductColor)
+                .ThenInclude(pc => pc.Color)
+            .Include(s => s.ProductSize)
+                .ThenInclude(ps => ps.Size)
+            .ToListAsync(ct);
+    }
+
+    private static Dictionary<(int ColorId, int SizeId, bool Lace), int> BuildVariantQuantityMap(
+        IReadOnlyCollection<ProductVariantStock> stocks,
+        IEnumerable<OrderItem> items,
+        bool requireMatch,
+        out string? failure)
+    {
+        failure = null;
+        var result = new Dictionary<(int ColorId, int SizeId, bool Lace), int>();
+
+        foreach (var item in items)
+        {
+            var colorName = NormalizeVariantToken(item.ColorName);
+            var sizeName = NormalizeVariantToken(item.SizeName);
+            if (colorName == null || sizeName == null)
+            {
+                if (requireMatch)
+                    failure = "Selected product variant is missing color or size.";
+                continue;
+            }
+
+            var lace = item.WithLace == true;
+            var stock = stocks.FirstOrDefault(s =>
+                s.Lace == lace
+                && (VariantNameMatches(s.ProductColor.Color.Name, colorName)
+                    || VariantNameMatches(s.ProductColor.Color.NameUk, colorName))
+                && (VariantNameMatches(s.ProductSize.Size.Name, sizeName)
+                    || VariantNameMatches(s.ProductSize.Size.NameUk, sizeName)));
+
+            if (stock == null)
+            {
+                if (requireMatch)
+                    failure = "Selected product variant is not available.";
+                continue;
+            }
+
+            var key = (stock.ColorId, stock.SizeId, stock.Lace);
+            result[key] = result.GetValueOrDefault(key) + item.Quantity;
+        }
+
+        return result;
+    }
+
+    private static string? NormalizeVariantToken(string? value) =>
+        string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+
+    private static bool VariantNameMatches(string? candidate, string requested) =>
+        !string.IsNullOrWhiteSpace(candidate)
+        && string.Equals(candidate.Trim(), requested, StringComparison.OrdinalIgnoreCase);
+
     private static string? NormalizePhone(string? value)
     {
         if (string.IsNullOrWhiteSpace(value)) return null;
@@ -1044,9 +920,6 @@ public class OrdersController : ControllerBase
         if (trimmed.Length < 8 || trimmed.Length > 32) return null;
         return trimmed;
     }
-
-    private static long RoundToCents(decimal value) =>
-        checked((long)decimal.Round(value, 0, MidpointRounding.AwayFromZero));
 
     private OrderConfirmationEmailMessage BuildOrderStatusMessage(Order order, OrderEmailEvent emailEvent)
     {

@@ -143,10 +143,7 @@ public class ProductService : IProductService
 
         if (product == null)
             return null;
-        var laceColorOptions = product.Lace
-            ? await ComputeLaceColorOptionsAsync(ct)
-            : new List<LaceColorOptionDto>();
-        return MapToProductDetailDto(product, activeSuggestionsOnly: activeOnly, laceColorOptions: laceColorOptions);
+        return MapToProductDetailDto(product, activeSuggestionsOnly: activeOnly);
     }
 
     public async Task<ProductDetailDto?> GetProductByCodeAsync(string productCode, CancellationToken ct = default)
@@ -216,10 +213,7 @@ public class ProductService : IProductService
 
         if (product == null)
             return null;
-        var laceColorOptions = product.Lace
-            ? await ComputeLaceColorOptionsAsync(ct)
-            : new List<LaceColorOptionDto>();
-        return MapToProductDetailDto(product, activeSuggestionsOnly: true, laceColorOptions: laceColorOptions);
+        return MapToProductDetailDto(product, activeSuggestionsOnly: true);
     }
 
     public async Task<ProductDto> CreateProductAsync(CreateProductRequest request, CancellationToken ct = default)
@@ -243,8 +237,6 @@ public class ProductService : IProductService
             Name = request.Name,
             Description = request.Description,
             Price = request.Price,
-            // Seed accounting selling price from the storefront UAH price so margins
-            // and accounting sales don't see a silent 0-cent selling price.
             SellingPriceCents = sellingPriceCents,
             SellingCurrencyCode = "UAH",
             QuantityInStock = computedTotalStock,
@@ -286,17 +278,6 @@ public class ProductService : IProductService
         await ReplaceColorSizeImagesAsync(product.Id, colorSizeVariants, ct);
         await ReplaceVariantStocksAsync(product.Id, request.VariantStocks, ct);
         await ReplaceProductRecommendationsAsync(product.Id, product.ProductCode, request.SuggestedProductCodes, ct);
-
-        // Internal lace-color products (e.g. "Lace Brown") auto-link to their own color in the
-        // global lace price map, so creating one with color=Brown is enough for bags to price
-        // lace by that color — no separate manual step on the Colors tab. Never overwrite an
-        // existing mapping (an admin may have deliberately pointed that color elsewhere).
-        if (request.IsInternalComponent && defaultColorId.HasValue)
-        {
-            var laceColor = await _context.Colors.FindAsync(new object[] { defaultColorId.Value }, ct);
-            if (laceColor != null && laceColor.LaceProductId == null)
-                laceColor.LaceProductId = product.Id;
-        }
 
         await _context.SaveChangesAsync(ct);
 
@@ -387,8 +368,8 @@ public class ProductService : IProductService
         product.Name = request.Name;
         product.Description = request.Description;
         product.Price = request.Price;
-        // Keep accounting cents aligned when the catalog price is still UAH-denominated.
-        // Never overwrite a non-UAH accounting selling price from the storefront editor.
+        // Keep the stored cents value aligned when the catalog price is UAH-denominated.
+        // Never overwrite a non-UAH selling price from the storefront editor.
         if (string.Equals(product.SellingCurrencyCode, "UAH", StringComparison.OrdinalIgnoreCase))
         {
             product.SellingPriceCents = (long)decimal.Round(
@@ -555,7 +536,7 @@ public class ProductService : IProductService
                 OrderItemSnapshotHelper.ApplyProductSnapshot(orderItem, orderItem.Product);
         }
 
-        // Accounting rule: never hard-delete products that may appear in sales/COGS history.
+        // Preserve historical order item references by voiding instead of hard-deleting.
         product.IsVoid = true;
         product.IsActive = false;
         product.UpdatedAt = DateTime.UtcNow;
@@ -720,47 +701,11 @@ public class ProductService : IProductService
         };
     }
 
-    /// <summary>
-    /// The global lace-color options: one per <see cref="Models.Color"/> with a configured
-    /// <c>LaceProductId</c> pointing at an active, non-void lace product. Identical for every
-    /// lace-enabled bag (the global color→lace-product mapping edited on the admin Colors tab).
-    /// Each option's surcharge is the mapped lace product's own catalog price.
-    /// </summary>
-    private async Task<List<LaceColorOptionDto>> ComputeLaceColorOptionsAsync(CancellationToken ct)
-    {
-        var rows = await _context.Colors
-            .AsNoTracking()
-            .Where(c => c.LaceProductId != null && c.LaceProduct!.IsActive && !c.LaceProduct.IsVoid)
-            .Select(c => new
-            {
-                ColorId = c.Id,
-                c.Name,
-                c.NameUk,
-                c.HexCode,
-                Price = c.LaceProduct!.Price,
-            })
-            .ToListAsync(ct);
-        return rows
-            .Select(r => new LaceColorOptionDto(r.ColorId, r.Name, r.NameUk, r.HexCode, r.Price))
-            .ToList();
-    }
-
     private static ProductDetailDto MapToProductDetailDto(
         Models.Product p,
-        bool activeSuggestionsOnly,
-        List<LaceColorOptionDto>? laceColorOptions = null)
+        bool activeSuggestionsOnly)
     {
-        laceColorOptions ??= new List<LaceColorOptionDto>();
         var baseDto = MapToProductDto(p);
-
-        // Backwards-compat single surcharge: the default option's surcharge (bag's own default
-        // color if it's among the configured lace options, else the first option), else 0.
-        var defaultColorId = p.DefaultColor?.Id
-            ?? (baseDto.Colors.FirstOrDefault()?.ColorId);
-        var defaultLaceOption = (defaultColorId.HasValue
-            ? laceColorOptions.FirstOrDefault(o => o.ColorId == defaultColorId.Value)
-            : null) ?? laceColorOptions.FirstOrDefault();
-        var laceSurcharge = defaultLaceOption?.Surcharge ?? 0m;
         var recommendations = (p.Recommendations ?? new List<Models.ProductRecommendation>())
             .OrderBy(r => r.SortOrder)
             .ThenBy(r => r.RelatedProductId)
@@ -806,8 +751,6 @@ public class ProductService : IProductService
             FurnitureColors = baseDto.FurnitureColors,
             SuggestedProductCodes = suggestedCodes,
             HasConfiguredSuggestions = p.SuggestionsConfigured,
-            LaceSurcharge = laceSurcharge,
-            LaceColorOptions = laceColorOptions,
             SuggestedProducts = suggestedProducts,
         };
     }
