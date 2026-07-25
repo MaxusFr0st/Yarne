@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using YarneAPIBack.Accounting.Models;
 
 namespace YarneAPIBack.Models;
 
@@ -49,9 +48,7 @@ public partial class Product
     public bool Lace { get; set; }
 
     /// <summary>
-    /// Trackable in Production/BOM/Sales/Stock like any product, but never shown in or sold
-    /// through the public storefront catalog. Used for sale-time composition components such
-    /// as "Lace" (and later "Packaging").
+    /// Legacy internal catalog rows are hidden from storefront listings.
     /// </summary>
     public bool IsInternalComponent { get; set; }
 
@@ -89,14 +86,4 @@ public partial class Product
 
     public virtual ICollection<ProductRecommendation> Recommendations { get; set; } = new List<ProductRecommendation>();
 
-    public virtual AccountingCurrency SellingCurrency { get; set; } = null!;
-
-    public virtual ProductBom? Bom { get; set; }
-
-    public virtual FinishedGoodsInventory? FinishedGoodsInventory { get; set; }
-
-    public virtual ICollection<ProductionOrder> ProductionOrders { get; set; } = new List<ProductionOrder>();
-
-    /// <summary>Sale-time component recipe rows where this product is the base (e.g. a bag).</summary>
-    public virtual ICollection<ProductSaleComponent> SaleComponents { get; set; } = new List<ProductSaleComponent>();
 }

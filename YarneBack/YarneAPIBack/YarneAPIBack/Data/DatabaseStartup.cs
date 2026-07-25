@@ -18,10 +18,6 @@ public static class DatabaseStartup
                 await db.Database.MigrateAsync(cancellationToken);
                 logger.LogInformation("Database migrations applied successfully.");
                 await CustomerSchemaPatches.EnsureOAuthColumnsAsync(db, logger, cancellationToken);
-                await AccountingSchemaPatches.EnsureTablesAsync(db, logger, cancellationToken);
-                await AccountingV2SchemaPatches.EnsureTablesAsync(db, logger, cancellationToken);
-                await AccountingEnhancementsSchemaPatches.EnsureAsync(db, logger, cancellationToken);
-                await AccountingUnlockImportLocksSchemaPatches.EnsureAsync(db, logger, cancellationToken);
                 await OrderStatusSchemaPatches.EnsureOrderStatusesAsync(db, logger, cancellationToken);
                 await OrderItemSchemaPatches.EnsureSnapshotColumnsAsync(db, logger, cancellationToken);
                 await CatalogSchemaPatches.EnsureAsync(db, logger, cancellationToken);

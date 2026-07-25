@@ -127,39 +127,6 @@ public static class DatabaseBootstrap
 
         try
         {
-            await SaleComponentSchemaPatches.ForceEnsureAsync(db, logger, cancellationToken);
-        }
-        catch (Exception saleComponentEx)
-        {
-            logger.LogError(
-                saleComponentEx,
-                "SaleComponent schema still missing after bootstrap; lace composition endpoints may 500 until fixed.");
-        }
-
-        try
-        {
-            await ColorLaceMappingSchemaPatches.ForceEnsureAsync(db, logger, cancellationToken);
-        }
-        catch (Exception colorLaceMappingEx)
-        {
-            logger.LogError(
-                colorLaceMappingEx,
-                "ColorLaceMapping schema still missing after bootstrap; global lace mapping endpoints may 500 until fixed.");
-        }
-
-        try
-        {
-            await MaterialRollTrackingSchemaPatches.ForceEnsureAsync(db, logger, cancellationToken);
-        }
-        catch (Exception rollTrackingEx)
-        {
-            logger.LogError(
-                rollTrackingEx,
-                "Material roll-tracking schema still missing after bootstrap; purchase-order roll fields may 500 until fixed.");
-        }
-
-        try
-        {
             await CategoryTrackStockSchemaPatches.ForceEnsureAsync(db, logger, cancellationToken);
         }
         catch (Exception trackStockEx)

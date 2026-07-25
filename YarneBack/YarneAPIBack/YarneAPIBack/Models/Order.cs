@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using YarneAPIBack.Accounting.Models;
 
 namespace YarneAPIBack.Models;
 
@@ -47,10 +46,4 @@ public partial class Order
     public virtual PaymentMethod PaymentMethod { get; set; } = null!;
 
     public virtual CustomerAddress? ShippingAddr { get; set; }
-
-    public virtual SalesChannel? Channel { get; set; }
-
-    public virtual AccountingCurrency Currency { get; set; } = null!;
-
-    public virtual ICollection<ReturnOrder> ReturnOrders { get; set; } = new List<ReturnOrder>();
 }

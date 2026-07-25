@@ -35,7 +35,6 @@ public class OrderItemDto
 
     public int? ProductId { get; set; }
 
-    /// <summary>Set on composed component lines (e.g. lace) to the parent bag line's Id.</summary>
     public int? ParentOrderItemId { get; set; }
 
     public string ProductCode { get; set; } = string.Empty;
@@ -53,8 +52,6 @@ public class OrderItemDto
     public string? SizeName { get; set; }
 
     public bool? WithLace { get; set; }
-
-    public string? LaceColorName { get; set; }
 
     public int Quantity { get; set; }
 

@@ -60,7 +60,6 @@ export interface ProductDto {
   isNew: boolean;
   isBestseller: boolean;
   lace: boolean;
-  isInternalComponent: boolean;
   createdAt: string;
 }
 
@@ -74,18 +73,6 @@ export interface ProductDetailDto extends ProductDto {
   suggestedProductCodes: string[];
   suggestedProducts: SuggestedProductDto[];
   hasConfiguredSuggestions: boolean;
-  /** Added price (UAH) when the lace toggle is on: with-lace price = price + laceSurcharge. */
-  laceSurcharge: number;
-  /** Available lace-color options (each with its own surcharge); empty if not configured. */
-  laceColorOptions: LaceColorOptionDto[];
-}
-
-export interface LaceColorOptionDto {
-  colorId: number;
-  colorName: string;
-  colorNameUk?: string | null;
-  colorHex: string;
-  surcharge: number;
 }
 
 export interface SuggestedProductDto {
@@ -163,7 +150,6 @@ export interface CreateProductRequest {
   isNew?: boolean;
   isBestseller?: boolean;
   lace?: boolean;
-  isInternalComponent?: boolean;
   suggestedProductCodes?: string[];
 }
 

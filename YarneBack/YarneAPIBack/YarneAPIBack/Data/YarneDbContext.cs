@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using Microsoft.EntityFrameworkCore;
-using YarneAPIBack.Accounting.Models;
 using YarneAPIBack.Models;
 
 namespace YarneAPIBack.Data;
@@ -55,8 +54,6 @@ public partial class YarneDbContext : DbContext
 
     public virtual DbSet<ProductRecommendation> ProductRecommendations { get; set; }
 
-    public virtual DbSet<ProductSaleComponent> ProductSaleComponents { get; set; }
-
     public virtual DbSet<Size> Sizes { get; set; }
 
     public virtual DbSet<Role> Roles { get; set; }
@@ -64,31 +61,6 @@ public partial class YarneDbContext : DbContext
     public virtual DbSet<AppSetting> AppSettings { get; set; }
 
     public virtual DbSet<AdminActivityLog> AdminActivityLogs { get; set; }
-
-    public virtual DbSet<AccountingCategory> AccountingCategories { get; set; }
-
-    public virtual DbSet<AccountingPurchase> AccountingPurchases { get; set; }
-
-    public virtual DbSet<MarketingExpenditure> MarketingExpenditures { get; set; }
-
-    // V2 accounting entities
-    public virtual DbSet<Material> Materials { get; set; }
-
-    public virtual DbSet<ImportTransaction> ImportTransactions { get; set; }
-
-    public virtual DbSet<ImportTransactionLine> ImportTransactionLines { get; set; }
-
-    public virtual DbSet<Expense> Expenses { get; set; }
-
-    public virtual DbSet<MaterialUsageRecord> MaterialUsageRecords { get; set; }
-
-    public virtual DbSet<StockReport> StockReports { get; set; }
-
-    public virtual DbSet<StockReportLine> StockReportLines { get; set; }
-
-    public virtual DbSet<ExpenseCategory> ExpenseCategories { get; set; }
-
-    public virtual DbSet<ExternalOrder> ExternalOrders { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -134,11 +106,6 @@ public partial class YarneDbContext : DbContext
             entity.Property(e => e.Name).HasMaxLength(100);
             entity.Property(e => e.NameUk).HasMaxLength(100);
             entity.Property(e => e.HexCode).HasMaxLength(20);
-            entity.HasOne(e => e.LaceProduct)
-                .WithMany()
-                .HasForeignKey(e => e.LaceProductId)
-                .OnDelete(DeleteBehavior.Restrict);
-            entity.HasIndex(e => e.LaceProductId);
         });
 
         modelBuilder.Entity<FurnitureColor>(entity =>
@@ -396,48 +363,6 @@ public partial class YarneDbContext : DbContext
                 .OnDelete(DeleteBehavior.SetNull)
                 .HasConstraintName("FK__OrderItem__Produ__6C190EBB");
 
-            entity.HasOne(d => d.ParentOrderItem)
-                .WithMany()
-                .HasForeignKey(d => d.ParentOrderItemId)
-                .OnDelete(DeleteBehavior.Restrict);
-            entity.HasIndex(e => e.ParentOrderItemId);
-        });
-
-        modelBuilder.Entity<ProductSaleComponent>(entity =>
-        {
-            entity.HasKey(e => e.Id);
-            entity.ToTable("ProductSaleComponent", table =>
-                table.HasCheckConstraint(
-                    "CK_ProductSaleComponent_Quantity_Positive",
-                    "\"Quantity\" > 0"));
-            entity.Property(e => e.Quantity).HasDefaultValue(1);
-            entity.Property(e => e.Condition).HasMaxLength(20).HasDefaultValue("with_lace");
-            entity.Property(e => e.IsVoid).HasDefaultValue(false);
-            entity.Property(e => e.CreatedAt).HasDefaultValueSql("CURRENT_TIMESTAMP");
-            entity.Property(e => e.UpdatedAt).HasDefaultValueSql("CURRENT_TIMESTAMP");
-
-            // Two FKs to Product on Postgres must be no-cascade to avoid multiple cascade paths.
-            entity.HasOne(e => e.Product)
-                .WithMany(p => p.SaleComponents)
-                .HasForeignKey(e => e.ProductId)
-                .OnDelete(DeleteBehavior.Restrict);
-            entity.HasOne(e => e.ComponentProduct)
-                .WithMany()
-                .HasForeignKey(e => e.ComponentProductId)
-                .OnDelete(DeleteBehavior.Restrict);
-            entity.HasOne(e => e.Color)
-                .WithMany()
-                .HasForeignKey(e => e.ColorId)
-                .OnDelete(DeleteBehavior.Restrict);
-
-            entity.HasIndex(e => new { e.ProductId, e.ComponentProductId, e.Condition })
-                .IsUnique()
-                .HasFilter("\"IsVoid\" = false");
-            entity.HasIndex(e => new { e.ProductId, e.Condition, e.ColorId })
-                .IsUnique()
-                .HasFilter("\"IsVoid\" = false");
-            entity.HasIndex(e => e.ComponentProductId);
-            entity.HasIndex(e => e.ColorId);
         });
 
         modelBuilder.Entity<PaymentMethod>(entity =>
@@ -543,184 +468,6 @@ public partial class YarneDbContext : DbContext
             entity.HasIndex(e => e.Name, "UQ__Role__737584F61F3480C1").IsUnique();
 
             entity.Property(e => e.Name).HasMaxLength(50);
-        });
-
-        modelBuilder.Entity<AccountingCategory>(entity =>
-        {
-            entity.HasKey(e => e.Id);
-            entity.ToTable("AccountingCategory");
-            entity.Property(e => e.Name).HasMaxLength(150).IsRequired();
-            entity.Property(e => e.Description).HasMaxLength(500);
-            entity.Property(e => e.CreatedAt).HasDefaultValueSql("CURRENT_TIMESTAMP");
-            entity.HasIndex(e => e.Name).IsUnique();
-        });
-
-        modelBuilder.Entity<AccountingPurchase>(entity =>
-        {
-            entity.HasKey(e => e.Id);
-            entity.ToTable("AccountingPurchase");
-            entity.Property(e => e.Name).HasMaxLength(255).IsRequired();
-            entity.Property(e => e.Description).HasMaxLength(1000);
-            entity.Property(e => e.Supplier).HasMaxLength(255);
-            entity.Property(e => e.Notes).HasMaxLength(1000);
-            entity.Property(e => e.UnitCost).HasColumnType("decimal(18,2)");
-            entity.Property(e => e.SaleUnitPrice).HasColumnType("decimal(18,2)");
-            entity.Property(e => e.CreatedAt).HasDefaultValueSql("CURRENT_TIMESTAMP");
-            entity.HasOne(e => e.Category).WithMany(c => c.Purchases)
-                .HasForeignKey(e => e.CategoryId)
-                .OnDelete(DeleteBehavior.Restrict);
-            entity.HasIndex(e => e.CategoryId);
-            entity.HasIndex(e => e.PurchaseDate);
-        });
-
-        modelBuilder.Entity<MarketingExpenditure>(entity =>
-        {
-            entity.HasKey(e => e.Id);
-            entity.ToTable("MarketingExpenditure");
-            entity.Property(e => e.Name).HasMaxLength(255).IsRequired();
-            entity.Property(e => e.Description).HasMaxLength(1000);
-            entity.Property(e => e.Notes).HasMaxLength(1000);
-            entity.Property(e => e.Amount).HasColumnType("decimal(18,2)");
-            entity.Property(e => e.CreatedAt).HasDefaultValueSql("CURRENT_TIMESTAMP");
-            entity.HasIndex(e => e.ExpenseDate);
-        });
-
-        // ── V2 Accounting ────────────────────────────────────────────────────
-
-        modelBuilder.Entity<Material>(entity =>
-        {
-            entity.HasKey(e => e.Id);
-            entity.ToTable("Material");
-            entity.Property(e => e.Name).HasMaxLength(255).IsRequired();
-            entity.Property(e => e.Description).HasMaxLength(1000);
-            entity.Property(e => e.Unit).HasMaxLength(50).IsRequired().HasDefaultValue("pcs");
-            entity.Property(e => e.Sku).HasMaxLength(100);
-            entity.Property(e => e.IsActive).HasDefaultValue(true);
-            entity.Property(e => e.CreatedAt).HasDefaultValueSql("CURRENT_TIMESTAMP");
-            entity.HasIndex(e => e.Name).IsUnique();
-            entity.HasIndex(e => e.Sku);
-        });
-
-        modelBuilder.Entity<ImportTransaction>(entity =>
-        {
-            entity.HasKey(e => e.Id);
-            entity.ToTable("ImportTransaction");
-            entity.Property(e => e.Supplier).HasMaxLength(255);
-            entity.Property(e => e.Notes).HasMaxLength(1000);
-            entity.Property(e => e.InvoiceRef).HasMaxLength(150);
-            entity.Property(e => e.IsLocked).HasDefaultValue(false);
-            entity.Property(e => e.CreatedAt).HasDefaultValueSql("CURRENT_TIMESTAMP");
-            entity.HasIndex(e => e.TransactionDate);
-        });
-
-        modelBuilder.Entity<ImportTransactionLine>(entity =>
-        {
-            entity.HasKey(e => e.Id);
-            entity.ToTable("ImportTransactionLine");
-            entity.Property(e => e.Quantity).HasColumnType("decimal(18,4)");
-            entity.Property(e => e.UnitPrice).HasColumnType("decimal(18,2)");
-            entity.Property(e => e.CreatedAt).HasDefaultValueSql("CURRENT_TIMESTAMP");
-            entity.Property(e => e.UpdatedAt).HasDefaultValueSql("CURRENT_TIMESTAMP");
-            entity.HasOne(e => e.ImportTransaction)
-                .WithMany(t => t.Lines)
-                .HasForeignKey(e => e.ImportTransactionId)
-                .OnDelete(DeleteBehavior.Cascade);
-            entity.HasOne(e => e.Material)
-                .WithMany(m => m.ImportLines)
-                .HasForeignKey(e => e.MaterialId)
-                .OnDelete(DeleteBehavior.Restrict);
-            entity.HasIndex(e => e.ImportTransactionId);
-            entity.HasIndex(e => e.MaterialId);
-        });
-
-        modelBuilder.Entity<Expense>(entity =>
-        {
-            entity.HasKey(e => e.Id);
-            entity.ToTable("Expense");
-            entity.Property(e => e.Category).HasMaxLength(100).IsRequired();
-            entity.Property(e => e.Name).HasMaxLength(255).IsRequired();
-            entity.Property(e => e.Description).HasMaxLength(1000);
-            entity.Property(e => e.Amount).HasColumnType("decimal(18,2)");
-            entity.Property(e => e.Notes).HasMaxLength(1000);
-            entity.Property(e => e.CreatedAt).HasDefaultValueSql("CURRENT_TIMESTAMP");
-            entity.HasIndex(e => e.Category);
-            entity.HasIndex(e => e.ExpenseDate);
-        });
-
-        modelBuilder.Entity<MaterialUsageRecord>(entity =>
-        {
-            entity.HasKey(e => e.Id);
-            entity.ToTable("MaterialUsageRecord");
-            entity.Property(e => e.QuantityUsed).HasColumnType("decimal(18,4)");
-            entity.Property(e => e.Notes).HasMaxLength(1000);
-            entity.Property(e => e.CreatedAt).HasDefaultValueSql("CURRENT_TIMESTAMP");
-            entity.HasOne(e => e.Material)
-                .WithMany(m => m.UsageRecords)
-                .HasForeignKey(e => e.MaterialId)
-                .OnDelete(DeleteBehavior.Restrict);
-            entity.HasOne(e => e.ExternalOrder)
-                .WithMany(o => o.UsageRecords)
-                .HasForeignKey(e => e.ExternalOrderId)
-                .OnDelete(DeleteBehavior.SetNull);
-            entity.HasIndex(e => e.MaterialId);
-            entity.HasIndex(e => e.OrderId);
-            entity.HasIndex(e => e.ExternalOrderId);
-            entity.HasIndex(e => e.UsageDate);
-        });
-
-        modelBuilder.Entity<ExpenseCategory>(entity =>
-        {
-            entity.HasKey(e => e.Id);
-            entity.ToTable("ExpenseCategory");
-            entity.Property(e => e.Name).HasMaxLength(100).IsRequired();
-            entity.Property(e => e.Description).HasMaxLength(500);
-            entity.Property(e => e.CreatedAt).HasDefaultValueSql("CURRENT_TIMESTAMP");
-            entity.HasIndex(e => e.Name)
-                .IsUnique()
-                .HasFilter("\"IsVoid\" = false");
-        });
-
-        modelBuilder.Entity<ExternalOrder>(entity =>
-        {
-            entity.HasKey(e => e.Id);
-            entity.ToTable("ExternalOrder");
-            entity.Property(e => e.Label).HasMaxLength(255);
-            entity.Property(e => e.CustomerName).HasMaxLength(255);
-            entity.Property(e => e.Notes).HasMaxLength(1000);
-            entity.Property(e => e.CreatedAt).HasDefaultValueSql("CURRENT_TIMESTAMP");
-            entity.HasIndex(e => e.OrderDate);
-        });
-
-        modelBuilder.Entity<StockReport>(entity =>
-        {
-            entity.HasKey(e => e.Id);
-            entity.ToTable("StockReport");
-            entity.Property(e => e.Label).HasMaxLength(255);
-            entity.Property(e => e.Notes).HasMaxLength(1000);
-            entity.Property(e => e.IsLocked).HasDefaultValue(true);
-            entity.Property(e => e.IsVoid).HasDefaultValue(false);
-            entity.Property(e => e.CreatedAt).HasDefaultValueSql("CURRENT_TIMESTAMP");
-            entity.HasIndex(e => e.SnapshotDate);
-            entity.HasIndex(e => e.IsVoid);
-        });
-
-        modelBuilder.Entity<StockReportLine>(entity =>
-        {
-            entity.HasKey(e => e.Id);
-            entity.ToTable("StockReportLine");
-            entity.Property(e => e.MaterialName).HasMaxLength(255).IsRequired();
-            entity.Property(e => e.MaterialUnit).HasMaxLength(50).IsRequired();
-            entity.Property(e => e.QtyImported).HasColumnType("decimal(18,4)");
-            entity.Property(e => e.QtyUsed).HasColumnType("decimal(18,4)");
-            entity.Property(e => e.QtyOnHand).HasColumnType("decimal(18,4)");
-            entity.Property(e => e.AvgUnitCost).HasColumnType("decimal(18,2)");
-            entity.Property(e => e.TotalValue).HasColumnType("decimal(18,2)");
-            entity.HasOne(e => e.StockReport)
-                .WithMany(r => r.Lines)
-                .HasForeignKey(e => e.StockReportId)
-                .OnDelete(DeleteBehavior.Cascade);
-            entity.HasIndex(e => e.StockReportId);
-            entity.HasIndex(e => e.MaterialId);
         });
 
         modelBuilder.Entity<RefreshToken>(entity =>
