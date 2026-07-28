@@ -151,7 +151,7 @@ export function ProductDetail() {
   if (!loading && !product) {
     return (
       <main
-        className="min-h-[100svh] flex flex-col items-center justify-center"
+        className="min-h-[100vh] flex flex-col items-center justify-center"
         style={{ backgroundColor: "#F5F2ED" }}
       >
         <p
@@ -237,9 +237,9 @@ export function ProductDetail() {
   const displayPrice = product ? product.price : 0;
 
   return (
-    <main className="overflow-x-hidden min-h-[100svh]" style={{ backgroundColor: "#F5F2ED" }}>
+    <main className="overflow-x-hidden min-h-[100vh]" style={{ backgroundColor: "#F5F2ED" }}>
       {!showContent ? (
-        <div className="min-h-[50svh]" aria-busy="true" />
+        <div className="min-h-[50vh]" aria-busy="true" />
       ) : (
         <>
       <MobileProductDetailView
@@ -288,7 +288,7 @@ export function ProductDetail() {
             className="w-full max-w-[335px] sm:max-w-[380px] mx-auto md:max-w-none md:mx-0 lg:max-w-[620px] lg:justify-self-center"
           >
             {/* Main Image */}
-            <div className="relative rounded-[34px] sm:rounded-[40px] overflow-hidden bg-[#EDE9E2] h-[min(64svh,430px)] min-h-[320px] sm:min-h-[340px] md:h-[min(62svh,640px)] md:min-h-[440px] lg:h-[min(68svh,720px)] lg:min-h-[500px]">
+            <div className="relative rounded-[34px] sm:rounded-[40px] overflow-hidden bg-[#EDE9E2] h-[min(64vh,430px)] min-h-[320px] sm:min-h-[340px] md:h-[min(62vh,640px)] md:min-h-[440px] lg:h-[min(68vh,720px)] lg:min-h-[500px]">
               {images.length > 0 && (
                 <CrossfadeImage
                   src={images[safeImageIndex].src}

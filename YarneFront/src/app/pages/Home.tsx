@@ -95,7 +95,7 @@ export function Home() {
       <section
         ref={heroRef}
         className="relative flex items-end overflow-hidden min-h-[600px]"
-        style={{ height: "calc(var(--app-vh, 1svh) * 100)" }}
+        style={{ height: "calc(var(--app-vh, 1vh) * 100)" }}
       >
         {animateHero ? (
           <motion.div className="absolute inset-0 overflow-hidden" style={{ y: heroY }}>
@@ -293,7 +293,7 @@ export function Home() {
       </section>
 
       {/* ─── LOOKBOOK BANNER ─── */}
-      <section className="relative overflow-hidden h-[min(70svh,640px)] min-h-[380px]">
+      <section className="relative overflow-hidden h-[min(70vh,640px)] min-h-[380px]">
         <div className="absolute inset-0">
           {lookbookImageSrc ? (
             <Img src={lookbookImageSrc} alt="Lookbook" className="h-full w-full object-cover" />

@@ -116,7 +116,7 @@ export function AdminModalShell({
       <motion.div
         role="dialog"
         aria-modal="true"
-        className={`w-full ${MAX_WIDTH[maxWidth]} rounded-[32px] flex flex-col max-h-[min(90dvh,720px)] overflow-hidden`}
+        className={`w-full ${MAX_WIDTH[maxWidth]} rounded-[32px] flex flex-col max-h-[min(90vh,720px)] overflow-hidden`}
         style={{ backgroundColor: "#F5F2ED" }}
         initial={reduceMotion ? { opacity: 0 } : { opacity: 0, scale: 0.96, y: 16 }}
         animate={reduceMotion ? { opacity: 1 } : { opacity: 1, scale: 1, y: 0 }}

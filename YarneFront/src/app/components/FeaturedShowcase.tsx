@@ -502,7 +502,7 @@ export function FeaturedShowcase() {
 
   const lockBentoViewport = useBentoLayout && touchLayout;
   const bentoSectionHeight = lockBentoViewport
-    ? "calc(var(--app-vh, 1svh) * 100 - var(--main-header-h))"
+    ? "calc(var(--app-vh, 1vh) * 100 - var(--main-header-h))"
     : undefined;
   const bentoSectionMinHeight = undefined;
 

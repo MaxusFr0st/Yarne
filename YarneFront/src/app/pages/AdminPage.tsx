@@ -3469,7 +3469,7 @@ export function AdminPage() {
   };
 
   return (
-    <main style={{ backgroundColor: "#F5F2ED", minHeight: "100svh" }} className="relative">
+    <main style={{ backgroundColor: "#F5F2ED", minHeight: "100vh" }} className="relative">
       {!apiAvailable && !loading && (
         <div className="fixed top-20 left-0 right-0 z-50 mx-4 md:mx-auto max-w-xl bg-[#4A0E0E] text-[#F5F2ED] px-6 py-4 rounded-2xl shadow-lg text-center" style={{ fontFamily: "'DM Sans', sans-serif" }}>
           Cannot reach the backend API. Check that the mindful-flexibility service is running on Railway and that <code className="bg-black/20 px-2 py-0.5 rounded">VITE_API_URL</code> points to it.

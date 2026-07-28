@@ -102,7 +102,7 @@ export function CheckoutPage() {
 
   if (!isLoggedIn) {
     return (
-      <main className="min-h-[100svh] flex items-center justify-center px-6" style={{ backgroundColor: "#F5F2ED", paddingTop: "120px" }}>
+      <main className="min-h-[100vh] flex items-center justify-center px-6" style={{ backgroundColor: "#F5F2ED", paddingTop: "120px" }}>
         <motion.div
           className="w-full max-w-[520px] rounded-[32px] p-10 text-center"
           style={{ border: "1px solid rgba(45,36,30,0.1)", backgroundColor: "rgba(245,242,237,0.85)" }}
@@ -136,7 +136,7 @@ export function CheckoutPage() {
 
   if (cartItems.length === 0 && !placedOrder) {
     return (
-      <main className="min-h-[100svh] flex items-center justify-center px-6" style={{ backgroundColor: "#F5F2ED", paddingTop: "120px" }}>
+      <main className="min-h-[100vh] flex items-center justify-center px-6" style={{ backgroundColor: "#F5F2ED", paddingTop: "120px" }}>
         <motion.div
           className="text-center max-w-[500px]"
           initial={{ opacity: 0, y: 20 }}
@@ -166,7 +166,7 @@ export function CheckoutPage() {
   }
 
   return (
-    <main style={{ backgroundColor: "#F5F2ED", minHeight: "100svh" }}>
+    <main style={{ backgroundColor: "#F5F2ED", minHeight: "100vh" }}>
       <section className="pt-32 pb-12 md:pt-40 md:pb-14" style={{ borderBottom: "1px solid rgba(45,36,30,0.08)" }}>
         <div className="max-w-[1300px] mx-auto px-6 md:px-10">
           <motion.div

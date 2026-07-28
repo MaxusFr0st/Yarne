@@ -18,7 +18,7 @@ export function OurHistoryPage() {
   const [lead, ...rest] = copy.paragraphs;
 
   return (
-    <main className="overflow-x-hidden" style={{ backgroundColor: "#F5F2ED", minHeight: "100svh" }}>
+    <main className="overflow-x-hidden" style={{ backgroundColor: "#F5F2ED", minHeight: "100vh" }}>
       <section className="pt-[calc(var(--main-header-h)+1.25rem)] pb-16 md:pb-24">
         <div className="max-w-[1180px] mx-auto px-5 sm:px-8 md:px-10">
           <div className="grid lg:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)] gap-10 lg:gap-14 xl:gap-16 items-start">

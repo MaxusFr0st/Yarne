@@ -135,7 +135,7 @@ export function MobileProductDetailView({
       {/* Gallery — tall hero; page scrolls naturally below */}
       <div
         className="relative w-full bg-[#EDE9E2] overflow-hidden"
-        style={{ height: "calc(var(--app-vh, 1svh) * 58)", maxHeight: "420px" }}
+        style={{ height: "calc(var(--app-vh, 1vh) * 58)", maxHeight: "420px" }}
       >
         <div ref={emblaRef} className="h-full overflow-hidden">
           <div className="flex h-full [touch-action:pan-y_pinch-zoom]" style={touchMobile ? undefined : { willChange: "transform" }}>
@@ -214,7 +214,7 @@ export function MobileProductDetailView({
           boxShadow: "0 -8px 32px rgba(45,36,30,0.1)",
         }}
       >
-        <div className="flex flex-col gap-[clamp(6px,1.4svh,9px)]">
+        <div className="flex flex-col gap-[clamp(6px,1.4vh,9px)]">
           <p
             className="text-[#2D241E]/45 uppercase shrink-0"
             style={{
@@ -637,7 +637,7 @@ export function MobileProductDetailView({
             type="button"
             onClick={onAddToBag}
             disabled={outOfStock}
-            className="shrink-0 mt-[clamp(8px,1.8svh,12px)] w-full h-12 flex items-center justify-center gap-2 rounded-full text-white touch-manipulation disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2D241E]/35"
+            className="shrink-0 mt-[clamp(8px,1.8vh,12px)] w-full h-12 flex items-center justify-center gap-2 rounded-full text-white touch-manipulation disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2D241E]/35"
           style={{
             backgroundColor: outOfStock ? "#9A9088" : addedToBag ? "#2D5928" : "#2D241E",
             fontFamily: "'DM Sans', sans-serif",
@@ -665,7 +665,7 @@ export function MobileProductDetailView({
           <ProductGuaranteeBlock
             content={guaranteeContent}
             locale={locale}
-            className="mt-[clamp(10px,2svh,14px)]"
+            className="mt-[clamp(10px,2vh,14px)]"
           />
         </div>
       </div>

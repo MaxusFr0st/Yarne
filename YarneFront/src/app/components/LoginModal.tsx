@@ -245,7 +245,13 @@ export function LoginModal() {
               </button>
 
               <div className="text-center mb-7">
-                <img src="/logo.png" alt="Yarné" className="mx-auto mb-5 h-14 w-14 object-contain" />
+                <img src="/logo.png" alt="" className="mx-auto mb-3 h-14 w-14 object-contain" />
+                <p
+                  className="text-[#2D241E] mb-2"
+                  style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "1.75rem", fontWeight: 500, letterSpacing: "0.02em" }}
+                >
+                  Yarné
+                </p>
                 <p
                   className="text-[#2D241E]/40 tracking-widest uppercase text-xs mb-2"
                   style={{ fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.2em" }}

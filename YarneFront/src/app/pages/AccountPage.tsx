@@ -326,7 +326,7 @@ export function AccountPage() {
 
   if (!isLoggedIn) {
     return (
-      <main className="min-h-[100svh] flex items-center justify-center" style={{ backgroundColor: "#F5F2ED", paddingTop: "100px" }}>
+      <main className="min-h-[100vh] flex items-center justify-center" style={{ backgroundColor: "#F5F2ED", paddingTop: "100px" }}>
         <motion.div className="text-center max-w-sm px-6" initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.7, ease: easing }}>
           <div className="w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-8" style={{ backgroundColor: "rgba(45,36,30,0.06)" }}>
             <User size={32} style={{ color: "#2D241E", opacity: 0.4 }} />
@@ -356,7 +356,7 @@ export function AccountPage() {
   const displayEmail = user?.email ?? "";
 
   return (
-    <main style={{ backgroundColor: "#F5F2ED", minHeight: "100svh" }}>
+    <main style={{ backgroundColor: "#F5F2ED", minHeight: "100vh" }}>
       <section className="pt-32 pb-12 md:pt-40 md:pb-16" style={{ borderBottom: "1px solid rgba(45,36,30,0.08)" }}>
         <div className="max-w-[1200px] mx-auto px-6 md:px-10">
           <motion.div className="flex flex-col md:flex-row md:items-center gap-6 md:gap-10" initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.7, ease: easing }}>

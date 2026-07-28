@@ -20,7 +20,7 @@ export function PageTransition({ children }: PageTransitionProps) {
   return (
     <motion.div
       key={routeKey}
-      className="min-h-[calc(100svh-var(--main-header-h))]"
+      className="min-h-[calc(100vh-var(--main-header-h))]"
       initial={instant ? false : { opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ duration: instant ? 0 : 0.32, ease: EASE_OUT }}

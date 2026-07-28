@@ -1,7 +1,7 @@
 {
-  "name": "Yarne Store",
-  "short_name": "Yarne",
-  "description": "Yarne storefront and order management.",
+  "name": "Yarné Store",
+  "short_name": "Yarné",
+  "description": "Yarné storefront and order management.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",

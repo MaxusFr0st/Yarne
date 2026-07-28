@@ -5,7 +5,7 @@
   /* Height of the fixed main header. Used for layout offsets and sticky tops. */
   --main-header-h: 56px;
   /* Set once at load by stableViewport.ts; fallback for SSR/first paint. */
-  --app-vh: 1svh;
+  --app-vh: 1vh;
   --background: #ffffff;
   --foreground: oklch(0.145 0 0);
   --card: #ffffff;

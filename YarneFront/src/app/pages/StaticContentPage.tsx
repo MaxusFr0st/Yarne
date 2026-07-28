@@ -12,7 +12,7 @@ export function StaticContentPage({ pageKey }: Props) {
   const paragraphs = t(`pages.${pageKey}.paragraphs`, { returnObjects: true }) as string[];
 
   return (
-    <main style={{ backgroundColor: "#F5F2ED", minHeight: "100svh" }}>
+    <main style={{ backgroundColor: "#F5F2ED", minHeight: "100vh" }}>
       <section className="pt-28 pb-10 md:pt-32 md:pb-14">
         <div className="max-w-[760px] mx-auto px-6 md:px-10">
           <ScrollReveal>
