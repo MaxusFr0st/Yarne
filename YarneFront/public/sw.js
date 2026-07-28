@@ -1,10 +1,10 @@
-const CACHE_VERSION = "yarne-shell-v3";
+const CACHE_VERSION = "yarne-shell-v4";
 const APP_SHELL = [
   "/",
   "/index.html",
   "/config.js",
   "/manifest.webmanifest",
-  "/yarne-icon.svg",
+  "/logo.png",
 ];
 
 self.addEventListener("install", (event) => {
