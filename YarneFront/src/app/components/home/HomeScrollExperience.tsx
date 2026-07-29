@@ -1,9 +1,10 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useRef } from "react";
 import {
+  cubicBezier,
   motion,
-  useMotionValueEvent,
   useReducedMotion,
   useScroll,
+  useSpring,
   useTransform,
   type MotionValue,
 } from "motion/react";
@@ -19,22 +20,15 @@ import { resolveMediaUrl } from "../../utils/storefrontMedia";
 const INK = "#2D241E";
 const CREAM = "#F5F2ED";
 const SAND = "#EDE9E2";
-const ACCENT = "#4A0E0E";
 
-/** Scroll length of the pinned story, in viewport-height units. */
-const STORY_VH = 480;
+/** Calm scroll runway — longer = slower chapter pacing. */
+const STORY_VH = 420;
+const STORY_VH_TOUCH = 360;
 
-type SideCopy = {
-  image: string;
-  eyebrow: string;
-  title: string;
-  body: string;
-  cta: string;
-  href: string;
-};
+const EASE_OUT = cubicBezier(0.16, 1, 0.3, 1);
 
 function useSegment(progress: MotionValue<number>, start: number, end: number) {
-  return useTransform(progress, [start, end], [0, 1], { clamp: true });
+  return useTransform(progress, [start, end], [0, 1], { clamp: true, ease: EASE_OUT });
 }
 
 function Eyebrow({ children, light = false }: { children: React.ReactNode; light?: boolean }) {
@@ -96,8 +90,8 @@ function BodyCopy({
 }
 
 /**
- * Fixed full-viewport stage while the story track is scrolling under it.
- * Scroll only scrubs layers — the frame never leaves the screen until the track ends.
+ * Sticky full-viewport stage: hero holds → why rises to 50% → expands to 100% → final stacks →
+ * stage releases flush with the track end so the footer follows with no cream gap.
  */
 export function HomeScrollExperience({ heroImageUrl }: { heroImageUrl: string }) {
   const copy = useHomePageCopy();
@@ -108,32 +102,6 @@ export function HomeScrollExperience({ heroImageUrl }: { heroImageUrl: string })
   const heroSrc = resolveMediaUrl(heroImageUrl) || heroImageUrl || HOME_SCROLL_IMAGES.craft;
 
   const whyPoints = t("home.scrollStory.whyPoints", { returnObjects: true }) as string[];
-  const sides: SideCopy[] = [
-    {
-      image: HOME_SCROLL_IMAGES.product1,
-      eyebrow: t("home.scrollStory.side1Eyebrow"),
-      title: t("home.scrollStory.side1Title"),
-      body: t("home.scrollStory.side1Body"),
-      cta: t("home.scrollStory.side1Cta"),
-      href: "/collection",
-    },
-    {
-      image: HOME_SCROLL_IMAGES.product2,
-      eyebrow: t("home.scrollStory.side2Eyebrow"),
-      title: t("home.scrollStory.side2Title"),
-      body: t("home.scrollStory.side2Body"),
-      cta: t("home.scrollStory.side2Cta"),
-      href: "/collection?filter=new",
-    },
-    {
-      image: HOME_SCROLL_IMAGES.product3,
-      eyebrow: t("home.scrollStory.side3Eyebrow"),
-      title: t("home.scrollStory.side3Title"),
-      body: t("home.scrollStory.side3Body"),
-      cta: t("home.scrollStory.side3Cta"),
-      href: "/collection?filter=bestseller",
-    },
-  ];
 
   if (simplify) {
     return (
@@ -161,16 +129,6 @@ export function HomeScrollExperience({ heroImageUrl }: { heroImageUrl: string })
           title={t("home.scrollStory.whyTitle")}
           body={copy.editorial.paragraph2}
         />
-        {sides.map((s) => (
-          <StaticChapter
-            key={s.title}
-            image={s.image}
-            eyebrow={s.eyebrow}
-            title={s.title}
-            body={s.body}
-            cta={{ label: s.cta, href: s.href }}
-          />
-        ))}
         <StaticChapter
           image={HOME_SCROLL_IMAGES.final}
           eyebrow={copy.lookbook.eyebrow}
@@ -195,7 +153,6 @@ export function HomeScrollExperience({ heroImageUrl }: { heroImageUrl: string })
       whyPoints={Array.isArray(whyPoints) ? whyPoints : []}
       whyEyebrow={t("home.scrollStory.whyEyebrow")}
       whyTitle={t("home.scrollStory.whyTitle")}
-      sides={sides}
       skipLabel={t("home.scrollStory.skipToContent")}
       touch={touch}
     />
@@ -208,7 +165,6 @@ function PinnedStory({
   whyPoints,
   whyEyebrow,
   whyTitle,
-  sides,
   skipLabel,
   touch,
 }: {
@@ -217,66 +173,45 @@ function PinnedStory({
   whyPoints: string[];
   whyEyebrow: string;
   whyTitle: string;
-  sides: SideCopy[];
   skipLabel: string;
   touch: boolean;
 }) {
   const trackRef = useRef<HTMLDivElement>(null);
-  const [pinned, setPinned] = useState(true);
   const { scrollYProgress } = useScroll({
     target: trackRef,
     offset: ["start start", "end end"],
   });
 
-  useMotionValueEvent(scrollYProgress, "change", (v) => {
-    // Stay pinned until the release scrub finishes (stage has slid off-screen).
-    setPinned(v < 0.998);
+  const progress = useSpring(scrollYProgress, {
+    stiffness: touch ? 90 : 70,
+    damping: touch ? 28 : 32,
+    mass: 0.85,
+    restDelta: 0.0008,
   });
 
-  useEffect(() => {
-    if (!pinned) return;
-    const prev = document.documentElement.style.overflowX;
-    document.documentElement.style.overflowX = "clip";
-    return () => {
-      document.documentElement.style.overflowX = prev;
-    };
-  }, [pinned]);
+  // Hero hold → rise to 50% → hold → expand to 100% → hold
+  const whyHeight = useTransform(
+    progress,
+    [0, 0.14, 0.28, 0.36, 0.5, 1],
+    ["0%", "0%", "50%", "50%", "100%", "100%"],
+    { ease: [EASE_OUT, EASE_OUT, EASE_OUT, EASE_OUT, EASE_OUT] },
+  );
 
-  // Chapters: holds + transitions so beats read clearly
-  const whySeg = useSegment(scrollYProgress, 0.08, 0.18);
-  const whyHeight = useTransform(whySeg, [0, 1], ["50%", "100%"]);
+  const whyCopySeg = useSegment(progress, 0.18, 0.32);
+  const whyCopyOp = useTransform(whyCopySeg, [0, 1], [0, 1]);
+  const whyCopyY = useTransform(whyCopySeg, [0, 1], [28, 0]);
 
-  const showSeg = useSegment(scrollYProgress, 0.24, 0.34);
-  const showY = useTransform(showSeg, [0, 1], ["100%", "0%"]);
+  // Final full panel stacks after why is settled
+  const finalSeg = useSegment(progress, 0.58, 0.78);
+  const finalY = useTransform(finalSeg, [0, 1], ["100%", "0%"]);
+  const finalCopySeg = useSegment(progress, 0.66, 0.86);
+  const finalCopyOp = useTransform(finalCopySeg, [0, 1], [0, 1]);
+  const finalCopyY = useTransform(finalCopySeg, [0, 1], [24, 0]);
 
-  const philSeg = useSegment(scrollYProgress, 0.4, 0.5);
-  const philY = useTransform(philSeg, [0, 1], ["100%", "0%"]);
+  const heroCopyFade = useTransform(progress, [0.12, 0.3], [1, 0], { clamp: true });
 
-  const side1Seg = useSegment(scrollYProgress, 0.54, 0.66);
-  const side2Seg = useSegment(scrollYProgress, 0.68, 0.8);
-  const side3Seg = useSegment(scrollYProgress, 0.82, 0.92);
-
-  const side1X = useTransform(side1Seg, [0, 1], ["100%", "0%"]);
-  const side2X = useTransform(side2Seg, [0, 1], ["-100%", "0%"]);
-  const side3X = useTransform(side3Seg, [0, 1], ["100%", "0%"]);
-  const side1TextX = useTransform(side1Seg, [0.2, 1], ["24%", "0%"]);
-  const side2TextX = useTransform(side2Seg, [0.2, 1], ["-24%", "0%"]);
-  const side3TextX = useTransform(side3Seg, [0.2, 1], ["24%", "0%"]);
-  const side1TextOp = useTransform(side1Seg, [0.15, 0.6], [0, 1]);
-  const side2TextOp = useTransform(side2Seg, [0.15, 0.6], [0, 1]);
-  const side3TextOp = useTransform(side3Seg, [0.15, 0.6], [0, 1]);
-
-  const finalSeg = useSegment(scrollYProgress, 0.9, 0.96);
-  const finalOp = useTransform(finalSeg, [0, 1], [0, 1]);
-  const finalY = useTransform(finalSeg, [0, 1], ["10%", "0%"]);
-
-  // Soft unlock: slide the whole stage up so the footer enters without a hard cut
-  const releaseY = useTransform(scrollYProgress, [0.96, 1], ["0%", "-100%"]);
-
-  const heroFade = useTransform(scrollYProgress, [0.06, 0.16], [1, 0.4]);
-  const progressPct = useTransform(scrollYProgress, [0, 0.96], ["0%", "100%"], { clamp: true });
-
-  const storyHeight = `calc(var(--app-vh, 1vh) * ${touch ? Math.round(STORY_VH * 0.88) : STORY_VH})`;
+  const vh = touch ? STORY_VH_TOUCH : STORY_VH;
+  const storyHeight = `calc(var(--app-vh, 1vh) * ${vh})`;
 
   return (
     <div className="relative bg-[#F5F2ED]" style={{ fontFamily: "'DM Sans', sans-serif" }}>
@@ -287,32 +222,19 @@ function PinnedStory({
         {skipLabel}
       </a>
 
-      <div ref={trackRef} style={{ height: storyHeight }} aria-hidden={!pinned}>
-        <motion.div
-          className="overflow-hidden will-change-transform"
+      <div ref={trackRef} className="relative" style={{ height: storyHeight }}>
+        {/* Sticky pin releases flush with track end → footer follows without a cream gap */}
+        <div
+          className="sticky top-0 overflow-hidden"
           style={{
-            position: pinned ? "fixed" : "absolute",
-            top: 0,
-            left: 0,
-            right: 0,
-            y: pinned ? releaseY : 0,
             height: "calc(var(--app-vh, 1vh) * 100)",
-            zIndex: pinned ? 40 : 0,
             backgroundColor: CREAM,
-            pointerEvents: pinned ? "auto" : "none",
-            visibility: pinned ? "visible" : "hidden",
+            zIndex: 1,
           }}
           aria-label="Yarné home story"
         >
-          <div
-            className="pointer-events-none absolute left-0 right-0 z-[50] h-[2px] bg-[#2D241E]/10"
-            style={{ top: "var(--main-header-h)" }}
-            aria-hidden
-          >
-            <motion.div className="h-full origin-left bg-[#4A0E0E]" style={{ width: progressPct }} />
-          </div>
-
-          <motion.div className="absolute inset-0 z-[1]" style={{ opacity: heroFade }}>
+          {/* Hero — fully visible until the why panel covers it */}
+          <div className="absolute inset-0 z-[1]">
             <Img
               src={heroSrc}
               alt=""
@@ -327,7 +249,10 @@ function PinnedStory({
               }}
               aria-hidden
             />
-            <div className="relative z-10 flex h-full items-end">
+            <motion.div
+              className="relative z-10 flex h-full items-end"
+              style={{ opacity: heroCopyFade }}
+            >
               <div className="w-full max-w-[1400px] mx-auto px-6 md:px-10 pb-14 md:pb-20">
                 <Eyebrow light>{copy.hero.eyebrow}</Eyebrow>
                 <h1
@@ -362,7 +287,7 @@ function PinnedStory({
                   </LangLink>
                 </div>
               </div>
-            </div>
+            </motion.div>
             <div className="absolute bottom-8 right-8 hidden md:flex flex-col items-center gap-2 text-white/45">
               <span
                 className="text-[0.62rem] tracking-[0.25em] uppercase"
@@ -372,17 +297,25 @@ function PinnedStory({
               </span>
               <ChevronDown size={16} aria-hidden />
             </div>
-          </motion.div>
+          </div>
 
+          {/* Why — rises from bottom to 50%, then expands to full screen */}
           <motion.div
             className="absolute inset-x-0 bottom-0 z-[2] overflow-hidden"
             style={{ height: whyHeight, backgroundColor: CREAM }}
           >
-            <div className="grid h-full md:grid-cols-2">
+            <div className="grid h-full min-h-0 md:grid-cols-2">
               <div className="relative min-h-0">
-                <Img src={HOME_SCROLL_IMAGES.craft} alt="" className="absolute inset-0 h-full w-full object-cover" />
+                <Img
+                  src={HOME_SCROLL_IMAGES.craft}
+                  alt=""
+                  className="absolute inset-0 h-full w-full object-cover"
+                />
               </div>
-              <div className="flex flex-col justify-center px-6 md:px-12 lg:px-16 py-8">
+              <motion.div
+                className="flex flex-col justify-center px-6 md:px-12 lg:px-16 py-6 md:py-8"
+                style={{ opacity: whyCopyOp, y: whyCopyY }}
+              >
                 <Eyebrow>{whyEyebrow}</Eyebrow>
                 <DisplayTitle>{whyTitle}</DisplayTitle>
                 <BodyCopy>{copy.editorial.paragraph2}</BodyCopy>
@@ -394,94 +327,31 @@ function PinnedStory({
                     <li key={p}>{p}</li>
                   ))}
                 </ul>
-              </div>
+              </motion.div>
             </div>
           </motion.div>
 
-          <motion.div className="absolute inset-0 z-[3]" style={{ y: showY, backgroundColor: SAND }}>
-            <div className="grid h-full md:grid-cols-2">
-              <div className="order-2 md:order-1 flex flex-col justify-center px-6 md:px-12 lg:px-16 py-8">
-                <Eyebrow>{copy.showcase.eyebrow}</Eyebrow>
-                <DisplayTitle>{copy.showcase.title}</DisplayTitle>
-                <BodyCopy>{copy.featured.title}</BodyCopy>
-                <LangLink
-                  to="/collection"
-                  className="mt-8 inline-flex items-center gap-2 self-start text-[0.72rem] uppercase tracking-[0.16em] text-[#2D241E]/70 transition-colors duration-200 hover:text-[#4A0E0E] cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2D241E]/30"
-                >
-                  {copy.featured.viewAll}
-                  <ArrowRight size={14} aria-hidden />
-                </LangLink>
-              </div>
-              <div className="relative order-1 md:order-2 min-h-0">
-                <Img src={HOME_SCROLL_IMAGES.product1} alt="" className="absolute inset-0 h-full w-full object-cover" />
-              </div>
-            </div>
-          </motion.div>
-
-          <motion.div className="absolute inset-0 z-[4]" style={{ y: philY, backgroundColor: INK }}>
-            <div className="grid h-full md:grid-cols-2">
-              <div className="relative min-h-0">
-                <Img
-                  src={HOME_SCROLL_IMAGES.product2}
-                  alt=""
-                  className="absolute inset-0 h-full w-full object-cover opacity-90"
-                />
-              </div>
-              <div className="flex flex-col justify-center px-6 md:px-12 lg:px-16 py-8 text-white">
-                <Eyebrow light>{copy.editorial.eyebrow}</Eyebrow>
-                <DisplayTitle light>
-                  {copy.editorial.titleLine1}
-                  <br />
-                  <em className="font-light italic">{copy.editorial.titleLine2}</em>
-                </DisplayTitle>
-                <BodyCopy light>{copy.editorial.paragraph1}</BodyCopy>
-                <LangLink
-                  to="/pages/our-history"
-                  className="mt-8 inline-flex items-center gap-2 self-start text-[0.72rem] uppercase tracking-[0.16em] text-white/70 transition-colors duration-200 hover:text-white cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40"
-                >
-                  {copy.editorial.ourStory}
-                  <ArrowRight size={14} aria-hidden />
-                </LangLink>
-              </div>
-            </div>
-          </motion.div>
-
-          <SideLayer
-            z={5}
-            panel={sides[0]}
-            frameX={side1X}
-            textX={side1TextX}
-            textOp={side1TextOp}
-            fromRight
-          />
-          <SideLayer
-            z={6}
-            panel={sides[1]}
-            frameX={side2X}
-            textX={side2TextX}
-            textOp={side2TextOp}
-            fromRight={false}
-          />
-          <SideLayer
-            z={7}
-            panel={sides[2]}
-            frameX={side3X}
-            textX={side3TextX}
-            textOp={side3TextOp}
-            fromRight
-          />
-
+          {/* Final lookbook — stacks over the full why panel */}
           <motion.div
-            className="absolute inset-0 z-[8] overflow-hidden"
-            style={{ opacity: finalOp, y: finalY }}
+            className="absolute inset-0 z-[3] overflow-hidden will-change-transform"
+            style={{ y: finalY }}
           >
-            <Img src={HOME_SCROLL_IMAGES.final} alt="" className="absolute inset-0 h-full w-full object-cover" />
+            <Img
+              src={HOME_SCROLL_IMAGES.final}
+              alt=""
+              className="absolute inset-0 h-full w-full object-cover"
+            />
             <div
               className="absolute inset-0"
-              style={{ background: "linear-gradient(180deg, rgba(45,36,30,0.4) 0%, rgba(45,36,30,0.75) 100%)" }}
+              style={{
+                background: "linear-gradient(180deg, rgba(45,36,30,0.4) 0%, rgba(45,36,30,0.75) 100%)",
+              }}
               aria-hidden
             />
-            <div className="relative z-10 flex h-full items-center justify-center px-6 text-center text-white">
+            <motion.div
+              className="relative z-10 flex h-full items-center justify-center px-6 text-center text-white"
+              style={{ opacity: finalCopyOp, y: finalCopyY }}
+            >
               <div className="max-w-[900px]">
                 <Eyebrow light>{copy.lookbook.eyebrow}</Eyebrow>
                 <h2
@@ -505,58 +375,13 @@ function PinnedStory({
                   <ArrowRight size={14} aria-hidden />
                 </LangLink>
               </div>
-            </div>
+            </motion.div>
           </motion.div>
-        </motion.div>
+        </div>
       </div>
 
       <div id="home-story-end" className="h-px w-full scroll-mt-[var(--main-header-h)]" aria-hidden />
     </div>
-  );
-}
-
-function SideLayer({
-  z,
-  panel,
-  frameX,
-  textX,
-  textOp,
-  fromRight,
-}: {
-  z: number;
-  panel: SideCopy;
-  frameX: MotionValue<string>;
-  textX: MotionValue<string>;
-  textOp: MotionValue<number>;
-  fromRight: boolean;
-}) {
-  return (
-    <motion.div
-      className="absolute inset-0 overflow-hidden"
-      style={{ zIndex: z, x: frameX, backgroundColor: CREAM }}
-    >
-      <div className={`grid h-full md:grid-cols-2 ${fromRight ? "" : "md:[&>*:first-child]:order-2"}`}>
-        <div className="relative min-h-0">
-          <Img src={panel.image} alt="" className="absolute inset-0 h-full w-full object-cover" />
-        </div>
-        <motion.div
-          className="flex flex-col justify-center px-6 md:px-12 lg:px-16 py-8"
-          style={{ x: textX, opacity: textOp }}
-        >
-          <Eyebrow>{panel.eyebrow}</Eyebrow>
-          <DisplayTitle>{panel.title}</DisplayTitle>
-          <BodyCopy>{panel.body}</BodyCopy>
-          <LangLink
-            to={panel.href}
-            className="mt-8 inline-flex items-center gap-2 self-start rounded-full px-6 py-3 text-[0.72rem] uppercase tracking-[0.16em] text-white transition-opacity duration-200 hover:opacity-90 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2D241E]/35"
-            style={{ backgroundColor: ACCENT, fontFamily: "'DM Sans', sans-serif" }}
-          >
-            {panel.cta}
-            <ArrowRight size={14} aria-hidden />
-          </LangLink>
-        </motion.div>
-      </div>
-    </motion.div>
   );
 }
 

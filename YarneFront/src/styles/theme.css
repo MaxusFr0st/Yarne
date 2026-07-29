@@ -145,7 +145,8 @@
 
   html {
     font-size: var(--font-size);
-    overflow-x: hidden;
+    /* clip keeps sticky scroll stages working (hidden makes body a scrollport) */
+    overflow-x: clip;
     scroll-behavior: auto;
   }
 
@@ -160,7 +161,7 @@
   }
 
   body {
-    overflow-x: hidden;
+    overflow-x: clip;
   }
 
   h1 {
