@@ -85,6 +85,27 @@ const en = {
       eyebrow: "Complete the look",
       title: "More from the collection",
     },
+    scrollStory: {
+      whyEyebrow: "Why Yarné",
+      whyTitle: "Worth buying. Made to keep.",
+      whyPoints: ["Natural fibres", "Slow production", "Repairable pieces", "Passed-on wear"],
+      side1Eyebrow: "Silhouette",
+      side1Title: "Proportion cut for daily ritual",
+      side1Body:
+        "Clean lines, quiet volume, and hardware that ages with you — designed as a companion piece, not a trend flip.",
+      side1Cta: "Explore collection",
+      side2Eyebrow: "Material",
+      side2Title: "Fibres with provenance",
+      side2Body:
+        "From highland mills to Andean flocks — we source for handle and longevity, then knit for pieces that stay in rotation.",
+      side2Cta: "New arrivals",
+      side3Eyebrow: "Detail",
+      side3Title: "Finish you can feel",
+      side3Body:
+        "Edges, straps, and stitch density are tuned so the bag looks considered close-up, and composed from across the room.",
+      side3Cta: "View best sellers",
+      skipToContent: "Skip to content",
+    },
   },
   showcase: {
     defaultEyebrow: "Featured Showcase",
