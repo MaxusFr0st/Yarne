@@ -22,7 +22,7 @@ const SAND = "#EDE9E2";
 const ACCENT = "#4A0E0E";
 
 /** Scroll length of the pinned story, in viewport-height units. */
-const STORY_VH = 640;
+const STORY_VH = 480;
 
 type SideCopy = {
   image: string;
@@ -222,58 +222,61 @@ function PinnedStory({
   touch: boolean;
 }) {
   const trackRef = useRef<HTMLDivElement>(null);
-  const [active, setActive] = useState(true);
+  const [pinned, setPinned] = useState(true);
   const { scrollYProgress } = useScroll({
     target: trackRef,
     offset: ["start start", "end end"],
   });
 
   useMotionValueEvent(scrollYProgress, "change", (v) => {
-    // Stay fixed for the whole track; drop after release so footer can take over.
-    setActive(v < 0.999);
+    // Stay pinned until the release scrub finishes (stage has slid off-screen).
+    setPinned(v < 0.998);
   });
 
   useEffect(() => {
-    // Lock body sideways scroll-bleed while story is up (no overflow parent needed).
-    if (!active) return;
+    if (!pinned) return;
     const prev = document.documentElement.style.overflowX;
     document.documentElement.style.overflowX = "clip";
     return () => {
       document.documentElement.style.overflowX = prev;
     };
-  }, [active]);
+  }, [pinned]);
 
-  const whySeg = useSegment(scrollYProgress, 0.1, 0.22);
+  // Chapters: holds + transitions so beats read clearly
+  const whySeg = useSegment(scrollYProgress, 0.08, 0.18);
   const whyHeight = useTransform(whySeg, [0, 1], ["50%", "100%"]);
 
-  const showSeg = useSegment(scrollYProgress, 0.22, 0.34);
+  const showSeg = useSegment(scrollYProgress, 0.24, 0.34);
   const showY = useTransform(showSeg, [0, 1], ["100%", "0%"]);
 
-  const philSeg = useSegment(scrollYProgress, 0.34, 0.46);
+  const philSeg = useSegment(scrollYProgress, 0.4, 0.5);
   const philY = useTransform(philSeg, [0, 1], ["100%", "0%"]);
 
-  const side1Seg = useSegment(scrollYProgress, 0.46, 0.62);
-  const side2Seg = useSegment(scrollYProgress, 0.62, 0.78);
-  const side3Seg = useSegment(scrollYProgress, 0.78, 0.92);
+  const side1Seg = useSegment(scrollYProgress, 0.54, 0.66);
+  const side2Seg = useSegment(scrollYProgress, 0.68, 0.8);
+  const side3Seg = useSegment(scrollYProgress, 0.82, 0.92);
 
   const side1X = useTransform(side1Seg, [0, 1], ["100%", "0%"]);
   const side2X = useTransform(side2Seg, [0, 1], ["-100%", "0%"]);
   const side3X = useTransform(side3Seg, [0, 1], ["100%", "0%"]);
-  const side1TextX = useTransform(side1Seg, [0.15, 1], ["28%", "0%"]);
-  const side2TextX = useTransform(side2Seg, [0.15, 1], ["-28%", "0%"]);
-  const side3TextX = useTransform(side3Seg, [0.15, 1], ["28%", "0%"]);
-  const side1TextOp = useTransform(side1Seg, [0.1, 0.55], [0, 1]);
-  const side2TextOp = useTransform(side2Seg, [0.1, 0.55], [0, 1]);
-  const side3TextOp = useTransform(side3Seg, [0.1, 0.55], [0, 1]);
+  const side1TextX = useTransform(side1Seg, [0.2, 1], ["24%", "0%"]);
+  const side2TextX = useTransform(side2Seg, [0.2, 1], ["-24%", "0%"]);
+  const side3TextX = useTransform(side3Seg, [0.2, 1], ["24%", "0%"]);
+  const side1TextOp = useTransform(side1Seg, [0.15, 0.6], [0, 1]);
+  const side2TextOp = useTransform(side2Seg, [0.15, 0.6], [0, 1]);
+  const side3TextOp = useTransform(side3Seg, [0.15, 0.6], [0, 1]);
 
-  const finalSeg = useSegment(scrollYProgress, 0.9, 1);
+  const finalSeg = useSegment(scrollYProgress, 0.9, 0.96);
   const finalOp = useTransform(finalSeg, [0, 1], [0, 1]);
-  const finalY = useTransform(finalSeg, [0, 1], ["12%", "0%"]);
+  const finalY = useTransform(finalSeg, [0, 1], ["10%", "0%"]);
 
-  const heroFade = useTransform(scrollYProgress, [0.08, 0.2], [1, 0.35]);
-  const progressPct = useTransform(scrollYProgress, (v) => `${Math.round(v * 100)}%`);
+  // Soft unlock: slide the whole stage up so the footer enters without a hard cut
+  const releaseY = useTransform(scrollYProgress, [0.96, 1], ["0%", "-100%"]);
 
-  const storyHeight = `calc(var(--app-vh, 1vh) * ${touch ? Math.round(STORY_VH * 0.85) : STORY_VH})`;
+  const heroFade = useTransform(scrollYProgress, [0.06, 0.16], [1, 0.4]);
+  const progressPct = useTransform(scrollYProgress, [0, 0.96], ["0%", "100%"], { clamp: true });
+
+  const storyHeight = `calc(var(--app-vh, 1vh) * ${touch ? Math.round(STORY_VH * 0.88) : STORY_VH})`;
 
   return (
     <div className="relative bg-[#F5F2ED]" style={{ fontFamily: "'DM Sans', sans-serif" }}>
@@ -284,28 +287,29 @@ function PinnedStory({
         {skipLabel}
       </a>
 
-      {/* Invisible scroll runway — length gives scrub room; stage itself is fixed */}
-      <div ref={trackRef} style={{ height: storyHeight }} aria-hidden={!active}>
-        <div
-          className="overflow-hidden"
+      <div ref={trackRef} style={{ height: storyHeight }} aria-hidden={!pinned}>
+        <motion.div
+          className="overflow-hidden will-change-transform"
           style={{
-            position: active ? "fixed" : "absolute",
+            position: pinned ? "fixed" : "absolute",
             top: 0,
             left: 0,
             right: 0,
+            y: pinned ? releaseY : 0,
             height: "calc(var(--app-vh, 1vh) * 100)",
-            zIndex: active ? 30 : 0,
+            zIndex: pinned ? 40 : 0,
             backgroundColor: CREAM,
-            pointerEvents: active ? "auto" : "none",
-            visibility: active ? "visible" : "hidden",
+            pointerEvents: pinned ? "auto" : "none",
+            visibility: pinned ? "visible" : "hidden",
           }}
           aria-label="Yarné home story"
         >
           <div
-            className="pointer-events-none absolute left-0 right-0 top-0 z-[40] h-[2px] bg-[#2D241E]/10"
+            className="pointer-events-none absolute left-0 right-0 z-[50] h-[2px] bg-[#2D241E]/10"
+            style={{ top: "var(--main-header-h)" }}
             aria-hidden
           >
-            <motion.div className="h-full bg-[#4A0E0E]" style={{ width: progressPct }} />
+            <motion.div className="h-full origin-left bg-[#4A0E0E]" style={{ width: progressPct }} />
           </div>
 
           <motion.div className="absolute inset-0 z-[1]" style={{ opacity: heroFade }}>
@@ -503,7 +507,7 @@ function PinnedStory({
               </div>
             </div>
           </motion.div>
-        </div>
+        </motion.div>
       </div>
 
       <div id="home-story-end" className="h-px w-full scroll-mt-[var(--main-header-h)]" aria-hidden />
