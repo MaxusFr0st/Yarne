@@ -31,7 +31,7 @@ export function Home() {
   }, [heroImageSrc]);
 
   return (
-    <main className="relative overflow-x-hidden bg-[#F5F2ED]">
+    <main className="relative bg-[#F5F2ED]">
       <HomeScrollExperience heroImageUrl={heroImageSrc} />
     </main>
   );

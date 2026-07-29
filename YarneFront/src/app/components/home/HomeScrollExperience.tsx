@@ -1,6 +1,7 @@
-import React, { useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   motion,
+  useMotionValueEvent,
   useReducedMotion,
   useScroll,
   useTransform,
@@ -20,8 +21,8 @@ const CREAM = "#F5F2ED";
 const SAND = "#EDE9E2";
 const ACCENT = "#4A0E0E";
 
-/** Scroll distance for the pinned story (viewport heights). */
-const STORY_VH = 720;
+/** Scroll length of the pinned story, in viewport-height units. */
+const STORY_VH = 640;
 
 type SideCopy = {
   image: string;
@@ -95,8 +96,8 @@ function BodyCopy({
 }
 
 /**
- * One sticky full-viewport stage. Scroll only advances internal scrub progress —
- * the frame stays locked until the story track ends, then the page releases to the footer.
+ * Fixed full-viewport stage while the story track is scrolling under it.
+ * Scroll only scrubs layers — the frame never leaves the screen until the track ends.
  */
 export function HomeScrollExperience({ heroImageUrl }: { heroImageUrl: string }) {
   const copy = useHomePageCopy();
@@ -134,7 +135,6 @@ export function HomeScrollExperience({ heroImageUrl }: { heroImageUrl: string })
     },
   ];
 
-  // Reduced-motion / prefer simple flow: short static chapters, then footer.
   if (simplify) {
     return (
       <div className="relative bg-[#F5F2ED]" style={{ fontFamily: "'DM Sans', sans-serif" }}>
@@ -222,18 +222,26 @@ function PinnedStory({
   touch: boolean;
 }) {
   const trackRef = useRef<HTMLDivElement>(null);
+  const [active, setActive] = useState(true);
   const { scrollYProgress } = useScroll({
     target: trackRef,
     offset: ["start start", "end end"],
   });
 
-  // ---- Timeline (one continuous scrub) ----
-  // 0.00–0.10 hero holds
-  // 0.10–0.22 why rises 50%→100% over hero
-  // 0.22–0.34 showcase climbs
-  // 0.34–0.46 philosophy climbs
-  // 0.46–0.62 / 0.62–0.78 / 0.78–0.92 side reveals
-  // 0.92–1.00 final
+  useMotionValueEvent(scrollYProgress, "change", (v) => {
+    // Stay fixed for the whole track; drop after release so footer can take over.
+    setActive(v < 0.999);
+  });
+
+  useEffect(() => {
+    // Lock body sideways scroll-bleed while story is up (no overflow parent needed).
+    if (!active) return;
+    const prev = document.documentElement.style.overflowX;
+    document.documentElement.style.overflowX = "clip";
+    return () => {
+      document.documentElement.style.overflowX = prev;
+    };
+  }, [active]);
 
   const whySeg = useSegment(scrollYProgress, 0.1, 0.22);
   const whyHeight = useTransform(whySeg, [0, 1], ["50%", "100%"]);
@@ -265,30 +273,34 @@ function PinnedStory({
   const heroFade = useTransform(scrollYProgress, [0.08, 0.2], [1, 0.35]);
   const progressPct = useTransform(scrollYProgress, (v) => `${Math.round(v * 100)}%`);
 
+  const storyHeight = `calc(var(--app-vh, 1vh) * ${touch ? Math.round(STORY_VH * 0.85) : STORY_VH})`;
+
   return (
     <div className="relative bg-[#F5F2ED]" style={{ fontFamily: "'DM Sans', sans-serif" }}>
       <a
         href="#home-story-end"
-        className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-[90] focus:rounded-full focus:bg-white focus:px-4 focus:py-2 focus:text-sm focus:text-[#2D241E]"
+        className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[90] focus:rounded-full focus:bg-white focus:px-4 focus:py-2 focus:text-sm focus:text-[#2D241E]"
       >
         {skipLabel}
       </a>
 
-      <div
-        ref={trackRef}
-        className="relative"
-        style={{ height: `calc(var(--app-vh, 1vh) * ${touch ? STORY_VH * 0.85 : STORY_VH})` }}
-        aria-label="Yarné home story"
-      >
-        {/* Locked viewport — only this frame is visible while scrubbing */}
+      {/* Invisible scroll runway — length gives scrub room; stage itself is fixed */}
+      <div ref={trackRef} style={{ height: storyHeight }} aria-hidden={!active}>
         <div
-          className="sticky top-0 overflow-hidden overscroll-none"
+          className="overflow-hidden"
           style={{
+            position: active ? "fixed" : "absolute",
+            top: 0,
+            left: 0,
+            right: 0,
             height: "calc(var(--app-vh, 1vh) * 100)",
+            zIndex: active ? 30 : 0,
             backgroundColor: CREAM,
+            pointerEvents: active ? "auto" : "none",
+            visibility: active ? "visible" : "hidden",
           }}
+          aria-label="Yarné home story"
         >
-          {/* Progress hairline */}
           <div
             className="pointer-events-none absolute left-0 right-0 top-0 z-[40] h-[2px] bg-[#2D241E]/10"
             aria-hidden
@@ -296,7 +308,6 @@ function PinnedStory({
             <motion.div className="h-full bg-[#4A0E0E]" style={{ width: progressPct }} />
           </div>
 
-          {/* 1 · Hero (base layer) */}
           <motion.div className="absolute inset-0 z-[1]" style={{ opacity: heroFade }}>
             <Img
               src={heroSrc}
@@ -359,7 +370,6 @@ function PinnedStory({
             </div>
           </motion.div>
 
-          {/* 2 · Why — grows from half → full */}
           <motion.div
             className="absolute inset-x-0 bottom-0 z-[2] overflow-hidden"
             style={{ height: whyHeight, backgroundColor: CREAM }}
@@ -384,7 +394,6 @@ function PinnedStory({
             </div>
           </motion.div>
 
-          {/* 3 · Showcase climbs */}
           <motion.div className="absolute inset-0 z-[3]" style={{ y: showY, backgroundColor: SAND }}>
             <div className="grid h-full md:grid-cols-2">
               <div className="order-2 md:order-1 flex flex-col justify-center px-6 md:px-12 lg:px-16 py-8">
@@ -405,7 +414,6 @@ function PinnedStory({
             </div>
           </motion.div>
 
-          {/* 4 · Philosophy climbs */}
           <motion.div className="absolute inset-0 z-[4]" style={{ y: philY, backgroundColor: INK }}>
             <div className="grid h-full md:grid-cols-2">
               <div className="relative min-h-0">
@@ -434,7 +442,6 @@ function PinnedStory({
             </div>
           </motion.div>
 
-          {/* 5–7 · Side chapters (enter from left / right) */}
           <SideLayer
             z={5}
             panel={sides[0]}
@@ -460,7 +467,6 @@ function PinnedStory({
             fromRight
           />
 
-          {/* 8 · Final */}
           <motion.div
             className="absolute inset-0 z-[8] overflow-hidden"
             style={{ opacity: finalOp, y: finalY }}
@@ -500,7 +506,6 @@ function PinnedStory({
         </div>
       </div>
 
-      {/* Release point — normal document flow continues into Footer */}
       <div id="home-story-end" className="h-px w-full scroll-mt-[var(--main-header-h)]" aria-hidden />
     </div>
   );
