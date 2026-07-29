@@ -20,7 +20,10 @@ const CREAM = "#F5F2ED";
 const SAND = "#EDE9E2";
 const ACCENT = "#4A0E0E";
 
-type SidePanel = {
+/** Scroll distance for the pinned story (viewport heights). */
+const STORY_VH = 720;
+
+type SideCopy = {
   image: string;
   eyebrow: string;
   title: string;
@@ -29,572 +32,82 @@ type SidePanel = {
   href: string;
 };
 
-function useClampProgress(value: MotionValue<number>, start: number, end: number) {
-  return useTransform(value, [start, end], [0, 1], { clamp: true });
+function useSegment(progress: MotionValue<number>, start: number, end: number) {
+  return useTransform(progress, [start, end], [0, 1], { clamp: true });
 }
 
-function HeroStage({
-  heroSrc,
-  reduced,
-}: {
-  heroSrc: string;
-  reduced: boolean;
-}) {
-  const copy = useHomePageCopy();
-  const ref = useRef<HTMLElement>(null);
-  const { scrollYProgress } = useScroll({
-    target: ref,
-    offset: ["start start", "end start"],
-  });
-  const imageY = useTransform(scrollYProgress, [0, 1], reduced ? ["0%", "0%"] : ["0%", "18%"]);
-
+function Eyebrow({ children, light = false }: { children: React.ReactNode; light?: boolean }) {
   return (
-    <section
-      ref={ref}
-      className="relative flex items-end overflow-hidden"
-      style={{ height: "calc(var(--app-vh, 1vh) * 100)", minHeight: 560, backgroundColor: SAND }}
-    >
-      <motion.div className="absolute inset-0 overflow-hidden" style={{ y: imageY }}>
-        {heroSrc ? (
-          <Img
-            src={heroSrc}
-            alt=""
-            priority
-            className="absolute inset-0 h-[112%] w-full object-cover object-center"
-          />
-        ) : (
-          <Img
-            src={HOME_SCROLL_IMAGES.craft}
-            alt=""
-            priority
-            className="absolute inset-0 h-[112%] w-full object-cover object-center"
-          />
-        )}
-        <div
-          className="absolute inset-0"
-          style={{
-            background:
-              "linear-gradient(105deg, rgba(45,36,30,0.72) 0%, rgba(45,36,30,0.38) 55%, rgba(45,36,30,0.14) 100%)",
-          }}
-          aria-hidden
-        />
-      </motion.div>
-
-      <div className="relative z-10 w-full max-w-[1400px] mx-auto px-6 md:px-10 pb-14 md:pb-20">
-        <p
-          className="text-white/65 tracking-[0.28em] uppercase text-[0.65rem] mb-5 md:mb-6"
-          style={{ fontFamily: "'DM Sans', sans-serif" }}
-        >
-          {copy.hero.eyebrow}
-        </p>
-        <h1
-          className="text-white max-w-2xl"
-          style={{
-            fontFamily: "'Cormorant Garamond', serif",
-            fontSize: "clamp(2.6rem, 8vw, 5.25rem)",
-            fontWeight: 400,
-            lineHeight: 1.06,
-            letterSpacing: "-0.02em",
-            textWrap: "balance",
-          }}
-        >
-          {copy.hero.titleLine1}
-          <br />
-          <em className="font-light italic">{copy.hero.titleAccent}</em>
-        </h1>
-        <p
-          className="text-white/70 mt-5 md:mt-6 max-w-md text-[0.95rem] leading-relaxed"
-          style={{ fontFamily: "'DM Sans', sans-serif" }}
-        >
-          {copy.hero.subtitle}
-        </p>
-        <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 mt-8 md:mt-10 w-full max-w-lg">
-          <LangLink
-            to="/collection"
-            className="flex items-center justify-center gap-2.5 w-full sm:w-auto px-7 py-3.5 rounded-full bg-[#F5F2ED] text-[#2D241E] hover:bg-white transition-colors duration-200 group cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/50"
-            style={{ fontSize: "0.75rem", letterSpacing: "0.16em" }}
-          >
-            <span className="uppercase tracking-widest">{copy.hero.ctaPrimary}</span>
-            <ArrowRight size={14} aria-hidden className="group-hover:translate-x-0.5 transition-transform duration-200" />
-          </LangLink>
-          <LangLink
-            to="/collection?filter=new"
-            className="flex items-center justify-center gap-2.5 w-full sm:w-auto px-7 py-3.5 rounded-full text-white border border-white/35 hover:border-white/70 hover:bg-white/10 transition-colors duration-200 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/50"
-            style={{ fontSize: "0.75rem", letterSpacing: "0.16em" }}
-          >
-            <span className="uppercase tracking-widest">{copy.hero.ctaSecondary}</span>
-          </LangLink>
-        </div>
-      </div>
-
-      <div className="absolute bottom-8 right-8 md:right-12 hidden md:flex flex-col items-center gap-2 text-white/45">
-        <span
-          className="text-[0.62rem] tracking-[0.25em] uppercase"
-          style={{ writingMode: "vertical-rl", fontFamily: "'DM Sans', sans-serif" }}
-        >
-          {copy.hero.scroll}
-        </span>
-        <ChevronDown size={16} aria-hidden className="motion-safe:animate-[bounce-soft_2s_ease-in-out_infinite]" />
-      </div>
-    </section>
-  );
-}
-
-function StackPanelShell({
-  children,
-  bg,
-  className = "",
-  style,
-}: {
-  children: React.ReactNode;
-  bg: string;
-  className?: string;
-  style?: React.CSSProperties | { height?: MotionValue<string>; opacity?: MotionValue<number>; zIndex?: number };
-}) {
-  return (
-    <motion.div
-      className={`absolute inset-x-0 bottom-0 overflow-hidden ${className}`}
-      style={{ backgroundColor: bg, ...style }}
+    <p
+      className="uppercase tracking-[0.22em] text-[0.65rem] mb-3"
+      style={{
+        color: light ? "rgba(255,255,255,0.45)" : `${INK}66`,
+        fontFamily: "'DM Sans', sans-serif",
+      }}
     >
       {children}
-    </motion.div>
+    </p>
   );
 }
 
-function StackStage({ reduced }: { reduced: boolean }) {
-  const copy = useHomePageCopy();
-  const { t } = useTranslation();
-  const touch = useTouchMobileLayout();
-  const trackRef = useRef<HTMLDivElement>(null);
-  const whyPoints = t("home.scrollStory.whyPoints", { returnObjects: true }) as string[];
-  const { scrollYProgress } = useScroll({
-    target: trackRef,
-    offset: ["start start", "end end"],
-  });
-
-  // Panel 1: grows from half screen → full
-  const p1Progress = useClampProgress(scrollYProgress, 0, 0.28);
-  const p1Height = useTransform(p1Progress, [0, 1], ["50%", "100%"]);
-  const p1Opacity = useTransform(p1Progress, [0, 0.15, 1], [0.92, 1, 1]);
-
-  // Panel 2 + 3: slide up over previous
-  const p2Progress = useClampProgress(scrollYProgress, 0.28, 0.55);
-  const p3Progress = useClampProgress(scrollYProgress, 0.55, 0.82);
-  const p2Y = useTransform(p2Progress, [0, 1], ["100%", "0%"]);
-  const p3Y = useTransform(p3Progress, [0, 1], ["100%", "0%"]);
-
-  if (reduced || touch) {
-    return (
-      <div className="relative">
-        <StaticStackCard
-          eyebrow={t("home.scrollStory.whyEyebrow")}
-          title={t("home.scrollStory.whyTitle")}
-          body={`${copy.editorial.paragraph1}\n\n${copy.editorial.paragraph2}`}
-          image={HOME_SCROLL_IMAGES.craft}
-          tone="cream"
-        />
-        <StaticStackCard
-          eyebrow={copy.showcase.eyebrow}
-          title={copy.showcase.title}
-          body={copy.featured.title}
-          image={HOME_SCROLL_IMAGES.product1}
-          tone="sand"
-          cta={{ label: copy.featured.viewAll, href: "/collection" }}
-        />
-        <StaticStackCard
-          eyebrow={copy.editorial.eyebrow}
-          title={`${copy.editorial.titleLine1} ${copy.editorial.titleLine2}`}
-          body={copy.editorial.paragraph2}
-          image={HOME_SCROLL_IMAGES.product2}
-          tone="ink"
-          cta={{ label: copy.editorial.ourStory, href: "/pages/our-history" }}
-        />
-      </div>
-    );
-  }
-
-  return (
-    <div
-      ref={trackRef}
-      className="relative"
-      style={{ height: "calc(var(--app-vh, 1vh) * 340)" }}
-      aria-label="Stacked story sections"
-    >
-      <div className="sticky top-0 h-[100vh] overflow-hidden" style={{ backgroundColor: CREAM }}>
-        {/* Layer 1 — value / why buy */}
-        <StackPanelShell bg={CREAM} style={{ height: p1Height, zIndex: 1, opacity: p1Opacity }}>
-          <div className="h-full grid md:grid-cols-2">
-            <div className="relative min-h-[40vh] md:min-h-0">
-              <Img
-                src={HOME_SCROLL_IMAGES.craft}
-                alt=""
-                className="absolute inset-0 h-full w-full object-cover"
-              />
-            </div>
-            <div className="flex flex-col justify-center px-6 md:px-12 lg:px-16 py-10">
-              <p
-                className="uppercase tracking-[0.22em] text-[0.65rem] mb-3"
-                style={{ color: `${INK}66`, fontFamily: "'DM Sans', sans-serif" }}
-              >
-                {t("home.scrollStory.whyEyebrow")}
-              </p>
-              <h2
-                className="text-[#2D241E] max-w-md"
-                style={{
-                  fontFamily: "'Cormorant Garamond', serif",
-                  fontSize: "clamp(2rem, 4.5vw, 3.4rem)",
-                  fontWeight: 400,
-                  lineHeight: 1.1,
-                  textWrap: "balance",
-                }}
-              >
-                {t("home.scrollStory.whyTitle")}
-              </h2>
-              <p
-                className="mt-5 max-w-md text-[0.95rem] leading-relaxed"
-                style={{ color: `${INK}B3`, fontFamily: "'DM Sans', sans-serif" }}
-              >
-                {copy.editorial.paragraph2}
-              </p>
-              <ul
-                className="mt-8 grid grid-cols-2 gap-4 max-w-md text-[0.72rem] uppercase tracking-[0.14em]"
-                style={{ color: `${INK}99`, fontFamily: "'DM Sans', sans-serif" }}
-              >
-                {(Array.isArray(whyPoints) ? whyPoints : []).map((point) => (
-                  <li key={point}>{point}</li>
-                ))}
-              </ul>
-            </div>
-          </div>
-        </StackPanelShell>
-
-        {/* Layer 2 — curated showcase */}
-        <motion.div className="absolute inset-0 z-[2]" style={{ y: p2Y }}>
-          <div className="h-full w-full" style={{ backgroundColor: SAND }}>
-            <div className="h-full grid md:grid-cols-2">
-              <div className="order-2 md:order-1 flex flex-col justify-center px-6 md:px-12 lg:px-16 py-10">
-                <p
-                  className="uppercase tracking-[0.22em] text-[0.65rem] mb-3"
-                  style={{ color: `${INK}66`, fontFamily: "'DM Sans', sans-serif" }}
-                >
-                  {copy.showcase.eyebrow}
-                </p>
-                <h2
-                  className="text-[#2D241E]"
-                  style={{
-                    fontFamily: "'Cormorant Garamond', serif",
-                    fontSize: "clamp(2rem, 4.5vw, 3.4rem)",
-                    fontWeight: 400,
-                    lineHeight: 1.1,
-                    textWrap: "balance",
-                  }}
-                >
-                  {copy.showcase.title}
-                </h2>
-                <p
-                  className="mt-5 max-w-md text-[0.95rem] leading-relaxed"
-                  style={{ color: `${INK}B3`, fontFamily: "'DM Sans', sans-serif" }}
-                >
-                  {copy.featured.title}
-                </p>
-                <LangLink
-                  to="/collection"
-                  className="mt-8 inline-flex items-center gap-2 self-start uppercase tracking-[0.16em] text-[0.72rem] text-[#2D241E]/70 hover:text-[#4A0E0E] transition-colors duration-200 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2D241E]/30"
-                >
-                  {copy.featured.viewAll}
-                  <ArrowRight size={14} aria-hidden />
-                </LangLink>
-              </div>
-              <div className="relative order-1 md:order-2 min-h-[42vh] md:min-h-0">
-                <Img
-                  src={HOME_SCROLL_IMAGES.product1}
-                  alt=""
-                  className="absolute inset-0 h-full w-full object-cover"
-                />
-              </div>
-            </div>
-          </div>
-        </motion.div>
-
-        {/* Layer 3 — philosophy */}
-        <motion.div className="absolute inset-0 z-[3]" style={{ y: p3Y }}>
-          <div className="h-full w-full" style={{ backgroundColor: INK }}>
-            <div className="h-full grid md:grid-cols-2">
-              <div className="relative min-h-[42vh] md:min-h-0">
-                <Img
-                  src={HOME_SCROLL_IMAGES.product2}
-                  alt=""
-                  className="absolute inset-0 h-full w-full object-cover opacity-90"
-                />
-              </div>
-              <div className="flex flex-col justify-center px-6 md:px-12 lg:px-16 py-10 text-white">
-                <p
-                  className="uppercase tracking-[0.22em] text-[0.65rem] mb-3 text-white/45"
-                  style={{ fontFamily: "'DM Sans', sans-serif" }}
-                >
-                  {copy.editorial.eyebrow}
-                </p>
-                <h2
-                  style={{
-                    fontFamily: "'Cormorant Garamond', serif",
-                    fontSize: "clamp(2rem, 4.5vw, 3.4rem)",
-                    fontWeight: 400,
-                    lineHeight: 1.1,
-                    textWrap: "balance",
-                  }}
-                >
-                  {copy.editorial.titleLine1}
-                  <br />
-                  <em className="font-light italic">{copy.editorial.titleLine2}</em>
-                </h2>
-                <p
-                  className="mt-5 max-w-md text-[0.95rem] leading-relaxed text-white/65"
-                  style={{ fontFamily: "'DM Sans', sans-serif" }}
-                >
-                  {copy.editorial.paragraph1}
-                </p>
-                <LangLink
-                  to="/pages/our-history"
-                  className="mt-8 inline-flex items-center gap-2 self-start uppercase tracking-[0.16em] text-[0.72rem] text-white/70 hover:text-white transition-colors duration-200 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40"
-                >
-                  {copy.editorial.ourStory}
-                  <ArrowRight size={14} aria-hidden />
-                </LangLink>
-              </div>
-            </div>
-          </div>
-        </motion.div>
-      </div>
-    </div>
-  );
-}
-
-function StaticStackCard({
-  eyebrow,
-  title,
-  body,
-  image,
-  tone,
-  cta,
+function DisplayTitle({
+  children,
+  light = false,
 }: {
-  eyebrow: string;
-  title: string;
-  body: string;
-  image: string;
-  tone: "cream" | "sand" | "ink";
-  cta?: { label: string; href: string };
+  children: React.ReactNode;
+  light?: boolean;
 }) {
-  const bg = tone === "ink" ? INK : tone === "sand" ? SAND : CREAM;
-  const text = tone === "ink" ? "#fff" : INK;
-  const muted = tone === "ink" ? "rgba(255,255,255,0.65)" : `${INK}B3`;
-
   return (
-    <section className="min-h-[100vh] grid md:grid-cols-2" style={{ backgroundColor: bg }}>
-      <div className="relative min-h-[45vh] md:min-h-0">
-        <Img src={image} alt="" className="absolute inset-0 h-full w-full object-cover" />
-      </div>
-      <div className="flex flex-col justify-center px-6 md:px-12 py-12" style={{ color: text }}>
-        <p
-          className="uppercase tracking-[0.22em] text-[0.65rem] mb-3"
-          style={{ color: muted, fontFamily: "'DM Sans', sans-serif" }}
-        >
-          {eyebrow}
-        </p>
-        <h2
-          style={{
-            fontFamily: "'Cormorant Garamond', serif",
-            fontSize: "clamp(2rem, 4.5vw, 3.2rem)",
-            fontWeight: 400,
-            lineHeight: 1.1,
-            textWrap: "balance",
-          }}
-        >
-          {title}
-        </h2>
-        <p className="mt-5 max-w-md text-[0.95rem] leading-relaxed whitespace-pre-line" style={{ color: muted, fontFamily: "'DM Sans', sans-serif" }}>
-          {body}
-        </p>
-        {cta ? (
-          <LangLink
-            to={cta.href}
-            className="mt-8 inline-flex items-center gap-2 self-start uppercase tracking-[0.16em] text-[0.72rem] cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-current/30"
-            style={{ color: muted, fontFamily: "'DM Sans', sans-serif" }}
-          >
-            {cta.label}
-            <ArrowRight size={14} aria-hidden />
-          </LangLink>
-        ) : null}
-      </div>
-    </section>
+    <h2
+      className="max-w-lg"
+      style={{
+        color: light ? "#fff" : INK,
+        fontFamily: "'Cormorant Garamond', serif",
+        fontSize: "clamp(1.85rem, 4.2vw, 3.25rem)",
+        fontWeight: 400,
+        lineHeight: 1.1,
+        textWrap: "balance",
+      }}
+    >
+      {children}
+    </h2>
   );
 }
 
-function SideRevealPanel({
-  panel,
-  reduced,
-  reverse = false,
+function BodyCopy({
+  children,
+  light = false,
 }: {
-  panel: SidePanel;
-  reduced: boolean;
-  reverse?: boolean;
+  children: React.ReactNode;
+  light?: boolean;
 }) {
-  const touch = useTouchMobileLayout();
-  const ref = useRef<HTMLDivElement>(null);
-  const { scrollYProgress } = useScroll({
-    target: ref,
-    offset: ["start end", "end start"],
-  });
-  const textX = useTransform(
-    scrollYProgress,
-    [0.15, 0.45],
-    reduced || touch ? ["0%", "0%"] : reverse ? ["40%", "0%"] : ["-35%", "0%"],
-  );
-  const textOpacity = useTransform(scrollYProgress, [0.12, 0.35], reduced || touch ? [1, 1] : [0, 1]);
-  const imageScale = useTransform(scrollYProgress, [0.1, 0.5], reduced || touch ? [1, 1] : [1.06, 1]);
-
   return (
-    <div
-      ref={ref}
-      className="relative"
-      style={{ height: reduced || touch ? "auto" : "calc(var(--app-vh, 1vh) * 160)" }}
+    <p
+      className="mt-5 max-w-md text-[0.95rem] leading-relaxed"
+      style={{
+        color: light ? "rgba(255,255,255,0.65)" : `${INK}B3`,
+        fontFamily: "'DM Sans', sans-serif",
+      }}
     >
-      <div
-        className={`${reduced || touch ? "relative" : "sticky top-0"} h-auto md:h-[100vh] overflow-hidden`}
-        style={{ backgroundColor: CREAM, minHeight: reduced || touch ? undefined : "100vh" }}
-      >
-        <div
-          className={`h-full grid md:grid-cols-2 ${
-            reverse ? "md:[&>*:first-child]:order-2" : ""
-          }`}
-        >
-          <motion.div className="relative min-h-[48vh] md:min-h-full overflow-hidden" style={{ scale: imageScale }}>
-            <Img
-              src={panel.image}
-              alt=""
-              className="absolute inset-0 h-full w-full object-cover"
-            />
-            <div
-              className="absolute inset-y-0 right-0 w-8 md:w-16 pointer-events-none"
-              style={{
-                background: reverse
-                  ? undefined
-                  : `linear-gradient(90deg, transparent, ${CREAM})`,
-              }}
-              aria-hidden
-            />
-          </motion.div>
-
-          <motion.div
-            className="flex flex-col justify-center px-6 md:px-12 lg:px-16 py-12 md:py-16 relative z-10"
-            style={{ x: textX, opacity: textOpacity, backgroundColor: CREAM }}
-          >
-            <p
-              className="uppercase tracking-[0.22em] text-[0.65rem] mb-3"
-              style={{ color: `${INK}66`, fontFamily: "'DM Sans', sans-serif" }}
-            >
-              {panel.eyebrow}
-            </p>
-            <h2
-              className="text-[#2D241E] max-w-lg"
-              style={{
-                fontFamily: "'Cormorant Garamond', serif",
-                fontSize: "clamp(1.9rem, 4vw, 3.1rem)",
-                fontWeight: 400,
-                lineHeight: 1.12,
-                textWrap: "balance",
-              }}
-            >
-              {panel.title}
-            </h2>
-            <p
-              className="mt-5 max-w-md text-[0.95rem] leading-relaxed"
-              style={{ color: `${INK}B3`, fontFamily: "'DM Sans', sans-serif" }}
-            >
-              {panel.body}
-            </p>
-            <LangLink
-              to={panel.href}
-              className="mt-8 inline-flex items-center gap-2 self-start rounded-full px-6 py-3 text-[0.72rem] uppercase tracking-[0.16em] text-white transition-colors duration-200 cursor-pointer hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2D241E]/35"
-              style={{ backgroundColor: ACCENT, fontFamily: "'DM Sans', sans-serif" }}
-            >
-              {panel.cta}
-              <ArrowRight size={14} aria-hidden />
-            </LangLink>
-          </motion.div>
-        </div>
-      </div>
-    </div>
+      {children}
+    </p>
   );
 }
 
-function FinalStage({ reduced }: { reduced: boolean }) {
-  const copy = useHomePageCopy();
-  const ref = useRef<HTMLElement>(null);
-  const { scrollYProgress } = useScroll({
-    target: ref,
-    offset: ["start end", "end start"],
-  });
-  const y = useTransform(scrollYProgress, [0, 1], reduced ? ["0%", "0%"] : ["8%", "-6%"]);
-
-  return (
-    <section
-      ref={ref}
-      className="relative overflow-hidden flex items-center"
-      style={{ minHeight: "calc(var(--app-vh, 1vh) * 92)", backgroundColor: SAND }}
-    >
-      <motion.div className="absolute inset-0" style={{ y }}>
-        <Img
-          src={HOME_SCROLL_IMAGES.final}
-          alt=""
-          className="absolute inset-0 h-[120%] w-full object-cover"
-        />
-        <div
-          className="absolute inset-0"
-          style={{ background: "linear-gradient(180deg, rgba(45,36,30,0.45) 0%, rgba(45,36,30,0.72) 100%)" }}
-          aria-hidden
-        />
-      </motion.div>
-      <div className="relative z-10 mx-auto max-w-[900px] px-6 py-24 text-center text-white">
-        <p
-          className="uppercase tracking-[0.28em] text-[0.65rem] text-white/55 mb-5"
-          style={{ fontFamily: "'DM Sans', sans-serif" }}
-        >
-          {copy.lookbook.eyebrow}
-        </p>
-        <h2
-          style={{
-            fontFamily: "'Cormorant Garamond', serif",
-            fontSize: "clamp(2.4rem, 6vw, 4.2rem)",
-            fontWeight: 400,
-            lineHeight: 1.08,
-            textWrap: "balance",
-          }}
-        >
-          {copy.lookbook.titleLine1}
-          <br />
-          <em className="font-light italic">{copy.lookbook.titleLine2}</em>
-        </h2>
-        <LangLink
-          to="/collection"
-          className="mt-10 inline-flex items-center justify-center gap-2 rounded-full border border-white/40 px-8 py-3.5 text-[0.75rem] uppercase tracking-[0.16em] text-white hover:bg-white/10 transition-colors duration-200 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/50"
-          style={{ fontFamily: "'DM Sans', sans-serif" }}
-        >
-          {copy.lookbook.cta}
-          <ArrowRight size={14} aria-hidden />
-        </LangLink>
-      </div>
-    </section>
-  );
-}
-
+/**
+ * One sticky full-viewport stage. Scroll only advances internal scrub progress —
+ * the frame stays locked until the story track ends, then the page releases to the footer.
+ */
 export function HomeScrollExperience({ heroImageUrl }: { heroImageUrl: string }) {
+  const copy = useHomePageCopy();
   const { t } = useTranslation();
   const reducedMotion = useReducedMotion();
   const touch = useTouchMobileLayout();
-  const reduced = Boolean(reducedMotion);
-  const heroSrc = resolveMediaUrl(heroImageUrl) || heroImageUrl;
+  const simplify = Boolean(reducedMotion);
+  const heroSrc = resolveMediaUrl(heroImageUrl) || heroImageUrl || HOME_SCROLL_IMAGES.craft;
 
-  const sidePanels: SidePanel[] = [
+  const whyPoints = t("home.scrollStory.whyPoints", { returnObjects: true }) as string[];
+  const sides: SideCopy[] = [
     {
       image: HOME_SCROLL_IMAGES.product1,
       eyebrow: t("home.scrollStory.side1Eyebrow"),
@@ -621,27 +134,494 @@ export function HomeScrollExperience({ heroImageUrl }: { heroImageUrl: string })
     },
   ];
 
+  // Reduced-motion / prefer simple flow: short static chapters, then footer.
+  if (simplify) {
+    return (
+      <div className="relative bg-[#F5F2ED]" style={{ fontFamily: "'DM Sans', sans-serif" }}>
+        <StaticChapter
+          image={heroSrc}
+          eyebrow={copy.hero.eyebrow}
+          title={
+            <>
+              {copy.hero.titleLine1}
+              <br />
+              <em className="font-light italic">{copy.hero.titleAccent}</em>
+            </>
+          }
+          body={copy.hero.subtitle}
+          overlay
+          ctas={[
+            { label: copy.hero.ctaPrimary, href: "/collection", solid: true },
+            { label: copy.hero.ctaSecondary, href: "/collection?filter=new", solid: false },
+          ]}
+        />
+        <StaticChapter
+          image={HOME_SCROLL_IMAGES.craft}
+          eyebrow={t("home.scrollStory.whyEyebrow")}
+          title={t("home.scrollStory.whyTitle")}
+          body={copy.editorial.paragraph2}
+        />
+        {sides.map((s) => (
+          <StaticChapter
+            key={s.title}
+            image={s.image}
+            eyebrow={s.eyebrow}
+            title={s.title}
+            body={s.body}
+            cta={{ label: s.cta, href: s.href }}
+          />
+        ))}
+        <StaticChapter
+          image={HOME_SCROLL_IMAGES.final}
+          eyebrow={copy.lookbook.eyebrow}
+          title={
+            <>
+              {copy.lookbook.titleLine1}
+              <br />
+              <em className="font-light italic">{copy.lookbook.titleLine2}</em>
+            </>
+          }
+          overlay
+          cta={{ label: copy.lookbook.cta, href: "/collection" }}
+        />
+      </div>
+    );
+  }
+
+  return (
+    <PinnedStory
+      heroSrc={heroSrc}
+      copy={copy}
+      whyPoints={Array.isArray(whyPoints) ? whyPoints : []}
+      whyEyebrow={t("home.scrollStory.whyEyebrow")}
+      whyTitle={t("home.scrollStory.whyTitle")}
+      sides={sides}
+      skipLabel={t("home.scrollStory.skipToContent")}
+      touch={touch}
+    />
+  );
+}
+
+function PinnedStory({
+  heroSrc,
+  copy,
+  whyPoints,
+  whyEyebrow,
+  whyTitle,
+  sides,
+  skipLabel,
+  touch,
+}: {
+  heroSrc: string;
+  copy: ReturnType<typeof useHomePageCopy>;
+  whyPoints: string[];
+  whyEyebrow: string;
+  whyTitle: string;
+  sides: SideCopy[];
+  skipLabel: string;
+  touch: boolean;
+}) {
+  const trackRef = useRef<HTMLDivElement>(null);
+  const { scrollYProgress } = useScroll({
+    target: trackRef,
+    offset: ["start start", "end end"],
+  });
+
+  // ---- Timeline (one continuous scrub) ----
+  // 0.00–0.10 hero holds
+  // 0.10–0.22 why rises 50%→100% over hero
+  // 0.22–0.34 showcase climbs
+  // 0.34–0.46 philosophy climbs
+  // 0.46–0.62 / 0.62–0.78 / 0.78–0.92 side reveals
+  // 0.92–1.00 final
+
+  const whySeg = useSegment(scrollYProgress, 0.1, 0.22);
+  const whyHeight = useTransform(whySeg, [0, 1], ["50%", "100%"]);
+
+  const showSeg = useSegment(scrollYProgress, 0.22, 0.34);
+  const showY = useTransform(showSeg, [0, 1], ["100%", "0%"]);
+
+  const philSeg = useSegment(scrollYProgress, 0.34, 0.46);
+  const philY = useTransform(philSeg, [0, 1], ["100%", "0%"]);
+
+  const side1Seg = useSegment(scrollYProgress, 0.46, 0.62);
+  const side2Seg = useSegment(scrollYProgress, 0.62, 0.78);
+  const side3Seg = useSegment(scrollYProgress, 0.78, 0.92);
+
+  const side1X = useTransform(side1Seg, [0, 1], ["100%", "0%"]);
+  const side2X = useTransform(side2Seg, [0, 1], ["-100%", "0%"]);
+  const side3X = useTransform(side3Seg, [0, 1], ["100%", "0%"]);
+  const side1TextX = useTransform(side1Seg, [0.15, 1], ["28%", "0%"]);
+  const side2TextX = useTransform(side2Seg, [0.15, 1], ["-28%", "0%"]);
+  const side3TextX = useTransform(side3Seg, [0.15, 1], ["28%", "0%"]);
+  const side1TextOp = useTransform(side1Seg, [0.1, 0.55], [0, 1]);
+  const side2TextOp = useTransform(side2Seg, [0.1, 0.55], [0, 1]);
+  const side3TextOp = useTransform(side3Seg, [0.1, 0.55], [0, 1]);
+
+  const finalSeg = useSegment(scrollYProgress, 0.9, 1);
+  const finalOp = useTransform(finalSeg, [0, 1], [0, 1]);
+  const finalY = useTransform(finalSeg, [0, 1], ["12%", "0%"]);
+
+  const heroFade = useTransform(scrollYProgress, [0.08, 0.2], [1, 0.35]);
+  const progressPct = useTransform(scrollYProgress, (v) => `${Math.round(v * 100)}%`);
+
   return (
     <div className="relative bg-[#F5F2ED]" style={{ fontFamily: "'DM Sans', sans-serif" }}>
       <a
-        href="#home-main"
-        className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-[80] focus:rounded-full focus:bg-white focus:px-4 focus:py-2 focus:text-sm focus:text-[#2D241E]"
+        href="#home-story-end"
+        className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-[90] focus:rounded-full focus:bg-white focus:px-4 focus:py-2 focus:text-sm focus:text-[#2D241E]"
       >
-        {t("home.scrollStory.skipToContent")}
+        {skipLabel}
       </a>
-      <div id="home-main">
-        <HeroStage heroSrc={heroSrc} reduced={reduced || touch} />
-        <StackStage reduced={reduced} />
-        {sidePanels.map((panel, i) => (
-          <SideRevealPanel
-            key={panel.title}
-            panel={panel}
-            reduced={reduced}
-            reverse={i % 2 === 1}
+
+      <div
+        ref={trackRef}
+        className="relative"
+        style={{ height: `calc(var(--app-vh, 1vh) * ${touch ? STORY_VH * 0.85 : STORY_VH})` }}
+        aria-label="Yarné home story"
+      >
+        {/* Locked viewport — only this frame is visible while scrubbing */}
+        <div
+          className="sticky top-0 overflow-hidden overscroll-none"
+          style={{
+            height: "calc(var(--app-vh, 1vh) * 100)",
+            backgroundColor: CREAM,
+          }}
+        >
+          {/* Progress hairline */}
+          <div
+            className="pointer-events-none absolute left-0 right-0 top-0 z-[40] h-[2px] bg-[#2D241E]/10"
+            aria-hidden
+          >
+            <motion.div className="h-full bg-[#4A0E0E]" style={{ width: progressPct }} />
+          </div>
+
+          {/* 1 · Hero (base layer) */}
+          <motion.div className="absolute inset-0 z-[1]" style={{ opacity: heroFade }}>
+            <Img
+              src={heroSrc}
+              alt=""
+              priority
+              className="absolute inset-0 h-full w-full object-cover object-center"
+            />
+            <div
+              className="absolute inset-0"
+              style={{
+                background:
+                  "linear-gradient(105deg, rgba(45,36,30,0.72) 0%, rgba(45,36,30,0.38) 55%, rgba(45,36,30,0.14) 100%)",
+              }}
+              aria-hidden
+            />
+            <div className="relative z-10 flex h-full items-end">
+              <div className="w-full max-w-[1400px] mx-auto px-6 md:px-10 pb-14 md:pb-20">
+                <Eyebrow light>{copy.hero.eyebrow}</Eyebrow>
+                <h1
+                  className="text-white max-w-2xl"
+                  style={{
+                    fontFamily: "'Cormorant Garamond', serif",
+                    fontSize: "clamp(2.4rem, 7vw, 5rem)",
+                    fontWeight: 400,
+                    lineHeight: 1.06,
+                    letterSpacing: "-0.02em",
+                    textWrap: "balance",
+                  }}
+                >
+                  {copy.hero.titleLine1}
+                  <br />
+                  <em className="font-light italic">{copy.hero.titleAccent}</em>
+                </h1>
+                <BodyCopy light>{copy.hero.subtitle}</BodyCopy>
+                <div className="mt-8 flex flex-col sm:flex-row gap-3 max-w-lg">
+                  <LangLink
+                    to="/collection"
+                    className="inline-flex items-center justify-center gap-2 rounded-full bg-[#F5F2ED] px-7 py-3.5 text-[0.75rem] uppercase tracking-[0.16em] text-[#2D241E] transition-colors duration-200 hover:bg-white cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/50"
+                  >
+                    {copy.hero.ctaPrimary}
+                    <ArrowRight size={14} aria-hidden />
+                  </LangLink>
+                  <LangLink
+                    to="/collection?filter=new"
+                    className="inline-flex items-center justify-center gap-2 rounded-full border border-white/35 px-7 py-3.5 text-[0.75rem] uppercase tracking-[0.16em] text-white transition-colors duration-200 hover:border-white/70 hover:bg-white/10 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/50"
+                  >
+                    {copy.hero.ctaSecondary}
+                  </LangLink>
+                </div>
+              </div>
+            </div>
+            <div className="absolute bottom-8 right-8 hidden md:flex flex-col items-center gap-2 text-white/45">
+              <span
+                className="text-[0.62rem] tracking-[0.25em] uppercase"
+                style={{ writingMode: "vertical-rl", fontFamily: "'DM Sans', sans-serif" }}
+              >
+                {copy.hero.scroll}
+              </span>
+              <ChevronDown size={16} aria-hidden />
+            </div>
+          </motion.div>
+
+          {/* 2 · Why — grows from half → full */}
+          <motion.div
+            className="absolute inset-x-0 bottom-0 z-[2] overflow-hidden"
+            style={{ height: whyHeight, backgroundColor: CREAM }}
+          >
+            <div className="grid h-full md:grid-cols-2">
+              <div className="relative min-h-0">
+                <Img src={HOME_SCROLL_IMAGES.craft} alt="" className="absolute inset-0 h-full w-full object-cover" />
+              </div>
+              <div className="flex flex-col justify-center px-6 md:px-12 lg:px-16 py-8">
+                <Eyebrow>{whyEyebrow}</Eyebrow>
+                <DisplayTitle>{whyTitle}</DisplayTitle>
+                <BodyCopy>{copy.editorial.paragraph2}</BodyCopy>
+                <ul
+                  className="mt-7 grid grid-cols-2 gap-3 max-w-md text-[0.7rem] uppercase tracking-[0.14em]"
+                  style={{ color: `${INK}99`, fontFamily: "'DM Sans', sans-serif" }}
+                >
+                  {whyPoints.map((p) => (
+                    <li key={p}>{p}</li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+          </motion.div>
+
+          {/* 3 · Showcase climbs */}
+          <motion.div className="absolute inset-0 z-[3]" style={{ y: showY, backgroundColor: SAND }}>
+            <div className="grid h-full md:grid-cols-2">
+              <div className="order-2 md:order-1 flex flex-col justify-center px-6 md:px-12 lg:px-16 py-8">
+                <Eyebrow>{copy.showcase.eyebrow}</Eyebrow>
+                <DisplayTitle>{copy.showcase.title}</DisplayTitle>
+                <BodyCopy>{copy.featured.title}</BodyCopy>
+                <LangLink
+                  to="/collection"
+                  className="mt-8 inline-flex items-center gap-2 self-start text-[0.72rem] uppercase tracking-[0.16em] text-[#2D241E]/70 transition-colors duration-200 hover:text-[#4A0E0E] cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2D241E]/30"
+                >
+                  {copy.featured.viewAll}
+                  <ArrowRight size={14} aria-hidden />
+                </LangLink>
+              </div>
+              <div className="relative order-1 md:order-2 min-h-0">
+                <Img src={HOME_SCROLL_IMAGES.product1} alt="" className="absolute inset-0 h-full w-full object-cover" />
+              </div>
+            </div>
+          </motion.div>
+
+          {/* 4 · Philosophy climbs */}
+          <motion.div className="absolute inset-0 z-[4]" style={{ y: philY, backgroundColor: INK }}>
+            <div className="grid h-full md:grid-cols-2">
+              <div className="relative min-h-0">
+                <Img
+                  src={HOME_SCROLL_IMAGES.product2}
+                  alt=""
+                  className="absolute inset-0 h-full w-full object-cover opacity-90"
+                />
+              </div>
+              <div className="flex flex-col justify-center px-6 md:px-12 lg:px-16 py-8 text-white">
+                <Eyebrow light>{copy.editorial.eyebrow}</Eyebrow>
+                <DisplayTitle light>
+                  {copy.editorial.titleLine1}
+                  <br />
+                  <em className="font-light italic">{copy.editorial.titleLine2}</em>
+                </DisplayTitle>
+                <BodyCopy light>{copy.editorial.paragraph1}</BodyCopy>
+                <LangLink
+                  to="/pages/our-history"
+                  className="mt-8 inline-flex items-center gap-2 self-start text-[0.72rem] uppercase tracking-[0.16em] text-white/70 transition-colors duration-200 hover:text-white cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40"
+                >
+                  {copy.editorial.ourStory}
+                  <ArrowRight size={14} aria-hidden />
+                </LangLink>
+              </div>
+            </div>
+          </motion.div>
+
+          {/* 5–7 · Side chapters (enter from left / right) */}
+          <SideLayer
+            z={5}
+            panel={sides[0]}
+            frameX={side1X}
+            textX={side1TextX}
+            textOp={side1TextOp}
+            fromRight
           />
-        ))}
-        <FinalStage reduced={reduced || touch} />
+          <SideLayer
+            z={6}
+            panel={sides[1]}
+            frameX={side2X}
+            textX={side2TextX}
+            textOp={side2TextOp}
+            fromRight={false}
+          />
+          <SideLayer
+            z={7}
+            panel={sides[2]}
+            frameX={side3X}
+            textX={side3TextX}
+            textOp={side3TextOp}
+            fromRight
+          />
+
+          {/* 8 · Final */}
+          <motion.div
+            className="absolute inset-0 z-[8] overflow-hidden"
+            style={{ opacity: finalOp, y: finalY }}
+          >
+            <Img src={HOME_SCROLL_IMAGES.final} alt="" className="absolute inset-0 h-full w-full object-cover" />
+            <div
+              className="absolute inset-0"
+              style={{ background: "linear-gradient(180deg, rgba(45,36,30,0.4) 0%, rgba(45,36,30,0.75) 100%)" }}
+              aria-hidden
+            />
+            <div className="relative z-10 flex h-full items-center justify-center px-6 text-center text-white">
+              <div className="max-w-[900px]">
+                <Eyebrow light>{copy.lookbook.eyebrow}</Eyebrow>
+                <h2
+                  style={{
+                    fontFamily: "'Cormorant Garamond', serif",
+                    fontSize: "clamp(2.2rem, 5.5vw, 4rem)",
+                    fontWeight: 400,
+                    lineHeight: 1.08,
+                    textWrap: "balance",
+                  }}
+                >
+                  {copy.lookbook.titleLine1}
+                  <br />
+                  <em className="font-light italic">{copy.lookbook.titleLine2}</em>
+                </h2>
+                <LangLink
+                  to="/collection"
+                  className="mt-10 inline-flex items-center justify-center gap-2 rounded-full border border-white/40 px-8 py-3.5 text-[0.75rem] uppercase tracking-[0.16em] text-white transition-colors duration-200 hover:bg-white/10 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/50"
+                >
+                  {copy.lookbook.cta}
+                  <ArrowRight size={14} aria-hidden />
+                </LangLink>
+              </div>
+            </div>
+          </motion.div>
+        </div>
       </div>
+
+      {/* Release point — normal document flow continues into Footer */}
+      <div id="home-story-end" className="h-px w-full scroll-mt-[var(--main-header-h)]" aria-hidden />
     </div>
+  );
+}
+
+function SideLayer({
+  z,
+  panel,
+  frameX,
+  textX,
+  textOp,
+  fromRight,
+}: {
+  z: number;
+  panel: SideCopy;
+  frameX: MotionValue<string>;
+  textX: MotionValue<string>;
+  textOp: MotionValue<number>;
+  fromRight: boolean;
+}) {
+  return (
+    <motion.div
+      className="absolute inset-0 overflow-hidden"
+      style={{ zIndex: z, x: frameX, backgroundColor: CREAM }}
+    >
+      <div className={`grid h-full md:grid-cols-2 ${fromRight ? "" : "md:[&>*:first-child]:order-2"}`}>
+        <div className="relative min-h-0">
+          <Img src={panel.image} alt="" className="absolute inset-0 h-full w-full object-cover" />
+        </div>
+        <motion.div
+          className="flex flex-col justify-center px-6 md:px-12 lg:px-16 py-8"
+          style={{ x: textX, opacity: textOp }}
+        >
+          <Eyebrow>{panel.eyebrow}</Eyebrow>
+          <DisplayTitle>{panel.title}</DisplayTitle>
+          <BodyCopy>{panel.body}</BodyCopy>
+          <LangLink
+            to={panel.href}
+            className="mt-8 inline-flex items-center gap-2 self-start rounded-full px-6 py-3 text-[0.72rem] uppercase tracking-[0.16em] text-white transition-opacity duration-200 hover:opacity-90 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2D241E]/35"
+            style={{ backgroundColor: ACCENT, fontFamily: "'DM Sans', sans-serif" }}
+          >
+            {panel.cta}
+            <ArrowRight size={14} aria-hidden />
+          </LangLink>
+        </motion.div>
+      </div>
+    </motion.div>
+  );
+}
+
+function StaticChapter({
+  image,
+  eyebrow,
+  title,
+  body,
+  overlay,
+  cta,
+  ctas,
+}: {
+  image: string;
+  eyebrow: string;
+  title: React.ReactNode;
+  body?: string;
+  overlay?: boolean;
+  cta?: { label: string; href: string };
+  ctas?: { label: string; href: string; solid: boolean }[];
+}) {
+  return (
+    <section
+      className="relative min-h-[100vh] flex items-end md:items-center overflow-hidden"
+      style={{ backgroundColor: SAND }}
+    >
+      <Img src={image} alt="" className="absolute inset-0 h-full w-full object-cover" />
+      {overlay ? (
+        <div
+          className="absolute inset-0"
+          style={{
+            background:
+              "linear-gradient(105deg, rgba(45,36,30,0.72) 0%, rgba(45,36,30,0.4) 55%, rgba(45,36,30,0.2) 100%)",
+          }}
+          aria-hidden
+        />
+      ) : (
+        <div className="absolute inset-0 bg-[#F5F2ED]/88 md:left-1/2 md:bg-[#F5F2ED]" aria-hidden />
+      )}
+      <div
+        className={`relative z-10 w-full max-w-[1400px] mx-auto px-6 md:px-10 py-16 ${
+          overlay ? "text-white" : "text-[#2D241E] md:ml-auto md:w-1/2"
+        }`}
+      >
+        <Eyebrow light={overlay}>{eyebrow}</Eyebrow>
+        <DisplayTitle light={overlay}>{title}</DisplayTitle>
+        {body ? <BodyCopy light={overlay}>{body}</BodyCopy> : null}
+        {cta ? (
+          <LangLink
+            to={cta.href}
+            className="mt-8 inline-flex items-center gap-2 cursor-pointer text-[0.72rem] uppercase tracking-[0.16em] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-current/30"
+            style={{ color: overlay ? "rgba(255,255,255,0.8)" : `${INK}B3` }}
+          >
+            {cta.label}
+            <ArrowRight size={14} aria-hidden />
+          </LangLink>
+        ) : null}
+        {ctas ? (
+          <div className="mt-8 flex flex-col sm:flex-row gap-3">
+            {ctas.map((c) => (
+              <LangLink
+                key={c.href + c.label}
+                to={c.href}
+                className={`inline-flex items-center justify-center gap-2 rounded-full px-7 py-3.5 text-[0.75rem] uppercase tracking-[0.16em] cursor-pointer focus-visible:outline-none focus-visible:ring-2 ${
+                  c.solid
+                    ? "bg-[#F5F2ED] text-[#2D241E] focus-visible:ring-white/50"
+                    : "border border-white/40 text-white focus-visible:ring-white/50"
+                }`}
+              >
+                {c.label}
+              </LangLink>
+            ))}
+          </div>
+        ) : null}
+      </div>
+    </section>
   );
 }
