@@ -188,7 +188,7 @@ function ProductCardInner({
           <div
             className={`absolute inset-0 ${imageRadiusClass} transition-opacity duration-[450ms] ease-[cubic-bezier(0.25,0.1,0.25,1)] ${overlayVisibleClass} pointer-events-none`}
             style={{
-              background: "linear-gradient(to top, rgba(45,36,30,0.48) 0%, transparent 58%)",
+              background: "linear-gradient(to top, rgba(45,36,30,0.4) 0%, transparent 58%)",
             }}
           />
 
@@ -197,7 +197,7 @@ function ProductCardInner({
               <span
                 className="px-3 py-1 rounded-full text-xs text-white"
                 style={{
-                  backgroundColor: "#4A0E0E",
+                  backgroundColor: "#4A3728",
                   fontFamily: "'DM Sans', sans-serif",
                   letterSpacing: "0.12em",
                   fontSize: "0.65rem",
@@ -227,7 +227,7 @@ function ProductCardInner({
               onClick={handleWishlist}
               className="absolute top-4 right-4 w-9 h-9 rounded-full flex items-center justify-center transition-colors duration-300 cursor-pointer"
               style={{
-                backgroundColor: isWishlisted ? "#4A0E0E" : "rgba(245,242,237,0.85)",
+                backgroundColor: isWishlisted ? "#4A3728" : "rgba(245,242,237,0.85)",
                 backdropFilter: "blur(8px)",
               }}
               aria-pressed={isWishlisted}
@@ -251,7 +251,7 @@ function ProductCardInner({
                 fontFamily: "'DM Sans', sans-serif",
                 fontSize: "0.72rem",
                 letterSpacing: "0.12em",
-                boxShadow: "0 8px 24px rgba(45,36,30,0.3)",
+                boxShadow: "0 6px 18px rgba(45,36,30,0.22)",
               }}
             >
               <ShoppingBag size={13} strokeWidth={1.5} />
@@ -264,7 +264,7 @@ function ProductCardInner({
           <div className="flex items-start justify-between gap-2">
             <div className="min-w-0">
               <p
-                className={`text-[#2D241E] group-hover/card:text-[#4A0E0E] transition-colors duration-300${isCarouselCard ? " min-[600px]:max-[1023px]:text-base" : ""}`}
+                className={`text-[#2D241E] group-hover/card:text-[#4A3728] transition-colors duration-300${isCarouselCard ? " min-[600px]:max-[1023px]:text-base" : ""}`}
                 style={{
                   fontFamily: "'Cormorant Garamond', serif",
                   fontSize: isCarouselCard ? "clamp(0.92rem, 3.6vw, 1.05rem)" : "1.05rem",

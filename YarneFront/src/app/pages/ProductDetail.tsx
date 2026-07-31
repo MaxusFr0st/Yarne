@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useMemo, useState } from "react";
 import { useParams, useNavigate, useLocation } from "react-router";
 import { motion, AnimatePresence, LayoutGroup, useReducedMotion } from "motion/react";
-import { ArrowLeft, Heart, ChevronDown, ShoppingBag, Check } from "lucide-react";
+import { ArrowLeft, Heart, ChevronDown, ShoppingBag, Check, Droplets, Wrench, Gem } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useLocale } from "../i18n/useLocale";
 import { PriceTag } from "../components/PriceTag";
@@ -13,6 +13,7 @@ import { CrossfadeImage } from "../components/figma/CrossfadeImage";
 import { ProductCard } from "../components/ProductCard";
 import { LangLink } from "../i18n/LangLink";
 import { MobileProductDetailView } from "../components/MobileProductDetailView";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../components/ui/dialog";
 import { getSupplementaryProductDetails, hasSupplementaryProductDetails } from "../utils/productDetails";
 import { MobileRelatedProducts } from "../components/MobileRelatedProducts";
 import { ProductGuaranteeBlock } from "../components/ProductGuaranteeBlock";
@@ -67,6 +68,7 @@ export function ProductDetail() {
   const [addedToBag, setAddedToBag] = useState(false);
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [sizeError, setSizeError] = useState(false);
+  const [sizeGuideOpen, setSizeGuideOpen] = useState(false);
   const supplementaryDetails = useMemo(
     () => (product ? getSupplementaryProductDetails(product) : []),
     [product]
@@ -303,7 +305,7 @@ export function ProductDetail() {
                 {product.isNew && (
                   <span
                     className="px-3 py-1 rounded-full text-xs text-white"
-                    style={{ backgroundColor: "#4A0E0E", fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.12em", fontSize: "0.65rem" }}
+                    style={{ backgroundColor: "#4A3728", fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.12em", fontSize: "0.65rem" }}
                   >
                     {t("product.badgeNew")}
                   </span>
@@ -543,7 +545,8 @@ export function ProductDetail() {
                 </p>
                 <button
                   type="button"
-                  className="text-[#2D241E]/50 text-xs hover:text-[#4A0E0E] transition-colors duration-200 underline underline-offset-2 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2D241E]/35 rounded-sm"
+                  onClick={() => setSizeGuideOpen(true)}
+                  className="text-[#2D241E]/50 text-xs hover:text-[#4A3728] transition-colors duration-200 underline underline-offset-2 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2D241E]/35 rounded-sm"
                   style={{ fontFamily: "'DM Sans', sans-serif" }}
                 >
                   {t("product.sizeGuide")}
@@ -596,7 +599,7 @@ export function ProductDetail() {
               <AnimatePresence>
                 {sizeError && (
                   <motion.p
-                    className="text-[#4A0E0E] text-xs mt-2"
+                    className="text-[#4A3728] text-xs mt-2"
                     style={{ fontFamily: "'DM Sans', sans-serif" }}
                     initial={{ opacity: 0, y: -4 }}
                     animate={{ opacity: 1, y: 0 }}
@@ -626,7 +629,7 @@ export function ProductDetail() {
                 disabled={outOfStock}
                 className="flex-1 h-12 rounded-full flex items-center justify-center gap-2.5 text-white touch-manipulation transition-[background-color,opacity] duration-200 hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:opacity-40 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2D241E]/35 focus-visible:ring-offset-2 focus-visible:ring-offset-[#F5F2ED]"
                 style={{
-                  backgroundColor: outOfStock ? "#9A9088" : addedToBag ? "#2D5928" : "#2D241E",
+                  backgroundColor: outOfStock ? "#9A9088" : addedToBag ? "#2D5928" : "#4A3728",
                   fontFamily: "'DM Sans', sans-serif",
                   fontSize: "0.72rem",
                   letterSpacing: "0.14em",
@@ -655,8 +658,8 @@ export function ProductDetail() {
                 aria-label={isWishlisted ? t("product.wishlistRemove") : t("product.wishlistAdd")}
                 aria-pressed={isWishlisted}
                 style={{
-                  borderColor: isWishlisted ? "#4A0E0E" : "rgba(45,36,30,0.18)",
-                  backgroundColor: isWishlisted ? "#4A0E0E" : "transparent",
+                  borderColor: isWishlisted ? "#4A3728" : "rgba(45,36,30,0.18)",
+                  backgroundColor: isWishlisted ? "#4A3728" : "transparent",
                 }}
               >
                 <Heart
@@ -667,6 +670,25 @@ export function ProductDetail() {
                   stroke={isWishlisted ? "white" : "#2D241E"}
                 />
               </button>
+            </div>
+
+            {/* Trust strip */}
+            <div className="flex items-center justify-between gap-3">
+              {[
+                { icon: Droplets, label: t("product.trust.wash") },
+                { icon: Wrench, label: t("product.trust.repair") },
+                { icon: Gem, label: t("product.trust.keep") },
+              ].map(({ icon: Icon, label }) => (
+                <div key={label} className="flex items-center gap-2 flex-1 min-w-0">
+                  <Icon size={14} strokeWidth={1.5} className="text-[#6B5344] shrink-0" aria-hidden="true" />
+                  <span
+                    className="text-[#2D241E]/55 text-[0.7rem] truncate"
+                    style={{ fontFamily: "'DM Sans', sans-serif" }}
+                  >
+                    {label}
+                  </span>
+                </div>
+              ))}
             </div>
 
             {/* Description */}
@@ -711,7 +733,7 @@ export function ProductDetail() {
                         className="flex items-start gap-3 text-[#2D241E]/60 text-sm"
                         style={{ fontFamily: "'DM Sans', sans-serif" }}
                       >
-                        <span className="mt-1.5 w-1 h-1 rounded-full bg-[#4A0E0E] flex-shrink-0" />
+                        <span className="mt-1.5 w-1 h-1 rounded-full bg-[#4A3728] flex-shrink-0" />
                         {t("product.madeBy", { name: product.producerName })}
                       </li>
                     ) : null}
@@ -721,7 +743,7 @@ export function ProductDetail() {
                         className="flex items-start gap-3 text-[#2D241E]/60 text-sm"
                         style={{ fontFamily: "'DM Sans', sans-serif" }}
                       >
-                        <span className="mt-1.5 w-1 h-1 rounded-full bg-[#4A0E0E] flex-shrink-0" />
+                        <span className="mt-1.5 w-1 h-1 rounded-full bg-[#4A3728] flex-shrink-0" />
                         {detail}
                       </li>
                     ))}
@@ -756,7 +778,7 @@ export function ProductDetail() {
             </div>
             <LangLink
               to="/collection"
-              className="hidden md:flex items-center gap-2 text-[#2D241E]/50 hover:text-[#4A0E0E] text-xs transition-colors uppercase tracking-widest"
+              className="hidden md:flex items-center gap-2 text-[#2D241E]/50 hover:text-[#4A3728] text-xs transition-colors uppercase tracking-widest"
               style={{ fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.12em" }}
             >
               {t("common.viewAll")}
@@ -769,6 +791,38 @@ export function ProductDetail() {
           </div>
         </section>
       )}
+
+      {/* Size Guide */}
+      <Dialog open={sizeGuideOpen} onOpenChange={setSizeGuideOpen}>
+        <DialogContent
+          className="bg-[#F5F2ED] border border-[#2D241E]/10 rounded-[24px] sm:max-w-[380px]"
+        >
+          <DialogHeader>
+            <DialogTitle
+              className="text-[#2D241E]"
+              style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "1.5rem", fontWeight: 400 }}
+            >
+              {t("product.sizeGuide")}
+            </DialogTitle>
+          </DialogHeader>
+          <ul className="space-y-2">
+            {product.sizes.map((size) => (
+              <li
+                key={size.name}
+                className="rounded-[14px] px-4 py-3"
+                style={{ backgroundColor: "#E8E0D4" }}
+              >
+                <span
+                  className="text-[#2D241E] text-sm"
+                  style={{ fontFamily: "'DM Sans', sans-serif" }}
+                >
+                  {localizedCatalogName(size.name, size.nameUk, locale)}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </DialogContent>
+      </Dialog>
         </>
       )}
     </main>

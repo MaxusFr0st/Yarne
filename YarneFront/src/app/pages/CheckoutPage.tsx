@@ -122,11 +122,11 @@ export function CheckoutPage() {
           <button
             onClick={openLogin}
             className="w-full py-4 rounded-full text-[#F5F2ED] uppercase tracking-widest transition-all duration-300 hover:opacity-90"
-            style={{ backgroundColor: "#2D241E", fontFamily: "'DM Sans', sans-serif", fontSize: "0.78rem", letterSpacing: "0.13em" }}
+            style={{ backgroundColor: "#4A3728", fontFamily: "'DM Sans', sans-serif", fontSize: "0.78rem", letterSpacing: "0.13em" }}
           >
             {t("checkout.openLogin")}
           </button>
-          <LangLink to="/collection" className="inline-block mt-4 text-[#2D241E]/50 hover:text-[#4A0E0E] transition-colors" style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "0.85rem" }}>
+          <LangLink to="/collection" className="inline-block mt-4 text-[#2D241E]/50 hover:text-[#4A3728] transition-colors" style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "0.85rem" }}>
             {t("checkout.backToCollection")}
           </LangLink>
         </motion.div>
@@ -155,7 +155,7 @@ export function CheckoutPage() {
           <LangLink
             to="/collection"
             className="inline-flex items-center gap-2 px-8 py-4 rounded-full text-[#F5F2ED] uppercase tracking-widest transition-all duration-300 hover:opacity-90"
-            style={{ backgroundColor: "#2D241E", fontFamily: "'DM Sans', sans-serif", fontSize: "0.78rem", letterSpacing: "0.13em" }}
+            style={{ backgroundColor: "#4A3728", fontFamily: "'DM Sans', sans-serif", fontSize: "0.78rem", letterSpacing: "0.13em" }}
           >
             <span>{t("checkout.goShopping")}</span>
             <ArrowRight size={15} />
@@ -246,7 +246,7 @@ export function CheckoutPage() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.55, delay: 0.05, ease: easing }}
           className="rounded-[30px] p-6 md:p-8 h-fit lg:sticky lg:top-28"
-          style={{ border: "1px solid rgba(45,36,30,0.08)", backgroundColor: "#EDE9E2" }}
+          style={{ border: "1px solid rgba(107,83,68,0.14)", backgroundColor: "#E8E0D4" }}
         >
           <h3 className="text-[#2D241E] mb-5" style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "1.4rem", fontWeight: 400 }}>
             {t("checkout.summary")}
@@ -308,7 +308,7 @@ export function CheckoutPage() {
               </div>
               <LangLink
                 to="/account"
-                className="mt-6 inline-flex items-center gap-2 text-[#4A0E0E] hover:opacity-80 transition-opacity text-sm"
+                className="mt-6 inline-flex items-center gap-2 text-[#4A3728] hover:opacity-80 transition-opacity text-sm"
                 style={{ fontFamily: "'DM Sans', sans-serif" }}
               >
                 {t("checkout.viewInAccount")}
@@ -318,15 +318,21 @@ export function CheckoutPage() {
           ) : (
             <>
               {error && (
-                <p className="mt-4 text-sm text-[#4A0E0E]" style={{ fontFamily: "'DM Sans', sans-serif" }}>
+                <p className="hidden md:block mt-4 text-sm text-[#4A3728]" style={{ fontFamily: "'DM Sans', sans-serif" }}>
                   {error}
                 </p>
               )}
+            <p
+              className="hidden md:block mt-6 text-[#2D241E]/45 text-xs"
+              style={{ fontFamily: "'DM Sans', sans-serif", lineHeight: 1.6 }}
+            >
+              {t("product.guarantee.description")}
+            </p>
             <button
               onClick={placeOrder}
               disabled={placingOrder || cartItems.length === 0 || !isPhoneValid}
-              className="mt-6 w-full py-4 rounded-full text-[#F5F2ED] uppercase tracking-widest transition-all duration-300 disabled:opacity-60"
-              style={{ backgroundColor: "#2D241E", fontFamily: "'DM Sans', sans-serif", fontSize: "0.78rem", letterSpacing: "0.14em" }}
+              className="hidden md:block mt-4 w-full py-4 rounded-full text-[#F5F2ED] uppercase tracking-widest transition-all duration-300 disabled:opacity-60"
+              style={{ backgroundColor: "#4A3728", fontFamily: "'DM Sans', sans-serif", fontSize: "0.78rem", letterSpacing: "0.14em" }}
             >
               {placingOrder ? t("checkout.placingOrder") : t("checkout.placeOrder")}
             </button>
@@ -334,6 +340,41 @@ export function CheckoutPage() {
           )}
         </motion.aside>
       </div>
+
+      {!placedOrder && (
+        <>
+          <div aria-hidden className="h-28 md:hidden" />
+          <div
+            className="md:hidden fixed bottom-0 left-0 right-0 z-30 px-6 pt-3"
+            style={{
+              backgroundColor: "rgba(245,242,237,0.97)",
+              backdropFilter: "blur(14px)",
+              borderTop: "1px solid rgba(45,36,30,0.08)",
+              paddingBottom: "max(env(safe-area-inset-bottom, 0px), 14px)",
+            }}
+          >
+            {error && (
+              <p className="text-sm text-[#4A3728] mb-2" style={{ fontFamily: "'DM Sans', sans-serif" }}>
+                {error}
+              </p>
+            )}
+            <button
+              onClick={placeOrder}
+              disabled={placingOrder || cartItems.length === 0 || !isPhoneValid}
+              className="w-full py-3.5 rounded-full text-[#F5F2ED] uppercase tracking-widest transition-all duration-300 disabled:opacity-60"
+              style={{ backgroundColor: "#4A3728", fontFamily: "'DM Sans', sans-serif", fontSize: "0.76rem", letterSpacing: "0.13em" }}
+            >
+              {placingOrder ? t("checkout.placingOrder") : t("checkout.placeOrder")}
+            </button>
+            <p
+              className="text-center text-[#2D241E]/40 mt-2"
+              style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "0.66rem" }}
+            >
+              {t("product.guarantee.description")}
+            </p>
+          </div>
+        </>
+      )}
     </main>
   );
 }

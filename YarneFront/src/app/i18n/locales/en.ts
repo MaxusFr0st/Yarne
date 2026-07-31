@@ -117,6 +117,11 @@ const en = {
       description:
         "We guarantee the quality of our products — if anything breaks, we'll fix it for free.",
     },
+    trust: {
+      wash: "Wash to renew",
+      repair: "Free repair",
+      keep: "Made to keep",
+    },
     relatedEyebrow: "You may also like",
     relatedTitle: "Complete the wardrobe",
     relatedSlide: "Related product",

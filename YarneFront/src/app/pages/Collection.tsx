@@ -7,6 +7,7 @@ import { useProducts } from "../hooks/useProducts";
 import { useLocale } from "../i18n/useLocale";
 import { PriceTag } from "../components/PriceTag";
 import { ProductCard } from "../components/ProductCard";
+import { ScrollReveal } from "../components/ScrollReveal";
 import { Skeleton } from "../components/ui/skeleton";
 import { fetchCollections, type CollectionDto } from "../api/collections";
 
@@ -131,7 +132,7 @@ export function Collection() {
     <main style={{ backgroundColor: "#F5F2ED", minHeight: "100vh", overflowX: "hidden" }}>
       <section className="pt-28 pb-8 md:pt-32 md:pb-10">
         <div className="max-w-[1400px] mx-auto px-6 md:px-10">
-          <div>
+          <ScrollReveal y={16}>
             <p
               className="text-[#2D241E]/40 tracking-widest uppercase text-xs mb-4"
               style={{ fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.2em" }}
@@ -170,11 +171,11 @@ export function Collection() {
                 t("collection.header.pieceCount", { count: filtered.length })
               )}
             </p>
-          </div>
+          </ScrollReveal>
         </div>
       </section>
 
-      <div className="md:sticky top-[var(--main-header-h)] z-30 border-y border-[#2D241E]/10" style={{ backgroundColor: "rgba(245,242,237,0.95)", backdropFilter: "blur(16px)" }}>
+      <div className="md:sticky top-[var(--main-header-h)] z-30 border-y border-[#6B5344]/12" style={{ backgroundColor: "rgba(232,224,212,0.92)", backdropFilter: "blur(16px)" }}>
         <div className="max-w-[1400px] mx-auto px-6 md:px-10">
           <div className="flex items-center justify-between py-2.5 gap-3 overflow-x-auto scrollbar-hide min-h-[44px]">
             <div className="flex items-center gap-2 flex-shrink-0 min-h-[36px]">
@@ -183,13 +184,15 @@ export function Collection() {
                   key={tab.id}
                   type="button"
                   onClick={() => selectTab(tab.id)}
-                  className="px-5 py-2 rounded-full text-xs transition-all duration-300 whitespace-nowrap"
+                  className={`px-5 py-2 rounded-full text-xs transition-all duration-300 whitespace-nowrap ${
+                    activeTab === tab.id ? "" : "hover:border-[#4A3728]/45 hover:text-[#4A3728]"
+                  }`}
                   style={{
                     fontFamily: "'DM Sans', sans-serif",
                     letterSpacing: "0.1em",
-                    backgroundColor: activeTab === tab.id ? "#2D241E" : "transparent",
+                    backgroundColor: activeTab === tab.id ? "#6B5344" : "transparent",
                     color: activeTab === tab.id ? "#F5F2ED" : "#2D241E",
-                    border: activeTab === tab.id ? "1.5px solid #2D241E" : "1.5px solid rgba(45,36,30,0.2)",
+                    border: activeTab === tab.id ? "1.5px solid #6B5344" : "1.5px solid rgba(107,83,68,0.2)",
                   }}
                 >
                   {tab.label}
@@ -201,7 +204,7 @@ export function Collection() {
               <select
                 value={activeSort}
                 onChange={(e) => setActiveSort(e.target.value as SortOptionKey)}
-                className="bg-transparent border border-[#2D241E]/20 rounded-full px-4 py-2 text-xs text-[#2D241E] focus:outline-none focus:border-[#2D241E]/50 cursor-pointer"
+                className="bg-transparent border border-[#6B5344]/25 rounded-full px-4 py-2 text-xs text-[#2D241E] focus:outline-none focus:border-[#4A3728]/50 cursor-pointer"
                 style={{ fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.06em" }}
               >
                 {SORT_OPTION_KEYS.map((s) => (
@@ -212,7 +215,7 @@ export function Collection() {
               <button
                 type="button"
                 onClick={() => setFilterOpen(!filterOpen)}
-                className="flex items-center gap-2 px-4 py-2 rounded-full border border-[#2D241E]/20 hover:border-[#2D241E]/50 transition-colors text-[#2D241E]"
+                className="flex items-center gap-2 px-4 py-2 rounded-full border border-[#6B5344]/25 hover:border-[#4A3728]/50 hover:text-[#4A3728] transition-colors text-[#2D241E]"
                 style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "0.72rem", letterSpacing: "0.1em" }}
               >
                 <SlidersHorizontal size={13} />
@@ -227,7 +230,7 @@ export function Collection() {
               animate={{ height: "auto", opacity: 1 }}
               exit={{ height: 0, opacity: 0 }}
               transition={{ duration: 0.3, ease: easing }}
-              className="border-t border-[#2D241E]/10 py-6"
+              className="border-t border-[#6B5344]/15 py-6"
             >
               <div className="flex flex-wrap gap-8 items-start">
                 <div>
@@ -250,7 +253,7 @@ export function Collection() {
                         setPriceFilterTouched(true);
                         setPriceRange([priceBounds.min, parseInt(e.target.value, 10)]);
                       }}
-                      className="w-32 accent-[#4A0E0E]"
+                      className="w-32 accent-[#4A3728]"
                     />
                     <span className="text-[#2D241E] text-sm">
                       <PriceTag amount={priceRange[1]} locale={locale} variant="card" />
@@ -274,8 +277,8 @@ export function Collection() {
                         className="px-4 py-1.5 rounded-full text-xs border transition-colors"
                         style={{
                           fontFamily: "'DM Sans', sans-serif",
-                          borderColor: activeAvailability === opt ? "#2D241E" : "rgba(45,36,30,0.2)",
-                          backgroundColor: activeAvailability === opt ? "#2D241E" : "transparent",
+                          borderColor: activeAvailability === opt ? "#4A3728" : "rgba(107,83,68,0.2)",
+                          backgroundColor: activeAvailability === opt ? "#4A3728" : "transparent",
                           color: activeAvailability === opt ? "#F5F2ED" : "#2D241E",
                         }}
                       >
@@ -288,7 +291,7 @@ export function Collection() {
                 <button
                   type="button"
                   onClick={() => setFilterOpen(false)}
-                  className="ml-auto flex items-center gap-2 text-[#2D241E]/50 hover:text-[#2D241E] transition-colors text-xs"
+                  className="ml-auto flex items-center gap-2 text-[#2D241E]/50 hover:text-[#4A3728] transition-colors text-xs"
                   style={{ fontFamily: "'DM Sans', sans-serif" }}
                 >
                   <X size={13} />

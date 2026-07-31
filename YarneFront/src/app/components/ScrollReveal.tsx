@@ -85,7 +85,7 @@ type SectionEyebrowProps = {
 export function SectionEyebrow({ children, className = "" }: SectionEyebrowProps) {
   return (
     <p
-      className={`text-[#2D241E]/40 uppercase tracking-[0.22em] text-[0.65rem] mb-2 ${className}`}
+      className={`text-[#6B5344]/75 uppercase tracking-[0.22em] text-[0.65rem] mb-2 ${className}`}
       style={{ fontFamily: "'DM Sans', sans-serif" }}
     >
       {children}

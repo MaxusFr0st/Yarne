@@ -24,7 +24,7 @@ function TikTokIcon({ size = 18 }: { size?: number }) {
 }
 
 const linkClassName =
-  "text-[#2D241E]/55 hover:text-[#4A0E0E] transition-colors duration-300 text-sm";
+  "text-[#2D241E]/55 hover:text-[#4A3728] transition-colors duration-300 text-sm";
 
 export function Footer() {
   const { t } = useTranslation();
@@ -150,7 +150,7 @@ export function Footer() {
               href={INSTAGRAM_URL}
               target="_blank"
               rel="noopener noreferrer"
-              className="text-[#2D241E]/40 hover:text-[#4A0E0E] transition-colors cursor-pointer"
+              className="text-[#2D241E]/40 hover:text-[#4A3728] transition-colors cursor-pointer"
               aria-label="Instagram"
             >
               <Instagram size={18} strokeWidth={1.5} />
@@ -159,7 +159,7 @@ export function Footer() {
               href={TIKTOK_URL}
               target="_blank"
               rel="noopener noreferrer"
-              className="text-[#2D241E]/40 hover:text-[#4A0E0E] transition-colors cursor-pointer"
+              className="text-[#2D241E]/40 hover:text-[#4A3728] transition-colors cursor-pointer"
               aria-label="TikTok"
             >
               <TikTokIcon size={18} />

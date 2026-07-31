@@ -6,29 +6,38 @@
   --main-header-h: 56px;
   /* Set once at load by stableViewport.ts; fallback for SSR/first paint. */
   --app-vh: 1vh;
-  --background: #ffffff;
-  --foreground: oklch(0.145 0 0);
-  --card: #ffffff;
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: #030213;
-  --primary-foreground: oklch(1 0 0);
-  --secondary: oklch(0.95 0.0058 264.53);
-  --secondary-foreground: #030213;
-  --muted: #ececf0;
-  --muted-foreground: #717182;
-  --accent: #e9ebef;
-  --accent-foreground: #030213;
+
+  /* Yarné brand — brown / beige */
+  --yarne-cream: #F5F2ED;
+  --yarne-sand: #E8E0D4;
+  --yarne-clay: #C4A484;
+  --yarne-mocha: #6B5344;
+  --yarne-ink: #2D241E;
+  --yarne-cta: #4A3728;
+
+  --background: #F5F2ED;
+  --foreground: #2D241E;
+  --card: #F5F2ED;
+  --card-foreground: #2D241E;
+  --popover: #F5F2ED;
+  --popover-foreground: #2D241E;
+  --primary: #4A3728;
+  --primary-foreground: #F5F2ED;
+  --secondary: #E8E0D4;
+  --secondary-foreground: #2D241E;
+  --muted: #E8E0D4;
+  --muted-foreground: #6B5344;
+  --accent: #E8E0D4;
+  --accent-foreground: #2D241E;
   --destructive: #d4183d;
   --destructive-foreground: #ffffff;
-  --border: rgba(0, 0, 0, 0.1);
+  --border: rgba(45, 36, 30, 0.12);
   --input: transparent;
-  --input-background: #f3f3f5;
-  --switch-background: #cbced4;
+  --input-background: #E8E0D4;
+  --switch-background: #C4A484;
   --font-weight-medium: 500;
   --font-weight-normal: 400;
-  --ring: oklch(0.708 0 0);
+  --ring: #6B5344;
   --chart-1: oklch(0.646 0.222 41.116);
   --chart-2: oklch(0.6 0.118 184.704);
   --chart-3: oklch(0.398 0.07 227.392);
@@ -145,7 +154,8 @@
 
   html {
     font-size: var(--font-size);
-    overflow-x: hidden;
+    /* clip keeps sticky home stages working (hidden makes body a scrollport) */
+    overflow-x: clip;
     scroll-behavior: auto;
   }
 
@@ -160,7 +170,9 @@
   }
 
   body {
-    overflow-x: hidden;
+    overflow-x: clip;
+    background-color: var(--yarne-cream);
+    color: var(--yarne-ink);
   }
 
   h1 {

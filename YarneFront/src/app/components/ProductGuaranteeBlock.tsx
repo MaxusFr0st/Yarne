@@ -45,7 +45,7 @@ export function ProductGuaranteeBlock({
         <ShieldCheck
           size={20}
           strokeWidth={1.5}
-          className="shrink-0 text-[#2D241E]/70 mt-0.5"
+          className="shrink-0 text-[#6B5344] mt-0.5"
           aria-hidden
         />
       ) : null}
@@ -71,7 +71,7 @@ export function ProductGuaranteeBlock({
       <div
         ref={ref}
         className={`rounded-[20px] p-5 ${className}`}
-        style={{ backgroundColor: "#EDE9E2" }}
+        style={{ backgroundColor: "#E8E0D4" }}
       >
         {card}
       </div>
@@ -84,7 +84,7 @@ export function ProductGuaranteeBlock({
     <motion.div
       ref={ref}
       className={`rounded-[20px] p-5 ${className}`}
-      style={{ backgroundColor: "#EDE9E2" }}
+      style={{ backgroundColor: "#E8E0D4" }}
       initial={{ opacity: 0, y: shiftY }}
       animate={inView ? { opacity: 1, y: 0 } : { opacity: 0, y: shiftY }}
       transition={{ duration: touch ? 0.65 : 0.3, ease: EASE_OUT }}

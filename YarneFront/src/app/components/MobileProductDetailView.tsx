@@ -180,8 +180,8 @@ export function MobileProductDetailView({
           <Heart
             size={17}
             strokeWidth={1.5}
-            fill={isWishlisted ? "#4A0E0E" : "none"}
-            stroke={isWishlisted ? "#4A0E0E" : "#2D241E"}
+            fill={isWishlisted ? "#4A3728" : "none"}
+            stroke={isWishlisted ? "#4A3728" : "#2D241E"}
           />
         </button>
 
@@ -208,10 +208,11 @@ export function MobileProductDetailView({
 
       {/* Info sheet */}
       <div
-        className="relative z-10 -mt-[clamp(12px,3vw,16px)] rounded-t-[clamp(20px,5vw,28px)] px-[clamp(14px,3.6vw,22px)] pt-[clamp(14px,3.5vw,18px)] pb-[clamp(14px,3.5vw,20px)]"
+        className="relative z-10 -mt-[clamp(12px,3vw,16px)] rounded-t-[clamp(20px,5vw,28px)] px-[clamp(14px,3.6vw,22px)] pt-[clamp(14px,3.5vw,18px)]"
         style={{
           backgroundColor: "#FAF8F5",
           boxShadow: "0 -8px 32px rgba(45,36,30,0.1)",
+          paddingBottom: "calc(clamp(14px,3.5vw,20px) + 96px)",
         }}
       >
         <div className="flex flex-col gap-[clamp(6px,1.4vh,9px)]">
@@ -292,7 +293,7 @@ export function MobileProductDetailView({
                       lineHeight: 1.5,
                     }}
                   >
-                    <span className="mt-[0.45em] w-1 h-1 rounded-full bg-[#4A0E0E] shrink-0" />
+                    <span className="mt-[0.45em] w-1 h-1 rounded-full bg-[#4A3728] shrink-0" />
                     {t("product.madeBy", { name: product.producerName })}
                   </li>
                 ) : null}
@@ -306,7 +307,7 @@ export function MobileProductDetailView({
                       lineHeight: 1.5,
                     }}
                   >
-                    <span className="mt-[0.45em] w-1 h-1 rounded-full bg-[#4A0E0E] shrink-0" />
+                    <span className="mt-[0.45em] w-1 h-1 rounded-full bg-[#4A3728] shrink-0" />
                     {detail}
                   </li>
                 ))}
@@ -538,7 +539,7 @@ export function MobileProductDetailView({
                 </p>
                 {activeSize && (
                   <p
-                    className={displayStock <= 0 ? "text-[#4A0E0E]/75" : "text-[#2D241E]/50"}
+                    className={displayStock <= 0 ? "text-[#4A3728]/75" : "text-[#2D241E]/50"}
                     style={{
                       fontFamily: "'DM Sans', sans-serif",
                       fontSize: "clamp(0.68rem, 2.45vw, 0.78rem)",
@@ -620,7 +621,7 @@ export function MobileProductDetailView({
               <AnimatePresence>
                 {sizeError && (
                   <motion.p
-                    className="text-[#4A0E0E] mt-1"
+                    className="text-[#4A3728] mt-1"
                     style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "clamp(0.62rem, 2.3vw, 0.72rem)" }}
                     initial={{ opacity: 0, y: -4 }}
                     animate={{ opacity: 1, y: 0 }}
@@ -633,13 +634,31 @@ export function MobileProductDetailView({
             </div>
           )}
 
-          <motion.button
-            type="button"
-            onClick={onAddToBag}
-            disabled={outOfStock}
-            className="shrink-0 mt-[clamp(8px,1.8vh,12px)] w-full h-12 flex items-center justify-center gap-2 rounded-full text-white touch-manipulation disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2D241E]/35"
+          <ProductGuaranteeBlock
+            content={guaranteeContent}
+            locale={locale}
+            className="mt-[clamp(6px,1.4vh,9px)]"
+          />
+        </div>
+      </div>
+
+      {/* Sticky bottom Add to bag bar */}
+      <div
+        className="fixed bottom-0 left-0 right-0 z-30 px-[clamp(14px,3.6vw,22px)] pt-3"
+        style={{
+          backgroundColor: "rgba(250,248,245,0.97)",
+          backdropFilter: "blur(14px)",
+          borderTop: "1px solid rgba(45,36,30,0.08)",
+          paddingBottom: "max(env(safe-area-inset-bottom, 0px), 12px)",
+        }}
+      >
+        <motion.button
+          type="button"
+          onClick={onAddToBag}
+          disabled={outOfStock}
+          className="shrink-0 w-full h-12 flex items-center justify-center gap-2 rounded-full text-white touch-manipulation disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2D241E]/35"
           style={{
-            backgroundColor: outOfStock ? "#9A9088" : addedToBag ? "#2D5928" : "#2D241E",
+            backgroundColor: outOfStock ? "#9A9088" : addedToBag ? "#2D5928" : "#4A3728",
             fontFamily: "'DM Sans', sans-serif",
             fontSize: "clamp(0.7rem, 2.6vw, 0.8rem)",
             letterSpacing: "0.12em",
@@ -660,14 +679,13 @@ export function MobileProductDetailView({
               </span>
             </>
           )}
-          </motion.button>
-
-          <ProductGuaranteeBlock
-            content={guaranteeContent}
-            locale={locale}
-            className="mt-[clamp(10px,2vh,14px)]"
-          />
-        </div>
+        </motion.button>
+        <p
+          className="text-center text-[#2D241E]/40 mt-1.5"
+          style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "0.62rem", letterSpacing: "0.02em" }}
+        >
+          {t("product.trust.wash")} · {t("product.trust.repair")} · {t("product.trust.keep")}
+        </p>
       </div>
     </div>
   );

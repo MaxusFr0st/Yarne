@@ -133,7 +133,7 @@ export function Header() {
                   <LangLink
                     key={link.key}
                     to={link.href}
-                    className="text-[#2D241E] text-sm tracking-widest uppercase hover:text-[#4A0E0E] transition-colors duration-300"
+                    className="text-[#2D241E] text-sm tracking-widest uppercase hover:text-[#4A3728] transition-colors duration-300"
                     style={{ fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.12em" }}
                   >
                     {link.label}
@@ -230,7 +230,7 @@ export function Header() {
                 <LangLink
                   key={link.key}
                   to={link.href}
-                  className="text-[#2D241E] text-sm tracking-widest uppercase hover:text-[#4A0E0E] transition-colors duration-300"
+                  className="text-[#2D241E] text-sm tracking-widest uppercase hover:text-[#4A3728] transition-colors duration-300"
                   style={{ fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.12em" }}
                 >
                   {link.label}
@@ -239,7 +239,7 @@ export function Header() {
               {isAdmin && (
                 <LangLink
                   to="/admin"
-                  className="text-[#2D241E] text-sm tracking-widest uppercase hover:text-[#4A0E0E] transition-colors duration-300"
+                  className="text-[#2D241E] text-sm tracking-widest uppercase hover:text-[#4A3728] transition-colors duration-300"
                   style={{ fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.12em" }}
                 >
                   {t("header.admin")}
@@ -248,7 +248,7 @@ export function Header() {
               <LanguageSwitcher className="ml-1" />
               <button
                 onClick={() => setSearchOpen(true)}
-                className="hidden md:flex text-[#2D241E] hover:text-[#4A0E0E] transition-colors duration-300"
+                className="hidden md:flex text-[#2D241E] hover:text-[#4A3728] transition-colors duration-300"
                 aria-label={t("header.search")}
               >
                 <Search size={20} strokeWidth={1.5} />
@@ -256,7 +256,7 @@ export function Header() {
               {isLoggedIn ? (
                 <LangLink
                   to="/account"
-                  className="hidden md:flex text-[#2D241E] hover:text-[#4A0E0E] transition-colors duration-300"
+                  className="hidden md:flex text-[#2D241E] hover:text-[#4A3728] transition-colors duration-300"
                   aria-label={t("header.myAccount")}
                   title={user?.name ? `${t("header.myAccount")} — ${user.name}` : t("header.myAccount")}
                 >
@@ -265,7 +265,7 @@ export function Header() {
               ) : (
                 <button
                   onClick={openLogin}
-                  className="hidden md:flex text-[#2D241E] hover:text-[#4A0E0E] transition-colors duration-300"
+                  className="hidden md:flex text-[#2D241E] hover:text-[#4A3728] transition-colors duration-300"
                   aria-label={t("header.signIn")}
                   title={t("header.signIn")}
                 >
@@ -308,7 +308,7 @@ export function Header() {
                       initial={{ scale: 0 }}
                       animate={{ scale: 1 }}
                       className="absolute top-0.5 right-0.5 min-w-[16px] h-4 px-1 rounded-full text-[10px] flex items-center justify-center text-white"
-                      style={{ backgroundColor: "#4A0E0E", fontFamily: "'DM Sans', sans-serif" }}
+                      style={{ backgroundColor: "#4A3728", fontFamily: "'DM Sans', sans-serif" }}
                     >
                       {cartCount}
                     </motion.span>
@@ -319,7 +319,7 @@ export function Header() {
               {/* Desktop cart */}
               <button
                 onClick={openCart}
-                className="relative hidden md:flex text-[#2D241E] hover:text-[#4A0E0E] transition-colors duration-300 cursor-pointer"
+                className="relative hidden md:flex text-[#2D241E] hover:text-[#4A3728] transition-colors duration-300 cursor-pointer"
                 aria-label={t("header.cart")}
               >
                 <ShoppingBag size={20} strokeWidth={1.5} />
@@ -328,7 +328,7 @@ export function Header() {
                     initial={{ scale: 0 }}
                     animate={{ scale: 1 }}
                     className="absolute -top-2 -right-2 w-4 h-4 rounded-full text-[10px] flex items-center justify-center text-white"
-                    style={{ backgroundColor: "#4A0E0E", fontFamily: "'DM Sans', sans-serif" }}
+                    style={{ backgroundColor: "#4A3728", fontFamily: "'DM Sans', sans-serif" }}
                   >
                     {cartCount}
                   </motion.span>
@@ -383,7 +383,7 @@ export function Header() {
                   >
                     <LangLink
                       to={link.href}
-                      className="text-[#2D241E] uppercase tracking-widest hover:text-[#4A0E0E] transition-colors"
+                      className="text-[#2D241E] uppercase tracking-widest hover:text-[#4A3728] transition-colors"
                       style={{ fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.14em", fontSize: "0.85rem" }}
                     >
                       {link.label}
@@ -398,7 +398,7 @@ export function Header() {
                   >
                     <LangLink
                       to="/account"
-                      className="text-[#4A0E0E] uppercase tracking-widest hover:opacity-80 transition-opacity"
+                      className="text-[#4A3728] uppercase tracking-widest hover:opacity-80 transition-opacity"
                       style={{ fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.14em", fontSize: "0.85rem" }}
                     >
                       {t("header.myAccount")}
@@ -449,7 +449,7 @@ export function Header() {
                   type="text"
                   placeholder={t("header.searchPlaceholder")}
                   autoFocus
-                  className="w-full bg-transparent border-0 border-b-2 border-[#2D241E]/20 focus:border-[#4A0E0E] focus:outline-none pb-4 text-[#2D241E] placeholder-[#2D241E]/30 text-xl transition-colors duration-300"
+                  className="w-full bg-transparent border-0 border-b-2 border-[#2D241E]/20 focus:border-[#4A3728] focus:outline-none pb-4 text-[#2D241E] placeholder-[#2D241E]/30 text-xl transition-colors duration-300"
                   style={{ fontFamily: "'Cormorant Garamond', serif" }}
                 />
                 <Search className="absolute right-0 bottom-4 text-[#2D241E]/40" size={22} />
