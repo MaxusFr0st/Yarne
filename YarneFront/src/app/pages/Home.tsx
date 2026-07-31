@@ -95,7 +95,7 @@ export function Home() {
       <section
         ref={heroRef}
         className="relative flex items-end overflow-hidden min-h-[600px]"
-        style={{ height: "calc(var(--app-vh, 1vh) * 100)" }}
+        style={{ height: "100vh", height: "100dvh" }}
       >
         {animateHero ? (
           <motion.div className="absolute inset-0 overflow-hidden" style={{ y: heroY }}>
