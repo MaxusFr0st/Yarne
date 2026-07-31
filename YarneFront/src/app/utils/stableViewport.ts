@@ -1,9 +1,11 @@
-/** 
- * @deprecated No longer needed - use dvh/svh/lvh CSS units instead.
- * Legacy utility kept for backwards compatibility during transition.
- */
+/** Lock a CSS px unit to the viewport height at load (orientation changes only). */
 export function initStableViewport(): void {
-  // Modern browsers use dvh/svh/lvh units (95% support as of 2026)
-  // This function is kept for backwards compatibility but does nothing
-  console.info("initStableViewport: Using native dvh units, JS tracking deprecated");
+  if (typeof window === "undefined") return;
+
+  const apply = () => {
+    document.documentElement.style.setProperty("--app-vh", `${window.innerHeight * 0.01}px`);
+  };
+
+  apply();
+  window.addEventListener("orientationchange", () => window.setTimeout(apply, 150));
 }
