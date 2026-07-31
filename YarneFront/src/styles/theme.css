@@ -4,9 +4,7 @@
   --font-size: 16px;
   /* Height of the fixed main header. Used for layout offsets and sticky tops. */
   --main-header-h: 56px;
-  /* Height of mobile bottom navigation bar */
-  --bottom-nav-h: 68px;
-  /* Set once at load by stableViewport.ts; fallback for SSR/first paint. */
+  /* Deprecated: Use dvh/svh/lvh units instead (95% browser support in 2026) */
   --app-vh: 1vh;
   --background: #ffffff;
   --foreground: oklch(0.145 0 0);
@@ -128,8 +126,6 @@
 @media (min-width: 768px) {
   :root {
     --main-header-h: 64px;
-    /* Bottom nav hidden on desktop */
-    --bottom-nav-h: 0px;
   }
 }
 
@@ -169,8 +165,9 @@
     overflow-x: hidden;
     /* Prevent pull-to-refresh and overscroll effects that hide browser chrome */
     overscroll-behavior-y: none;
-    /* Use the stable viewport height */
-    min-height: calc(var(--app-vh, 1vh) * 100);
+    /* Use dynamic viewport height with fallback */
+    min-height: 100vh;
+    min-height: 100dvh;
   }
 
   h1 {
