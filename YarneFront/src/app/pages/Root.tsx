@@ -5,6 +5,7 @@ import { Header } from "../components/Header";
 import { CartDrawer } from "../components/CartDrawer";
 import { LoginModal } from "../components/LoginModal";
 import { Footer } from "../components/Footer";
+import { BottomNav } from "../components/BottomNav";
 import { PageTransition } from "../components/PageTransition";
 import { getLocaleFromPath, stripLocaleFromPath } from "../i18n/useLocale";
 import { consumePreservedScroll } from "../i18n/localeNavigation";
@@ -194,12 +195,15 @@ export function Root() {
   }, [currentEntryKey, currentRouteKey, location.key, location.pathname, location.search]);
 
   return (
-    <div className="relative" style={{ backgroundColor: "#F5F2ED", minHeight: "100vh" }}>
+    <div className="relative flex flex-col" style={{ backgroundColor: "#F5F2ED", minHeight: "100vh" }}>
       <Header />
-      <PageTransition>
-        <Outlet />
-      </PageTransition>
-      <Footer />
+      <div style={{ paddingBottom: "var(--bottom-nav-h)" }}>
+        <PageTransition>
+          <Outlet />
+        </PageTransition>
+        <Footer />
+      </div>
+      <BottomNav />
       <CartDrawer />
       <LoginModal />
     </div>
