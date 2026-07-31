@@ -151,6 +151,8 @@
     font-size: var(--font-size);
     overflow-x: hidden;
     scroll-behavior: auto;
+    /* Prevent aggressive browser chrome hiding */
+    overscroll-behavior-y: none;
   }
 
   @keyframes bounce-soft {
@@ -165,6 +167,10 @@
 
   body {
     overflow-x: hidden;
+    /* Prevent pull-to-refresh and overscroll effects that hide browser chrome */
+    overscroll-behavior-y: none;
+    /* Use the stable viewport height */
+    min-height: calc(var(--app-vh, 1vh) * 100);
   }
 
   h1 {
