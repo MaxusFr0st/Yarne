@@ -10,6 +10,7 @@ type Props = {
   initialFocalY?: number;
   onClose: () => void;
   onSaved: (focalX: number, focalY: number) => void;
+  persistToApi?: boolean;
 };
 
 export function FocalPointEditor({
@@ -18,6 +19,7 @@ export function FocalPointEditor({
   initialFocalY = 0.35,
   onClose,
   onSaved,
+  persistToApi = true,
 }: Props) {
   const [focalX, setFocalX] = useState(initialFocalX);
   const [focalY, setFocalY] = useState(initialFocalY);
@@ -67,8 +69,10 @@ export function FocalPointEditor({
     setSaving(true);
     setError(null);
     try {
-      const normalizedUrl = imageSrc.startsWith("http") ? new URL(imageSrc).pathname : imageSrc;
-      await updateFocalPoint(normalizedUrl, focalX, focalY);
+      if (persistToApi) {
+        const normalizedUrl = imageSrc.startsWith("http") ? new URL(imageSrc).pathname : imageSrc;
+        await updateFocalPoint(normalizedUrl, focalX, focalY);
+      }
       onSaved(focalX, focalY);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to save");

@@ -74,7 +74,7 @@ export function BestSellersCarousel() {
   }, []);
 
   return (
-    <section className="relative py-6 sm:py-8 md:py-14 overflow-x-hidden" style={{ backgroundColor: "#EDE9E2" }}>
+    <section className="relative py-6 sm:py-8 md:py-10 overflow-x-hidden" style={{ backgroundColor: "#EDE9E2" }}>
       <div className="max-w-[1400px] mx-auto px-6 md:px-10">
         {/* Sticky section header — pins below the main header while the
             carousel scrolls past, then releases when the section ends. */}
@@ -83,7 +83,7 @@ export function BestSellersCarousel() {
           whileInView={motionDisabled ? undefined : { opacity: 1, y: 0 }}
           viewport={motionDisabled ? undefined : { once: true, margin: touchMobile ? "-24px" : "-80px" }}
           transition={{ duration: touchMobile ? 0.75 : 0.7, ease: easing }}
-          className="md:sticky z-30 mb-3 sm:mb-4 md:mb-10 -mx-6 md:-mx-10 px-6 md:px-10 py-2 md:py-4"
+          className="md:sticky z-30 mb-3 sm:mb-4 md:mb-6 -mx-6 md:-mx-10 px-6 md:px-10 py-2 md:py-4"
           style={{
             top: "var(--main-header-h)",
             backgroundColor: "rgba(237,233,226,0.85)",
@@ -164,7 +164,7 @@ export function BestSellersCarousel() {
               (emblaRef as (el: HTMLDivElement | null) => void)(el);
               (viewportRef as React.MutableRefObject<HTMLDivElement | null>).current = el;
             }}
-            className="bestsellers-carousel relative overflow-x-hidden overflow-y-visible pt-2 pb-3 sm:pt-3 sm:pb-4 md:pt-5 md:pb-6 lg:pt-8 lg:pb-10 px-3 min-[600px]:px-5 md:px-6 lg:px-8"
+            className="bestsellers-carousel relative overflow-x-hidden overflow-y-visible pt-2 pb-3 sm:pt-3 sm:pb-4 md:pt-4 md:pb-4 lg:pt-5 lg:pb-6 px-3 min-[600px]:px-5 md:px-6 lg:px-8"
             initial={motionDisabled ? false : { opacity: 0, y: touchMobile ? 14 : 20 }}
             whileInView={motionDisabled ? undefined : { opacity: 1, y: 0 }}
             viewport={motionDisabled ? undefined : { once: true, margin: touchMobile ? "-24px" : "-60px" }}
@@ -196,7 +196,7 @@ export function BestSellersCarousel() {
 
         {/* Dot Indicators */}
         {scrollSnaps.length > 1 && (
-          <div className="flex items-center justify-center gap-2.5 mt-4 sm:mt-5 md:mt-10">
+          <div className="flex items-center justify-center gap-2.5 mt-4 sm:mt-5 md:mt-6">
             {scrollSnaps.map((_, index) => (
               <button
                 key={index}

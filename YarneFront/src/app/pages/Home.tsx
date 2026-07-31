@@ -100,7 +100,13 @@ export function Home() {
         {animateHero ? (
           <motion.div className="absolute inset-0 overflow-hidden" style={{ y: heroY }}>
             {heroImageSrc ? (
-              <Img src={heroImageSrc} alt="Yarné Hero" className="absolute inset-0 h-[108%] w-full object-cover object-center" priority />
+              <Img
+                src={heroImageSrc}
+                alt="Yarné Hero"
+                className="absolute inset-0 h-[108%] w-full object-cover"
+                style={{ objectPosition: `${(homePageMedia.heroFocalX * 100).toFixed(1)}% ${(homePageMedia.heroFocalY * 100).toFixed(1)}%` }}
+                priority
+              />
             ) : (
               <div className="absolute inset-0" style={{ background: "linear-gradient(145deg, #4a3f38 0%, #8a8078 50%, #d4cfc8 100%)" }} />
             )}
@@ -109,7 +115,13 @@ export function Home() {
         ) : (
           <div className="absolute inset-0 overflow-hidden">
             {heroImageSrc ? (
-              <Img src={heroImageSrc} alt="Yarné Hero" className="absolute inset-0 h-full w-full object-cover object-center" priority />
+              <Img
+                src={heroImageSrc}
+                alt="Yarné Hero"
+                className="absolute inset-0 h-full w-full object-cover"
+                style={{ objectPosition: `${(homePageMedia.heroFocalX * 100).toFixed(1)}% ${(homePageMedia.heroFocalY * 100).toFixed(1)}%` }}
+                priority
+              />
             ) : (
               <div className="absolute inset-0" style={{ background: "linear-gradient(145deg, #4a3f38 0%, #8a8078 50%, #d4cfc8 100%)" }} />
             )}
@@ -240,7 +252,8 @@ export function Home() {
                       <Img
                         src={editorialImageSrc}
                         alt={copy.editorial.eyebrow}
-                        className="h-full w-full object-cover object-center"
+                        className="h-full w-full object-cover"
+                        style={{ objectPosition: `${(homePageMedia.editorialFocalX * 100).toFixed(1)}% ${(homePageMedia.editorialFocalY * 100).toFixed(1)}%` }}
                       />
                     ) : null}
                   </motion.div>
@@ -249,7 +262,8 @@ export function Home() {
                     <Img
                       src={editorialImageSrc}
                       alt={copy.editorial.eyebrow}
-                      className="absolute inset-0 h-full w-full object-cover object-center"
+                      className="absolute inset-0 h-full w-full object-cover"
+                      style={{ objectPosition: `${(homePageMedia.editorialFocalX * 100).toFixed(1)}% ${(homePageMedia.editorialFocalY * 100).toFixed(1)}%` }}
                     />
                   ) : null
                 )}
@@ -296,7 +310,12 @@ export function Home() {
       <section className="relative overflow-hidden h-[min(70vh,640px)] min-h-[380px]">
         <div className="absolute inset-0">
           {lookbookImageSrc ? (
-            <Img src={lookbookImageSrc} alt="Lookbook" className="h-full w-full object-cover" />
+            <Img
+              src={lookbookImageSrc}
+              alt="Lookbook"
+              className="h-full w-full object-cover"
+              style={{ objectPosition: `${(homePageMedia.lookbookFocalX * 100).toFixed(1)}% ${(homePageMedia.lookbookFocalY * 100).toFixed(1)}%` }}
+            />
           ) : (
             <div className="h-full w-full bg-[#2D241E]/25" />
           )}

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import type { Locale } from "../../i18n/config";
 import {
   DEFAULT_GUARANTEE_DESCRIPTION_EN,
   DEFAULT_GUARANTEE_DESCRIPTION_UK,
@@ -7,6 +8,7 @@ import {
   persistProductGuaranteeContent,
   type ProductGuaranteeContent,
 } from "../../utils/productGuaranteeContent";
+import { AdminLanguageSelect } from "./AdminLanguageSelect";
 
 const TITLE_MAX = 120;
 const DESCRIPTION_MAX = 2000;
@@ -25,6 +27,7 @@ export function ProductGuaranteeEditor({
   const [draft, setDraft] = useState<ProductGuaranteeContent>(initialContent);
   const [savedContent, setSavedContent] = useState<ProductGuaranteeContent>(initialContent);
   const [saving, setSaving] = useState(false);
+  const [activeLocale, setActiveLocale] = useState<Locale>("uk");
 
   useEffect(() => {
     setDraft(initialContent);
@@ -72,8 +75,12 @@ export function ProductGuaranteeEditor({
           </p>
         </div>
         <div className="flex items-center gap-3 shrink-0">
+          <label className="text-[#2D241E]/55 text-xs" style={{ fontFamily: "'DM Sans', sans-serif" }}>
+            Language:
+          </label>
+          <AdminLanguageSelect value={activeLocale} onChange={setActiveLocale} />
           {!isDirty && !saving ? (
-            <span className="text-[#2D241E]/45 text-xs" style={{ fontFamily: "'DM Sans', sans-serif" }}>
+            <span className="text-[#2D241E]/45 text-xs ml-2" style={{ fontFamily: "'DM Sans', sans-serif" }}>
               Saved
             </span>
           ) : null}
@@ -94,77 +101,39 @@ export function ProductGuaranteeEditor({
         </div>
       </div>
       <div className="px-6 py-5 space-y-6">
-        <div className="grid sm:grid-cols-2 gap-4">
-          <div>
-            <p
-              className="text-[#2D241E]/45 text-xs uppercase tracking-widest mb-2"
-              style={{ fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.1em" }}
-            >
-              Title (English)
-            </p>
-            <input
-              type="text"
-              maxLength={TITLE_MAX}
-              value={draft.titleEn}
-              onChange={(e) => updateField("titleEn", e.target.value)}
-              placeholder={DEFAULT_GUARANTEE_TITLE_EN}
-              className="w-full rounded-[14px] border bg-transparent px-4 py-2.5 text-[#2D241E] focus:outline-none"
-              style={{ borderColor: "rgba(45,36,30,0.12)", fontFamily: "'DM Sans', sans-serif" }}
-            />
-          </div>
-          <div>
-            <p
-              className="text-[#2D241E]/45 text-xs uppercase tracking-widest mb-2"
-              style={{ fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.1em" }}
-            >
-              Title (Ukrainian)
-            </p>
-            <input
-              type="text"
-              maxLength={TITLE_MAX}
-              value={draft.titleUk}
-              onChange={(e) => updateField("titleUk", e.target.value)}
-              placeholder={DEFAULT_GUARANTEE_TITLE_UK}
-              className="w-full rounded-[14px] border bg-transparent px-4 py-2.5 text-[#2D241E] focus:outline-none"
-              style={{ borderColor: "rgba(45,36,30,0.12)", fontFamily: "'DM Sans', sans-serif" }}
-            />
-          </div>
+        <div>
+          <p
+            className="text-[#2D241E]/45 text-xs uppercase tracking-widest mb-2"
+            style={{ fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.1em" }}
+          >
+            Title
+          </p>
+          <input
+            type="text"
+            maxLength={TITLE_MAX}
+            value={activeLocale === "en" ? draft.titleEn : draft.titleUk}
+            onChange={(e) => updateField(activeLocale === "en" ? "titleEn" : "titleUk", e.target.value)}
+            placeholder={activeLocale === "en" ? DEFAULT_GUARANTEE_TITLE_EN : DEFAULT_GUARANTEE_TITLE_UK}
+            className="w-full rounded-[14px] border bg-transparent px-4 py-2.5 text-[#2D241E] focus:outline-none"
+            style={{ borderColor: "rgba(45,36,30,0.12)", fontFamily: "'DM Sans', sans-serif" }}
+          />
         </div>
-        <div className="grid sm:grid-cols-2 gap-4">
-          <div>
-            <p
-              className="text-[#2D241E]/45 text-xs uppercase tracking-widest mb-2"
-              style={{ fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.1em" }}
-            >
-              Description (English)
-            </p>
-            <textarea
-              maxLength={DESCRIPTION_MAX}
-              rows={4}
-              value={draft.descriptionEn}
-              onChange={(e) => updateField("descriptionEn", e.target.value)}
-              placeholder={DEFAULT_GUARANTEE_DESCRIPTION_EN}
-              className="w-full rounded-[14px] border bg-transparent px-4 py-2.5 text-[#2D241E] focus:outline-none resize-y"
-              style={{ borderColor: "rgba(45,36,30,0.12)", fontFamily: "'DM Sans', sans-serif" }}
-            />
-          </div>
-          <div>
-            <p
-              className="text-[#2D241E]/45 text-xs uppercase tracking-widest mb-2"
-              style={{ fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.1em" }}
-            >
-              Description (Ukrainian)
-            </p>
-            <textarea
-              maxLength={DESCRIPTION_MAX}
-              rows={4}
-              value={draft.descriptionUk}
-              onChange={(e) => updateField("descriptionUk", e.target.value)}
-              placeholder={DEFAULT_GUARANTEE_DESCRIPTION_UK}
-              className="w-full rounded-[14px] border bg-transparent px-4 py-2.5 text-[#2D241E] focus:outline-none resize-y"
-              style={{ borderColor: "rgba(45,36,30,0.12)", fontFamily: "'DM Sans', sans-serif" }}
-            />
-          </div>
+        <div>
+          <p
+            className="text-[#2D241E]/45 text-xs uppercase tracking-widest mb-2"
+            style={{ fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.1em" }}
+          >
+            Description
+          </p>
+          <textarea
+            maxLength={DESCRIPTION_MAX}
+            rows={4}
+            value={activeLocale === "en" ? draft.descriptionEn : draft.descriptionUk}
+            onChange={(e) => updateField(activeLocale === "en" ? "descriptionEn" : "descriptionUk", e.target.value)}
+            placeholder={activeLocale === "en" ? DEFAULT_GUARANTEE_DESCRIPTION_EN : DEFAULT_GUARANTEE_DESCRIPTION_UK}
+            className="w-full rounded-[14px] border bg-transparent px-4 py-2.5 text-[#2D241E] focus:outline-none resize-y"
+            style={{ borderColor: "rgba(45,36,30,0.12)", fontFamily: "'DM Sans', sans-serif" }}
+          />
         </div>
       </div>
     </div>

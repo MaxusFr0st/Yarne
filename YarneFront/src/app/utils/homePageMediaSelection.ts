@@ -5,18 +5,32 @@ export const HOME_PAGE_MEDIA_KEY = "yarne.home.media.v1";
 
 export type HomePageMediaSelection = {
   heroImageUrl: string;
+  heroFocalX: number;
+  heroFocalY: number;
   editorialImageUrl: string;
+  editorialFocalX: number;
+  editorialFocalY: number;
   lookbookImageUrl: string;
+  lookbookFocalX: number;
+  lookbookFocalY: number;
 };
 
 export function normalizeHomePageMediaSelection(value: unknown): HomePageMediaSelection {
   const source = typeof value === "object" && value !== null ? (value as Record<string, unknown>) : {};
   const str = (key: string) =>
     typeof source[key] === "string" ? normalizeStoredMediaUrl(source[key] as string) : "";
+  const focal = (key: string, defaultVal: number) =>
+    typeof source[key] === "number" ? source[key] : defaultVal;
   return {
     heroImageUrl: str("heroImageUrl"),
+    heroFocalX: focal("heroFocalX", 0.5),
+    heroFocalY: focal("heroFocalY", 0.35),
     editorialImageUrl: str("editorialImageUrl"),
+    editorialFocalX: focal("editorialFocalX", 0.5),
+    editorialFocalY: focal("editorialFocalY", 0.35),
     lookbookImageUrl: str("lookbookImageUrl"),
+    lookbookFocalX: focal("lookbookFocalX", 0.5),
+    lookbookFocalY: focal("lookbookFocalY", 0.35),
   };
 }
 

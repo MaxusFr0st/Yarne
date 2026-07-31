@@ -7,6 +7,7 @@ import {
   type HomePageCopy,
   type HomePageCopyLocale,
 } from "../../utils/homePageCopy";
+import { AdminLanguageSelect } from "./AdminLanguageSelect";
 
 type FieldDef = {
   key: string;
@@ -158,24 +159,11 @@ export function AdminHomeCopyEditor({ onError }: Props) {
             Edit every text field on the home page, including Featured Showcase and Featured this season headings.
           </p>
         </div>
-        <div className="flex items-center gap-2">
-          {(["en", "uk"] as const).map((locale) => (
-            <button
-              key={locale}
-              type="button"
-              onClick={() => setActiveLocale(locale)}
-              className="px-4 py-2 rounded-full text-xs uppercase tracking-widest transition-all"
-              style={{
-                fontFamily: "'DM Sans', sans-serif",
-                letterSpacing: "0.1em",
-                backgroundColor: activeLocale === locale ? "#2D241E" : "transparent",
-                color: activeLocale === locale ? "#F5F2ED" : "#2D241E",
-                border: activeLocale === locale ? "1.5px solid #2D241E" : "1.5px solid rgba(45,36,30,0.2)",
-              }}
-            >
-              {locale === "en" ? "English" : "Ukrainian"}
-            </button>
-          ))}
+        <div className="flex items-center gap-3">
+          <label className="text-[#2D241E]/55 text-xs" style={{ fontFamily: "'DM Sans', sans-serif" }}>
+            Language:
+          </label>
+          <AdminLanguageSelect value={activeLocale} onChange={setActiveLocale} />
         </div>
       </div>
 
@@ -230,7 +218,7 @@ export function AdminHomeCopyEditor({ onError }: Props) {
             className="px-5 py-3 rounded-full border text-[#2D241E]/70 hover:text-[#2D241E] transition-colors"
             style={{ borderColor: "rgba(45,36,30,0.2)", fontFamily: "'DM Sans', sans-serif", fontSize: "0.75rem", letterSpacing: "0.1em" }}
           >
-            <span className="uppercase tracking-widest">Reset {activeLocale === "en" ? "English" : "Ukrainian"} to defaults</span>
+            <span className="uppercase tracking-widest">Reset to defaults</span>
           </button>
           {isDirty && (
             <span className="text-xs text-[#9B6B2E]" style={{ fontFamily: "'DM Sans', sans-serif" }}>

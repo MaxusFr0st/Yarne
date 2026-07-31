@@ -1,7 +1,7 @@
 {
-  "name": "Yarné Store",
+  "name": "Yarné – The Knit Gallery",
   "short_name": "Yarné",
-  "description": "Yarné storefront and order management.",
+  "description": "Варто купити. Зроблено, щоб лишатися. Кожна сумка YARNÉ починається з уважного відбору пряжі та завершується виробом, у якому кожна деталь має своє значення.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
