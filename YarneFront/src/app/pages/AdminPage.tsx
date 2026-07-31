@@ -2030,6 +2030,24 @@ function ProductModal({
           }}
         />
       )}
+
+      {homeFocalEditor && (
+        <FocalPointEditor
+          imageSrc={homeFocalEditor.imageSrc}
+          initialFocalX={homeFocalEditor.focalX}
+          initialFocalY={homeFocalEditor.focalY}
+          persistToApi={false}
+          onClose={() => setHomeFocalEditor(null)}
+          onSaved={(fx, fy) => {
+            const field = homeFocalEditor.field;
+            updateHomePageMedia({
+              [`${field}FocalX`]: fx,
+              [`${field}FocalY`]: fy,
+            });
+            setHomeFocalEditor(null);
+          }}
+        />
+      )}
     </div>
   );
 }
@@ -2183,6 +2201,7 @@ function ColorModal({
   const [name, setName] = useState(editing?.name ?? "");
   const [nameUk, setNameUk] = useState(editing?.nameUk ?? "");
   const [hexCode, setHexCode] = useState(editing?.hexCode ?? "#2D241E");
+  const [activeLocale, setActiveLocale] = useState<Locale>("uk");
   useEffect(() => {
     setName(editing?.name ?? "");
     setNameUk(editing?.nameUk ?? "");
@@ -2220,12 +2239,27 @@ function ColorModal({
       }
     >
       <div>
-        <label className="block text-xs mb-2 tracking-widest uppercase" style={fieldLabelStyle}>English name</label>
-        <input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Black" className={fieldInput} style={fieldInputStyle} />
+        <label className="block text-xs mb-2 tracking-widest uppercase" style={fieldLabelStyle}>Language</label>
+        <select
+          value={activeLocale}
+          onChange={(e) => setActiveLocale(e.target.value as Locale)}
+          className="w-full rounded-[14px] border bg-transparent px-4 py-3 text-[#2D241E] focus:outline-none cursor-pointer"
+          style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "0.9rem", borderColor: "rgba(45,36,30,0.15)" }}
+        >
+          <option value="uk">Українська</option>
+          <option value="en">English</option>
+        </select>
       </div>
       <div>
-        <label className="block text-xs mb-2 tracking-widest uppercase" style={fieldLabelStyle}>Ukrainian name</label>
-        <input type="text" value={nameUk} onChange={(e) => setNameUk(e.target.value)} placeholder="напр. Чорний" className={fieldInput} style={fieldInputStyle} />
+        <label className="block text-xs mb-2 tracking-widest uppercase" style={fieldLabelStyle}>Name</label>
+        <input
+          type="text"
+          value={activeLocale === "en" ? name : nameUk}
+          onChange={(e) => activeLocale === "en" ? setName(e.target.value) : setNameUk(e.target.value)}
+          placeholder={activeLocale === "en" ? "e.g. Black" : "напр. Чорний"}
+          className={fieldInput}
+          style={fieldInputStyle}
+        />
       </div>
       <div>
         <label className="block text-xs mb-2 tracking-widest uppercase" style={fieldLabelStyle}>Color</label>
@@ -2279,6 +2313,7 @@ function SizeModal({
 }) {
   const [name, setName] = useState(editing?.name ?? "");
   const [nameUk, setNameUk] = useState(editing?.nameUk ?? "");
+  const [activeLocale, setActiveLocale] = useState<Locale>("uk");
   useEffect(() => {
     setName(editing?.name ?? "");
     setNameUk(editing?.nameUk ?? "");
@@ -2312,12 +2347,27 @@ function SizeModal({
       }
     >
       <div>
-        <label className="block text-xs mb-2 tracking-widest uppercase" style={fieldLabelStyle}>English name</label>
-        <input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. M" className={fieldInput} style={fieldInputStyle} />
+        <label className="block text-xs mb-2 tracking-widest uppercase" style={fieldLabelStyle}>Language</label>
+        <select
+          value={activeLocale}
+          onChange={(e) => setActiveLocale(e.target.value as Locale)}
+          className="w-full rounded-[14px] border bg-transparent px-4 py-3 text-[#2D241E] focus:outline-none cursor-pointer"
+          style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "0.9rem", borderColor: "rgba(45,36,30,0.15)" }}
+        >
+          <option value="uk">Українська</option>
+          <option value="en">English</option>
+        </select>
       </div>
       <div>
-        <label className="block text-xs mb-2 tracking-widest uppercase" style={fieldLabelStyle}>Ukrainian name</label>
-        <input type="text" value={nameUk} onChange={(e) => setNameUk(e.target.value)} placeholder="напр. М" className={fieldInput} style={fieldInputStyle} />
+        <label className="block text-xs mb-2 tracking-widest uppercase" style={fieldLabelStyle}>Name</label>
+        <input
+          type="text"
+          value={activeLocale === "en" ? name : nameUk}
+          onChange={(e) => activeLocale === "en" ? setName(e.target.value) : setNameUk(e.target.value)}
+          placeholder={activeLocale === "en" ? "e.g. M" : "напр. М"}
+          className={fieldInput}
+          style={fieldInputStyle}
+        />
       </div>
     </AdminModalShell>
   );
@@ -2665,6 +2715,12 @@ export function AdminPage() {
   const [productSaveError, setProductSaveError] = useState<string | null>(null);
   const [homeMediaUploading, setHomeMediaUploading] = useState<Record<string, boolean>>({});
   const [homeMediaUploadError, setHomeMediaUploadError] = useState<string | null>(null);
+  const [homeFocalEditor, setHomeFocalEditor] = useState<{
+    field: "hero" | "editorial" | "lookbook";
+    imageSrc: string;
+    focalX: number;
+    focalY: number;
+  } | null>(null);
   const [contentsCropMeta, setContentsCropMeta] = useState<Record<string, ImageCropMeta>>(() =>
     loadImageCropMeta(CONTENTS_CROP_META_ID),
   );
@@ -2971,7 +3027,12 @@ export function AdminPage() {
       if (oldUrl.trim()) {
         updateContentsCropMeta((prev) => removeImageCropMeta(prev, oldUrl));
       }
-      updateHomePageMedia({ [field]: normalizedDisplayUrl });
+      const focalField = field.replace("ImageUrl", "") as "hero" | "editorial" | "lookbook";
+      updateHomePageMedia({
+        [field]: normalizedDisplayUrl,
+        [`${focalField}FocalX`]: 0.5,
+        [`${focalField}FocalY`]: 0.35,
+      });
     } catch (err) {
       setHomeMediaUploadError(
         err instanceof Error ? err.message : `Failed to upload ${label.toLowerCase()}.`,
@@ -3000,7 +3061,12 @@ export function AdminPage() {
       updateContentsCropMeta((prev) =>
         setImageCropMeta(prev, normalizedDisplayUrl, buildCropMetaEntry(sourceUrl, settings)),
       );
-      updateHomePageMedia({ [field]: normalizedDisplayUrl });
+      const focalField = field.replace("ImageUrl", "") as "hero" | "editorial" | "lookbook";
+      updateHomePageMedia({
+        [field]: normalizedDisplayUrl,
+        [`${focalField}FocalX`]: 0.5,
+        [`${focalField}FocalY`]: 0.35,
+      });
     } catch (err) {
       if (err instanceof CropCancelledError) return;
       setHomeMediaUploadError(
@@ -3942,6 +4008,25 @@ export function AdminPage() {
                               >
                                 <Crop size={12} />
                                 {contentsCrop.cropFetching ? "Loading…" : "Re-crop"}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const focalField = field.replace("ImageUrl", "") as "hero" | "editorial" | "lookbook";
+                                  const focalXKey = `${focalField}FocalX` as keyof HomePageMediaSelection;
+                                  const focalYKey = `${focalField}FocalY` as keyof HomePageMediaSelection;
+                                  setHomeFocalEditor({
+                                    field: focalField,
+                                    imageSrc: homePageMedia[field],
+                                    focalX: homePageMedia[focalXKey] as number,
+                                    focalY: homePageMedia[focalYKey] as number,
+                                  });
+                                }}
+                                className="mt-2 w-full flex items-center justify-center gap-1.5 text-xs uppercase tracking-widest text-[#2D241E]/70 hover:opacity-80"
+                                style={{ fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.1em" }}
+                              >
+                                <Crosshair size={12} />
+                                Set focal point
                               </button>
                               <button
                                 type="button"
