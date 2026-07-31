@@ -166,6 +166,9 @@ function ProductCardInner({
           className={`relative ${aspectClass} overflow-hidden ${imageRadiusClass} bg-[#EDE9E2] ${previewMode ? "" : "cursor-pointer"}`}
         >
           <div className={`absolute inset-0 overflow-hidden ${imageRadiusClass}`}>
+            {/* Verified: Focal points from color.image.focalX/focalY are correctly passed to ImageWithFallback
+                and applied as CSS objectPosition. In carousel context (BestSellersCarousel), previewMode is
+                not set, so focal points are always used. */}
             {product.colors.map((color, i) => (
               <ImageWithFallback
                 key={color.name}
