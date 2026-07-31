@@ -4,6 +4,8 @@
   --font-size: 16px;
   /* Height of the fixed main header. Used for layout offsets and sticky tops. */
   --main-header-h: 56px;
+  /* Height of mobile bottom navigation bar */
+  --bottom-nav-h: 68px;
   /* Set once at load by stableViewport.ts; fallback for SSR/first paint. */
   --app-vh: 1vh;
   --background: #ffffff;
@@ -126,6 +128,8 @@
 @media (min-width: 768px) {
   :root {
     --main-header-h: 64px;
+    /* Bottom nav hidden on desktop */
+    --bottom-nav-h: 0px;
   }
 }
 
