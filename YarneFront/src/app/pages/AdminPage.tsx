@@ -5381,61 +5381,6 @@ export function AdminPage() {
             />
           )}
 
-          {/* ── COUNTRIES ── */}
-          {activeTab === "countries" && (
-            <motion.div
-              key="countries"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
-              transition={{ duration: 0.4, ease: easing }}
-            >
-              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-8">
-                <p className="text-[#2D241E]/50 text-sm" style={{ fontFamily: "'DM Sans', sans-serif" }}>{countries.length} countries</p>
-                <button
-                  type="button"
-                  onClick={() => setCountryModal({ open: true, editing: null })}
-                  className={ADMIN_ADD_BTN}
-                  style={{ backgroundColor: "#2D241E", fontFamily: "'DM Sans', sans-serif", fontSize: "0.78rem", letterSpacing: "0.12em" }}
-                >
-                  <Plus size={15} />
-                  <span className="uppercase tracking-widest">Add Country</span>
-                </button>
-              </div>
-              <div className="rounded-[28px] overflow-hidden" style={{ border: "1px solid rgba(45,36,30,0.08)" }}>
-                <div
-                  className="grid px-6 py-4 text-xs tracking-widest uppercase"
-                  style={{
-                    gridTemplateColumns: "1fr 100px",
-                    fontFamily: "'DM Sans', sans-serif",
-                    letterSpacing: "0.12em",
-                    color: "rgba(45,36,30,0.4)",
-                    backgroundColor: "rgba(45,36,30,0.03)",
-                    borderBottom: "1px solid rgba(45,36,30,0.06)",
-                  }}
-                >
-                  <span>Country</span>
-                  <span className="text-right">Actions</span>
-                </div>
-                <div className="divide-y" style={{ borderColor: "rgba(45,36,30,0.06)" }}>
-                  {countries.length === 0 ? (
-                    <p className="py-12 text-center text-[#2D241E]/40 px-6" style={{ fontFamily: "'DM Sans', sans-serif" }}>No countries yet</p>
-                  ) : (
-                    countries.map((c) => (
-                      <div key={c.id} className={ADMIN_ROW} style={{ gridTemplateColumns: "1fr 100px" }}>
-                        <p className="text-[#2D241E]" style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "1.15rem" }}>{c.name}</p>
-                        <div className="flex items-center justify-end gap-2">
-                          <button type="button" onClick={() => setCountryModal({ open: true, editing: c })} className={ADMIN_ICON_EDIT} title="Edit" aria-label={`Edit ${c.name}`}><Pencil size={13} style={{ color: "#2D241E", opacity: 0.5 }} /></button>
-                          <button type="button" onClick={() => setDeleteModal({ open: true, type: "country", id: String(c.id), idNum: c.id, name: c.name })} className={ADMIN_ICON_DELETE} title="Delete" aria-label={`Delete ${c.name}`}><Trash2 size={13} style={{ color: "#4A0E0E", opacity: 0.6 }} /></button>
-                        </div>
-                      </div>
-                    ))
-                  )}
-                </div>
-              </div>
-            </motion.div>
-          )}
-
           {/* ── COLORS ── */}
           {activeTab === "colors" && (
             <motion.div
@@ -5811,9 +5756,6 @@ export function AdminPage() {
         {categoryModal.open && (
           <CategoryModal editing={categoryModal.editing} onClose={() => setCategoryModal({ open: false, editing: null })} onSave={handleSaveCategory} />
         )}
-        {countryModal.open && (
-          <CountryModal editing={countryModal.editing} onClose={() => setCountryModal({ open: false, editing: null })} onSave={handleSaveCountry} />
-        )}
         {colorModal.open && (
           <ColorModal
             editing={colorModal.editing}
@@ -5846,7 +5788,6 @@ export function AdminPage() {
               if (deleteModal.type === "product") handleDeleteProduct();
               else if (deleteModal.type === "user") handleDeleteUser();
               else if (deleteModal.type === "category") handleDeleteCategory();
-              else if (deleteModal.type === "country") handleDeleteCountry();
               else if (deleteModal.type === "color") handleDeleteColor();
               else if (deleteModal.type === "furniture") handleDeleteFurnitureColor();
               else if (deleteModal.type === "size") handleDeleteSize();
