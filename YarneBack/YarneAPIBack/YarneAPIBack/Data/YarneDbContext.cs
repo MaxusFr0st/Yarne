@@ -22,8 +22,6 @@ public partial class YarneDbContext : DbContext
 
     public virtual DbSet<Collection> Collections { get; set; }
 
-    public virtual DbSet<Country> Countries { get; set; }
-
     public virtual DbSet<Customer> Customers { get; set; }
 
     public virtual DbSet<CustomerAddress> CustomerAddresses { get; set; }
@@ -235,17 +233,6 @@ public partial class YarneDbContext : DbContext
             entity.Property(e => e.Name).HasMaxLength(100);
         });
 
-        modelBuilder.Entity<Country>(entity =>
-        {
-            entity.HasKey(e => e.Id).HasName("PK__Country__3214EC07F74E3672");
-
-            entity.ToTable("Country");
-
-            entity.HasIndex(e => e.Name, "UQ__Country__737584F6ED59CDE9").IsUnique();
-
-            entity.Property(e => e.Name).HasMaxLength(100);
-        });
-
         modelBuilder.Entity<Customer>(entity =>
         {
             entity.HasKey(e => e.Id).HasName("PK__Customer__3214EC07CEFA67EE");
@@ -279,11 +266,6 @@ public partial class YarneDbContext : DbContext
             entity.Property(e => e.AddressLine2).HasMaxLength(255);
             entity.Property(e => e.City).HasMaxLength(100);
             entity.Property(e => e.PostalCode).HasMaxLength(20);
-
-            entity.HasOne(d => d.Country).WithMany(p => p.CustomerAddresses)
-                .HasForeignKey(d => d.CountryId)
-                .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("FK__CustomerA__Count__48CFD27E");
 
             entity.HasOne(d => d.Customer).WithMany(p => p.CustomerAddresses)
                 .HasForeignKey(d => d.CustomerId)
@@ -349,10 +331,6 @@ public partial class YarneDbContext : DbContext
             entity.Property(e => e.ColorName).HasMaxLength(100);
             entity.Property(e => e.FurnitureColorName).HasMaxLength(100);
             entity.Property(e => e.SizeName).HasMaxLength(20);
-
-            entity.HasOne(d => d.Country).WithMany(p => p.OrderItems)
-                .HasForeignKey(d => d.CountryId)
-                .HasConstraintName("FK__OrderItem__Count__6D0D32F4");
 
             entity.HasOne(d => d.Order).WithMany(p => p.OrderItems)
                 .HasForeignKey(d => d.OrderId)
@@ -433,21 +411,6 @@ public partial class YarneDbContext : DbContext
                 .WithMany(c => c.ProductsAsDefaultFurnitureColor)
                 .HasForeignKey(d => d.DefaultFurnitureColorId)
                 .OnDelete(DeleteBehavior.SetNull);
-
-            entity.HasMany(d => d.Countries).WithMany(p => p.Products)
-                .UsingEntity<Dictionary<string, object>>(
-                    "ProductCountry",
-                    r => r.HasOne<Country>().WithMany()
-                        .HasForeignKey("CountryId")
-                        .HasConstraintName("FK__ProductCo__Count__5CD6CB2B"),
-                    l => l.HasOne<Product>().WithMany()
-                        .HasForeignKey("ProductId")
-                        .HasConstraintName("FK__ProductCo__Produ__5BE2A6F2"),
-                    j =>
-                    {
-                        j.HasKey("ProductId", "CountryId").HasName("PK__ProductC__5501D0C4A2BD1DC7");
-                        j.ToTable("ProductCountry");
-                    });
         });
 
         modelBuilder.Entity<Size>(entity =>

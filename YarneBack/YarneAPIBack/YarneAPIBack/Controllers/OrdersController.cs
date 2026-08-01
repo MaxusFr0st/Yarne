@@ -239,23 +239,6 @@ public class OrdersController : ControllerBase
             .GroupBy(p => p.ProductCode, StringComparer.OrdinalIgnoreCase)
             .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
 
-        var requestedCountryIds = request.Items
-            .Where(i => i.CountryId.HasValue)
-            .Select(i => i.CountryId!.Value)
-            .Distinct()
-            .ToList();
-
-        var existingCountryIds = requestedCountryIds.Count == 0
-            ? new HashSet<int>()
-            : (await _context.Countries
-                .Where(c => requestedCountryIds.Contains(c.Id))
-                .Select(c => c.Id)
-                .ToListAsync(ct))
-                .ToHashSet();
-
-        if (existingCountryIds.Count != requestedCountryIds.Count)
-            return BadRequest(new { message = "One or more countries in order items were not found." });
-
         var orderItems = new List<OrderItem>();
         var quantityByProductId = new Dictionary<int, int>();
         var now = DateTime.UtcNow;
@@ -279,7 +262,6 @@ public class OrdersController : ControllerBase
 
             var orderItem = new OrderItem
             {
-                CountryId = item.CountryId,
                 Quantity = item.Quantity,
                 UnitPrice = product.Price,
                 ListedPriceCents = checked((long)decimal.Round(product.Price * 100m, 0, MidpointRounding.AwayFromZero)),
@@ -650,8 +632,6 @@ public class OrdersController : ControllerBase
             .Include(o => o.Customer)
             .Include(o => o.PaymentMethod)
             .Include(o => o.OrderItems)
-                .ThenInclude(oi => oi.Country)
-            .Include(o => o.OrderItems)
                 .ThenInclude(oi => oi.Product)
                     .ThenInclude(p => p!.ProductImages)
             .Include(o => o.OrderItems)
@@ -671,8 +651,6 @@ public class OrdersController : ControllerBase
             .AsSplitQuery()
             .Include(o => o.Customer)
             .Include(o => o.PaymentMethod)
-            .Include(o => o.OrderItems)
-                .ThenInclude(oi => oi.Country)
             .Include(o => o.OrderItems)
                 .ThenInclude(oi => oi.Product)
                     .ThenInclude(p => p!.ProductImages)
@@ -736,8 +714,6 @@ public class OrdersController : ControllerBase
                     Quantity = i.Quantity,
                     UnitPrice = i.UnitPrice,
                     LineTotal = i.UnitPrice * i.Quantity,
-                    CountryId = i.CountryId,
-                    CountryName = i.Country?.Name,
                 })
                 .ToList(),
         };

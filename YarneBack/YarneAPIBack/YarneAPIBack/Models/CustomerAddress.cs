@@ -9,8 +9,6 @@ public partial class CustomerAddress
 
     public int CustomerId { get; set; }
 
-    public int CountryId { get; set; }
-
     public string AddressLine1 { get; set; } = null!;
 
     public string? AddressLine2 { get; set; }
@@ -20,8 +18,6 @@ public partial class CustomerAddress
     public string? PostalCode { get; set; }
 
     public bool IsDefault { get; set; }
-
-    public virtual Country Country { get; set; } = null!;
 
     public virtual Customer Customer { get; set; } = null!;
 
