@@ -2030,24 +2030,6 @@ function ProductModal({
           }}
         />
       )}
-
-      {homeFocalEditor && (
-        <FocalPointEditor
-          imageSrc={homeFocalEditor.imageSrc}
-          initialFocalX={homeFocalEditor.focalX}
-          initialFocalY={homeFocalEditor.focalY}
-          persistToApi={false}
-          onClose={() => setHomeFocalEditor(null)}
-          onSaved={(fx, fy) => {
-            const field = homeFocalEditor.field;
-            updateHomePageMedia({
-              [`${field}FocalX`]: fx,
-              [`${field}FocalY`]: fy,
-            });
-            setHomeFocalEditor(null);
-          }}
-        />
-      )}
     </div>
   );
 }
@@ -5917,6 +5899,23 @@ export function AdminPage() {
         )}
       </AnimatePresence>
       {contentsCrop.cropDialogNode}
+      {homeFocalEditor && (
+        <FocalPointEditor
+          imageSrc={homeFocalEditor.imageSrc}
+          initialFocalX={homeFocalEditor.focalX}
+          initialFocalY={homeFocalEditor.focalY}
+          persistToApi={false}
+          onClose={() => setHomeFocalEditor(null)}
+          onSaved={(fx, fy) => {
+            const field = homeFocalEditor.field;
+            updateHomePageMedia({
+              [`${field}FocalX`]: fx,
+              [`${field}FocalY`]: fy,
+            });
+            setHomeFocalEditor(null);
+          }}
+        />
+      )}
     </main>
   );
 }
