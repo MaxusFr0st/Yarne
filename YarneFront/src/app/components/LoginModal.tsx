@@ -222,7 +222,7 @@ export function LoginModal() {
               role="dialog"
               aria-modal="true"
               aria-labelledby={titleId}
-              className="w-full max-w-md relative pointer-events-auto"
+              className="w-full max-w-md relative pointer-events-auto md:h-[80dvh] md:flex md:flex-col"
               style={{
                 backgroundColor: "#F5F2ED",
                 borderRadius: "clamp(28px, 6vw, 40px)",
@@ -244,7 +244,8 @@ export function LoginModal() {
                 <X size={16} />
               </button>
 
-              <div className="text-center mb-7">
+              <div className="md:flex-1 md:min-h-0 md:overflow-y-auto md:flex md:flex-col md:justify-center">
+                <div className="text-center mb-7">
                 <img src="/logo.png" alt="" className="mx-auto mb-3 h-14 w-14 object-contain" />
                 <p
                   className="text-[#2D241E] mb-2"
@@ -533,6 +534,7 @@ export function LoginModal() {
               >
                 {t("auth.agreePrefix")} {t("auth.terms")} {t("auth.and")} {t("auth.privacyPolicy")}.
               </p>
+              </div>
             </motion.div>
           </div>
         </>

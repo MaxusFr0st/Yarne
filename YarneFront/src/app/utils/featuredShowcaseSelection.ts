@@ -8,6 +8,8 @@ export type ShowcaseProductSlot = {
   productCode: string;
   eyebrow: string;
   ctaLabel: string;
+  focalX: number;
+  focalY: number;
 };
 
 export type ShowcaseTextLocaleCopy = { eyebrow: string; heading: string; ctaLabel: string };
@@ -36,6 +38,8 @@ const EMPTY_SLOT_1: ShowcaseProductSlot = {
   productCode: "",
   eyebrow: "",
   ctaLabel: "",
+  focalX: 0.5,
+  focalY: 0.35,
 };
 
 const EMPTY_SLOT_2: ShowcaseProductSlot = {
@@ -43,6 +47,8 @@ const EMPTY_SLOT_2: ShowcaseProductSlot = {
   productCode: "",
   eyebrow: "",
   ctaLabel: "",
+  focalX: 0.5,
+  focalY: 0.35,
 };
 
 /** Story-card destination is always the in-app history page. */
@@ -96,6 +102,8 @@ const EMPTY_SLOT_4: ShowcaseProductSlot = {
   productCode: "",
   eyebrow: "",
   ctaLabel: "",
+  focalX: 0.5,
+  focalY: 0.35,
 };
 
 function normalizeString(value: unknown, fallback = ""): string {
@@ -109,6 +117,8 @@ function normalizeProductSlot(value: unknown, fallback: ShowcaseProductSlot): Sh
     productCode: normalizeString(source.productCode, fallback.productCode),
     eyebrow: normalizeString(source.eyebrow, fallback.eyebrow),
     ctaLabel: normalizeString(source.ctaLabel, fallback.ctaLabel),
+    focalX: typeof source.focalX === "number" ? source.focalX : fallback.focalX,
+    focalY: typeof source.focalY === "number" ? source.focalY : fallback.focalY,
   };
 }
 

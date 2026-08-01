@@ -14,10 +14,6 @@ import {
   createCategory,
   updateCategory,
   deleteCategory,
-  fetchCountries,
-  createCountry,
-  updateCountry,
-  deleteCountry,
   fetchColors,
   createColor,
   updateColor,
@@ -32,7 +28,6 @@ import {
   deleteSize,
   fetchUsers,
   type CategoryDto,
-  type CountryDto,
   type ColorDto,
   type FurnitureColorDto,
   type SizeDto,
@@ -194,7 +189,6 @@ export function useAdminData() {
   const [products, setProducts] = useState<(Product & { idNum: number; sku: string; stock: number })[]>([]);
   const [users, setUsers] = useState<ReturnType<typeof mapUserDtoToAdminUser>[]>([]);
   const [categories, setCategories] = useState<CategoryDto[]>([]);
-  const [countries, setCountries] = useState<CountryDto[]>([]);
   const [colors, setColors] = useState<ColorDto[]>([]);
   const [furnitureColors, setFurnitureColors] = useState<FurnitureColorDto[]>([]);
   const [sizes, setSizes] = useState<SizeDto[]>([]);
@@ -211,13 +205,12 @@ export function useAdminData() {
     const catalogResults = await Promise.allSettled([
       fetchProducts({ includeInactive: true }),
       fetchCategories(),
-      fetchCountries(),
       fetchColors(),
       fetchFurnitureColors(),
       fetchSizes(),
     ]);
 
-    const [prodsResult, catsResult, ctrysResult, colsResult, furnitureResult, szsResult] = catalogResults;
+    const [prodsResult, catsResult, colsResult, furnitureResult, szsResult] = catalogResults;
 
     if (prodsResult.status === "fulfilled") {
       setProducts(prodsResult.value.map(mapProductDtoToProduct));
@@ -233,13 +226,6 @@ export function useAdminData() {
     } else {
       setCategories([]);
       warnings.push(formatLoadError("Categories", catsResult.reason));
-    }
-
-    if (ctrysResult.status === "fulfilled") {
-      setCountries(ctrysResult.value);
-    } else {
-      setCountries([]);
-      warnings.push(formatLoadError("Countries", ctrysResult.reason));
     }
 
     if (colsResult.status === "fulfilled") {
@@ -370,25 +356,6 @@ export function useAdminData() {
     setCategories((prev) => prev.filter((c) => c.id !== id));
   }, []);
 
-  const addCountry = useCallback(async (name: string) => {
-    const created = await createCountry(name);
-    setCountries((prev) => [...prev, created].sort((a, b) => a.name.localeCompare(b.name)));
-    return created;
-  }, []);
-
-  const editCountry = useCallback(async (id: number, name: string) => {
-    const updated = await updateCountry(id, name);
-    setCountries((prev) =>
-      prev.map((c) => (c.id === id ? updated : c)).sort((a, b) => a.name.localeCompare(b.name))
-    );
-    return updated;
-  }, []);
-
-  const removeCountry = useCallback(async (id: number) => {
-    await deleteCountry(id);
-    setCountries((prev) => prev.filter((c) => c.id !== id));
-  }, []);
-
   const addColor = useCallback(async (name: string, hexCode?: string, nameUk?: string) => {
     const created = await createColor(name, hexCode, nameUk);
     setColors((prev) => [...prev, created].sort((a, b) => a.name.localeCompare(b.name)));
@@ -463,7 +430,6 @@ export function useAdminData() {
     products,
     users,
     categories,
-    countries,
     loading,
     apiAvailable,
     loadWarnings,
@@ -475,9 +441,6 @@ export function useAdminData() {
     addCategory,
     editCategory,
     removeCategory,
-    addCountry,
-    editCountry,
-    removeCountry,
     colors,
     addColor,
     editColor,

@@ -6,11 +6,6 @@ export interface CategoryDto {
   trackStock: boolean;
 }
 
-export interface CountryDto {
-  id: number;
-  name: string;
-}
-
 export interface ColorDto {
   id: number;
   name: string;
@@ -65,31 +60,6 @@ export async function updateCategory(id: number, name: string, trackStock: boole
 
 export async function deleteCategory(id: number): Promise<void> {
   await apiRequest(`/api/categories/${id}`, { method: "DELETE" });
-}
-
-export async function fetchCountries(): Promise<CountryDto[]> {
-  const data = await apiRequest<{ id: number; name: string }[]>("/api/countries");
-  return Array.isArray(data) ? data : [];
-}
-
-export async function createCountry(name: string): Promise<CountryDto> {
-  const data = await apiRequest<{ id: number; name: string }>("/api/countries", {
-    method: "POST",
-    body: JSON.stringify({ name }),
-  });
-  return data;
-}
-
-export async function updateCountry(id: number, name: string): Promise<CountryDto> {
-  const data = await apiRequest<{ id: number; name: string }>(`/api/countries/${id}`, {
-    method: "PUT",
-    body: JSON.stringify({ name }),
-  });
-  return data;
-}
-
-export async function deleteCountry(id: number): Promise<void> {
-  await apiRequest(`/api/countries/${id}`, { method: "DELETE" });
 }
 
 export async function fetchColors(): Promise<ColorDto[]> {

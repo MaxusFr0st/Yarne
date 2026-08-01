@@ -86,7 +86,14 @@ function ProductTile({ slot, product, fallbackTitle, variant, showWishlist = fal
 
   const isLarge = variant === "large";
   const productFocal = product?.colors?.[0]?.image;
-  const hasFocal = productFocal && !slot.imageUrl;
+  const slotHasFocal = slot.imageUrl && (slot.focalX !== 0.5 || slot.focalY !== 0.35);
+  const productHasFocal = productFocal && !slot.imageUrl;
+  const hasFocal = slotHasFocal || productHasFocal;
+  const focalPoint = slotHasFocal
+    ? { x: slot.focalX, y: slot.focalY }
+    : productHasFocal
+      ? { x: productFocal.focalX, y: productFocal.focalY }
+      : undefined;
   const cropClass = hasFocal
     ? ""
     : touch
@@ -121,7 +128,7 @@ function ProductTile({ slot, product, fallbackTitle, variant, showWishlist = fal
         src={imageSrc}
         alt={title}
         priority={priority}
-        focal={hasFocal ? { x: productFocal.focalX, y: productFocal.focalY } : undefined}
+        focal={focalPoint}
         className={`absolute inset-0 h-full w-full object-cover ${cropClass} ${
           touch
             ? ""

@@ -81,7 +81,6 @@ import {
   AlertTriangle,
   Check,
   Tag,
-  Globe,
   ImagePlus,
   Palette,
   Info,
@@ -2269,39 +2268,6 @@ function ColorModal({
   );
 }
 
-/* ─────────────────────────────────────────────
-   COUNTRY MODAL
-───────────────────────────────────────────── */
-function CountryModal({
-  editing,
-  onClose,
-  onSave,
-}: {
-  editing: { id: number; name: string } | null;
-  onClose: () => void;
-  onSave: (name: string) => void;
-}) {
-  const [name, setName] = useState(editing?.name ?? "");
-  useEffect(() => { setName(editing?.name ?? ""); }, [editing?.id, editing?.name]);
-  const isEditing = !!editing;
-  return (
-    <AdminModalShell
-      eyebrow={isEditing ? "Edit Country" : "New Country"}
-      title={isEditing ? editing.name : "Add Country"}
-      onClose={onClose}
-      footer={
-        <>
-          <AdminModalCancelButton onClick={onClose} />
-          <AdminModalPrimaryButton onClick={() => onSave(name)}>{isEditing ? "Save" : "Add"}</AdminModalPrimaryButton>
-        </>
-      }
-    >
-      <label className="block text-xs mb-2 tracking-widest uppercase" style={{ fontFamily: "'DM Sans', sans-serif", color: "rgba(45,36,30,0.4)", letterSpacing: "0.14em" }}>Country Name</label>
-      <input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Ukraine" className="w-full bg-transparent border rounded-[14px] px-4 py-3 text-[#2D241E] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#2D241E]/20 placeholder:text-[#2D241E]/20" style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "0.9rem", borderColor: "rgba(45,36,30,0.15)" }} />
-    </AdminModalShell>
-  );
-}
-
 function SizeModal({
   editing,
   onClose,
@@ -2422,7 +2388,7 @@ function DeleteModal({
 /* ─────────────────────────────────────────────
    MAIN ADMIN PAGE
 ───────────────────────────────────────────── */
-type AdminTab = "dashboard" | "contents" | "products" | "users" | "orders" | "logs" | "categories" | "collections" | "countries" | "colors" | "furniture" | "sizes";
+type AdminTab = "dashboard" | "contents" | "products" | "users" | "orders" | "logs" | "categories" | "collections" | "colors" | "furniture" | "sizes";
 type LogsSubTab = "all" | "product" | "user" | "push" | "order" | "catalog" | "image";
 
 function formatLogTimestamp(iso: string) {
@@ -2653,7 +2619,6 @@ export function AdminPage() {
     products,
     users,
     categories,
-    countries,
     loading,
     apiAvailable,
     loadWarnings,
@@ -2664,9 +2629,6 @@ export function AdminPage() {
     addCategory,
     editCategory,
     removeCategory,
-    addCountry,
-    editCountry,
-    removeCountry,
     colors,
     addColor,
     editColor,
@@ -2721,6 +2683,12 @@ export function AdminPage() {
     focalX: number;
     focalY: number;
   } | null>(null);
+  const [showcaseFocalEditor, setShowcaseFocalEditor] = useState<{
+    slotKey: "slot1" | "slot2" | "slot4";
+    imageSrc: string;
+    focalX: number;
+    focalY: number;
+  } | null>(null);
   const [contentsCropMeta, setContentsCropMeta] = useState<Record<string, ImageCropMeta>>(() =>
     loadImageCropMeta(CONTENTS_CROP_META_ID),
   );
@@ -2743,11 +2711,10 @@ export function AdminPage() {
   const [productModal, setProductModal] = useState<{ open: boolean; editing: AdminProduct | null }>({ open: false, editing: null });
   const [userModal, setUserModal] = useState<{ open: boolean }>({ open: false });
   const [categoryModal, setCategoryModal] = useState<{ open: boolean; editing: { id: number; name: string; trackStock?: boolean } | null }>({ open: false, editing: null });
-  const [countryModal, setCountryModal] = useState<{ open: boolean; editing: { id: number; name: string } | null }>({ open: false, editing: null });
   const [colorModal, setColorModal] = useState<{ open: boolean; editing: { id: number; name: string; nameUk?: string | null; hexCode: string } | null }>({ open: false, editing: null });
   const [furnitureModal, setFurnitureModal] = useState<{ open: boolean; editing: { id: number; name: string; nameUk?: string | null; hexCode: string } | null }>({ open: false, editing: null });
   const [sizeModal, setSizeModal] = useState<{ open: boolean; editing: { id: number; name: string; nameUk?: string | null } | null }>({ open: false, editing: null });
-  const [deleteModal, setDeleteModal] = useState<{ open: boolean; type: "product" | "user" | "category" | "country" | "color" | "furniture" | "size"; id: string; idNum?: number; name: string } | null>(null);
+  const [deleteModal, setDeleteModal] = useState<{ open: boolean; type: "product" | "user" | "category" | "color" | "furniture" | "size"; id: string; idNum?: number; name: string } | null>(null);
   const [deleteModalError, setDeleteModalError] = useState<string | null>(null);
 
   const filteredProducts = useMemo(
@@ -3357,21 +3324,6 @@ export function AdminPage() {
     }
   };
 
-  const handleSaveCountry = async (name: string) => {
-    setSaveError(null);
-    try {
-      if (countryModal.editing) {
-        await editCountry(countryModal.editing.id, name);
-      } else {
-        await addCountry(name);
-      }
-      setCountryModal({ open: false, editing: null });
-      refetch();
-    } catch (e) {
-      setSaveError(e instanceof Error ? e.message : "Failed to save country");
-    }
-  };
-
   const handleSaveColor = async (name: string, hexCode?: string, nameUk?: string) => {
     setSaveError(null);
     try {
@@ -3464,20 +3416,6 @@ export function AdminPage() {
       const message = e instanceof Error ? e.message : "Failed to delete furniture color";
       setDeleteModalError(message);
       setSaveError(message);
-    }
-  };
-
-  const handleDeleteCountry = async () => {
-    if (!deleteModal || deleteModal.type !== "country") return;
-    const id = deleteModal.idNum ?? parseInt(deleteModal.id);
-    if (isNaN(id)) return;
-    setSaveError(null);
-    try {
-      await removeCountry(id);
-      setDeleteModal(null);
-      refetch();
-    } catch (e) {
-      setSaveError(e instanceof Error ? e.message : "Failed to delete country");
     }
   };
 
@@ -3654,7 +3592,6 @@ export function AdminPage() {
               { key: "logs" as AdminTab, label: "Logs", icon: <ScrollText size={14} /> },
               { key: "categories" as AdminTab, label: "Categories", icon: <Tag size={14} /> },
               { key: "collections" as AdminTab, label: "Collections", icon: <Star size={14} /> },
-              { key: "countries" as AdminTab, label: "Countries", icon: <Globe size={14} /> },
               { key: "colors" as AdminTab, label: "Colors", icon: <Palette size={14} /> },
               { key: "furniture" as AdminTab, label: "Furniture", icon: <Palette size={14} /> },
               { key: "sizes" as AdminTab, label: "Sizes", icon: <Tag size={14} /> },
@@ -4399,6 +4336,25 @@ export function AdminPage() {
                                 >
                                   <Crop size={12} />
                                   {contentsCrop.cropFetching ? "Loading…" : "Re-crop"}
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const imageSrc = resolveMediaUrl(slot.imageUrl);
+                                    if (imageSrc) {
+                                      setShowcaseFocalEditor({
+                                        slotKey: key,
+                                        imageSrc,
+                                        focalX: slot.focalX,
+                                        focalY: slot.focalY,
+                                      });
+                                    }
+                                  }}
+                                  className="mt-2 w-full flex items-center justify-center gap-1.5 text-center text-[11px] text-[#2D241E]/70 uppercase tracking-widest"
+                                  style={{ fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.12em" }}
+                                >
+                                  <Crosshair size={12} />
+                                  Set focal point
                                 </button>
                                 <button
                                   type="button"
@@ -5443,61 +5399,6 @@ export function AdminPage() {
             />
           )}
 
-          {/* ── COUNTRIES ── */}
-          {activeTab === "countries" && (
-            <motion.div
-              key="countries"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
-              transition={{ duration: 0.4, ease: easing }}
-            >
-              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-8">
-                <p className="text-[#2D241E]/50 text-sm" style={{ fontFamily: "'DM Sans', sans-serif" }}>{countries.length} countries</p>
-                <button
-                  type="button"
-                  onClick={() => setCountryModal({ open: true, editing: null })}
-                  className={ADMIN_ADD_BTN}
-                  style={{ backgroundColor: "#2D241E", fontFamily: "'DM Sans', sans-serif", fontSize: "0.78rem", letterSpacing: "0.12em" }}
-                >
-                  <Plus size={15} />
-                  <span className="uppercase tracking-widest">Add Country</span>
-                </button>
-              </div>
-              <div className="rounded-[28px] overflow-hidden" style={{ border: "1px solid rgba(45,36,30,0.08)" }}>
-                <div
-                  className="grid px-6 py-4 text-xs tracking-widest uppercase"
-                  style={{
-                    gridTemplateColumns: "1fr 100px",
-                    fontFamily: "'DM Sans', sans-serif",
-                    letterSpacing: "0.12em",
-                    color: "rgba(45,36,30,0.4)",
-                    backgroundColor: "rgba(45,36,30,0.03)",
-                    borderBottom: "1px solid rgba(45,36,30,0.06)",
-                  }}
-                >
-                  <span>Country</span>
-                  <span className="text-right">Actions</span>
-                </div>
-                <div className="divide-y" style={{ borderColor: "rgba(45,36,30,0.06)" }}>
-                  {countries.length === 0 ? (
-                    <p className="py-12 text-center text-[#2D241E]/40 px-6" style={{ fontFamily: "'DM Sans', sans-serif" }}>No countries yet</p>
-                  ) : (
-                    countries.map((c) => (
-                      <div key={c.id} className={ADMIN_ROW} style={{ gridTemplateColumns: "1fr 100px" }}>
-                        <p className="text-[#2D241E]" style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "1.15rem" }}>{c.name}</p>
-                        <div className="flex items-center justify-end gap-2">
-                          <button type="button" onClick={() => setCountryModal({ open: true, editing: c })} className={ADMIN_ICON_EDIT} title="Edit" aria-label={`Edit ${c.name}`}><Pencil size={13} style={{ color: "#2D241E", opacity: 0.5 }} /></button>
-                          <button type="button" onClick={() => setDeleteModal({ open: true, type: "country", id: String(c.id), idNum: c.id, name: c.name })} className={ADMIN_ICON_DELETE} title="Delete" aria-label={`Delete ${c.name}`}><Trash2 size={13} style={{ color: "#4A0E0E", opacity: 0.6 }} /></button>
-                        </div>
-                      </div>
-                    ))
-                  )}
-                </div>
-              </div>
-            </motion.div>
-          )}
-
           {/* ── COLORS ── */}
           {activeTab === "colors" && (
             <motion.div
@@ -5873,9 +5774,6 @@ export function AdminPage() {
         {categoryModal.open && (
           <CategoryModal editing={categoryModal.editing} onClose={() => setCategoryModal({ open: false, editing: null })} onSave={handleSaveCategory} />
         )}
-        {countryModal.open && (
-          <CountryModal editing={countryModal.editing} onClose={() => setCountryModal({ open: false, editing: null })} onSave={handleSaveCountry} />
-        )}
         {colorModal.open && (
           <ColorModal
             editing={colorModal.editing}
@@ -5908,7 +5806,6 @@ export function AdminPage() {
               if (deleteModal.type === "product") handleDeleteProduct();
               else if (deleteModal.type === "user") handleDeleteUser();
               else if (deleteModal.type === "category") handleDeleteCategory();
-              else if (deleteModal.type === "country") handleDeleteCountry();
               else if (deleteModal.type === "color") handleDeleteColor();
               else if (deleteModal.type === "furniture") handleDeleteFurnitureColor();
               else if (deleteModal.type === "size") handleDeleteSize();
@@ -5917,6 +5814,40 @@ export function AdminPage() {
         )}
       </AnimatePresence>
       {contentsCrop.cropDialogNode}
+      {homeFocalEditor && (
+        <FocalPointEditor
+          imageSrc={homeFocalEditor.imageSrc}
+          initialFocalX={homeFocalEditor.focalX}
+          initialFocalY={homeFocalEditor.focalY}
+          persistToApi={false}
+          onClose={() => setHomeFocalEditor(null)}
+          onSaved={(fx, fy) => {
+            const field = homeFocalEditor.field;
+            updateHomePageMedia({
+              [`${field}FocalX`]: fx,
+              [`${field}FocalY`]: fy,
+            });
+            setHomeFocalEditor(null);
+          }}
+        />
+      )}
+      {showcaseFocalEditor && (
+        <FocalPointEditor
+          imageSrc={showcaseFocalEditor.imageSrc}
+          initialFocalX={showcaseFocalEditor.focalX}
+          initialFocalY={showcaseFocalEditor.focalY}
+          persistToApi={false}
+          onClose={() => setShowcaseFocalEditor(null)}
+          onSaved={(fx, fy) => {
+            const slotKey = showcaseFocalEditor.slotKey;
+            updateShowcaseProductSlot(slotKey, {
+              focalX: fx,
+              focalY: fy,
+            });
+            setShowcaseFocalEditor(null);
+          }}
+        />
+      )}
     </main>
   );
 }
