@@ -58,8 +58,4 @@ public class OrderItemDto
     public decimal UnitPrice { get; set; }
 
     public decimal LineTotal { get; set; }
-
-    public int? CountryId { get; set; }
-
-    public string? CountryName { get; set; }
 }

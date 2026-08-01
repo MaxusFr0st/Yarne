@@ -11,8 +11,6 @@ public class CreateOrderItemRequest
     [Range(1, int.MaxValue)]
     public int Quantity { get; set; }
 
-    public int? CountryId { get; set; }
-
     [StringLength(200)]
     public string? ProductSubtitle { get; set; }
 

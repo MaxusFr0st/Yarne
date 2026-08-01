@@ -48,11 +48,6 @@ internal static class YarneCatalogSeed
         ("Spring 2026", new DateOnly(2026, 3, 1), new DateOnly(2026, 5, 31)),
     ];
 
-    private static readonly string[] Countries =
-    [
-        "United States", "United Kingdom", "Germany", "France", "Croatia",
-    ];
-
     private static readonly CatalogProduct[] Products =
     [
         new(
@@ -138,12 +133,6 @@ internal static class YarneCatalogSeed
                 db.PaymentMethods.Add(new PaymentMethod { Name = pm });
         }
 
-        foreach (var countryName in Countries)
-        {
-            if (!await db.Countries.AnyAsync(c => c.Name == countryName, cancellationToken))
-                db.Countries.Add(new Country { Name = countryName });
-        }
-
         foreach (var (name, hex) in Colors)
         {
             if (!await db.Colors.AnyAsync(c => c.Name == name, cancellationToken))
@@ -174,7 +163,6 @@ internal static class YarneCatalogSeed
         var categoryByName = await db.Categories.ToDictionaryAsync(c => c.Name, c => c.Id, cancellationToken);
         var collectionByName = await db.Collections.ToDictionaryAsync(c => c.Name, c => c.Id, cancellationToken);
         var sizeByName = await db.Sizes.ToDictionaryAsync(s => s.Name, s => s.Id, cancellationToken);
-        var countries = await db.Countries.ToListAsync(cancellationToken);
 
         foreach (var def in Products)
         {
@@ -280,11 +268,6 @@ internal static class YarneCatalogSeed
                         QuantityInStock = Math.Max(1, def.QuantityInStock / 10),
                     });
                 }
-            }
-
-            foreach (var country in countries)
-            {
-                product.Countries.Add(country);
             }
 
             await db.SaveChangesAsync(cancellationToken);

@@ -74,8 +74,6 @@ public partial class Product
 
     public virtual ICollection<OrderItem> OrderItems { get; set; } = new List<OrderItem>();
 
-    public virtual ICollection<Country> Countries { get; set; } = new List<Country>();
-
     public virtual ICollection<ProductImage> ProductImages { get; set; } = new List<ProductImage>();
 
     public virtual ICollection<ProductColor> ProductColors { get; set; } = new List<ProductColor>();

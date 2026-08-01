@@ -16,8 +16,6 @@ public partial class OrderItem
 
     public string? ProductImageUrl { get; set; }
 
-    public int? CountryId { get; set; }
-
     public int Quantity { get; set; }
 
     public decimal UnitPrice { get; set; }
@@ -53,8 +51,6 @@ public partial class OrderItem
     public string? LaceColorName { get; set; }
 
     public int? ParentOrderItemId { get; set; }
-
-    public virtual Country? Country { get; set; }
 
     public virtual Order Order { get; set; } = null!;
 
