@@ -39,7 +39,9 @@ export function Home() {
   useHomeSnapScroll({
     mainRef,
     whyRef,
-    enabled: !reducedMotion && !touch && !cartOpen && !loginOpen,
+    // Section-snap scroll runs on desktop (wheel) and touch (swipe) alike —
+    // only reduced-motion and open overlays fall back to native scroll.
+    enabled: !reducedMotion && !cartOpen && !loginOpen,
   });
 
   const { scrollYProgress: heroScroll } = useScroll({

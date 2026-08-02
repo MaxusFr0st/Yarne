@@ -19,10 +19,29 @@ const PAGE_BUSY_PAD_MS = 40;
 const GESTURE_QUIET_MS = 150;
 const MIN_DELTA_Y = 2;
 
+// ---- touch (mobile/tablet swipe) ----
+// A swipe is direction-only: it doesn't matter how far or how fast you drag
+// past the deadzone, one swipe always steps exactly one section (or one bag).
+const TOUCH_DEADZONE_PX = 10; // below this, still deciding vertical vs horizontal
+const TOUCH_TRIGGER_PX = 40; // past this (once committed vertical), the swipe fires
+
 /** Soft in, long glide out — no bounce, no snap. */
 const easeInOutCubic = (x: number) => (x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2);
 
 type Stop = { y: number; why: boolean };
+
+/** True if `node` sits inside a genuinely scrollable-Y ancestor (cart drawer
+ *  list, search overlay, etc.) — those must keep their own native scroll. */
+function isInsideScrollableOverlay(node: Node | null): boolean {
+  while (node && node !== document.body) {
+    if (node instanceof HTMLElement) {
+      const overflowY = getComputedStyle(node).overflowY;
+      if (/(auto|scroll|overlay)/.test(overflowY) && node.scrollHeight > node.clientHeight + 4) return true;
+    }
+    node = node.parentNode;
+  }
+  return false;
+}
 
 /** Sums offsetTop up the offsetParent chain — immune to reveal-animation transforms
  *  that would throw off a getBoundingClientRect-based measurement mid-transition. */
@@ -43,9 +62,11 @@ type Params = {
 };
 
 /**
- * Desktop/trackpad-only full-page "one wheel gesture = snap to next/prev section"
- * scroll system. Attaches no listeners at all when `enabled` is false, so native
- * (and all mobile touch) scrolling is completely untouched.
+ * Full-page "one gesture = snap to next/prev section" scroll system — one wheel
+ * tick on desktop/trackpad, one vertical swipe on touch, each snapping the page
+ * to the next/prev section (or stepping one bag inside the Why section first).
+ * Attaches no listeners at all when `enabled` is false, so native scroll is
+ * completely untouched.
  */
 export function useHomeSnapScroll({ mainRef, whyRef, enabled }: Params) {
   const busyUntilRef = useRef(0);
@@ -180,16 +201,7 @@ export function useHomeSnapScroll({ mainRef, whyRef, enabled }: Params) {
     const onWheel = (e: WheelEvent) => {
       if (e.ctrlKey) return;
       if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) return; // protects horizontal wheel gestures (carousel)
-
-      // Protects any scrollable overlay (cart drawer, etc.) under the cursor.
-      let node = e.target as Node | null;
-      while (node && node !== document.body) {
-        if (node instanceof HTMLElement) {
-          const overflowY = getComputedStyle(node).overflowY;
-          if (/(auto|scroll|overlay)/.test(overflowY) && node.scrollHeight > node.clientHeight + 4) return;
-        }
-        node = node.parentNode;
-      }
+      if (isInsideScrollableOverlay(e.target as Node)) return; // cart drawer, etc.
 
       const now = performance.now();
       const busy = now < busyUntilRef.current;
@@ -205,15 +217,75 @@ export function useHomeSnapScroll({ mainRef, whyRef, enabled }: Params) {
       if (!passThroughRef.current) e.preventDefault();
     };
 
+    // ---- touch (mobile/tablet): one swipe = one section/bag, same snapStep ----
+    const touch = {
+      active: false,
+      ignore: false, // started inside a scrollable overlay — hands off entirely
+      startX: 0,
+      startY: 0,
+      committed: null as "x" | "y" | null,
+      triggered: false,
+    };
+
+    const onTouchStart = (e: TouchEvent) => {
+      if (e.touches.length !== 1) {
+        touch.active = false;
+        return;
+      }
+      touch.active = true;
+      touch.ignore = isInsideScrollableOverlay(e.target as Node);
+      touch.startX = e.touches[0].clientX;
+      touch.startY = e.touches[0].clientY;
+      touch.committed = null;
+      touch.triggered = false;
+    };
+
+    const onTouchMove = (e: TouchEvent) => {
+      if (!touch.active || touch.ignore || e.touches.length !== 1) return;
+      const dx = e.touches[0].clientX - touch.startX;
+      const dy = e.touches[0].clientY - touch.startY;
+
+      if (touch.committed === null) {
+        if (Math.abs(dx) < TOUCH_DEADZONE_PX && Math.abs(dy) < TOUCH_DEADZONE_PX) return;
+        touch.committed = Math.abs(dy) >= Math.abs(dx) ? "y" : "x";
+      }
+      if (touch.committed === "x") return; // horizontal swipe — leave to the carousel/native
+
+      e.preventDefault(); // vertical swipe on the home page is ours from here on
+      if (touch.triggered) return;
+
+      const now = performance.now();
+      if (now < busyUntilRef.current) return; // swallow input while a step is animating
+      if (Math.abs(dy) < TOUCH_TRIGGER_PX) return;
+
+      touch.triggered = true;
+      snapStep(dy < 0 ? 1 : -1); // finger moved up = content advances = next section
+    };
+
+    const onTouchEnd = () => {
+      touch.active = false;
+      touch.ignore = false;
+      touch.committed = null;
+      touch.triggered = false;
+    };
+
     // No-op: buildStops() re-measures fresh on every snapStep call already, so a
     // resize doesn't need to invalidate anything — kept only so mount/unmount
     // stays symmetric with the wheel listener below.
     const onResize = () => {};
 
     window.addEventListener("wheel", onWheel, { passive: false });
+    window.addEventListener("touchstart", onTouchStart, { passive: true });
+    window.addEventListener("touchmove", onTouchMove, { passive: false });
+    window.addEventListener("touchend", onTouchEnd, { passive: true });
+    window.addEventListener("touchcancel", onTouchEnd, { passive: true });
     window.addEventListener("resize", onResize);
     return () => {
       window.removeEventListener("wheel", onWheel);
+      window.removeEventListener("touchstart", onTouchStart);
+      window.removeEventListener("touchmove", onTouchMove);
+      window.removeEventListener("touchend", onTouchEnd);
+      window.removeEventListener("touchcancel", onTouchEnd);
       window.removeEventListener("resize", onResize);
       animRef.current?.stop();
     };
