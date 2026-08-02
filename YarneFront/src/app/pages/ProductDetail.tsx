@@ -673,7 +673,7 @@ export function ProductDetail() {
             <div className="border-t border-[#2D241E]/10 pt-7">
               <p
                 className="text-[#2D241E]/70 leading-relaxed"
-                style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "0.9rem", lineHeight: 1.8 }}
+                style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "0.9rem", lineHeight: 1.8, whiteSpace: "pre-line" }}
               >
                 {product.description}
               </p>

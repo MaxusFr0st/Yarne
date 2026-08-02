@@ -267,6 +267,7 @@ export function MobileProductDetailView({
                     fontFamily: "'DM Sans', sans-serif",
                     fontSize: "clamp(0.78rem, 3vw, 0.9rem)",
                     lineHeight: 1.5,
+                    whiteSpace: "pre-line",
                   }}
                 >
                   {product.description}
