@@ -85,6 +85,33 @@ const en = {
       eyebrow: "Complete the look",
       title: "More from the collection",
     },
+    why: {
+      eyebrow: "The Craft",
+      titleLine1: "Why choose",
+      titleAccent: "a Yarné piece",
+      facts: [
+        {
+          n: "01",
+          title: "Hand-knitted, not mass-produced",
+          body: "Each bag is knitted by a single artisan, start to finish.",
+        },
+        {
+          n: "02",
+          title: "Natural fibres, built to last",
+          body: "Sourced yarns chosen for durability over trend cycles.",
+        },
+        {
+          n: "03",
+          title: "Made to order, in days not months",
+          body: "No warehouse overstock — each order is knitted fresh.",
+        },
+      ],
+      captions: [
+        "Femmora — knitted shoulder bag",
+        "Cherie — hand-knitted mini bag",
+        "Dva Shopper — knitted tote",
+      ],
+    },
   },
   showcase: {
     defaultEyebrow: "Featured Showcase",

@@ -8,6 +8,16 @@ import { useTouchMobileLayout } from "../hooks/useTouchMobileLayout";
 const EASE_OUT = [0.22, 1, 0.36, 1] as const;
 const EASE_MOBILE = [0.25, 0.1, 0.25, 1] as const;
 
+/** Opacity-only reveal for wrapping whole home sections — no y-offset so section
+ *  entrances don't fight the already-animated content inside them. */
+export const SECTION_REVEAL = {
+  y: 0,
+  duration: 0.9,
+  ease: [0.16, 1, 0.3, 1] as const,
+  amount: 0.12,
+  once: true,
+};
+
 type ScrollRevealProps = {
   children: ReactNode;
   className?: string;
@@ -18,6 +28,10 @@ type ScrollRevealProps = {
   y?: number;
   once?: boolean;
   amount?: number;
+  /** Desktop animation duration in seconds — defaults preserve prior behavior. */
+  duration?: number;
+  /** Desktop easing curve — defaults preserve prior behavior. */
+  ease?: readonly [number, number, number, number];
 };
 
 /**
@@ -33,6 +47,8 @@ export function ScrollReveal({
   y = 22,
   once = true,
   amount = 0.12,
+  duration,
+  ease,
 }: ScrollRevealProps) {
   const reduced = useReducedMotion();
   const touch = useTouchMobileLayout();
@@ -54,6 +70,11 @@ export function ScrollReveal({
 
   const shiftY = touch ? Math.min(y, 14) : y;
   const animDelay = touch ? Math.min(delay, 0.04) : delay;
+  // When there's no y-offset, omit the transform prop entirely rather than
+  // animating a no-op translateY(0) — a "live" transform (even at 0) on this
+  // wrapper would still count as an ancestor transform to any descendant, which
+  // breaks position:sticky elements nested inside (e.g. a sticky section header).
+  const hasShift = shiftY !== 0;
 
   return (
     <motion.div
@@ -62,14 +83,22 @@ export function ScrollReveal({
       style={{
         ...style,
         // Promote to compositor layer for smoother transform/opacity on mobile GPUs
-        willChange: inView ? "auto" : "transform, opacity",
+        willChange: inView ? "auto" : hasShift ? "transform, opacity" : "opacity",
       }}
-      initial={{ opacity: 0, y: shiftY }}
-      animate={inView ? { opacity: 1, y: 0 } : { opacity: 0, y: shiftY }}
+      initial={hasShift ? { opacity: 0, y: shiftY } : { opacity: 0 }}
+      animate={
+        inView
+          ? hasShift
+            ? { opacity: 1, y: 0 }
+            : { opacity: 1 }
+          : hasShift
+            ? { opacity: 0, y: shiftY }
+            : { opacity: 0 }
+      }
       transition={{
-        duration: touch ? 0.7 : 0.55,
+        duration: touch ? 0.7 : (duration ?? 0.55),
         delay: animDelay,
-        ease: touch ? EASE_MOBILE : EASE_OUT,
+        ease: touch ? EASE_MOBILE : (ease ?? EASE_OUT),
       }}
     >
       {children}
