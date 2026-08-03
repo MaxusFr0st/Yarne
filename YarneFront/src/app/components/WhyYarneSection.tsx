@@ -92,7 +92,7 @@ function BagArcImage({ progress, rowH, index, src, alt }: BagArcImageProps) {
     <motion.img
       src={src}
       alt={alt}
-      className="w-[58%] md:w-full h-full object-cover object-center block"
+      className="w-[58%] md:w-[78%] h-[78%] object-cover object-center block rounded-[18px]"
       style={{
         x,
         y,
