@@ -27,8 +27,8 @@ const IMAGES = [
 ] as const;
 
 const TILT_RAD = (26 * Math.PI) / 180;
-const SCALE_MAX = 1.62; // active bag scale
-const SCALE_SPAN = 0.62;
+const SCALE_MAX = 1.08; // active bag scale — object-cover already fills the row, this is just a slight pop
+const SCALE_SPAN = 0.16;
 const OPACITY_SPAN = 0.62;
 const BLUR_MAX = 0.9; // px
 const ROWH_FALLBACK = 200; // px, before first measurement
@@ -92,7 +92,7 @@ function BagArcImage({ progress, rowH, index, src, alt }: BagArcImageProps) {
     <motion.img
       src={src}
       alt={alt}
-      className="w-[58%] md:w-full h-full object-contain object-center block"
+      className="w-[58%] md:w-full h-full object-cover object-center block"
       style={{
         x,
         y,
@@ -126,7 +126,7 @@ export const WhyYarneSection = forwardRef<WhyBagHandle>(function WhyYarneSection
   useEffect(() => {
     const el = stageRef.current;
     if (!el) return;
-    const measure = () => rowH.set(el.clientHeight / 2);
+    const measure = () => rowH.set(el.clientHeight);
     measure();
     const ro = new ResizeObserver(measure);
     ro.observe(el);
@@ -224,18 +224,16 @@ export const WhyYarneSection = forwardRef<WhyBagHandle>(function WhyYarneSection
               className="relative w-full max-w-[min(54vh,320px)] md:max-w-[min(80vh,720px)] flex-1 min-h-0"
             >
               <div className="absolute inset-0 overflow-hidden">
-                <motion.div className="flex flex-col" style={{ height: "200%", y: trackY }}>
-                  <div style={{ height: "12.5%" }} className="shrink-0" />
+                <motion.div className="flex flex-col" style={{ height: `${IMAGES.length * 100}%`, y: trackY }}>
                   {IMAGES.map((img, i) => (
                     <div
                       key={img.key}
-                      style={{ height: "25%" }}
+                      style={{ height: `${100 / IMAGES.length}%` }}
                       className="flex shrink-0 items-center justify-center overflow-visible"
                     >
                       <BagArcImage progress={progress} rowH={rowH} index={i} src={img.src} alt={captions[i] ?? img.key} />
                     </div>
                   ))}
-                  <div style={{ height: "12.5%" }} className="shrink-0" />
                 </motion.div>
               </div>
 
