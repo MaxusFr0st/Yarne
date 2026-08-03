@@ -239,7 +239,7 @@ export const WhyYarneSection = forwardRef<WhyBagHandle>(function WhyYarneSection
                 </motion.div>
               </div>
 
-              <div className="pointer-events-none absolute left-3.5 right-auto top-[8%] bottom-[8%] w-[2px] bg-white/15 md:left-auto md:right-[-26px] md:top-[12%] md:bottom-[12%]">
+              <div className="pointer-events-none absolute left-1 right-auto top-[8%] bottom-[8%] w-[2px] bg-white/15 md:left-auto md:right-[-26px] md:top-[12%] md:bottom-[12%]">
                 <motion.div
                   className="absolute left-1/2 h-2 w-2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-[#F5F2ED]"
                   style={{ top: railTop }}
