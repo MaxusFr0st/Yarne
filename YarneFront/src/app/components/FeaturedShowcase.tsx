@@ -342,7 +342,7 @@ function MagazineSpread({
 }: MagazineSpreadProps) {
   return (
     <div
-      className="grid h-[clamp(380px,min(64vh,560px),600px)] gap-3 md:gap-4"
+      className="grid h-[clamp(460px,min(78vh,760px),820px)] gap-3 md:gap-4"
       style={{
         gridTemplateColumns: "2.15fr 1fr 1fr",
         gridTemplateRows: "minmax(0, 1fr) minmax(0, 1.05fr)",
@@ -510,7 +510,7 @@ export function FeaturedShowcase() {
     <section
       className={`relative bg-[#F5F2ED] ${
         useSpreadLayout
-          ? "overflow-x-hidden py-8 md:py-10"
+          ? "overflow-x-hidden py-4 md:py-6"
           : useBentoLayout
             ? "overflow-hidden box-border py-[clamp(6px,1.6vw,12px)]"
             : "py-[clamp(10px,2.5vw,40px)] lg:py-12"

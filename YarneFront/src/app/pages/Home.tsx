@@ -87,13 +87,6 @@ export function Home() {
     img.src = resolvedHero;
   }, [heroImageSrc]);
 
-  const featured = useMemo(() => {
-    const selected = homeSectionsSelection.featuredProductCodes
-      .map((code) => products.find((product) => product.id === code))
-      .filter((product): product is (typeof products)[number] => Boolean(product));
-    return selected.length > 0 ? selected : products.slice(0, 4);
-  }, [homeSectionsSelection.featuredProductCodes, products]);
-
   const moreFromCollectionProducts = useMemo(() => {
     const selected = homeSectionsSelection.moreFromCollectionProductCodes
       .map((code) => products.find((product) => product.id === code))
@@ -216,51 +209,6 @@ export function Home() {
 
       <ScrollReveal {...SECTION_REVEAL}>
         <BestSellersCarousel />
-      </ScrollReveal>
-
-      {/* ─── FEATURED GRID ─── */}
-      <ScrollReveal {...SECTION_REVEAL}>
-      <section className="relative py-12 md:py-16 bg-gradient-to-b from-[#EDE9E2]/70 via-[#EDE9E2]/45 to-[#F5F2ED]">
-        <div className="max-w-[1400px] mx-auto px-6 md:px-10">
-          <ScrollReveal className="md:sticky z-30 mb-10 md:mb-12 -mx-6 md:-mx-10 px-6 md:px-10 py-4 flex items-end justify-between gap-4 border-b border-[#2D241E]/6 md:border-0" style={{ top: "var(--main-header-h)", backgroundColor: "rgba(237,233,226,0.9)", backdropFilter: "blur(8px)" }}>
-            <div>
-              <SectionEyebrow>{copy.featured.eyebrow}</SectionEyebrow>
-              <SectionTitle>
-                {copy.featured.title}
-              </SectionTitle>
-            </div>
-            <LangLink
-              to="/collection"
-              className="hidden md:flex items-center gap-2 text-[#2D241E]/55 hover:text-[#4A0E0E] transition-colors duration-200 group shrink-0 cursor-pointer"
-              style={{ fontSize: "0.75rem", letterSpacing: "0.14em" }}
-            >
-              <span className="uppercase tracking-widest">{copy.featured.viewAll}</span>
-              <ArrowRight size={14} className="group-hover:translate-x-0.5 transition-transform duration-200" />
-            </LangLink>
-          </ScrollReveal>
-
-          <div className="grid grid-cols-1 min-[540px]:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-y-9 gap-x-5 md:gap-x-6 xl:gap-7">
-            {featured.map((product, i) => (
-              <ScrollReveal key={product.id} delay={i * 0.05} y={18}>
-                <ProductCard product={product} index={i} subtleEntrance />
-              </ScrollReveal>
-            ))}
-          </div>
-
-          <ScrollReveal delay={0.15} className="flex justify-center mt-12 md:mt-14">
-            <LangLink
-              to="/collection"
-              className="group flex items-center gap-3 px-9 py-4 rounded-full bg-[#2D241E] text-[#F5F2ED] hover:bg-[#4A0E0E] transition-colors duration-200 cursor-pointer"
-              style={{ fontSize: "0.75rem", letterSpacing: "0.15em" }}
-            >
-              <span className="uppercase tracking-widest">
-                {copy.featured.shopAllPieces.replace("{{count}}", String(products.length))}
-              </span>
-              <ArrowRight size={14} className="group-hover:translate-x-0.5 transition-transform duration-200" />
-            </LangLink>
-          </ScrollReveal>
-        </div>
-      </section>
       </ScrollReveal>
 
       {/* ─── EDITORIAL ─── */}

@@ -248,7 +248,7 @@ export const WhyYarneSection = forwardRef<WhyBagHandle>(function WhyYarneSection
             </div>
 
             <motion.p
-              className="absolute md:static top-[188px] md:top-auto right-[18px] md:right-auto z-[5] m-0 max-w-[52%] md:max-w-none text-right md:text-center text-[17px] md:text-[13px] italic leading-[1.45] md:leading-normal text-[#F5F2ED]/90 md:text-[#F5F2ED]/50 [text-shadow:0_2px_14px_rgba(45,36,30,0.9)] md:[text-shadow:none]"
+              className="absolute md:static md:order-first top-[188px] md:top-auto right-[18px] md:right-auto z-[5] m-0 md:mb-4 max-w-[52%] md:max-w-none text-right md:text-center text-[17px] md:text-[1.5rem] italic leading-[1.45] md:leading-[1.2] text-[#F5F2ED]/90 md:text-[#F5F2ED] [text-shadow:0_2px_14px_rgba(45,36,30,0.9)] md:[text-shadow:none]"
               style={{ fontFamily: "'Cormorant Garamond', serif", opacity: factFade, x: captionX }}
             >
               {caption}

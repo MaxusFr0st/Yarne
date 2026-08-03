@@ -2794,10 +2794,6 @@ export function AdminPage() {
   }, [activeTab, logsSubTab, apiAvailable]);
 
   const carouselProductSet = useMemo(() => new Set(carouselProductCodes), [carouselProductCodes]);
-  const featuredHomeProductSet = useMemo(
-    () => new Set(homeSectionsSelection.featuredProductCodes),
-    [homeSectionsSelection.featuredProductCodes]
-  );
   const moreFromCollectionProductSet = useMemo(
     () => new Set(homeSectionsSelection.moreFromCollectionProductCodes),
     [homeSectionsSelection.moreFromCollectionProductCodes]
@@ -2820,14 +2816,6 @@ export function AdminPage() {
       );
   };
 
-  const featuredHomeProducts = useMemo(
-    () =>
-      homeSectionsSelection.featuredProductCodes
-        .map((code) => products.find((p) => p.id === code))
-        .filter((p): p is AdminProduct => Boolean(p)),
-    [homeSectionsSelection.featuredProductCodes, products]
-  );
-
   const moreFromCollectionProducts = useMemo(
     () =>
       homeSectionsSelection.moreFromCollectionProductCodes
@@ -2843,21 +2831,6 @@ export function AdminPage() {
       .catch((e) =>
         setSaveError(e instanceof Error ? e.message : "Failed to save home sections to server.")
       );
-  };
-
-  const addFeaturedHomeProduct = (productCode: string) => {
-    if (featuredHomeProductSet.has(productCode)) return;
-    updateHomeSelection({
-      ...homeSectionsSelection,
-      featuredProductCodes: [...homeSectionsSelection.featuredProductCodes, productCode],
-    });
-  };
-
-  const removeFeaturedHomeProduct = (productCode: string) => {
-    updateHomeSelection({
-      ...homeSectionsSelection,
-      featuredProductCodes: homeSectionsSelection.featuredProductCodes.filter((code) => code !== productCode),
-    });
   };
 
   const addMoreFromCollectionProduct = (productCode: string) => {
@@ -4075,60 +4048,10 @@ export function AdminPage() {
                     Home Collection Sections
                   </p>
                   <p className="text-[#2D241E]/45 text-xs mt-1" style={{ fontFamily: "'DM Sans', sans-serif" }}>
-                    Choose products for the featured grid and “More from the collection”. Section titles are edited in Home Page Text above.
+                    Choose products for “More from the collection”. Section title is edited in Home Page Text above.
                   </p>
                 </div>
                 <div className="px-6 py-5 space-y-8">
-                  <div>
-                    {featuredHomeProducts.length > 0 && (
-                      <div className="mb-4 flex flex-wrap gap-2">
-                        {featuredHomeProducts.map((product) => (
-                          <span
-                            key={`featured-home-chip-${product.id}`}
-                            className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs"
-                            style={{ backgroundColor: "rgba(45,36,30,0.06)", color: "#2D241E", fontFamily: "'DM Sans', sans-serif" }}
-                          >
-                            {product.name}
-                          </span>
-                        ))}
-                      </div>
-                    )}
-                    <div className="max-h-[280px] overflow-y-auto divide-y rounded-[18px]" style={{ border: "1px solid rgba(45,36,30,0.08)", borderColor: "rgba(45,36,30,0.08)" }}>
-                      {products.map((product) => {
-                        const isSelected = featuredHomeProductSet.has(product.id);
-                        return (
-                          <div key={`featured-home-list-${product.id}`} className="grid items-center px-4 py-3" style={{ gridTemplateColumns: "2fr 1fr 110px" }}>
-                            <div className="min-w-0">
-                              <p className="text-[#2D241E] truncate" style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "0.88rem" }}>
-                                {product.name}
-                              </p>
-                              <p className="text-[#2D241E]/40 text-xs truncate" style={{ fontFamily: "'DM Sans', sans-serif" }}>
-                                {product.sku}
-                              </p>
-                            </div>
-                            <p className="text-[#2D241E]/60 text-sm truncate" style={{ fontFamily: "'DM Sans', sans-serif" }}>
-                              {product.category}
-                            </p>
-                            <div className="flex justify-end">
-                              <button
-                                onClick={() => (isSelected ? removeFeaturedHomeProduct(product.id) : addFeaturedHomeProduct(product.id))}
-                                className="px-4 py-1.5 rounded-full text-xs uppercase tracking-widest transition-all duration-300 hover:opacity-85"
-                                style={{
-                                  fontFamily: "'DM Sans', sans-serif",
-                                  letterSpacing: "0.1em",
-                                  backgroundColor: isSelected ? "rgba(74,14,14,0.1)" : "#2D241E",
-                                  color: isSelected ? "#4A0E0E" : "#F5F2ED",
-                                }}
-                              >
-                                {isSelected ? "Delete" : "Add"}
-                              </button>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-
                   <div>
                     {moreFromCollectionProducts.length > 0 && (
                       <div className="mb-4 flex flex-wrap gap-2">
