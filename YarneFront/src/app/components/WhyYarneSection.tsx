@@ -196,7 +196,7 @@ export const WhyYarneSection = forwardRef<WhyBagHandle>(function WhyYarneSection
   return (
     <section
       data-snap-why
-      className="relative overflow-hidden bg-[#2D241E] text-[#F5F2ED] pt-[66px] pb-0 md:pt-7 md:pb-7"
+      className="relative overflow-hidden bg-[#2D241E] text-[#F5F2ED] pt-[66px] pb-0 md:pt-[calc(var(--main-header-h)_+_20px)] md:pb-7"
       style={{ height: "calc(var(--app-vh, 1vh) * 100)" }}
     >
       <div className="max-w-[1400px] mx-auto px-3.5 md:px-6 h-full">
