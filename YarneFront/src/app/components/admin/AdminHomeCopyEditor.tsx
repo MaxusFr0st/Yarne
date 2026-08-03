@@ -44,6 +44,15 @@ const SECTIONS: { title: string; fields: FieldDef[] }[] = [
     ],
   },
   {
+    title: "Featured Grid",
+    fields: [
+      { key: "featured.eyebrow", label: "Eyebrow", path: (c) => c.featured.eyebrow, set: (c, v) => ({ ...c, featured: { ...c.featured, eyebrow: v } }) },
+      { key: "featured.title", label: "Title (e.g. Featured this season)", path: (c) => c.featured.title, set: (c, v) => ({ ...c, featured: { ...c.featured, title: v } }) },
+      { key: "featured.viewAll", label: "View all link", path: (c) => c.featured.viewAll, set: (c, v) => ({ ...c, featured: { ...c.featured, viewAll: v } }) },
+      { key: "featured.shopAllPieces", label: "Shop all button (use {{count}})", path: (c) => c.featured.shopAllPieces, set: (c, v) => ({ ...c, featured: { ...c.featured, shopAllPieces: v } }) },
+    ],
+  },
+  {
     title: "Editorial Block",
     fields: [
       { key: "editorial.eyebrow", label: "Eyebrow", path: (c) => c.editorial.eyebrow, set: (c, v) => ({ ...c, editorial: { ...c.editorial, eyebrow: v } }) },

@@ -27,8 +27,8 @@ const IMAGES = [
 ] as const;
 
 const TILT_RAD = (26 * Math.PI) / 180;
-const SCALE_MAX = 1.08; // active bag scale — object-cover already fills the row, this is just a slight pop
-const SCALE_SPAN = 0.16;
+const SCALE_MAX = 1.62; // active bag scale
+const SCALE_SPAN = 0.62;
 const OPACITY_SPAN = 0.62;
 const BLUR_MAX = 0.9; // px
 const ROWH_FALLBACK = 200; // px, before first measurement
@@ -92,7 +92,7 @@ function BagArcImage({ progress, rowH, index, src, alt }: BagArcImageProps) {
     <motion.img
       src={src}
       alt={alt}
-      className="w-[58%] md:w-[78%] h-[78%] object-cover object-center block rounded-[18px]"
+      className="w-[58%] md:w-full h-full object-contain object-center block"
       style={{
         x,
         y,
@@ -126,7 +126,7 @@ export const WhyYarneSection = forwardRef<WhyBagHandle>(function WhyYarneSection
   useEffect(() => {
     const el = stageRef.current;
     if (!el) return;
-    const measure = () => rowH.set(el.clientHeight);
+    const measure = () => rowH.set(el.clientHeight / 2);
     measure();
     const ro = new ResizeObserver(measure);
     ro.observe(el);
@@ -196,7 +196,7 @@ export const WhyYarneSection = forwardRef<WhyBagHandle>(function WhyYarneSection
   return (
     <section
       data-snap-why
-      className="relative overflow-hidden bg-[#2D241E] text-[#F5F2ED] pt-[66px] pb-0 md:pt-[calc(var(--main-header-h)_+_20px)] md:pb-7"
+      className="relative overflow-hidden bg-[#2D241E] text-[#F5F2ED] pt-[66px] pb-0 md:pt-7 md:pb-7"
       style={{ height: "calc(var(--app-vh, 1vh) * 100)" }}
     >
       <div className="max-w-[1400px] mx-auto px-3.5 md:px-6 h-full">
@@ -224,20 +224,22 @@ export const WhyYarneSection = forwardRef<WhyBagHandle>(function WhyYarneSection
               className="relative w-full max-w-[min(54vh,320px)] md:max-w-[min(80vh,720px)] flex-1 min-h-0"
             >
               <div className="absolute inset-0 overflow-hidden">
-                <motion.div className="flex flex-col" style={{ height: `${IMAGES.length * 100}%`, y: trackY }}>
+                <motion.div className="flex flex-col" style={{ height: "200%", y: trackY }}>
+                  <div style={{ height: "12.5%" }} className="shrink-0" />
                   {IMAGES.map((img, i) => (
                     <div
                       key={img.key}
-                      style={{ height: `${100 / IMAGES.length}%` }}
+                      style={{ height: "25%" }}
                       className="flex shrink-0 items-center justify-center overflow-visible"
                     >
                       <BagArcImage progress={progress} rowH={rowH} index={i} src={img.src} alt={captions[i] ?? img.key} />
                     </div>
                   ))}
+                  <div style={{ height: "12.5%" }} className="shrink-0" />
                 </motion.div>
               </div>
 
-              <div className="pointer-events-none absolute left-[calc(-50vw+50%+8px)] right-auto top-[8%] bottom-[8%] w-[2px] bg-white/15 md:left-auto md:right-[-26px] md:top-[12%] md:bottom-[12%]">
+              <div className="pointer-events-none absolute left-3.5 right-auto top-[8%] bottom-[8%] w-[2px] bg-white/15 md:left-auto md:right-[-26px] md:top-[12%] md:bottom-[12%]">
                 <motion.div
                   className="absolute left-1/2 h-2 w-2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-[#F5F2ED]"
                   style={{ top: railTop }}
@@ -246,7 +248,7 @@ export const WhyYarneSection = forwardRef<WhyBagHandle>(function WhyYarneSection
             </div>
 
             <motion.p
-              className="absolute md:static md:order-first md:self-end top-[188px] md:top-auto right-[18px] md:right-auto z-[5] m-0 md:mb-4 max-w-[52%] md:max-w-none text-right md:text-right text-[17px] md:text-[1.5rem] italic leading-[1.45] md:leading-[1.2] text-[#F5F2ED]/90 md:text-[#F5F2ED] [text-shadow:0_2px_14px_rgba(45,36,30,0.9)] md:[text-shadow:none]"
+              className="absolute md:static top-[188px] md:top-auto right-[18px] md:right-auto z-[5] m-0 max-w-[52%] md:max-w-none text-right md:text-center text-[17px] md:text-[13px] italic leading-[1.45] md:leading-normal text-[#F5F2ED]/90 md:text-[#F5F2ED]/50 [text-shadow:0_2px_14px_rgba(45,36,30,0.9)] md:[text-shadow:none]"
               style={{ fontFamily: "'Cormorant Garamond', serif", opacity: factFade, x: captionX }}
             >
               {caption}
