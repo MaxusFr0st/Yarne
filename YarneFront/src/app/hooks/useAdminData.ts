@@ -14,7 +14,6 @@ import {
   createCategory,
   updateCategory,
   deleteCategory,
-  fetchCountries,
   createCountry,
   updateCountry,
   deleteCountry,
@@ -211,13 +210,12 @@ export function useAdminData() {
     const catalogResults = await Promise.allSettled([
       fetchProducts({ includeInactive: true }),
       fetchCategories(),
-      fetchCountries(),
       fetchColors(),
       fetchFurnitureColors(),
       fetchSizes(),
     ]);
 
-    const [prodsResult, catsResult, ctrysResult, colsResult, furnitureResult, szsResult] = catalogResults;
+    const [prodsResult, catsResult, colsResult, furnitureResult, szsResult] = catalogResults;
 
     if (prodsResult.status === "fulfilled") {
       setProducts(prodsResult.value.map(mapProductDtoToProduct));
@@ -233,13 +231,6 @@ export function useAdminData() {
     } else {
       setCategories([]);
       warnings.push(formatLoadError("Categories", catsResult.reason));
-    }
-
-    if (ctrysResult.status === "fulfilled") {
-      setCountries(ctrysResult.value);
-    } else {
-      setCountries([]);
-      warnings.push(formatLoadError("Countries", ctrysResult.reason));
     }
 
     if (colsResult.status === "fulfilled") {
