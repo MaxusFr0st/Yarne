@@ -1006,7 +1006,7 @@ function ProductModal({
 
   const validateAndSubmit = () => {
     const errors: typeof formErrors = {};
-    const parsedPrice = deriveBasePrice(form.colorIds, form.defaultColorId, form.colorPrices);
+    const parsedPrice = deriveBasePrice(form.colorIds, form.defaultColorId, form.colorPrices, Number(form.price) || 0);
     const parsedStock = form.stock.trim() ? Number(form.stock) : NaN;
     const parsedVariantStocks = Object.values(form.variantStocks)
       .map((value) => Number(value))
@@ -3285,7 +3285,7 @@ export function AdminPage() {
         productCode: data.sku.trim() ? data.sku.trim() : undefined,
         name: data.name,
         description: data.description,
-        price: deriveBasePrice(colorIds, resolvedDefaultColorId, data.colorPrices ?? {}),
+        price: deriveBasePrice(colorIds, resolvedDefaultColorId, data.colorPrices ?? {}, Number(data.price) || 0),
         quantityInStock,
         material: data.subtitle,
         categoryId: data.categoryId,

@@ -119,7 +119,7 @@ export function buildDraftProduct(
     });
   }
 
-  const derivedPrice = deriveBasePrice(form.colorIds, form.defaultColorId, form.colorPrices);
+  const derivedPrice = deriveBasePrice(form.colorIds, form.defaultColorId, form.colorPrices, Number(form.price) || 0);
   const parsedStock = Number(form.stock);
 
   return {
