@@ -78,3 +78,20 @@ export function resolveDisplayPrice(
   if (!activeLace && color.price != null) return color.price;
   return basePrice;
 }
+
+/**
+ * The admin form has no standalone base-price field — every color sets its own price.
+ * This derives the product's fallback Price (used when a color has none set): the
+ * default color's price, or the first selected color that has one, or 0 if none do.
+ */
+export function deriveBasePrice(
+  colorIds: number[],
+  defaultColorId: number | null,
+  colorPrices: Record<number, string>
+): number {
+  const raw =
+    (defaultColorId != null ? colorPrices[defaultColorId] : undefined) ??
+    colorIds.map((id) => colorPrices[id]).find((v) => v && v.trim());
+  const parsed = raw ? parseFloat(raw) : NaN;
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : 0;
+}

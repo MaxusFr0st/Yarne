@@ -31,6 +31,7 @@ import {
 } from "../utils/imageCropMeta";
 import { normalizeStoredMediaUrl, resolveMediaUrl } from "../utils/storefrontMedia";
 import { getProductPreviewUrl } from "../utils/productPreview";
+import { deriveBasePrice } from "../utils/variantStock";
 import type { Product } from "../types/product";
 import {
   loadCarouselSelectionForAdmin,
@@ -386,6 +387,7 @@ interface ProductFormData {
   suggestionsHydrated: boolean;
   suggestionsTouched: boolean;
 }
+
 
 type ProductModalTab = "details" | "suggested" | "preview";
 
@@ -1004,7 +1006,7 @@ function ProductModal({
 
   const validateAndSubmit = () => {
     const errors: typeof formErrors = {};
-    const parsedPrice = Number(form.price);
+    const parsedPrice = deriveBasePrice(form.colorIds, form.defaultColorId, form.colorPrices);
     const parsedStock = form.stock.trim() ? Number(form.stock) : NaN;
     const parsedVariantStocks = Object.values(form.variantStocks)
       .map((value) => Number(value))
@@ -1025,7 +1027,7 @@ function ProductModal({
 
     if (!form.name.trim()) errors.name = "This field must not be empty.";
     if (!form.description.trim()) errors.description = "This field must not be empty.";
-    if (!Number.isFinite(parsedPrice) || parsedPrice <= 0) errors.price = "Enter a valid price greater than 0.";
+    if (!Number.isFinite(parsedPrice) || parsedPrice <= 0) errors.price = "Set a price for at least one color.";
     if (form.stock.trim() && (!Number.isFinite(parsedStock) || parsedStock < 0)) {
       errors.stock = "Enter a valid stock (0 or more).";
     }
@@ -1178,7 +1180,6 @@ function ProductModal({
           {/* Price, Category, Stock, SKU */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             {[
-              { label: "Price (₴)", key: "price" as const, type: "number", placeholder: "0" },
               { label: "Stock", key: "stock" as const, type: "number", placeholder: "0" },
             ].map((field) => (
               <div key={field.key}>
@@ -3276,18 +3277,20 @@ export function AdminPage() {
         ? variantPrimaryUrls
         : unique(sanitizeImageUrls(data.imageUrls));
 
+      const resolvedDefaultColorId = data.defaultColorId && colorIds.includes(data.defaultColorId)
+        ? data.defaultColorId
+        : colorIds[0] ?? null;
+
       const payload = {
         productCode: data.sku.trim() ? data.sku.trim() : undefined,
         name: data.name,
         description: data.description,
-        price: parseFloat(data.price) || 0,
+        price: deriveBasePrice(colorIds, resolvedDefaultColorId, data.colorPrices ?? {}),
         quantityInStock,
         material: data.subtitle,
         categoryId: data.categoryId,
         defaultSizeId: normalizedDefaultSizeId ?? undefined,
-        defaultColorId: data.defaultColorId && colorIds.includes(data.defaultColorId)
-          ? data.defaultColorId
-          : colorIds[0] ?? undefined,
+        defaultColorId: resolvedDefaultColorId ?? undefined,
         defaultFurnitureColorId: data.defaultFurnitureColorId && furnitureColorIds.includes(data.defaultFurnitureColorId)
           ? data.defaultFurnitureColorId
           : furnitureColorIds[0] ?? undefined,
