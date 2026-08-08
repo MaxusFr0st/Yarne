@@ -1103,44 +1103,66 @@ public class ProductService : IProductService
         Dictionary<int, (decimal? Price, decimal? PriceWithLace)> colorPrices,
         CancellationToken ct)
     {
+        // Update in place when the (ProductId, ColorId) key already exists. Delete+re-add of the
+        // same composite key in one SaveChanges is unreliable in EF Core and can drop scalar
+        // fields like Price / PriceWithLace while still succeeding overall.
         var existing = await _context.ProductColors.Where(pc => pc.ProductId == productId).ToListAsync(ct);
-        _context.ProductColors.RemoveRange(existing);
+        var existingByColorId = existing.ToDictionary(pc => pc.ColorId);
+        var keep = colorIds.ToHashSet();
+
+        foreach (var pc in existing.Where(pc => !keep.Contains(pc.ColorId)))
+            _context.ProductColors.Remove(pc);
 
         for (var i = 0; i < colorIds.Count; i++)
         {
-            var (price, priceWithLace) = colorPrices.TryGetValue(colorIds[i], out var p) ? p : (null, null);
-            _context.ProductColors.Add(new Models.ProductColor
+            var colorId = colorIds[i];
+            var (price, priceWithLace) = colorPrices.TryGetValue(colorId, out var p) ? p : (null, null);
+            if (existingByColorId.TryGetValue(colorId, out var row))
             {
-                ProductId = productId,
-                ColorId = colorIds[i],
-                SortOrder = i,
-                Price = price,
-                PriceWithLace = priceWithLace,
-            });
+                row.SortOrder = i;
+                row.Price = price;
+                row.PriceWithLace = priceWithLace;
+            }
+            else
+            {
+                _context.ProductColors.Add(new Models.ProductColor
+                {
+                    ProductId = productId,
+                    ColorId = colorId,
+                    SortOrder = i,
+                    Price = price,
+                    PriceWithLace = priceWithLace,
+                });
+            }
         }
     }
 
     /// <summary>
-    /// Resolves per-color price/priceWithLace to persist. Explicit input wins (null list element =
-    /// no price for that color); when the request supplies no ColorPrices at all, falls back to
-    /// whatever prices the existing rows already had, so an update that doesn't touch pricing
-    /// doesn't wipe it out (ReplaceProductColorsAsync always fully replaces the rows).
+    /// Resolves per-color price/priceWithLace to persist.
+    /// Null or empty ColorPrices = keep whatever prices the existing rows already had
+    /// (so an unrelated update can't wipe pricing). A non-empty list is authoritative for
+    /// the colors it lists; other colors fall back to existing row prices when present.
     /// </summary>
     private static Dictionary<int, (decimal? Price, decimal? PriceWithLace)> BuildColorPriceLookup(
         List<ColorPriceInput>? colorPrices,
         IEnumerable<Models.ProductColor>? fallback = null)
     {
-        if (colorPrices is not null)
-        {
-            return colorPrices
-                .GroupBy(c => c.ColorId)
-                .ToDictionary(g => g.Key, g => (g.Last().Price, g.Last().PriceWithLace));
-        }
-        if (fallback is not null)
-        {
-            return fallback.ToDictionary(pc => pc.ColorId, pc => (pc.Price, pc.PriceWithLace));
-        }
-        return new Dictionary<int, (decimal?, decimal?)>();
+        var fromFallback = fallback?.ToDictionary(pc => pc.ColorId, pc => (pc.Price, pc.PriceWithLace))
+            ?? new Dictionary<int, (decimal?, decimal?)>();
+
+        if (colorPrices is null || colorPrices.Count == 0)
+            return fromFallback;
+
+        var fromRequest = colorPrices
+            .GroupBy(c => c.ColorId)
+            .ToDictionary(g => g.Key, g => (g.Last().Price, g.Last().PriceWithLace));
+
+        // Start from existing prices so a partial ColorPrices payload doesn't null out
+        // colors the client omitted, then overlay explicit values from the request.
+        foreach (var (colorId, prices) in fromRequest)
+            fromFallback[colorId] = prices;
+
+        return fromFallback;
     }
 
     private async Task ReplaceProductFurnitureColorsAsync(int productId, List<int> furnitureColorIds, CancellationToken ct)

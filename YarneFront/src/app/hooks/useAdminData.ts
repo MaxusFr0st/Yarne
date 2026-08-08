@@ -60,6 +60,7 @@ function mapColorVariant(c: ColorVariantDto) {
     }
   }
   return {
+    colorId: c.colorId ?? undefined,
     name: c.name,
     nameUk: c.nameUk ?? null,
     hex: c.hex,

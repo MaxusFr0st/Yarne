@@ -67,15 +67,22 @@ export function resolveDisplayStock(
   return generalStock ?? 0;
 }
 
-/** Price for selected color + lace; falls back to the product's base price when the color has none set. */
+/**
+ * Price for selected color + lace.
+ * Matches server order pricing: lace → priceWithLace ?? price ?? base; else price ?? base.
+ */
 export function resolveDisplayPrice(
   color: ColorVariant | undefined,
   activeLace: boolean,
   basePrice: number
 ): number {
   if (!color) return basePrice;
-  if (activeLace && color.priceWithLace != null) return color.priceWithLace;
-  if (!activeLace && color.price != null) return color.price;
+  if (activeLace) {
+    if (color.priceWithLace != null) return color.priceWithLace;
+    if (color.price != null) return color.price;
+    return basePrice;
+  }
+  if (color.price != null) return color.price;
   return basePrice;
 }
 
