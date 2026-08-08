@@ -64,6 +64,8 @@ function toColorVariant(c: ColorVariantDto): ColorVariant {
     name: c.name,
     nameUk: c.nameUk ?? null,
     hex: c.hex,
+    price: c.price ?? undefined,
+    priceWithLace: c.priceWithLace ?? undefined,
     image: imgs[0] ?? primary,
     images: imgs,
     sizeImages: Object.keys(sizeImages).length ? sizeImages : undefined,

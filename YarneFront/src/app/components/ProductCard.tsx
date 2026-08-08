@@ -13,6 +13,7 @@ import { useMotionEntrance } from "../hooks/useMotionEntrance";
 import { useTouchMobileLayout } from "../hooks/useTouchMobileLayout";
 import { getDefaultColorIndex } from "../utils/productColorIndex";
 import { localizedCatalogName } from "../utils/localizedName";
+import { resolveDisplayPrice } from "../utils/variantStock";
 
 interface ProductCardProps {
   product: Product;
@@ -95,8 +96,9 @@ function ProductCardInner({
       productId: product.id,
       name: product.name,
       subtitle: product.subtitle,
-      price: product.price,
+      price: resolveDisplayPrice(product.colors[activeColor], false, product.price),
       color: product.colors[activeColor].name,
+      colorId: product.colors[activeColor].colorId,
       colorHex: product.colors[activeColor].hex,
       size: "S",
       withLace: null,
@@ -281,7 +283,7 @@ function ProductCardInner({
                 {product.subtitle}
               </p>
             </div>
-            <PriceTag amount={product.price} locale={locale} variant="card" className="flex-shrink-0" />
+            <PriceTag amount={resolveDisplayPrice(activeColorVariant, false, product.price)} locale={locale} variant="card" className="flex-shrink-0" />
           </div>
 
           {(product.colors.length > 1 || activeColorLabel) && (

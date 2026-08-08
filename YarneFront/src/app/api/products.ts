@@ -18,6 +18,8 @@ export interface ColorVariantDto {
   name: string;
   nameUk?: string | null;
   hex: string;
+  price?: number | null;
+  priceWithLace?: number | null;
   image: ProductImageDto;
   images: ProductImageDto[];
   sizeImages?: Record<string, ProductImageDto[]>;
@@ -127,6 +129,12 @@ export interface VariantStockInput {
   quantityInStock: number;
 }
 
+export interface ColorPriceInput {
+  colorId: number;
+  price?: number;
+  priceWithLace?: number;
+}
+
 export interface CreateProductRequest {
   productCode?: string;
   name: string;
@@ -147,6 +155,7 @@ export interface CreateProductRequest {
   colorVariants?: ColorVariantInput[];
   colorSizeVariants?: ColorSizeVariantInput[];
   variantStocks?: VariantStockInput[];
+  colorPrices?: ColorPriceInput[];
   isNew?: boolean;
   isBestseller?: boolean;
   lace?: boolean;

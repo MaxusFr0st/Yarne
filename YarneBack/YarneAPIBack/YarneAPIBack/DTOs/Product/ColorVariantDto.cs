@@ -25,6 +25,12 @@ public class ColorVariantDto
 
     public string Hex { get; set; } = null!;
 
+    /// <summary>Per-color price. Null = falls back to the product's base Price.</summary>
+    public decimal? Price { get; set; }
+
+    /// <summary>Per-color price when the lace option is selected. Null = falls back to Price.</summary>
+    public decimal? PriceWithLace { get; set; }
+
     /// <summary>Primary/thumbnail image for product cards</summary>
     public ProductImageDto Image { get; set; } = new();
 

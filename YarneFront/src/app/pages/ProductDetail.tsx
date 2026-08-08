@@ -17,7 +17,7 @@ import { getSupplementaryProductDetails, hasSupplementaryProductDetails } from "
 import { MobileRelatedProducts } from "../components/MobileRelatedProducts";
 import { ProductGuaranteeBlock } from "../components/ProductGuaranteeBlock";
 import { resolveDisplayImages } from "../utils/variantImages";
-import { resolveDisplayStock } from "../utils/variantStock";
+import { resolveDisplayPrice, resolveDisplayStock } from "../utils/variantStock";
 import { resolveMediaUrl } from "../utils/storefrontMedia";
 import { scrollToPageTop } from "../utils/scrollToTop";
 import { clearScrollForRoute } from "../utils/scrollRestoration";
@@ -217,8 +217,9 @@ export function ProductDetail() {
       productId: product.id,
       name: product.name,
       subtitle: product.subtitle,
-      price: product.price,
+      price: resolveDisplayPrice(selectedColor, activeLace, product.price),
       color: selectedColor.name,
+      colorId: selectedColor.colorId,
       colorHex: selectedColor.hex,
       furnitureColor: selectedFurniture?.name,
       furnitureColorHex: selectedFurniture?.hex,
@@ -234,7 +235,7 @@ export function ProductDetail() {
 
   const outOfStock = displayStock <= 0;
 
-  const displayPrice = product ? product.price : 0;
+  const displayPrice = product ? resolveDisplayPrice(selectedColor, activeLace, product.price) : 0;
 
   return (
     <main className="overflow-x-hidden min-h-[100vh]" style={{ backgroundColor: "#F5F2ED" }}>

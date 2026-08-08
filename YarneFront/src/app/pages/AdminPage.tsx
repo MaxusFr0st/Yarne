@@ -378,6 +378,10 @@ interface ProductFormData {
   colorSizeVariants: Record<string, string[]>;
   /** Optional per color+size+lace stock: `${colorId}:${sizeId}:${lace}` -> quantity */
   variantStocks: Record<string, string>;
+  /** Per-color price: colorId -> price string */
+  colorPrices: Record<number, string>;
+  /** Per-color price with lace: colorId -> price string */
+  colorPricesWithLace: Record<number, string>;
   suggestedProductCodes: string[];
   suggestionsHydrated: boolean;
   suggestionsTouched: boolean;
@@ -616,9 +620,13 @@ function ProductModal({
     const colorSizeIds: Record<number, number[]> = {};
     const colorSizeVariants: Record<string, string[]> = {};
     const variantStocks: Record<string, string> = {};
+    const colorPrices: Record<number, string> = {};
+    const colorPricesWithLace: Record<number, string> = {};
     product?.colors?.forEach((c) => {
       const colorId = colors.find((col) => col.name === c.name)?.id;
       if (colorId == null) return;
+      if (c.price != null) colorPrices[colorId] = String(c.price);
+      if (c.priceWithLace != null) colorPricesWithLace[colorId] = String(c.priceWithLace);
       const laceVariants = c.laceVariants ?? {};
       const sizeImages = c.sizeImages ?? {};
       const sizeStocks = c.sizeStocks ?? {};
@@ -672,6 +680,8 @@ function ProductModal({
       colorSizeIds,
       colorSizeVariants,
       variantStocks,
+      colorPrices,
+      colorPricesWithLace,
       defaultColorId: base.defaultColorId ?? colorIds[0] ?? null,
       defaultFurnitureColorId: base.defaultFurnitureColorId ?? furnitureColorIds[0] ?? null,
       suggestedProductCodes: [],
@@ -1456,6 +1466,68 @@ function ProductModal({
                           {color?.name ?? colorId}
                           {isDefault && <Star size={12} className="text-[#4A0E0E]" fill="currentColor" />}
                         </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {form.colorIds.length > 0 && (
+                <div>
+                  <label className="block text-xs mb-2 tracking-widest uppercase" style={{ fontFamily: "'DM Sans', sans-serif", color: "rgba(45,36,30,0.4)", letterSpacing: "0.14em" }}>
+                    Color prices
+                  </label>
+                  <p className="text-xs text-[#2D241E]/45 mb-2" style={{ fontFamily: "'DM Sans', sans-serif" }}>
+                    Optional per-color price. Leave blank to use the base Price above.
+                  </p>
+                  <div className="flex flex-col gap-2">
+                    {form.colorIds.map((colorId) => {
+                      const color = colors.find((c) => c.id === colorId);
+                      return (
+                        <div key={`color-price-${colorId}`} className="flex items-center gap-3 flex-wrap">
+                          <span className="flex items-center gap-2 min-w-[110px]" style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "0.85rem", color: "#2D241E" }}>
+                            <span className="w-4 h-4 rounded-full border border-[#2D241E]/30 shrink-0" style={{ backgroundColor: color?.hexCode ?? "#2D241E" }} />
+                            {color?.name ?? colorId}
+                          </span>
+                          <input
+                            type="number"
+                            min={0}
+                            placeholder="Price"
+                            value={form.colorPrices[colorId] ?? ""}
+                            onChange={(e) => {
+                              const raw = e.target.value;
+                              const trimmed = raw.trim();
+                              let value = raw;
+                              if (trimmed !== "") {
+                                const n = Number(trimmed);
+                                if (Number.isFinite(n) && n < 0) value = "0";
+                              }
+                              setForm((p) => ({ ...p, colorPrices: { ...p.colorPrices, [colorId]: value } }));
+                            }}
+                            className="w-24 bg-white/60 border rounded-[10px] px-2.5 py-1.5 text-xs text-[#2D241E] focus:outline-none"
+                            style={{ fontFamily: "'DM Sans', sans-serif", borderColor: "rgba(45,36,30,0.15)" }}
+                          />
+                          {form.lace && (
+                            <input
+                              type="number"
+                              min={0}
+                              placeholder="Price with lace"
+                              value={form.colorPricesWithLace[colorId] ?? ""}
+                              onChange={(e) => {
+                                const raw = e.target.value;
+                                const trimmed = raw.trim();
+                                let value = raw;
+                                if (trimmed !== "") {
+                                  const n = Number(trimmed);
+                                  if (Number.isFinite(n) && n < 0) value = "0";
+                                }
+                                setForm((p) => ({ ...p, colorPricesWithLace: { ...p.colorPricesWithLace, [colorId]: value } }));
+                              }}
+                              className="w-28 bg-white/60 border rounded-[10px] px-2.5 py-1.5 text-xs text-[#2D241E] focus:outline-none"
+                              style={{ fontFamily: "'DM Sans', sans-serif", borderColor: "rgba(45,36,30,0.15)" }}
+                            />
+                          )}
+                        </div>
                       );
                     })}
                   </div>
@@ -3176,6 +3248,16 @@ export function AdminPage() {
             Number.isFinite(v.quantityInStock) &&
             v.quantityInStock >= 0
         );
+      const colorPrices = colorIds
+        .map((colorId) => {
+          const priceRaw = data.colorPrices?.[colorId]?.trim();
+          const priceWithLaceRaw = data.lace ? data.colorPricesWithLace?.[colorId]?.trim() : undefined;
+          const price = priceRaw ? parseFloat(priceRaw) : undefined;
+          const priceWithLace = priceWithLaceRaw ? parseFloat(priceWithLaceRaw) : undefined;
+          return { colorId, price, priceWithLace };
+        })
+        .filter((c) => c.price != null || c.priceWithLace != null);
+
       const computedTotalStock = variantStocks.reduce((sum, v) => sum + v.quantityInStock, 0);
       const parsedTotalStock = data.stock.trim() ? parseInt(data.stock, 10) : NaN;
       const quantityInStock = variantStocks.length > 0
@@ -3215,6 +3297,7 @@ export function AdminPage() {
         furnitureColorIds,
         colorSizeVariants,
         variantStocks,
+        colorPrices,
         isNew: data.isNew,
         isBestseller: data.isBestseller,
         lace: data.lace,

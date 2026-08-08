@@ -24,6 +24,7 @@ export interface CartItem {
   subtitle?: string;
   price: number;
   color: string;
+  colorId?: number;
   colorHex: string;
   furnitureColor?: string;
   furnitureColorHex?: string;

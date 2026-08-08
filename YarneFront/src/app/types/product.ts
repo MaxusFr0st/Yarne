@@ -16,6 +16,8 @@ export interface ColorVariant {
   name: string;
   nameUk?: string | null;
   hex: string;
+  price?: number;
+  priceWithLace?: number;
   image: ProductImage;
   images: ProductImage[];
   sizeImages?: Record<string, ProductImage[]>;

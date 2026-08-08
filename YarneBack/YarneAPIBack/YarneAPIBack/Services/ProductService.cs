@@ -259,7 +259,8 @@ public class ProductService : IProductService
 
         var colorIds = ResolveColorIds(request.ColorIds, request.ColorVariants, request.ColorSizeVariants);
         var defaultColorId = ResolveDefaultColorId(colorIds, request.DefaultColorId);
-        await ReplaceProductColorsAsync(product.Id, OrderColorIdsWithDefault(colorIds, defaultColorId), ct);
+        var colorPriceLookup = BuildColorPriceLookup(request.ColorPrices);
+        await ReplaceProductColorsAsync(product.Id, OrderColorIdsWithDefault(colorIds, defaultColorId), colorPriceLookup, ct);
         product.DefaultColorId = defaultColorId;
 
         var furnitureColorIds = (request.FurnitureColorIds ?? new List<int>()).Where(id => id > 0).Distinct().ToList();
@@ -417,7 +418,8 @@ public class ProductService : IProductService
                 : product.ProductColors.OrderBy(pc => pc.SortOrder).Select(pc => pc.ColorId).ToList();
             var defaultColorId = ResolveDefaultColorId(colorIds, request.DefaultColorId ?? product.DefaultColorId);
             product.DefaultColorId = defaultColorId;
-            await ReplaceProductColorsAsync(product.Id, OrderColorIdsWithDefault(colorIds, defaultColorId), ct);
+            var colorPriceLookup = BuildColorPriceLookup(request.ColorPrices, product.ProductColors);
+            await ReplaceProductColorsAsync(product.Id, OrderColorIdsWithDefault(colorIds, defaultColorId), colorPriceLookup, ct);
         }
 
         if (request.FurnitureColorIds is not null || request.DefaultFurnitureColorId is not null)
@@ -623,6 +625,8 @@ public class ProductService : IProductService
                     Name = pc.Color.Name,
                     NameUk = pc.Color.NameUk,
                     Hex = pc.Color.HexCode,
+                    Price = pc.Price,
+                    PriceWithLace = pc.PriceWithLace,
                     Image = colorImages.Count > 0 ? colorImages[0] : fallback,
                     Images = colorImages.Count > 0 ? colorImages : new List<ProductImageDto> { fallback },
                     SizeImages = sizeImages,
@@ -1093,20 +1097,50 @@ public class ProductService : IProductService
         }
     }
 
-    private async Task ReplaceProductColorsAsync(int productId, List<int> colorIds, CancellationToken ct)
+    private async Task ReplaceProductColorsAsync(
+        int productId,
+        List<int> colorIds,
+        Dictionary<int, (decimal? Price, decimal? PriceWithLace)> colorPrices,
+        CancellationToken ct)
     {
         var existing = await _context.ProductColors.Where(pc => pc.ProductId == productId).ToListAsync(ct);
         _context.ProductColors.RemoveRange(existing);
 
         for (var i = 0; i < colorIds.Count; i++)
         {
+            var (price, priceWithLace) = colorPrices.TryGetValue(colorIds[i], out var p) ? p : (null, null);
             _context.ProductColors.Add(new Models.ProductColor
             {
                 ProductId = productId,
                 ColorId = colorIds[i],
                 SortOrder = i,
+                Price = price,
+                PriceWithLace = priceWithLace,
             });
         }
+    }
+
+    /// <summary>
+    /// Resolves per-color price/priceWithLace to persist. Explicit input wins (null list element =
+    /// no price for that color); when the request supplies no ColorPrices at all, falls back to
+    /// whatever prices the existing rows already had, so an update that doesn't touch pricing
+    /// doesn't wipe it out (ReplaceProductColorsAsync always fully replaces the rows).
+    /// </summary>
+    private static Dictionary<int, (decimal? Price, decimal? PriceWithLace)> BuildColorPriceLookup(
+        List<ColorPriceInput>? colorPrices,
+        IEnumerable<Models.ProductColor>? fallback = null)
+    {
+        if (colorPrices is not null)
+        {
+            return colorPrices
+                .GroupBy(c => c.ColorId)
+                .ToDictionary(g => g.Key, g => (g.Last().Price, g.Last().PriceWithLace));
+        }
+        if (fallback is not null)
+        {
+            return fallback.ToDictionary(pc => pc.ColorId, pc => (pc.Price, pc.PriceWithLace));
+        }
+        return new Dictionary<int, (decimal?, decimal?)>();
     }
 
     private async Task ReplaceProductFurnitureColorsAsync(int productId, List<int> furnitureColorIds, CancellationToken ct)

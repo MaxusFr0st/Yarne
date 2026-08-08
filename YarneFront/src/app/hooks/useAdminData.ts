@@ -63,6 +63,8 @@ function mapColorVariant(c: ColorVariantDto) {
     name: c.name,
     nameUk: c.nameUk ?? null,
     hex: c.hex,
+    price: c.price ?? undefined,
+    priceWithLace: c.priceWithLace ?? undefined,
     image: allImages[0] ?? primary ?? PLACEHOLDER_IMG,
     images: allImages.length > 0 ? allImages : [PLACEHOLDER_IMG],
     sizeImages: Object.keys(sizeImages).length ? sizeImages : undefined,
