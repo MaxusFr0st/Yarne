@@ -91,8 +91,8 @@ public class UpdateProductRequest
     public List<VariantStockInput>? VariantStocks { get; set; }
 
     /// <summary>
-    /// Optional on update. Null = keep existing per-color prices.
-    /// Empty list = clear all per-color prices (falls back to Price for every color).
+    /// Optional on update. Null or empty = keep existing per-color prices.
+    /// Non-empty list overlays prices for the listed colors (other colors keep theirs).
     /// </summary>
     public List<ColorPriceInput>? ColorPrices { get; set; }
 

@@ -96,9 +96,9 @@ public class ColorPriceInput
 {
     public int ColorId { get; set; }
 
-    [Range(0, double.MaxValue)]
+    [Range(typeof(decimal), "0", "999999999")]
     public decimal? Price { get; set; }
 
-    [Range(0, double.MaxValue)]
+    [Range(typeof(decimal), "0", "999999999")]
     public decimal? PriceWithLace { get; set; }
 }

@@ -624,10 +624,15 @@ function ProductModal({
     const variantStocks: Record<string, string> = {};
     const colorPrices: Record<number, string> = {};
     const colorPricesWithLace: Record<number, string> = {};
+    const legacyBasePrice = product && product.price > 0 ? String(product.price) : "";
     product?.colors?.forEach((c) => {
       const colorId = colors.find((col) => col.name === c.name)?.id;
       if (colorId == null) return;
+      // Prefill from per-color price, else the product's legacy base price so edits
+      // don't leave blank fields that serialize as colorPrices: [] and wipe nothing
+      // into the DB (storefront then keeps showing the old flat price).
       if (c.price != null) colorPrices[colorId] = String(c.price);
+      else if (legacyBasePrice) colorPrices[colorId] = legacyBasePrice;
       if (c.priceWithLace != null) colorPricesWithLace[colorId] = String(c.priceWithLace);
       const laceVariants = c.laceVariants ?? {};
       const sizeImages = c.sizeImages ?? {};
@@ -772,6 +777,19 @@ function ProductModal({
         setForm((prev) => ({ ...prev, [key]: "0" }));
         return;
       }
+    }
+    if (key === "lace" && value === true) {
+      setForm((prev) => {
+        const nextLacePrices = { ...prev.colorPricesWithLace };
+        for (const colorId of prev.colorIds) {
+          if (!nextLacePrices[colorId]?.trim() && prev.colorPrices[colorId]?.trim()) {
+            nextLacePrices[colorId] = prev.colorPrices[colorId];
+          }
+        }
+        return { ...prev, lace: true, colorPricesWithLace: nextLacePrices };
+      });
+      setFormErrors((prev) => ({ ...prev, price: undefined }));
+      return;
     }
     setForm((prev) => ({ ...prev, [key]: value }));
   };
@@ -1028,6 +1046,24 @@ function ProductModal({
     if (!form.name.trim()) errors.name = "This field must not be empty.";
     if (!form.description.trim()) errors.description = "This field must not be empty.";
     if (!Number.isFinite(parsedPrice) || parsedPrice <= 0) errors.price = "Set a price for at least one color.";
+    const colorsMissingPrice = form.colorIds.filter((colorId) => {
+      const raw = form.colorPrices[colorId]?.trim();
+      const n = raw ? Number(raw) : NaN;
+      return !Number.isFinite(n) || n <= 0;
+    });
+    if (colorsMissingPrice.length > 0) {
+      errors.price = "Set a price greater than 0 for every selected color.";
+    }
+    if (form.lace) {
+      const colorsMissingLacePrice = form.colorIds.filter((colorId) => {
+        const raw = form.colorPricesWithLace[colorId]?.trim();
+        const n = raw ? Number(raw) : NaN;
+        return !Number.isFinite(n) || n <= 0;
+      });
+      if (colorsMissingLacePrice.length > 0) {
+        errors.price = "Set a “with strap” price for every color (Has strap option is on).";
+      }
+    }
     if (form.stock.trim() && (!Number.isFinite(parsedStock) || parsedStock < 0)) {
       errors.stock = "Enter a valid stock (0 or more).";
     }
@@ -1407,9 +1443,13 @@ function ProductModal({
                             const nextColorSizeIds = { ...p.colorSizeIds };
                             const nextVariants = { ...p.colorSizeVariants };
                             const nextStocks = { ...p.variantStocks };
+                            const nextColorPrices = { ...p.colorPrices };
+                            const nextColorPricesWithLace = { ...p.colorPricesWithLace };
                             const preferredSizeId = sizes.find((s) => s.name === "M")?.id ?? sizes[0]?.id ?? null;
                             if (isSelected) {
                               delete nextColorSizeIds[c.id];
+                              delete nextColorPrices[c.id];
+                              delete nextColorPricesWithLace[c.id];
                               Object.keys(nextVariants).forEach((key) => {
                                 if (key.startsWith(`${c.id}:`)) delete nextVariants[key];
                               });
@@ -1418,10 +1458,26 @@ function ProductModal({
                               });
                             } else if (preferredSizeId != null) {
                               nextColorSizeIds[c.id] = [preferredSizeId];
+                              const seedPrice =
+                                (p.defaultColorId != null ? p.colorPrices[p.defaultColorId] : undefined)?.trim()
+                                || Object.values(p.colorPrices).find((v) => v?.trim())
+                                || p.price?.trim()
+                                || "";
+                              if (seedPrice && !nextColorPrices[c.id]?.trim()) {
+                                nextColorPrices[c.id] = seedPrice;
+                              }
                             }
-                            return { ...p, colorIds: nextIds, colorSizeIds: nextColorSizeIds, colorSizeVariants: nextVariants, variantStocks: nextStocks };
+                            return {
+                              ...p,
+                              colorIds: nextIds,
+                              colorSizeIds: nextColorSizeIds,
+                              colorSizeVariants: nextVariants,
+                              variantStocks: nextStocks,
+                              colorPrices: nextColorPrices,
+                              colorPricesWithLace: nextColorPricesWithLace,
+                            };
                           });
-                          setFormErrors((prev) => ({ ...prev, colors: undefined, sizes: undefined }));
+                          setFormErrors((prev) => ({ ...prev, colors: undefined, sizes: undefined, price: undefined }));
                         }}
                         className="flex items-center gap-2 px-3 py-2 rounded-full border transition-all"
                         style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "0.85rem", borderColor: isSelected ? "#2D241E" : "rgba(45,36,30,0.2)", backgroundColor: isSelected ? "rgba(45,36,30,0.06)" : "transparent", color: "#2D241E" }}
@@ -1479,7 +1535,7 @@ function ProductModal({
                     Color prices
                   </label>
                   <p className="text-xs text-[#2D241E]/45 mb-2" style={{ fontFamily: "'DM Sans', sans-serif" }}>
-                    Optional per-color price. Leave blank to use the base Price above.
+                    Required per color. {form.lace ? "Second field is the price when “with strap” is selected." : "Turn on “Has strap option” below to set a separate strap price."}
                   </p>
                   <div className="flex flex-col gap-2">
                     {form.colorIds.map((colorId) => {
@@ -1504,15 +1560,16 @@ function ProductModal({
                                 if (Number.isFinite(n) && n < 0) value = "0";
                               }
                               setForm((p) => ({ ...p, colorPrices: { ...p.colorPrices, [colorId]: value } }));
+                              setFormErrors((prev) => ({ ...prev, price: undefined }));
                             }}
                             className="w-24 bg-white/60 border rounded-[10px] px-2.5 py-1.5 text-xs text-[#2D241E] focus:outline-none"
-                            style={{ fontFamily: "'DM Sans', sans-serif", borderColor: "rgba(45,36,30,0.15)" }}
+                            style={{ fontFamily: "'DM Sans', sans-serif", borderColor: formErrors.price ? "rgba(180,35,24,0.45)" : "rgba(45,36,30,0.15)" }}
                           />
                           {form.lace && (
                             <input
                               type="number"
                               min={0}
-                              placeholder="Price with lace"
+                              placeholder="Price with strap"
                               value={form.colorPricesWithLace[colorId] ?? ""}
                               onChange={(e) => {
                                 const raw = e.target.value;
@@ -1523,15 +1580,19 @@ function ProductModal({
                                   if (Number.isFinite(n) && n < 0) value = "0";
                                 }
                                 setForm((p) => ({ ...p, colorPricesWithLace: { ...p.colorPricesWithLace, [colorId]: value } }));
+                                setFormErrors((prev) => ({ ...prev, price: undefined }));
                               }}
-                              className="w-28 bg-white/60 border rounded-[10px] px-2.5 py-1.5 text-xs text-[#2D241E] focus:outline-none"
-                              style={{ fontFamily: "'DM Sans', sans-serif", borderColor: "rgba(45,36,30,0.15)" }}
+                              className="w-32 bg-white/60 border rounded-[10px] px-2.5 py-1.5 text-xs text-[#2D241E] focus:outline-none"
+                              style={{ fontFamily: "'DM Sans', sans-serif", borderColor: formErrors.price ? "rgba(180,35,24,0.45)" : "rgba(45,36,30,0.15)" }}
                             />
                           )}
                         </div>
                       );
                     })}
                   </div>
+                  {formErrors.price && (
+                    <p className="text-xs text-[#B42318] mt-2" style={{ fontFamily: "'DM Sans', sans-serif" }}>{formErrors.price}</p>
+                  )}
                 </div>
               )}
 
@@ -3253,8 +3314,10 @@ export function AdminPage() {
         .map((colorId) => {
           const priceRaw = data.colorPrices?.[colorId]?.trim();
           const priceWithLaceRaw = data.lace ? data.colorPricesWithLace?.[colorId]?.trim() : undefined;
-          const price = priceRaw ? parseFloat(priceRaw) : undefined;
-          const priceWithLace = priceWithLaceRaw ? parseFloat(priceWithLaceRaw) : undefined;
+          const priceParsed = priceRaw ? parseFloat(priceRaw) : NaN;
+          const laceParsed = priceWithLaceRaw ? parseFloat(priceWithLaceRaw) : NaN;
+          const price = Number.isFinite(priceParsed) && priceParsed >= 0 ? priceParsed : undefined;
+          const priceWithLace = Number.isFinite(laceParsed) && laceParsed >= 0 ? laceParsed : undefined;
           return { colorId, price, priceWithLace };
         })
         .filter((c) => c.price != null || c.priceWithLace != null);
@@ -3300,7 +3363,9 @@ export function AdminPage() {
         furnitureColorIds,
         colorSizeVariants,
         variantStocks,
-        colorPrices,
+        // Omit empty list on update so the API keeps existing per-color prices
+        // (empty ColorPrices used to wipe Price/PriceWithLace back to null).
+        ...(colorPrices.length > 0 ? { colorPrices } : {}),
         isNew: data.isNew,
         isBestseller: data.isBestseller,
         lace: data.lace,
