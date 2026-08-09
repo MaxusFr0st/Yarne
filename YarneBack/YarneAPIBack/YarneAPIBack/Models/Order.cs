@@ -7,7 +7,10 @@ public partial class Order
 {
     public int Id { get; set; }
 
-    public int CustomerId { get; set; }
+    public int? CustomerId { get; set; }
+
+    /// <summary>Contact email for guest checkout (no Customer account). Null for logged-in orders.</summary>
+    public string? GuestEmail { get; set; }
 
     public int PaymentMethodId { get; set; }
 
@@ -39,7 +42,33 @@ public partial class Order
 
     public bool IsVoid { get; set; }
 
-    public virtual Customer Customer { get; set; } = null!;
+    public string? RecipientFirstName { get; set; }
+
+    public string? RecipientLastName { get; set; }
+
+    public string? RecipientPhone { get; set; }
+
+    public string? DeliveryCityRef { get; set; }
+
+    public string? DeliveryCityName { get; set; }
+
+    public string? DeliveryWarehouseRef { get; set; }
+
+    public string? DeliveryWarehouseName { get; set; }
+
+    public string? TtnNumber { get; set; }
+
+    public string? TtnRef { get; set; }
+
+    public DateTime? TtnCreatedAt { get; set; }
+
+    public string? TrackingStatus { get; set; }
+
+    public string? TrackingStatusCode { get; set; }
+
+    public DateTime? TrackingCheckedAt { get; set; }
+
+    public virtual Customer? Customer { get; set; }
 
     public virtual ICollection<OrderItem> OrderItems { get; set; } = new List<OrderItem>();
 

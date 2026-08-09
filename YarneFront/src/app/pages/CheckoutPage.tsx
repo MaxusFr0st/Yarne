@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { motion } from "motion/react";
-import { ArrowRight, CheckCircle2, Package, ShoppingBag } from "lucide-react";
+import { ArrowRight, CheckCircle2, Package } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { createOrder, type OrderDto } from "../api/orders";
 import { fetchCustomerProfile } from "../api/auth";
@@ -11,6 +11,7 @@ import { useLocale } from "../i18n/useLocale";
 import { PriceTag } from "../components/PriceTag";
 import { OrderLineDetails, cartItemToLineDetails } from "../components/OrderLineDetails";
 import { cartItemsTotal, mergePlacedOrderDisplay } from "../utils/mergePlacedOrderItems";
+import { NovaPoshtaPicker, type NovaPoshtaSelection } from "../components/NovaPoshtaPicker";
 
 const easing = [0.25, 0.1, 0.25, 1] as const;
 const ORDER_ITEM_PLACEHOLDER =
@@ -32,8 +33,13 @@ function toDisplayDate(value: string, locale: "uk" | "en"): string {
 export function CheckoutPage() {
   const { t } = useTranslation();
   const locale = useLocale();
-  const { cartItems, cartTotal, isLoggedIn, user, openLogin, clearCart } = useApp();
+  const { cartItems, cartTotal, isLoggedIn, user, clearCart } = useApp();
+  const [email, setEmail] = useState("");
   const [phoneNumber, setPhoneNumber] = useState("");
+  const [recipientFirstName, setRecipientFirstName] = useState("");
+  const [recipientLastName, setRecipientLastName] = useState("");
+  const [recipientPhone, setRecipientPhone] = useState("");
+  const [delivery, setDelivery] = useState<NovaPoshtaSelection | null>(null);
   const [placingOrder, setPlacingOrder] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [placedOrder, setPlacedOrder] = useState<OrderDto | null>(null);
@@ -47,8 +53,19 @@ export function CheckoutPage() {
   const displaySubtotal = placedOrder ? Number(placedOrder.total) || snapshotTotal : cartTotal;
   const displayTotal = displaySubtotal;
 
+  const normalizedEmail = email.trim();
+  const isEmailValid = isLoggedIn || /^\S+@\S+\.\S+$/.test(normalizedEmail);
+
   const normalizedPhone = phoneNumber.trim();
   const isPhoneValid = normalizedPhone.length >= 8 && normalizedPhone.length <= 32;
+
+  const normalizedRecipientPhone = recipientPhone.trim();
+  const isRecipientValid =
+    recipientFirstName.trim().length > 0 &&
+    recipientLastName.trim().length > 0 &&
+    normalizedRecipientPhone.length >= 8 &&
+    normalizedRecipientPhone.length <= 32;
+  const isDeliveryValid = delivery !== null;
 
   useEffect(() => {
     if (!isLoggedIn) return;
@@ -57,6 +74,7 @@ export function CheckoutPage() {
       .then((profile) => {
         if (cancelled || !profile.phoneNumber) return;
         setPhoneNumber((current) => (current.trim().length > 0 ? current : profile.phoneNumber ?? ""));
+        setRecipientPhone((current) => (current.trim().length > 0 ? current : profile.phoneNumber ?? ""));
       })
       .catch(() => {
         // profile optional for checkout
@@ -66,10 +84,29 @@ export function CheckoutPage() {
     };
   }, [isLoggedIn]);
 
+  useEffect(() => {
+    if (!user?.name) return;
+    const [first, ...rest] = user.name.trim().split(/\s+/);
+    setRecipientFirstName((current) => (current.trim().length > 0 ? current : first ?? ""));
+    setRecipientLastName((current) => (current.trim().length > 0 ? current : rest.join(" ")));
+  }, [user?.name]);
+
   const placeOrder = async () => {
-    if (!isLoggedIn || cartItems.length === 0 || placingOrder) return;
+    if (cartItems.length === 0 || placingOrder) return;
+    if (!isEmailValid) {
+      setError(t(normalizedEmail.length === 0 ? "checkout.emailRequired" : "checkout.emailInvalid"));
+      return;
+    }
     if (!isPhoneValid) {
       setError(t(normalizedPhone.length === 0 ? "checkout.phoneRequired" : "checkout.phoneInvalid"));
+      return;
+    }
+    if (!isRecipientValid) {
+      setError(t("checkout.recipientRequired"));
+      return;
+    }
+    if (!isDeliveryValid || !delivery) {
+      setError(t("checkout.deliveryRequired"));
       return;
     }
     setPlacingOrder(true);
@@ -81,6 +118,14 @@ export function CheckoutPage() {
     try {
       const order = await createOrder({
         phoneNumber: normalizedPhone,
+        email: isLoggedIn ? undefined : normalizedEmail,
+        recipientFirstName: recipientFirstName.trim(),
+        recipientLastName: recipientLastName.trim(),
+        recipientPhone: normalizedRecipientPhone,
+        deliveryCityRef: delivery.cityRef,
+        deliveryCityName: delivery.cityName,
+        deliveryWarehouseRef: delivery.warehouseRef,
+        deliveryWarehouseName: delivery.warehouseName,
         items: snapshot.map((item) => ({
           productIdOrCode: item.productId,
           quantity: item.quantity,
@@ -100,40 +145,6 @@ export function CheckoutPage() {
       setPlacingOrder(false);
     }
   };
-
-  if (!isLoggedIn) {
-    return (
-      <main className="min-h-[100vh] flex items-center justify-center px-6" style={{ backgroundColor: "#F5F2ED", paddingTop: "120px" }}>
-        <motion.div
-          className="w-full max-w-[520px] rounded-[32px] p-10 text-center"
-          style={{ border: "1px solid rgba(45,36,30,0.1)", backgroundColor: "rgba(245,242,237,0.85)" }}
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, ease: easing }}
-        >
-          <div className="w-16 h-16 rounded-full mx-auto mb-6 flex items-center justify-center" style={{ backgroundColor: "rgba(45,36,30,0.06)" }}>
-            <ShoppingBag size={26} className="text-[#2D241E]/70" />
-          </div>
-          <h1 className="text-[#2D241E] mb-3" style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "2rem", fontWeight: 400 }}>
-            {t("checkout.signInTitle")}
-          </h1>
-          <p className="text-[#2D241E]/50 mb-8" style={{ fontFamily: "'DM Sans', sans-serif", lineHeight: 1.7 }}>
-            {t("checkout.signInSubtitle")}
-          </p>
-          <button
-            onClick={openLogin}
-            className="w-full py-4 rounded-full text-[#F5F2ED] uppercase tracking-widest transition-all duration-300 hover:opacity-90"
-            style={{ backgroundColor: "#2D241E", fontFamily: "'DM Sans', sans-serif", fontSize: "0.78rem", letterSpacing: "0.13em" }}
-          >
-            {t("checkout.openLogin")}
-          </button>
-          <LangLink to="/collection" className="inline-block mt-4 text-[#2D241E]/50 hover:text-[#4A0E0E] transition-colors" style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "0.85rem" }}>
-            {t("checkout.backToCollection")}
-          </LangLink>
-        </motion.div>
-      </main>
-    );
-  }
 
   if (cartItems.length === 0 && !placedOrder) {
     return (
@@ -267,28 +278,136 @@ export function CheckoutPage() {
           </div>
 
           {!placedOrder && (
-            <div className="pb-5 border-b border-[#2D241E]/10">
-              <label
-                htmlFor="checkout-phone"
-                className="block text-[#2D241E]/55 uppercase tracking-widest text-xs mb-2"
-                style={{ fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.1em" }}
-              >
-                {t("checkout.phoneNumber")}
-              </label>
-              <input
-                id="checkout-phone"
-                type="tel"
-                autoComplete="tel"
-                value={phoneNumber}
-                onChange={(e) => {
-                  setPhoneNumber(e.target.value);
-                  if (error) setError(null);
-                }}
-                placeholder={t("checkout.phonePlaceholder")}
-                className="w-full rounded-[16px] border bg-[#F5F2ED]/80 px-4 py-3 text-[#2D241E] focus:outline-none"
-                style={{ borderColor: "rgba(45,36,30,0.15)", fontFamily: "'DM Sans', sans-serif", fontSize: "0.9rem" }}
-              />
-            </div>
+            <>
+              {!isLoggedIn && (
+                <div className="pb-5 border-b border-[#2D241E]/10">
+                  <label
+                    htmlFor="checkout-email"
+                    className="block text-[#2D241E]/55 uppercase tracking-widest text-xs mb-2"
+                    style={{ fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.1em" }}
+                  >
+                    {t("checkout.email")}
+                  </label>
+                  <input
+                    id="checkout-email"
+                    type="email"
+                    autoComplete="email"
+                    value={email}
+                    onChange={(e) => {
+                      setEmail(e.target.value);
+                      if (error) setError(null);
+                    }}
+                    placeholder={t("checkout.emailPlaceholder")}
+                    className="w-full rounded-[16px] border bg-[#F5F2ED]/80 px-4 py-3 text-[#2D241E] focus:outline-none"
+                    style={{ borderColor: "rgba(45,36,30,0.15)", fontFamily: "'DM Sans', sans-serif", fontSize: "0.9rem" }}
+                  />
+                </div>
+              )}
+
+              <div className="pb-5 border-b border-[#2D241E]/10">
+                <label
+                  htmlFor="checkout-phone"
+                  className="block text-[#2D241E]/55 uppercase tracking-widest text-xs mb-2"
+                  style={{ fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.1em" }}
+                >
+                  {t("checkout.phoneNumber")}
+                </label>
+                <input
+                  id="checkout-phone"
+                  type="tel"
+                  autoComplete="tel"
+                  value={phoneNumber}
+                  onChange={(e) => {
+                    setPhoneNumber(e.target.value);
+                    if (error) setError(null);
+                  }}
+                  placeholder={t("checkout.phonePlaceholder")}
+                  className="w-full rounded-[16px] border bg-[#F5F2ED]/80 px-4 py-3 text-[#2D241E] focus:outline-none"
+                  style={{ borderColor: "rgba(45,36,30,0.15)", fontFamily: "'DM Sans', sans-serif", fontSize: "0.9rem" }}
+                />
+              </div>
+
+              <div className="pt-5 pb-5 border-b border-[#2D241E]/10 space-y-3">
+                <p
+                  className="text-[#2D241E]/55 uppercase tracking-widest text-xs"
+                  style={{ fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.1em" }}
+                >
+                  {t("checkout.recipient")}
+                </p>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label htmlFor="checkout-recipient-first-name" className="sr-only">
+                      {t("checkout.recipientFirstName")}
+                    </label>
+                    <input
+                      id="checkout-recipient-first-name"
+                      type="text"
+                      autoComplete="given-name"
+                      value={recipientFirstName}
+                      onChange={(e) => {
+                        setRecipientFirstName(e.target.value);
+                        if (error) setError(null);
+                      }}
+                      placeholder={t("checkout.recipientFirstName")}
+                      className="w-full rounded-[16px] border bg-[#F5F2ED]/80 px-4 py-3 text-[#2D241E] focus:outline-none"
+                      style={{ borderColor: "rgba(45,36,30,0.15)", fontFamily: "'DM Sans', sans-serif", fontSize: "0.9rem" }}
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="checkout-recipient-last-name" className="sr-only">
+                      {t("checkout.recipientLastName")}
+                    </label>
+                    <input
+                      id="checkout-recipient-last-name"
+                      type="text"
+                      autoComplete="family-name"
+                      value={recipientLastName}
+                      onChange={(e) => {
+                        setRecipientLastName(e.target.value);
+                        if (error) setError(null);
+                      }}
+                      placeholder={t("checkout.recipientLastName")}
+                      className="w-full rounded-[16px] border bg-[#F5F2ED]/80 px-4 py-3 text-[#2D241E] focus:outline-none"
+                      style={{ borderColor: "rgba(45,36,30,0.15)", fontFamily: "'DM Sans', sans-serif", fontSize: "0.9rem" }}
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label htmlFor="checkout-recipient-phone" className="sr-only">
+                    {t("checkout.recipientPhone")}
+                  </label>
+                  <input
+                    id="checkout-recipient-phone"
+                    type="tel"
+                    autoComplete="tel"
+                    value={recipientPhone}
+                    onChange={(e) => {
+                      setRecipientPhone(e.target.value);
+                      if (error) setError(null);
+                    }}
+                    placeholder={t("checkout.recipientPhone")}
+                    className="w-full rounded-[16px] border bg-[#F5F2ED]/80 px-4 py-3 text-[#2D241E] focus:outline-none"
+                    style={{ borderColor: "rgba(45,36,30,0.15)", fontFamily: "'DM Sans', sans-serif", fontSize: "0.9rem" }}
+                  />
+                </div>
+              </div>
+
+              <div className="pt-5 pb-5 border-b border-[#2D241E]/10">
+                <p
+                  className="text-[#2D241E]/55 uppercase tracking-widest text-xs mb-2"
+                  style={{ fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.1em" }}
+                >
+                  {t("checkout.delivery")}
+                </p>
+                <NovaPoshtaPicker
+                  value={delivery}
+                  onSelect={(selection) => {
+                    setDelivery(selection);
+                    if (error) setError(null);
+                  }}
+                />
+              </div>
+            </>
           )}
 
           {placedOrder ? (
@@ -325,7 +444,7 @@ export function CheckoutPage() {
               )}
             <button
               onClick={placeOrder}
-              disabled={placingOrder || cartItems.length === 0 || !isPhoneValid}
+              disabled={placingOrder || cartItems.length === 0 || !isEmailValid || !isPhoneValid || !isRecipientValid || !isDeliveryValid}
               className="mt-6 w-full py-4 rounded-full text-[#F5F2ED] uppercase tracking-widest transition-all duration-300 disabled:opacity-60"
               style={{ backgroundColor: "#2D241E", fontFamily: "'DM Sans', sans-serif", fontSize: "0.78rem", letterSpacing: "0.14em" }}
             >
