@@ -35,7 +35,6 @@ export function CheckoutPage() {
   const locale = useLocale();
   const { cartItems, cartTotal, isLoggedIn, user, clearCart } = useApp();
   const [email, setEmail] = useState("");
-  const [phoneNumber, setPhoneNumber] = useState("");
   const [recipientFirstName, setRecipientFirstName] = useState("");
   const [recipientLastName, setRecipientLastName] = useState("");
   const [recipientPhone, setRecipientPhone] = useState("");
@@ -56,9 +55,6 @@ export function CheckoutPage() {
   const normalizedEmail = email.trim();
   const isEmailValid = isLoggedIn || /^\S+@\S+\.\S+$/.test(normalizedEmail);
 
-  const normalizedPhone = phoneNumber.trim();
-  const isPhoneValid = normalizedPhone.length >= 8 && normalizedPhone.length <= 32;
-
   const normalizedRecipientPhone = recipientPhone.trim();
   const isRecipientValid =
     recipientFirstName.trim().length > 0 &&
@@ -73,7 +69,6 @@ export function CheckoutPage() {
     void fetchCustomerProfile()
       .then((profile) => {
         if (cancelled || !profile.phoneNumber) return;
-        setPhoneNumber((current) => (current.trim().length > 0 ? current : profile.phoneNumber ?? ""));
         setRecipientPhone((current) => (current.trim().length > 0 ? current : profile.phoneNumber ?? ""));
       })
       .catch(() => {
@@ -97,10 +92,6 @@ export function CheckoutPage() {
       setError(t(normalizedEmail.length === 0 ? "checkout.emailRequired" : "checkout.emailInvalid"));
       return;
     }
-    if (!isPhoneValid) {
-      setError(t(normalizedPhone.length === 0 ? "checkout.phoneRequired" : "checkout.phoneInvalid"));
-      return;
-    }
     if (!isRecipientValid) {
       setError(t("checkout.recipientRequired"));
       return;
@@ -117,7 +108,7 @@ export function CheckoutPage() {
 
     try {
       const order = await createOrder({
-        phoneNumber: normalizedPhone,
+        phoneNumber: normalizedRecipientPhone,
         email: isLoggedIn ? undefined : normalizedEmail,
         recipientFirstName: recipientFirstName.trim(),
         recipientLastName: recipientLastName.trim(),
@@ -304,30 +295,7 @@ export function CheckoutPage() {
                 </div>
               )}
 
-              <div className="pb-5 border-b border-[#2D241E]/10">
-                <label
-                  htmlFor="checkout-phone"
-                  className="block text-[#2D241E]/55 uppercase tracking-widest text-xs mb-2"
-                  style={{ fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.1em" }}
-                >
-                  {t("checkout.phoneNumber")}
-                </label>
-                <input
-                  id="checkout-phone"
-                  type="tel"
-                  autoComplete="tel"
-                  value={phoneNumber}
-                  onChange={(e) => {
-                    setPhoneNumber(e.target.value);
-                    if (error) setError(null);
-                  }}
-                  placeholder={t("checkout.phonePlaceholder")}
-                  className="w-full rounded-[16px] border bg-[#F5F2ED]/80 px-4 py-3 text-[#2D241E] focus:outline-none"
-                  style={{ borderColor: "rgba(45,36,30,0.15)", fontFamily: "'DM Sans', sans-serif", fontSize: "0.9rem" }}
-                />
-              </div>
-
-              <div className="pt-5 pb-5 border-b border-[#2D241E]/10 space-y-3">
+              <div className="pb-5 border-b border-[#2D241E]/10 space-y-3">
                 <p
                   className="text-[#2D241E]/55 uppercase tracking-widest text-xs"
                   style={{ fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.1em" }}
@@ -385,7 +353,7 @@ export function CheckoutPage() {
                       setRecipientPhone(e.target.value);
                       if (error) setError(null);
                     }}
-                    placeholder={t("checkout.recipientPhone")}
+                    placeholder={t("checkout.phonePlaceholder")}
                     className="w-full rounded-[16px] border bg-[#F5F2ED]/80 px-4 py-3 text-[#2D241E] focus:outline-none"
                     style={{ borderColor: "rgba(45,36,30,0.15)", fontFamily: "'DM Sans', sans-serif", fontSize: "0.9rem" }}
                   />
@@ -444,7 +412,7 @@ export function CheckoutPage() {
               )}
             <button
               onClick={placeOrder}
-              disabled={placingOrder || cartItems.length === 0 || !isEmailValid || !isPhoneValid || !isRecipientValid || !isDeliveryValid}
+              disabled={placingOrder || cartItems.length === 0 || !isEmailValid || !isRecipientValid || !isDeliveryValid}
               className="mt-6 w-full py-4 rounded-full text-[#F5F2ED] uppercase tracking-widest transition-all duration-300 disabled:opacity-60"
               style={{ backgroundColor: "#2D241E", fontFamily: "'DM Sans', sans-serif", fontSize: "0.78rem", letterSpacing: "0.14em" }}
             >
