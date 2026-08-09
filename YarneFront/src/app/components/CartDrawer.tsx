@@ -7,6 +7,7 @@ import { useLangNavigate } from "../i18n/useLangNavigate";
 import { PriceTag } from "./PriceTag";
 import { useLocale } from "../i18n/useLocale";
 import { useTouchMobileLayout } from "../hooks/useTouchMobileLayout";
+import { useBodyScrollLock } from "../hooks/useBodyScrollLock";
 
 export function CartDrawer() {
   const { t } = useTranslation();
@@ -15,6 +16,7 @@ export function CartDrawer() {
   const touchMobile = useTouchMobileLayout();
   const { cartOpen, closeCart } = useOverlay();
   const { cartItems, removeFromCart, updateQuantity, cartTotal } = useCart();
+  useBodyScrollLock(cartOpen);
 
   return (
     <AnimatePresence>

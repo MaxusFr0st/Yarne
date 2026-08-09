@@ -119,6 +119,8 @@ public partial class YarneDbContext : DbContext
         {
             entity.HasKey(e => new { e.ProductId, e.ColorId });
             entity.ToTable("ProductColor");
+            entity.Property(e => e.Price).HasColumnType("decimal(18, 2)");
+            entity.Property(e => e.PriceWithLace).HasColumnType("decimal(18, 2)");
             entity.HasOne(d => d.Product).WithMany(p => p.ProductColors)
                 .HasForeignKey(d => d.ProductId)
                 .OnDelete(DeleteBehavior.Cascade);

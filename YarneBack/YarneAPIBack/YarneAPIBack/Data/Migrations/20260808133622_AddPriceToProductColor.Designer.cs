@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using YarneAPIBack.Data;
@@ -11,9 +12,11 @@ using YarneAPIBack.Data;
 namespace YarneAPIBack.Data.Migrations
 {
     [DbContext(typeof(YarneDbContext))]
-    partial class YarneDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260808133622_AddPriceToProductColor")]
+    partial class AddPriceToProductColor
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -21,6 +24,22 @@ namespace YarneAPIBack.Data.Migrations
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
+
+            modelBuilder.Entity("ProductCountry", b =>
+                {
+                    b.Property<int>("ProductId")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("CountryId")
+                        .HasColumnType("integer");
+
+                    b.HasKey("ProductId", "CountryId")
+                        .HasName("PK__ProductC__5501D0C4A2BD1DC7");
+
+                    b.HasIndex("CountryId");
+
+                    b.ToTable("ProductCountry", (string)null);
+                });
 
             modelBuilder.Entity("YarneAPIBack.Models.AdminActivityLog", b =>
                 {
@@ -174,6 +193,28 @@ namespace YarneAPIBack.Data.Migrations
                     b.ToTable("Color", (string)null);
                 });
 
+            modelBuilder.Entity("YarneAPIBack.Models.Country", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.HasKey("Id")
+                        .HasName("PK__Country__3214EC07F74E3672");
+
+                    b.HasIndex(new[] { "Name" }, "UQ__Country__737584F6ED59CDE9")
+                        .IsUnique();
+
+                    b.ToTable("Country", (string)null);
+                });
+
             modelBuilder.Entity("YarneAPIBack.Models.Customer", b =>
                 {
                     b.Property<int>("Id")
@@ -268,6 +309,9 @@ namespace YarneAPIBack.Data.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");
 
+                    b.Property<int>("CountryId")
+                        .HasColumnType("integer");
+
                     b.Property<int>("CustomerId")
                         .HasColumnType("integer");
 
@@ -280,6 +324,8 @@ namespace YarneAPIBack.Data.Migrations
 
                     b.HasKey("Id")
                         .HasName("PK__Customer__3214EC07A05519DB");
+
+                    b.HasIndex("CountryId");
 
                     b.HasIndex("CustomerId");
 
@@ -424,6 +470,9 @@ namespace YarneAPIBack.Data.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");
 
+                    b.Property<int?>("CountryId")
+                        .HasColumnType("integer");
+
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
@@ -497,6 +546,8 @@ namespace YarneAPIBack.Data.Migrations
 
                     b.HasKey("Id")
                         .HasName("PK__OrderIte__3214EC0700F58744");
+
+                    b.HasIndex("CountryId");
 
                     b.HasIndex("OrderId");
 
@@ -971,14 +1022,39 @@ namespace YarneAPIBack.Data.Migrations
                     b.ToTable("Size", (string)null);
                 });
 
+            modelBuilder.Entity("ProductCountry", b =>
+                {
+                    b.HasOne("YarneAPIBack.Models.Country", null)
+                        .WithMany()
+                        .HasForeignKey("CountryId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("FK__ProductCo__Count__5CD6CB2B");
+
+                    b.HasOne("YarneAPIBack.Models.Product", null)
+                        .WithMany()
+                        .HasForeignKey("ProductId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("FK__ProductCo__Produ__5BE2A6F2");
+                });
+
             modelBuilder.Entity("YarneAPIBack.Models.CustomerAddress", b =>
                 {
+                    b.HasOne("YarneAPIBack.Models.Country", "Country")
+                        .WithMany("CustomerAddresses")
+                        .HasForeignKey("CountryId")
+                        .IsRequired()
+                        .HasConstraintName("FK__CustomerA__Count__48CFD27E");
+
                     b.HasOne("YarneAPIBack.Models.Customer", "Customer")
                         .WithMany("CustomerAddresses")
                         .HasForeignKey("CustomerId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired()
                         .HasConstraintName("FK__CustomerA__Custo__47DBAE45");
+
+                    b.Navigation("Country");
 
                     b.Navigation("Customer");
                 });
@@ -1032,6 +1108,11 @@ namespace YarneAPIBack.Data.Migrations
 
             modelBuilder.Entity("YarneAPIBack.Models.OrderItem", b =>
                 {
+                    b.HasOne("YarneAPIBack.Models.Country", "Country")
+                        .WithMany("OrderItems")
+                        .HasForeignKey("CountryId")
+                        .HasConstraintName("FK__OrderItem__Count__6D0D32F4");
+
                     b.HasOne("YarneAPIBack.Models.Order", "Order")
                         .WithMany("OrderItems")
                         .HasForeignKey("OrderId")
@@ -1044,6 +1125,8 @@ namespace YarneAPIBack.Data.Migrations
                         .HasForeignKey("ProductId")
                         .OnDelete(DeleteBehavior.SetNull)
                         .HasConstraintName("FK__OrderItem__Produ__6C190EBB");
+
+                    b.Navigation("Country");
 
                     b.Navigation("Order");
 
@@ -1273,6 +1356,13 @@ namespace YarneAPIBack.Data.Migrations
                     b.Navigation("ProductColors");
 
                     b.Navigation("ProductsAsDefaultColor");
+                });
+
+            modelBuilder.Entity("YarneAPIBack.Models.Country", b =>
+                {
+                    b.Navigation("CustomerAddresses");
+
+                    b.Navigation("OrderItems");
                 });
 
             modelBuilder.Entity("YarneAPIBack.Models.Customer", b =>

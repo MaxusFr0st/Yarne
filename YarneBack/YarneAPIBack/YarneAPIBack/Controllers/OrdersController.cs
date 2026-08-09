@@ -260,12 +260,20 @@ public class OrdersController : ControllerBase
             if (!product.IsActive || product.IsVoid || product.IsInternalComponent)
                 return BadRequest(new { message = $"Product '{productKey}' is not available." });
 
+            var productColor = item.ColorId.HasValue
+                ? product.ProductColors.FirstOrDefault(pc => pc.ColorId == item.ColorId.Value)
+                : null;
+            var wantsLace = product.Lace && item.WithLace == true;
+            var unitPrice = wantsLace
+                ? (productColor?.PriceWithLace ?? productColor?.Price ?? product.Price)
+                : (productColor?.Price ?? product.Price);
+
             var orderItem = new OrderItem
             {
                 Quantity = item.Quantity,
-                UnitPrice = product.Price,
-                ListedPriceCents = checked((long)decimal.Round(product.Price * 100m, 0, MidpointRounding.AwayFromZero)),
-                NetPriceCents = checked((long)decimal.Round(product.Price * 100m, 0, MidpointRounding.AwayFromZero)),
+                UnitPrice = unitPrice,
+                ListedPriceCents = checked((long)decimal.Round(unitPrice * 100m, 0, MidpointRounding.AwayFromZero)),
+                NetPriceCents = checked((long)decimal.Round(unitPrice * 100m, 0, MidpointRounding.AwayFromZero)),
                 UnitCogsCents = 0,
                 VatAmountCents = 0,
                 CreatedBy = customerId.Value,

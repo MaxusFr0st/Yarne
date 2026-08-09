@@ -8,6 +8,10 @@ public partial class ProductColor
 
     public int SortOrder { get; set; }
 
+    public decimal? Price { get; set; }
+
+    public decimal? PriceWithLace { get; set; }
+
     public virtual Product Product { get; set; } = null!;
 
     public virtual Color Color { get; set; } = null!;

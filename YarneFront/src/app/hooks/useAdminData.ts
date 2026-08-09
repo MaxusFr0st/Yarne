@@ -56,9 +56,12 @@ function mapColorVariant(c: ColorVariantDto) {
     }
   }
   return {
+    colorId: c.colorId ?? undefined,
     name: c.name,
     nameUk: c.nameUk ?? null,
     hex: c.hex,
+    price: c.price ?? undefined,
+    priceWithLace: c.priceWithLace ?? undefined,
     image: allImages[0] ?? primary ?? PLACEHOLDER_IMG,
     images: allImages.length > 0 ? allImages : [PLACEHOLDER_IMG],
     sizeImages: Object.keys(sizeImages).length ? sizeImages : undefined,
@@ -172,9 +175,6 @@ function formatLoadError(label: string, reason: unknown): string {
   if (reason instanceof ApiRequestError) {
     if (reason.status === 401 || reason.status === 403) {
       return `${label}: sign in again or confirm your account has Admin access.`;
-    }
-    if (reason.message === "An unexpected error occurred.") {
-      return `${label}: server error — redeploy the mindful-flexibility API so database migrations can finish.`;
     }
     return `${label}: ${reason.message}`;
   }

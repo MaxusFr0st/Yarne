@@ -62,6 +62,9 @@ public class CreateProductRequest
     /// <summary>Per-color+size stock values (optional).</summary>
     public List<VariantStockInput> VariantStocks { get; set; } = new();
 
+    /// <summary>Per-color price and price-with-lace (optional; falls back to Price when not set for a color).</summary>
+    public List<ColorPriceInput> ColorPrices { get; set; } = new();
+
     /// <summary>Product codes for per-product suggested items (max 10, each max 50 chars).</summary>
     [MaxLength(10)]
     public List<string>? SuggestedProductCodes { get; set; }
@@ -87,4 +90,15 @@ public class VariantStockInput
     public int SizeId { get; set; }
     public bool Lace { get; set; }
     public int QuantityInStock { get; set; }
+}
+
+public class ColorPriceInput
+{
+    public int ColorId { get; set; }
+
+    [Range(typeof(decimal), "0", "999999999")]
+    public decimal? Price { get; set; }
+
+    [Range(typeof(decimal), "0", "999999999")]
+    public decimal? PriceWithLace { get; set; }
 }

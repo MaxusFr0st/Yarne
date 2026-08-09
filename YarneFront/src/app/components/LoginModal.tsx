@@ -4,6 +4,7 @@ import { X, Eye, EyeOff } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useOverlay, useAuth } from "../context/AppContext";
 import { useTouchMobileLayout } from "../hooks/useTouchMobileLayout";
+import { useBodyScrollLock } from "../hooks/useBodyScrollLock";
 import { isGoogleOAuthEnabled, isOAuthEnabled } from "../config/oauth";
 import { LoginGoogleButton } from "./LoginGoogleButton";
 
@@ -70,6 +71,7 @@ export function LoginModal() {
   const { loginOpen, closeLogin } = useOverlay();
   const { login, loginWithOAuth, register } = useAuth();
   const reduceMotion = useReducedMotion();
+  useBodyScrollLock(loginOpen);
   const touchMobile = useTouchMobileLayout();
   const titleId = useId();
   const panelRef = useRef<HTMLDivElement>(null);
@@ -122,8 +124,6 @@ export function LoginModal() {
     };
 
     document.addEventListener("keydown", onKeyDown);
-    const prevOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
 
     const focusTimer = window.setTimeout(
       () => emailRef.current?.focus(),
@@ -132,7 +132,6 @@ export function LoginModal() {
 
     return () => {
       document.removeEventListener("keydown", onKeyDown);
-      document.body.style.overflow = prevOverflow;
       window.clearTimeout(focusTimer);
     };
   }, [loginOpen, closeLogin, resetForm, reduceMotion]);

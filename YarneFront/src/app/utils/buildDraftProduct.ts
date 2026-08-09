@@ -1,5 +1,6 @@
 import type { Product, ProductImage } from "../types/product";
 import { resolveMediaUrl } from "./storefrontMedia";
+import { deriveBasePrice } from "./variantStock";
 
 function toPI(url: string): ProductImage {
   const src = resolveMediaUrl(url) || url;
@@ -20,6 +21,8 @@ export type DraftProductFormInput = {
   colorSizeIds: Record<number, number[]>;
   colorSizeVariants: Record<string, string[]>;
   imageUrls: string[];
+  colorPrices: Record<number, string>;
+  colorPricesWithLace: Record<number, string>;
 };
 
 type CatalogColor = { id: number; name: string; hexCode: string };
@@ -86,9 +89,14 @@ export function buildDraftProduct(
             .flatMap(([, urls]) => urls.filter((u) => u.trim()));
           const images = allUrls.length > 0 ? allUrls : primary ? [primary] : [];
           const image = primary || images[0] || "";
+          const priceRaw = form.colorPrices[colorId]?.trim();
+          const priceWithLaceRaw = form.colorPricesWithLace[colorId]?.trim();
           return {
+            colorId,
             name: catalog?.name ?? "Color",
             hex: catalog?.hexCode ?? "#2D241E",
+            price: priceRaw ? Number(priceRaw) : undefined,
+            priceWithLace: priceWithLaceRaw ? Number(priceWithLaceRaw) : undefined,
             image: toPI(image),
             images: images.map(toPI),
           };
@@ -111,14 +119,14 @@ export function buildDraftProduct(
     });
   }
 
-  const parsedPrice = Number(form.price);
+  const derivedPrice = deriveBasePrice(form.colorIds, form.defaultColorId, form.colorPrices, Number(form.price) || 0);
   const parsedStock = Number(form.stock);
 
   return {
     id: "preview-draft",
     name: form.name.trim() || "Product name",
     subtitle: form.subtitle.trim() || "Subtitle / material",
-    price: Number.isFinite(parsedPrice) ? parsedPrice : 0,
+    price: derivedPrice,
     stock: Number.isFinite(parsedStock) ? parsedStock : 1,
     category: categoryName || "Collection",
     isNew: form.isNew,

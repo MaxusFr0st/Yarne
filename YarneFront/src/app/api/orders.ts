@@ -47,6 +47,7 @@ export interface CreateOrderItemRequest {
   countryId?: number;
   productSubtitle?: string;
   colorName?: string;
+  colorId?: number;
   furnitureColorName?: string;
   sizeName?: string;
   withLace?: boolean | null;

@@ -17,6 +17,9 @@ public class CreateOrderItemRequest
     [StringLength(100)]
     public string? ColorName { get; set; }
 
+    /// <summary>Reliable key for per-color price lookup. ColorName is display-only.</summary>
+    public int? ColorId { get; set; }
+
     [StringLength(100)]
     public string? FurnitureColorName { get; set; }
 

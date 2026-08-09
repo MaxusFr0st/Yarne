@@ -18,8 +18,11 @@ import {
   loadHomePageMediaSelection,
 } from "../utils/homePageMediaSelection";
 import { useTouchMobileLayout } from "../hooks/useTouchMobileLayout";
-import { ScrollReveal, SectionEyebrow, SectionRule, SectionTitle } from "../components/ScrollReveal";
+import { ScrollReveal, SECTION_REVEAL, SectionEyebrow, SectionRule, SectionTitle } from "../components/ScrollReveal";
 import { resolveMediaUrl } from "../utils/storefrontMedia";
+import { WhyYarneSection, type WhyBagHandle } from "../components/WhyYarneSection";
+import { useHomeSnapScroll } from "../hooks/useHomeSnapScroll";
+import { useOverlay } from "../context/AppContext";
 
 const ease = [0.22, 1, 0.36, 1] as const;
 
@@ -27,9 +30,19 @@ export function Home() {
   const copy = useHomePageCopy();
   const heroRef = useRef<HTMLDivElement>(null);
   const editorialRef = useRef<HTMLDivElement>(null);
+  const mainRef = useRef<HTMLElement>(null);
+  const whyRef = useRef<WhyBagHandle>(null);
   const touch = useTouchMobileLayout();
   const reducedMotion = useReducedMotion();
   const animateHero = !touch && !reducedMotion;
+  const { cartOpen, loginOpen } = useOverlay();
+  useHomeSnapScroll({
+    mainRef,
+    whyRef,
+    // Section-snap scroll runs on desktop (wheel) and touch (swipe) alike —
+    // only reduced-motion and open overlays fall back to native scroll.
+    enabled: !reducedMotion && !cartOpen && !loginOpen,
+  });
 
   const { scrollYProgress: heroScroll } = useScroll({
     target: heroRef,
@@ -90,7 +103,11 @@ export function Home() {
 
 
   return (
-    <main className="relative overflow-x-hidden bg-[#F5F2ED]" style={{ fontFamily: "'DM Sans', sans-serif" }}>
+    <main
+      ref={mainRef}
+      className="relative overflow-x-hidden bg-[#F5F2ED]"
+      style={{ fontFamily: "'DM Sans', sans-serif" }}
+    >
       {/* ─── HERO ─── */}
       <section
         ref={heroRef}
@@ -189,15 +206,22 @@ export function Home() {
         </div>
       </section>
 
-      <SectionRule />
-
-      <FeaturedShowcase />
+      <WhyYarneSection ref={whyRef} />
 
       <SectionRule />
 
-      <BestSellersCarousel />
+      <ScrollReveal {...SECTION_REVEAL}>
+        <FeaturedShowcase />
+      </ScrollReveal>
+
+      <SectionRule />
+
+      <ScrollReveal {...SECTION_REVEAL}>
+        <BestSellersCarousel />
+      </ScrollReveal>
 
       {/* ─── FEATURED GRID ─── */}
+      <ScrollReveal {...SECTION_REVEAL}>
       <section className="relative py-12 md:py-16 bg-gradient-to-b from-[#EDE9E2]/70 via-[#EDE9E2]/45 to-[#F5F2ED]">
         <div className="max-w-[1400px] mx-auto px-6 md:px-10">
           <ScrollReveal className="md:sticky z-30 mb-10 md:mb-12 -mx-6 md:-mx-10 px-6 md:px-10 py-4 flex items-end justify-between gap-4 border-b border-[#2D241E]/6 md:border-0" style={{ top: "var(--main-header-h)", backgroundColor: "rgba(237,233,226,0.9)", backdropFilter: "blur(8px)" }}>
@@ -239,8 +263,10 @@ export function Home() {
           </ScrollReveal>
         </div>
       </section>
+      </ScrollReveal>
 
       {/* ─── EDITORIAL ─── */}
+      <ScrollReveal {...SECTION_REVEAL}>
       <section ref={editorialRef} className="relative py-16 md:py-24 overflow-hidden bg-[#F5F2ED]">
         <div className="max-w-[1400px] mx-auto px-6 md:px-10">
           <div className="grid md:grid-cols-2 gap-10 md:gap-16 items-center">
@@ -305,8 +331,10 @@ export function Home() {
           </div>
         </div>
       </section>
+      </ScrollReveal>
 
       {/* ─── LOOKBOOK BANNER ─── */}
+      <ScrollReveal {...SECTION_REVEAL}>
       <section className="relative overflow-hidden h-[min(70vh,640px)] min-h-[380px]">
         <div className="absolute inset-0">
           {lookbookImageSrc ? (
@@ -353,8 +381,10 @@ export function Home() {
           </ScrollReveal>
         </div>
       </section>
+      </ScrollReveal>
 
       {/* ─── MORE FROM COLLECTION ─── */}
+      <ScrollReveal {...SECTION_REVEAL}>
       <section className="relative py-12 md:py-16 bg-[#F5F2ED]">
         <div className="max-w-[1400px] mx-auto px-6 md:px-10">
           <ScrollReveal className="text-center mb-10 md:mb-14 md:sticky z-30 -mx-6 md:-mx-10 px-6 md:px-10 py-4" style={{ top: "var(--main-header-h)", backgroundColor: "rgba(245,242,237,0.88)", backdropFilter: "blur(10px)" }}>
@@ -373,6 +403,7 @@ export function Home() {
           </div>
         </div>
       </section>
+      </ScrollReveal>
     </main>
   );
 }
