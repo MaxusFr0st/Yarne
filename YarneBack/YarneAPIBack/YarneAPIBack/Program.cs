@@ -225,7 +225,10 @@ else
 
             context.Response.StatusCode = StatusCodes.Status500InternalServerError;
             context.Response.ContentType = "application/json";
-            await context.Response.WriteAsJsonAsync(new { message = "An unexpected error occurred." });
+            var message = context.User.IsInRole("Admin") && feature?.Error != null
+                ? $"{feature.Error.GetType().Name}: {feature.Error.Message}"
+                : "An unexpected error occurred.";
+            await context.Response.WriteAsJsonAsync(new { message });
         });
     });
     app.UseHsts();
