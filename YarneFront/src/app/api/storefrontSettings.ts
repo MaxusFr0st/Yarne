@@ -1,18 +1,31 @@
 import { apiRequest } from "./client";
 
+// ponytail: dedupes concurrent in-flight requests only, not resolved values — a remount still refetches.
+// Add a value cache w/ save-invalidation if that measurably matters.
+const inFlight = new Map<string, Promise<unknown>>();
+
 export async function fetchStorefrontSetting<T>(key: string): Promise<T | null> {
-  try {
-    const res = await apiRequest<{ key: string; value: T }>(
-      `/api/storefront-settings/${encodeURIComponent(key)}`
-    );
-    return res.value ?? null;
-  } catch (e) {
-    if (e instanceof Error && /404/.test(e.message)) return null;
-    throw e;
-  }
+  const existing = inFlight.get(key);
+  if (existing) return existing as Promise<T | null>;
+
+  const promise = (async () => {
+    try {
+      const res = await apiRequest<{ key: string; value: T }>(
+        `/api/storefront-settings/${encodeURIComponent(key)}`
+      );
+      return res.value ?? null;
+    } catch (e) {
+      if (e instanceof Error && /404/.test(e.message)) return null;
+      throw e;
+    }
+  })().finally(() => inFlight.delete(key));
+
+  inFlight.set(key, promise);
+  return promise;
 }
 
 export async function saveStorefrontSetting<T>(key: string, value: T): Promise<T> {
+  inFlight.delete(key);
   const res = await apiRequest<{ key: string; value: T }>(
     `/api/storefront-settings/${encodeURIComponent(key)}`,
     {
