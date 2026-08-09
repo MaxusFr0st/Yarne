@@ -97,7 +97,7 @@ import {
 import { fetchActivityLogs, type AdminActivityLogDto } from "../api/admin";
 import { fetchProduct } from "../api/products";
 import { NovaPoshtaPicker, type NovaPoshtaSelection } from "../components/NovaPoshtaPicker";
-import type { CreateWaybillRequest } from "../api/orders";
+import { fetchNovaPoshtaSenders, type CreateWaybillRequest, type NovaPoshtaSenderProfile } from "../api/orders";
 import { FocalPointEditor } from "../components/admin/FocalPointEditor";
 import { AdminHomeCopyEditor } from "../components/admin/AdminHomeCopyEditor";
 import { AdminOurHistoryEditor } from "../components/admin/AdminOurHistoryEditor";
@@ -430,21 +430,42 @@ function NovaPoshtaOrderPanel({
   );
 }
 
-// Prefilled defaults for the waybill dialog — mirrors the server's NOVA_POSHTA_SENDER_*
-// config (see secrets.md). Purely a UI convenience; the server applies its own default
-// when the admin submits without changing anything, so drift here just means a stale prefill.
-const DEFAULT_NOVA_POSHTA_SENDER = {
-  firstName: "Анастасія",
-  lastName: "Зеленько",
-  middleName: "Миколіївна",
-  phone: "380952601903",
-};
-const DEFAULT_NOVA_POSHTA_WAREHOUSE: NovaPoshtaSelection = {
-  cityRef: "db5c8902-391c-11dd-90d9-001a92567626",
-  cityName: "Черкаси",
-  warehouseRef: "aaada553-b04f-11e8-ad0d-005056b24375",
-  warehouseName: "Відділення №16 (до 30 кг): вул. Кооперативна, 7-А",
-};
+function SenderProfileCard({
+  profile,
+  selected,
+  onSelect,
+}: {
+  profile: NovaPoshtaSenderProfile;
+  selected: boolean;
+  onSelect: () => void;
+}) {
+  return (
+    <div
+      onClick={onSelect}
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") onSelect();
+      }}
+      className="flex-1 rounded-[16px] px-4 py-3.5 text-center transition-all cursor-pointer"
+      style={{
+        border: selected ? "1.5px solid #2D241E" : "1px solid rgba(45,36,30,0.15)",
+        backgroundColor: selected ? "#2D241E" : "transparent",
+      }}
+    >
+      <span
+        style={{
+          fontFamily: "'DM Sans', sans-serif",
+          fontSize: "0.9rem",
+          fontWeight: 500,
+          color: selected ? "#F5F2ED" : "#2D241E",
+        }}
+      >
+        {profile.label}
+      </span>
+    </div>
+  );
+}
 
 function CreateWaybillModal({
   orderId,
@@ -455,28 +476,68 @@ function CreateWaybillModal({
   onClose: () => void;
   onConfirm: (orderId: number, payload: CreateWaybillRequest) => Promise<void>;
 }) {
-  const [firstName, setFirstName] = useState(DEFAULT_NOVA_POSHTA_SENDER.firstName);
-  const [lastName, setLastName] = useState(DEFAULT_NOVA_POSHTA_SENDER.lastName);
-  const [middleName, setMiddleName] = useState(DEFAULT_NOVA_POSHTA_SENDER.middleName);
-  const [phone, setPhone] = useState(DEFAULT_NOVA_POSHTA_SENDER.phone);
-  const [warehouse, setWarehouse] = useState<NovaPoshtaSelection | null>(DEFAULT_NOVA_POSHTA_WAREHOUSE);
+  const [senders, setSenders] = useState<NovaPoshtaSenderProfile[]>([]);
+  const [sendersLoading, setSendersLoading] = useState(true);
+  const [selectedSenderId, setSelectedSenderId] = useState<string | null>(null);
+  const [warehouse, setWarehouse] = useState<NovaPoshtaSelection | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   useBodyScrollLock(true);
 
+  useEffect(() => {
+    let cancelled = false;
+    fetchNovaPoshtaSenders()
+      .then((profiles) => {
+        if (cancelled) return;
+        setSenders(profiles);
+        const defaultProfile = profiles.find((p) => p.isDefault) ?? profiles[0];
+        if (defaultProfile) {
+          setSelectedSenderId(defaultProfile.id);
+          if (defaultProfile.defaultCityRef && defaultProfile.defaultWarehouseRef) {
+            setWarehouse({
+              cityRef: defaultProfile.defaultCityRef,
+              cityName: defaultProfile.defaultCityName ?? "",
+              warehouseRef: defaultProfile.defaultWarehouseRef,
+              warehouseName: defaultProfile.defaultWarehouseName ?? "",
+            });
+          }
+        }
+      })
+      .catch((e) => setError(e instanceof Error ? e.message : "Failed to load Nova Poshta senders."))
+      .finally(() => {
+        if (!cancelled) setSendersLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const selectSender = (profile: NovaPoshtaSenderProfile) => {
+    setSelectedSenderId(profile.id);
+    if (profile.defaultCityRef && profile.defaultWarehouseRef) {
+      setWarehouse({
+        cityRef: profile.defaultCityRef,
+        cityName: profile.defaultCityName ?? "",
+        warehouseRef: profile.defaultWarehouseRef,
+        warehouseName: profile.defaultWarehouseName ?? "",
+      });
+    }
+  };
+
   const handleConfirm = async () => {
-    if (!warehouse || !firstName.trim() || !lastName.trim() || !phone.trim()) {
-      setError("Fill in sender first name, last name, phone, and address.");
+    if (!selectedSenderId) {
+      setError("Choose who's sending.");
+      return;
+    }
+    if (!warehouse) {
+      setError("Choose a ship-from address.");
       return;
     }
     setSubmitting(true);
     setError(null);
     try {
       await onConfirm(orderId, {
-        senderFirstName: firstName.trim(),
-        senderLastName: lastName.trim(),
-        senderMiddleName: middleName.trim() || undefined,
-        senderPhone: phone.trim(),
+        senderProfileId: selectedSenderId,
         senderCityRef: warehouse.cityRef,
         senderWarehouseRef: warehouse.warehouseRef,
       });
@@ -486,10 +547,6 @@ function CreateWaybillModal({
       setSubmitting(false);
     }
   };
-
-  const fieldClass =
-    "w-full rounded-[14px] border bg-white/70 px-3 py-2.5 text-[#2D241E] focus:outline-none text-sm";
-  const fieldStyle = { borderColor: "rgba(45,36,30,0.15)", fontFamily: "'DM Sans', sans-serif" };
 
   return (
     <div
@@ -509,17 +566,48 @@ function CreateWaybillModal({
             Create Nova Poshta waybill
           </h3>
           <p className="text-xs text-[#2D241E]/45 mt-1" style={{ fontFamily: "'DM Sans', sans-serif" }}>
-            Order #{orderId} · Sender defaults to Anastasiia — edit to ship as someone else.
+            Order #{orderId}
           </p>
         </div>
 
-        <div className="grid grid-cols-2 gap-2">
-          <input value={firstName} onChange={(e) => setFirstName(e.target.value)} placeholder="First name" className={fieldClass} style={fieldStyle} />
-          <input value={lastName} onChange={(e) => setLastName(e.target.value)} placeholder="Last name" className={fieldClass} style={fieldStyle} />
+        <div>
+          <p
+            className="text-[10px] uppercase tracking-widest text-[#2D241E]/45 mb-2"
+            style={{ fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.1em" }}
+          >
+            Sender
+          </p>
+          {sendersLoading ? (
+            <p className="text-sm text-[#2D241E]/50" style={{ fontFamily: "'DM Sans', sans-serif" }}>
+              Loading…
+            </p>
+          ) : senders.length === 0 ? (
+            <p className="text-sm text-[#4A0E0E]" style={{ fontFamily: "'DM Sans', sans-serif" }}>
+              No Nova Poshta sender is configured on this server.
+            </p>
+          ) : (
+            <div className="flex gap-2">
+              {senders.map((profile) => (
+                <SenderProfileCard
+                  key={profile.id}
+                  profile={profile}
+                  selected={selectedSenderId === profile.id}
+                  onSelect={() => selectSender(profile)}
+                />
+              ))}
+            </div>
+          )}
         </div>
-        <input value={middleName} onChange={(e) => setMiddleName(e.target.value)} placeholder="Patronymic (optional)" className={fieldClass} style={fieldStyle} />
-        <input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="Sender phone" className={fieldClass} style={fieldStyle} />
-        <NovaPoshtaPicker value={warehouse} onSelect={setWarehouse} />
+
+        <div>
+          <p
+            className="text-[10px] uppercase tracking-widest text-[#2D241E]/45 mb-2"
+            style={{ fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.1em" }}
+          >
+            Ship from
+          </p>
+          <NovaPoshtaPicker value={warehouse} onSelect={setWarehouse} />
+        </div>
 
         {error && (
           <p className="text-sm text-[#4A0E0E]" style={{ fontFamily: "'DM Sans', sans-serif" }}>
@@ -540,7 +628,7 @@ function CreateWaybillModal({
           <button
             type="button"
             onClick={handleConfirm}
-            disabled={submitting}
+            disabled={submitting || sendersLoading || senders.length === 0}
             className="px-4 py-2.5 rounded-full text-[#F5F2ED] transition-all disabled:opacity-50"
             style={{ backgroundColor: "#2D241E", fontFamily: "'DM Sans', sans-serif", fontSize: "0.8rem" }}
           >

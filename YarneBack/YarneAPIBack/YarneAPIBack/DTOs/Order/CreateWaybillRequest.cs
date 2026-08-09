@@ -1,19 +1,14 @@
 namespace YarneAPIBack.DTOs.Order;
 
 /// <summary>
-/// Optional sender override for waybill creation. When any field is provided, all of
-/// FirstName/LastName/Phone/CityRef/WarehouseRef must be — otherwise the server falls back
-/// to the configured default sender.
+/// Which registered sender to ship as, and an optional ship-from address override. Sender
+/// identity (name/phone) itself is never overridable — Nova Poshta's API only allows one
+/// fixed sender contact per account, so "who sends" means picking a configured account
+/// (SenderProfileId), not editing a name/phone field.
 /// </summary>
 public class CreateWaybillRequest
 {
-    public string? SenderFirstName { get; set; }
-
-    public string? SenderLastName { get; set; }
-
-    public string? SenderMiddleName { get; set; }
-
-    public string? SenderPhone { get; set; }
+    public string? SenderProfileId { get; set; }
 
     public string? SenderCityRef { get; set; }
 

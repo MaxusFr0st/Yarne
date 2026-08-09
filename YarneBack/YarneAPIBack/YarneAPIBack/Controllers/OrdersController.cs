@@ -677,7 +677,9 @@ public class OrdersController : ControllerBase
         if (string.Equals(canonicalStatus, "Shipped", StringComparison.OrdinalIgnoreCase)
             && !string.Equals(previousStatus, "Shipped", StringComparison.OrdinalIgnoreCase))
         {
-            await CreateWaybillForOrderAsync(id, senderOverride: null, ct);
+            var defaultSenderId = _novaPoshta.DefaultSenderProfile?.Id;
+            if (defaultSenderId != null)
+                await CreateWaybillForOrderAsync(id, defaultSenderId, senderAddressOverride: null, ct);
         }
 
         var updatedOrder = await BuildOrderQuery().FirstOrDefaultAsync(o => o.Id == id, ct);
@@ -724,6 +726,24 @@ public class OrdersController : ControllerBase
         return Ok(MapOrder(updatedOrder));
     }
 
+    [HttpGet("nova-poshta/senders")]
+    [Authorize(Roles = "Admin")]
+    [ProducesResponseType(typeof(IEnumerable<NovaPoshtaSenderProfileDto>), StatusCodes.Status200OK)]
+    public ActionResult<IEnumerable<NovaPoshtaSenderProfileDto>> GetNovaPoshtaSenders()
+    {
+        var defaultId = _novaPoshta.DefaultSenderProfile?.Id;
+        return Ok(_novaPoshta.SenderProfiles.Select(p => new NovaPoshtaSenderProfileDto
+        {
+            Id = p.Id,
+            Label = p.Label,
+            IsDefault = p.Id == defaultId,
+            DefaultCityRef = p.DefaultCityRef,
+            DefaultCityName = p.DefaultCityName,
+            DefaultWarehouseRef = p.DefaultWarehouseRef,
+            DefaultWarehouseName = p.DefaultWarehouseName,
+        }));
+    }
+
     [HttpPost("{id:int}/ttn")]
     [Authorize(Roles = "Admin")]
     [ProducesResponseType(typeof(OrderDto), StatusCodes.Status200OK)]
@@ -741,11 +761,15 @@ public class OrdersController : ControllerBase
         if (!string.IsNullOrWhiteSpace(order.TtnNumber))
             return BadRequest(new { message = "This order already has a waybill." });
 
-        var senderOverride = BuildSenderOverride(request);
-        if (request != null && HasAnySenderField(request) && senderOverride == null)
-            return BadRequest(new { message = "Sender override must include first name, last name, phone, city, and warehouse together." });
+        var senderProfileId = string.IsNullOrWhiteSpace(request?.SenderProfileId)
+            ? _novaPoshta.DefaultSenderProfile?.Id
+            : request.SenderProfileId;
+        if (senderProfileId == null)
+            return BadRequest(new { message = "No Nova Poshta sender is configured." });
 
-        var (ok, error) = await CreateWaybillForOrderAsync(id, senderOverride, ct);
+        var senderAddressOverride = BuildSenderAddressOverride(request);
+
+        var (ok, error) = await CreateWaybillForOrderAsync(id, senderProfileId, senderAddressOverride, ct);
         if (!ok)
             return StatusCode(StatusCodes.Status502BadGateway, new { message = error ?? "Nova Poshta rejected the waybill request." });
 
@@ -753,33 +777,16 @@ public class OrdersController : ControllerBase
         return Ok(MapOrder(updated!));
     }
 
-    private static bool HasAnySenderField(CreateWaybillRequest request) =>
-        !string.IsNullOrWhiteSpace(request.SenderFirstName)
-        || !string.IsNullOrWhiteSpace(request.SenderLastName)
-        || !string.IsNullOrWhiteSpace(request.SenderMiddleName)
-        || !string.IsNullOrWhiteSpace(request.SenderPhone)
-        || !string.IsNullOrWhiteSpace(request.SenderCityRef)
-        || !string.IsNullOrWhiteSpace(request.SenderWarehouseRef);
-
-    private static NovaPoshtaSender? BuildSenderOverride(CreateWaybillRequest? request)
+    private static NovaPoshtaSenderAddress? BuildSenderAddressOverride(CreateWaybillRequest? request)
     {
         if (request == null
-            || string.IsNullOrWhiteSpace(request.SenderFirstName)
-            || string.IsNullOrWhiteSpace(request.SenderLastName)
-            || string.IsNullOrWhiteSpace(request.SenderPhone)
             || string.IsNullOrWhiteSpace(request.SenderCityRef)
             || string.IsNullOrWhiteSpace(request.SenderWarehouseRef))
         {
             return null;
         }
 
-        return new NovaPoshtaSender(
-            request.SenderFirstName.Trim(),
-            request.SenderLastName.Trim(),
-            string.IsNullOrWhiteSpace(request.SenderMiddleName) ? null : request.SenderMiddleName.Trim(),
-            request.SenderPhone.Trim(),
-            request.SenderCityRef.Trim(),
-            request.SenderWarehouseRef.Trim());
+        return new NovaPoshtaSenderAddress(request.SenderCityRef.Trim(), request.SenderWarehouseRef.Trim());
     }
 
     [HttpPost("{id:int}/tracking")]
@@ -820,14 +827,14 @@ public class OrdersController : ControllerBase
     /// waybill yet. Swallows Nova Poshta errors (logged) so callers driven by a status
     /// transition never fail the transition itself; the explicit ttn endpoint surfaces them.
     /// </summary>
-    private async Task<(bool Ok, string? Error)> CreateWaybillForOrderAsync(int orderId, NovaPoshtaSender? senderOverride, CancellationToken ct)
+    private async Task<(bool Ok, string? Error)> CreateWaybillForOrderAsync(
+        int orderId,
+        string senderProfileId,
+        NovaPoshtaSenderAddress? senderAddressOverride,
+        CancellationToken ct)
     {
         if (!_novaPoshta.IsConfigured)
             return (false, "Nova Poshta is not configured on this server.");
-
-        var sender = senderOverride ?? _novaPoshta.DefaultSender;
-        if (sender == null)
-            return (false, "No sender identity provided and no default sender is configured.");
 
         var order = await _context.Orders.FirstOrDefaultAsync(o => o.Id == orderId, ct);
         if (order == null || !string.IsNullOrWhiteSpace(order.TtnNumber))
@@ -847,7 +854,8 @@ public class OrdersController : ControllerBase
         try
         {
             var waybill = await _novaPoshta.CreateWaybillAsync(
-                sender,
+                senderProfileId,
+                senderAddressOverride,
                 order.RecipientFirstName,
                 order.RecipientLastName,
                 order.RecipientPhone,

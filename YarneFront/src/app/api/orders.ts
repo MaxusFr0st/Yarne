@@ -125,12 +125,23 @@ export async function updateOrderStatus(orderId: number, payload: UpdateOrderSta
 }
 
 export interface CreateWaybillRequest {
-  senderFirstName?: string;
-  senderLastName?: string;
-  senderMiddleName?: string;
-  senderPhone?: string;
+  senderProfileId?: string;
   senderCityRef?: string;
   senderWarehouseRef?: string;
+}
+
+export interface NovaPoshtaSenderProfile {
+  id: string;
+  label: string;
+  isDefault: boolean;
+  defaultCityRef: string | null;
+  defaultCityName: string | null;
+  defaultWarehouseRef: string | null;
+  defaultWarehouseName: string | null;
+}
+
+export async function fetchNovaPoshtaSenders(): Promise<NovaPoshtaSenderProfile[]> {
+  return apiRequest<NovaPoshtaSenderProfile[]>("/api/orders/nova-poshta/senders");
 }
 
 export async function createOrderWaybill(orderId: number, payload?: CreateWaybillRequest): Promise<OrderDto> {

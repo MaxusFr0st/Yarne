@@ -13,41 +13,60 @@ public class NovaPoshtaService : INovaPoshtaService
 
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly ILogger<NovaPoshtaService> _logger;
-    private readonly string? _apiKey;
-    private readonly string? _senderRef;
 
     public NovaPoshtaService(IConfiguration configuration, IHttpClientFactory httpClientFactory, ILogger<NovaPoshtaService> logger)
     {
         _httpClientFactory = httpClientFactory;
         _logger = logger;
-        _apiKey = Read(configuration, "NOVA_POSHTA_API_KEY");
-        _senderRef = Read(configuration, "NOVA_POSHTA_SENDER_REF");
-
-        var firstName = Read(configuration, "NOVA_POSHTA_SENDER_FIRST_NAME");
-        var lastName = Read(configuration, "NOVA_POSHTA_SENDER_LAST_NAME");
-        var middleName = Read(configuration, "NOVA_POSHTA_SENDER_MIDDLE_NAME");
-        var phone = Read(configuration, "NOVA_POSHTA_SENDER_PHONE");
-        var cityRef = Read(configuration, "NOVA_POSHTA_SENDER_CITY_REF");
-        var warehouseRef = Read(configuration, "NOVA_POSHTA_SENDER_WAREHOUSE_REF");
-
-        DefaultSender = !string.IsNullOrWhiteSpace(firstName)
-            && !string.IsNullOrWhiteSpace(lastName)
-            && !string.IsNullOrWhiteSpace(phone)
-            && !string.IsNullOrWhiteSpace(cityRef)
-            && !string.IsNullOrWhiteSpace(warehouseRef)
-            ? new NovaPoshtaSender(firstName, lastName, middleName, phone, cityRef, warehouseRef)
-            : null;
+        SenderProfiles = LoadSenderProfiles(configuration);
     }
 
     private static string? Read(IConfiguration configuration, string key) =>
         configuration[key] ?? Environment.GetEnvironmentVariable(key);
 
-    public bool IsConfigured => !string.IsNullOrWhiteSpace(_apiKey) && !string.IsNullOrWhiteSpace(_senderRef);
+    // Numbered env vars (NOVA_POSHTA_SENDER_1_*, _2_*, ...) — each slot is a fully separate
+    // Nova Poshta account/API key, since that's the only way to get more than one sender
+    // identity (see NovaPoshtaSenderProfile). Stops at the first missing API key.
+    private static List<NovaPoshtaSenderProfile> LoadSenderProfiles(IConfiguration configuration)
+    {
+        var profiles = new List<NovaPoshtaSenderProfile>();
+        for (var i = 1; ; i++)
+        {
+            var prefix = $"NOVA_POSHTA_SENDER_{i}_";
+            var apiKey = Read(configuration, $"{prefix}API_KEY");
+            if (string.IsNullOrWhiteSpace(apiKey))
+                break;
 
-    public NovaPoshtaSender? DefaultSender { get; }
+            var senderRef = Read(configuration, $"{prefix}REF");
+            var contactRef = Read(configuration, $"{prefix}CONTACT_REF");
+            var phone = Read(configuration, $"{prefix}PHONE");
+            if (string.IsNullOrWhiteSpace(senderRef) || string.IsNullOrWhiteSpace(contactRef) || string.IsNullOrWhiteSpace(phone))
+                continue;
+
+            profiles.Add(new NovaPoshtaSenderProfile(
+                Id: $"sender-{i}",
+                Label: Read(configuration, $"{prefix}LABEL") ?? $"Sender {i}",
+                ApiKey: apiKey,
+                SenderRef: senderRef,
+                ContactRef: contactRef,
+                Phone: phone,
+                DefaultCityRef: Read(configuration, $"{prefix}CITY_REF"),
+                DefaultCityName: Read(configuration, $"{prefix}CITY_NAME"),
+                DefaultWarehouseRef: Read(configuration, $"{prefix}WAREHOUSE_REF"),
+                DefaultWarehouseName: Read(configuration, $"{prefix}WAREHOUSE_NAME")));
+        }
+        return profiles;
+    }
+
+    public bool IsConfigured => SenderProfiles.Count > 0;
+
+    public IReadOnlyList<NovaPoshtaSenderProfile> SenderProfiles { get; }
+
+    public NovaPoshtaSenderProfile? DefaultSenderProfile => SenderProfiles.FirstOrDefault();
 
     public async Task<NovaPoshtaWaybill> CreateWaybillAsync(
-        NovaPoshtaSender sender,
+        string senderProfileId,
+        NovaPoshtaSenderAddress? senderAddressOverride,
         string recipientFirstName,
         string recipientLastName,
         string recipientPhone,
@@ -56,12 +75,16 @@ public class NovaPoshtaService : INovaPoshtaService
         decimal declaredCost,
         CancellationToken ct = default)
     {
-        if (!IsConfigured)
-            throw new InvalidOperationException("Nova Poshta is not configured (missing API key or sender counterparty).");
+        var profile = SenderProfiles.FirstOrDefault(p => p.Id == senderProfileId)
+            ?? throw new InvalidOperationException($"Unknown Nova Poshta sender '{senderProfileId}'.");
 
-        var senderContactRef = await ResolveSenderContactRefAsync(sender, ct);
+        var senderCityRef = senderAddressOverride?.CityRef ?? profile.DefaultCityRef;
+        var senderWarehouseRef = senderAddressOverride?.WarehouseRef ?? profile.DefaultWarehouseRef;
+        if (string.IsNullOrWhiteSpace(senderCityRef) || string.IsNullOrWhiteSpace(senderWarehouseRef))
+            throw new InvalidOperationException($"No ship-from address configured for sender '{profile.Label}'.");
 
         var recipient = await CallAsync(
+            profile.ApiKey,
             "Counterparty",
             "save",
             new
@@ -81,6 +104,7 @@ public class NovaPoshtaService : INovaPoshtaService
             ?? throw new InvalidOperationException("Nova Poshta did not return a recipient contact person.");
 
         var waybill = await CallAsync(
+            profile.ApiKey,
             "InternetDocument",
             "save",
             new
@@ -93,11 +117,11 @@ public class NovaPoshtaService : INovaPoshtaService
                 Weight = DefaultWeightKg.ToString("0.##"),
                 Cost = declaredCost.ToString("0.##"),
                 Description = "Товар",
-                CitySender = sender.CityRef,
-                Sender = _senderRef,
-                SenderAddress = sender.WarehouseRef,
-                ContactSender = senderContactRef,
-                SendersPhone = sender.Phone,
+                CitySender = senderCityRef,
+                Sender = profile.SenderRef,
+                SenderAddress = senderWarehouseRef,
+                ContactSender = profile.ContactRef,
+                SendersPhone = profile.Phone,
                 CityRecipient = cityRef,
                 Recipient = recipientRef,
                 RecipientAddress = warehouseRef,
@@ -116,10 +140,12 @@ public class NovaPoshtaService : INovaPoshtaService
 
     public async Task<NovaPoshtaTrackingStatus?> GetTrackingStatusAsync(string ttnNumber, CancellationToken ct = default)
     {
-        if (!IsConfigured)
+        var apiKey = DefaultSenderProfile?.ApiKey;
+        if (apiKey == null)
             return null;
 
         var result = await CallAsync(
+            apiKey,
             "TrackingDocument",
             "getStatusDocuments",
             new { Documents = new[] { new { DocumentNumber = ttnNumber } } },
@@ -134,55 +160,12 @@ public class NovaPoshtaService : INovaPoshtaService
             data["StatusCode"]?.GetValue<string>() ?? string.Empty);
     }
 
-    /// <summary>
-    /// Finds an existing contact person under the sender counterparty matching this phone
-    /// number, or registers a new one. Lets the admin pick "the usual sender" or type in
-    /// someone new each time without maintaining a separate saved-senders list.
-    /// </summary>
-    private async Task<string> ResolveSenderContactRefAsync(NovaPoshtaSender sender, CancellationToken ct)
-    {
-        var normalizedPhone = new string(sender.Phone.Where(char.IsDigit).ToArray());
-
-        var contacts = await CallAsync(
-            "Counterparty",
-            "getCounterpartyContactPersons",
-            new { Ref = _senderRef, Page = "1" },
-            ct);
-
-        var existing = contacts["data"]?.AsArray().FirstOrDefault(contact =>
-        {
-            var phones = contact?["Phones"]?.GetValue<string>() ?? string.Empty;
-            var digitsOnly = new string(phones.Where(char.IsDigit).ToArray());
-            return digitsOnly.EndsWith(normalizedPhone, StringComparison.Ordinal) && normalizedPhone.Length > 0;
-        });
-
-        if (existing != null)
-            return existing["Ref"]!.GetValue<string>();
-
-        var created = await CallAsync(
-            "ContactPerson",
-            "save",
-            new
-            {
-                CounterpartyRef = _senderRef,
-                FirstName = sender.FirstName,
-                LastName = sender.LastName,
-                MiddleName = sender.MiddleName ?? string.Empty,
-                Phone = sender.Phone,
-            },
-            ct);
-
-        var createdData = created["data"]?.AsArray().FirstOrDefault()
-            ?? throw new InvalidOperationException("Nova Poshta did not return a sender contact person.");
-        return createdData["Ref"]!.GetValue<string>();
-    }
-
-    private async Task<JsonObject> CallAsync(string modelName, string calledMethod, object methodProperties, CancellationToken ct)
+    private async Task<JsonObject> CallAsync(string apiKey, string modelName, string calledMethod, object methodProperties, CancellationToken ct)
     {
         var client = _httpClientFactory.CreateClient();
         var payload = new
         {
-            apiKey = _apiKey,
+            apiKey,
             modelName,
             calledMethod,
             methodProperties,
