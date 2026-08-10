@@ -1,4 +1,5 @@
 using System.Net.Http.Json;
+using System.Text.Json;
 using System.Text.Json.Nodes;
 using YarneAPIBack.Services.Contracts;
 
@@ -180,7 +181,12 @@ public class NovaPoshtaService : INovaPoshtaService
         if (!success)
         {
             var errors = string.Join("; ", json["errors"]?.AsArray().Select(e => e?.GetValue<string>()) ?? []);
-            _logger.LogError("Nova Poshta {Model}.{Method} failed: {Errors}", modelName, calledMethod, errors);
+            _logger.LogError(
+                "Nova Poshta {Model}.{Method} failed: {Errors}. methodProperties sent: {MethodProperties}",
+                modelName,
+                calledMethod,
+                errors,
+                JsonSerializer.Serialize(methodProperties));
             throw new InvalidOperationException($"Nova Poshta request failed: {errors}");
         }
 
