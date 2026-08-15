@@ -25,7 +25,6 @@ export function mergePlacedOrderDisplay(
       withLace: apiItem.withLace ?? snap?.withLace ?? null,
       quantity: apiItem.quantity,
       image: snap?.image ?? apiItem.productImageUrl ?? "",
-      maxQuantity: apiItem.quantity,
     };
   });
 }

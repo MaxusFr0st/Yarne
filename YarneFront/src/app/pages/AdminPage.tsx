@@ -119,7 +119,7 @@ const ADMIN_ICON_DELETE = `${ADMIN_ICON_BTN} hover:bg-[#4A0E0E]/8`;
 /* ─────────────────────────────────────────────
    TYPES
 ───────────────────────────────────────────── */
-type AdminProduct = Product & { idNum: number; sku: string; stock: number };
+type AdminProduct = Product & { idNum: number; sku: string };
 type AdminUser = ReturnType<typeof useAdminData>["users"][number];
 
 /* ─────────────────────────────────────────────
@@ -364,7 +364,6 @@ interface ProductFormData {
   isBestseller: boolean;
   lace: boolean;
   description: string;
-  stock: string;
   sku: string;
   imageUrls: string[];
   defaultSizeId: number | null;
@@ -376,8 +375,6 @@ interface ProductFormData {
   colorSizeIds: Record<number, number[]>;
   /** Per color+size+lace image sets: `${colorId}:${sizeId}:${lace}` -> image URLs */
   colorSizeVariants: Record<string, string[]>;
-  /** Optional per color+size+lace stock: `${colorId}:${sizeId}:${lace}` -> quantity */
-  variantStocks: Record<string, string>;
   /** Per-color price: colorId -> price string */
   colorPrices: Record<number, string>;
   /** Per-color price with lace: colorId -> price string */
@@ -577,7 +574,6 @@ function ProductModal({
           isBestseller: product.isBestseller ?? false,
           lace: product.lace ?? false,
           description: product.description,
-          stock: String(product.stock ?? 0),
           sku: product.sku ?? product.id,
           imageUrls: product.colors?.map((c) => (c.images?.length ? c.images[0].src : c.image.src)) ?? [],
           defaultSizeId: product.defaultSize
@@ -599,7 +595,6 @@ function ProductModal({
           isBestseller: false,
           lace: false,
           description: "",
-          stock: "",
           sku: "",
           imageUrls: [""],
           defaultSizeId: null,
@@ -620,7 +615,6 @@ function ProductModal({
       : [];
     const colorSizeIds: Record<number, number[]> = {};
     const colorSizeVariants: Record<string, string[]> = {};
-    const variantStocks: Record<string, string> = {};
     const colorPrices: Record<number, string> = {};
     const colorPricesWithLace: Record<number, string> = {};
     const legacyBasePrice = product && product.price > 0 ? String(product.price) : "";
@@ -635,13 +629,11 @@ function ProductModal({
       if (c.priceWithLace != null) colorPricesWithLace[colorId] = String(c.priceWithLace);
       const laceVariants = c.laceVariants ?? {};
       const sizeImages = c.sizeImages ?? {};
-      const sizeStocks = c.sizeStocks ?? {};
       const collectedSizeIds: number[] = [];
       const sizeNames = Array.from(
         new Set([
           ...Object.keys(laceVariants),
           ...Object.keys(sizeImages),
-          ...Object.keys(sizeStocks),
         ])
       );
 
@@ -657,15 +649,8 @@ function ProductModal({
           if (withoutLaceImages.length > 0) {
             colorSizeVariants[variantKey(colorId, sizeId, false)] = withoutLaceImages;
           }
-          const withoutLaceStock = lv
-            ? lv.withoutLaceStock
-            : sizeStocks[sizeName];
-          if (withoutLaceStock != null) {
-            variantStocks[variantKey(colorId, sizeId, false)] = String(withoutLaceStock);
-          }
           if (productLace && lv) {
             colorSizeVariants[variantKey(colorId, sizeId, true)] = (lv.withLaceImages ?? []).map(i => i.src);
-            variantStocks[variantKey(colorId, sizeId, true)] = String(lv.withLaceStock ?? 0);
           }
         });
       } else {
@@ -685,7 +670,6 @@ function ProductModal({
       furnitureColorIds,
       colorSizeIds,
       colorSizeVariants,
-      variantStocks,
       colorPrices,
       colorPricesWithLace,
       defaultColorId: base.defaultColorId ?? colorIds[0] ?? null,
@@ -765,7 +749,7 @@ function ProductModal({
   const handleChange = (key: keyof ProductFormData, value: string | number | boolean | string[]) => {
     // Note: <input min={0}> doesn't prevent typing "-" in many browsers,
     // so we clamp client-side to avoid saving negative numeric fields.
-    if ((key === "price" || key === "stock") && typeof value === "string") {
+    if (key === "price" && typeof value === "string") {
       const trimmed = value.trim();
       if (trimmed === "") {
         setForm((prev) => ({ ...prev, [key]: "" }));
@@ -799,7 +783,6 @@ function ProductModal({
   const [formErrors, setFormErrors] = useState<{
     name?: string;
     price?: string;
-    stock?: string;
     sku?: string;
     description?: string;
     colors?: string;
@@ -1024,11 +1007,6 @@ function ProductModal({
   const validateAndSubmit = () => {
     const errors: typeof formErrors = {};
     const parsedPrice = deriveBasePrice(form.colorIds, form.defaultColorId, form.colorPrices, Number(form.price) || 0);
-    const parsedStock = form.stock.trim() ? Number(form.stock) : NaN;
-    const parsedVariantStocks = Object.values(form.variantStocks)
-      .map((value) => Number(value))
-      .filter((value) => Number.isFinite(value) && value >= 0);
-    const totalVariantStock = parsedVariantStocks.reduce((sum, value) => sum + value, 0);
     const colorsWithoutSizes = form.colorIds.filter((colorId) => (form.colorSizeIds[colorId] ?? []).length === 0);
     const selectedVariantKeys = form.colorIds.flatMap((colorId) =>
       (form.colorSizeIds[colorId] ?? []).flatMap((sizeId) =>
@@ -1062,12 +1040,6 @@ function ProductModal({
       if (colorsMissingLacePrice.length > 0) {
         errors.price = "Set a “with strap” price for every color (Has strap option is on).";
       }
-    }
-    if (form.stock.trim() && (!Number.isFinite(parsedStock) || parsedStock < 0)) {
-      errors.stock = "Enter a valid stock (0 or more).";
-    }
-    if (!form.stock.trim() && totalVariantStock <= 0) {
-      errors.stock = "Set total stock or provide variant stock quantities.";
     }
     if (form.colorIds.length === 0) errors.colors = "Select at least one color.";
     if (colorsWithoutSizes.length > 0) errors.sizes = "Each selected color must have at least one size.";
@@ -1212,35 +1184,8 @@ function ProductModal({
             <p className="text-xs text-[#B42318] -mt-2" style={{ fontFamily: "'DM Sans', sans-serif" }}>{formErrors.name}</p>
           )}
 
-          {/* Price, Category, Stock, SKU */}
+          {/* Price, Category, SKU */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {[
-              { label: "Stock", key: "stock" as const, type: "number", placeholder: "0" },
-            ].map((field) => (
-              <div key={field.key}>
-                <label
-                  className="block text-xs mb-2 tracking-widest uppercase"
-                  style={{ fontFamily: "'DM Sans', sans-serif", color: "rgba(45,36,30,0.4)", letterSpacing: "0.14em" }}
-                >
-                  {field.label}
-                </label>
-                <input
-                  type={field.type}
-                  min={field.key === "stock" || field.key === "price" ? 0 : undefined}
-                  value={form[field.key] as string}
-                  onChange={(e) => handleChange(field.key, e.target.value)}
-                  placeholder={field.placeholder}
-                  className="w-full bg-transparent border rounded-[14px] px-4 py-3 text-[#2D241E] focus:outline-none transition-colors duration-200 placeholder:text-[#2D241E]/20"
-                  style={{
-                    fontFamily: "'DM Sans', sans-serif",
-                    fontSize: "0.9rem",
-                    borderColor: "rgba(45,36,30,0.15)",
-                  }}
-                  onFocus={(e) => (e.target.style.borderColor = "#4A0E0E")}
-                  onBlur={(e) => (e.target.style.borderColor = "rgba(45,36,30,0.15)")}
-                />
-              </div>
-            ))}
             <div>
               <label
                 className="block text-xs mb-2 tracking-widest uppercase"
@@ -1286,10 +1231,9 @@ function ProductModal({
               />
             </div>
           </div>
-          {(formErrors.price || formErrors.stock || formErrors.sku) && (
+          {(formErrors.price || formErrors.sku) && (
             <div className="-mt-2 space-y-1">
               {formErrors.price && <p className="text-xs text-[#B42318]" style={{ fontFamily: "'DM Sans', sans-serif" }}>{formErrors.price}</p>}
-              {formErrors.stock && <p className="text-xs text-[#B42318]" style={{ fontFamily: "'DM Sans', sans-serif" }}>{formErrors.stock}</p>}
               {formErrors.sku && <p className="text-xs text-[#B42318]" style={{ fontFamily: "'DM Sans', sans-serif" }}>{formErrors.sku}</p>}
             </div>
           )}
@@ -1441,7 +1385,6 @@ function ProductModal({
                             const nextIds = isSelected ? p.colorIds.filter((id) => id !== c.id) : [...p.colorIds, c.id];
                             const nextColorSizeIds = { ...p.colorSizeIds };
                             const nextVariants = { ...p.colorSizeVariants };
-                            const nextStocks = { ...p.variantStocks };
                             const nextColorPrices = { ...p.colorPrices };
                             const nextColorPricesWithLace = { ...p.colorPricesWithLace };
                             const preferredSizeId = sizes.find((s) => s.name === "M")?.id ?? sizes[0]?.id ?? null;
@@ -1451,9 +1394,6 @@ function ProductModal({
                               delete nextColorPricesWithLace[c.id];
                               Object.keys(nextVariants).forEach((key) => {
                                 if (key.startsWith(`${c.id}:`)) delete nextVariants[key];
-                              });
-                              Object.keys(nextStocks).forEach((key) => {
-                                if (key.startsWith(`${c.id}:`)) delete nextStocks[key];
                               });
                             } else if (preferredSizeId != null) {
                               nextColorSizeIds[c.id] = [preferredSizeId];
@@ -1471,7 +1411,6 @@ function ProductModal({
                               colorIds: nextIds,
                               colorSizeIds: nextColorSizeIds,
                               colorSizeVariants: nextVariants,
-                              variantStocks: nextStocks,
                               colorPrices: nextColorPrices,
                               colorPricesWithLace: nextColorPricesWithLace,
                             };
@@ -1696,17 +1635,13 @@ function ProductModal({
                                     const next = selected ? curr.filter((id) => id !== s.id) : [...curr, s.id];
                                     nextColorSizeIds[colorId] = next;
                                     const nextVariants = { ...p.colorSizeVariants };
-                                    const nextStocks = { ...p.variantStocks };
                                     if (selected) {
                                       const prefix = `${colorId}:${s.id}:`;
                                       Object.keys(nextVariants).forEach((key) => {
                                         if (key.startsWith(prefix)) delete nextVariants[key];
                                       });
-                                      Object.keys(nextStocks).forEach((key) => {
-                                        if (key.startsWith(prefix)) delete nextStocks[key];
-                                      });
                                     }
-                                    return { ...p, colorSizeIds: nextColorSizeIds, colorSizeVariants: nextVariants, variantStocks: nextStocks };
+                                    return { ...p, colorSizeIds: nextColorSizeIds, colorSizeVariants: nextVariants };
                                   });
                                   setFormErrors((prev) => ({ ...prev, sizes: undefined, defaultSizeId: undefined }));
                                 }}
@@ -1731,7 +1666,7 @@ function ProductModal({
                 <div>
                   <div className="flex items-center justify-between mb-3">
                     <label className="block text-xs tracking-widest uppercase" style={{ fontFamily: "'DM Sans', sans-serif", color: "rgba(45,36,30,0.4)", letterSpacing: "0.14em" }}>
-                      Constructor (Color + Size + Photos + Stock)
+                      Constructor (Color + Size + Photos)
                     </label>
                     <p className="text-xs text-[#2D241E]/55 mb-2" style={{ fontFamily: "'DM Sans', sans-serif" }}>
                       {form.lace
@@ -1777,24 +1712,6 @@ function ProductModal({
                               )}
                             </div>
                             <div className="flex items-center gap-2">
-                              <input
-                                type="number"
-                                min={0}
-                                placeholder="Stock"
-                                value={form.variantStocks[key] ?? ""}
-                                onChange={(e) => {
-                                  const raw = e.target.value;
-                                  const trimmed = raw.trim();
-                                  let value = raw;
-                                  if (trimmed !== "") {
-                                    const n = Number(trimmed);
-                                    if (Number.isFinite(n) && n < 0) value = "0";
-                                  }
-                                  setForm((p) => ({ ...p, variantStocks: { ...p.variantStocks, [key]: value } }));
-                                }}
-                                className="w-20 bg-white/60 border rounded-[10px] px-2.5 py-1.5 text-xs text-[#2D241E] focus:outline-none"
-                                style={{ fontFamily: "'DM Sans', sans-serif", borderColor: "rgba(45,36,30,0.15)" }}
-                              />
                               <label
                                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-[10px] text-xs border transition-all hover:bg-[#2D241E]/5 ${rowUploading || cropBusy ? "opacity-50 pointer-events-none" : "cursor-pointer"}`}
                                 style={{ fontFamily: "'DM Sans', sans-serif", borderColor: "rgba(45,36,30,0.2)", color: "#2D241E" }}
@@ -2261,14 +2178,12 @@ function CategoryModal({
   onClose,
   onSave,
 }: {
-  editing: { id: number; name: string; trackStock?: boolean } | null;
+  editing: { id: number; name: string } | null;
   onClose: () => void;
-  onSave: (name: string, trackStock: boolean) => void;
+  onSave: (name: string) => void;
 }) {
   const [name, setName] = useState(editing?.name ?? "");
-  const [trackStock, setTrackStock] = useState(editing?.trackStock ?? true);
   useEffect(() => { setName(editing?.name ?? ""); }, [editing?.id, editing?.name]);
-  useEffect(() => { setTrackStock(editing?.trackStock ?? true); }, [editing?.id, editing?.trackStock]);
   const isEditing = !!editing;
   return (
     <AdminModalShell
@@ -2278,19 +2193,12 @@ function CategoryModal({
       footer={
         <>
           <AdminModalCancelButton onClick={onClose} />
-          <AdminModalPrimaryButton onClick={() => onSave(name, trackStock)}>{isEditing ? "Save" : "Add"}</AdminModalPrimaryButton>
+          <AdminModalPrimaryButton onClick={() => onSave(name)}>{isEditing ? "Save" : "Add"}</AdminModalPrimaryButton>
         </>
       }
     >
       <label className="block text-xs mb-2 tracking-widest uppercase" style={{ fontFamily: "'DM Sans', sans-serif", color: "rgba(45,36,30,0.4)", letterSpacing: "0.14em" }}>Category Name</label>
       <input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Sweaters" className="w-full bg-transparent border rounded-[14px] px-4 py-3 text-[#2D241E] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#2D241E]/20 placeholder:text-[#2D241E]/20" style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "0.9rem", borderColor: "rgba(45,36,30,0.15)" }} />
-      <label className="mt-4 flex items-center gap-2.5 cursor-pointer select-none">
-        <input type="checkbox" checked={trackStock} onChange={(e) => setTrackStock(e.target.checked)} className="w-4 h-4 rounded accent-[#2D241E]" />
-        <span className="text-sm text-[#2D241E]/70" style={{ fontFamily: "'DM Sans', sans-serif" }}>Track stock?</span>
-      </label>
-      <p className="mt-1.5 text-xs text-[#2D241E]/40" style={{ fontFamily: "'DM Sans', sans-serif" }}>
-        When off, products in this category are excluded from low-stock alerts (e.g. lace or internal materials).
-      </p>
     </AdminModalShell>
   );
 }
@@ -2526,7 +2434,6 @@ const LOG_FIELD_LABELS: Record<string, string> = {
   name: "Name",
   productCode: "SKU",
   price: "Price",
-  quantityInStock: "Stock",
   categoryName: "Category",
   material: "Material",
   isActive: "Active",
@@ -2826,7 +2733,7 @@ export function AdminPage() {
 
   const [productModal, setProductModal] = useState<{ open: boolean; editing: AdminProduct | null }>({ open: false, editing: null });
   const [userModal, setUserModal] = useState<{ open: boolean }>({ open: false });
-  const [categoryModal, setCategoryModal] = useState<{ open: boolean; editing: { id: number; name: string; trackStock?: boolean } | null }>({ open: false, editing: null });
+  const [categoryModal, setCategoryModal] = useState<{ open: boolean; editing: { id: number; name: string } | null }>({ open: false, editing: null });
   const [colorModal, setColorModal] = useState<{ open: boolean; editing: { id: number; name: string; nameUk?: string | null; hexCode: string } | null }>({ open: false, editing: null });
   const [furnitureModal, setFurnitureModal] = useState<{ open: boolean; editing: { id: number; name: string; nameUk?: string | null; hexCode: string } | null }>({ open: false, editing: null });
   const [sizeModal, setSizeModal] = useState<{ open: boolean; editing: { id: number; name: string; nameUk?: string | null } | null }>({ open: false, editing: null });
@@ -3308,23 +3215,6 @@ export function AdminPage() {
             (data.lace || v.lace === false) &&
             v.imageUrls.length > 0
         );
-      const variantStocks = Object.entries(data.variantStocks ?? {})
-        .map(([key, value]) => {
-          const [colorIdRaw, sizeIdRaw, laceRaw] = key.split(":");
-          const colorId = Number(colorIdRaw);
-          const sizeId = Number(sizeIdRaw);
-          const lace = laceRaw === "true";
-          const quantityInStock = Number(value);
-          return { colorId, sizeId, lace, quantityInStock };
-        })
-        .filter(
-          (v) =>
-            colorIds.includes(v.colorId) &&
-            sizeIds.includes(v.sizeId) &&
-            (data.lace || v.lace === false) &&
-            Number.isFinite(v.quantityInStock) &&
-            v.quantityInStock >= 0
-        );
       const colorPrices = colorIds
         .map((colorId) => {
           const priceRaw = data.colorPrices?.[colorId]?.trim();
@@ -3336,14 +3226,6 @@ export function AdminPage() {
           return { colorId, price, priceWithLace };
         })
         .filter((c) => c.price != null || c.priceWithLace != null);
-
-      const computedTotalStock = variantStocks.reduce((sum, v) => sum + v.quantityInStock, 0);
-      const parsedTotalStock = data.stock.trim() ? parseInt(data.stock, 10) : NaN;
-      const quantityInStock = variantStocks.length > 0
-        ? computedTotalStock
-        : Number.isFinite(parsedTotalStock) && parsedTotalStock >= 0
-          ? parsedTotalStock
-          : 0;
 
       const variantPrimaryUrls = unique(
         colorSizeVariants
@@ -3364,7 +3246,6 @@ export function AdminPage() {
         name: data.name,
         description: data.description,
         price: deriveBasePrice(colorIds, resolvedDefaultColorId, data.colorPrices ?? {}, Number(data.price) || 0),
-        quantityInStock,
         material: data.subtitle,
         categoryId: data.categoryId,
         defaultSizeId: normalizedDefaultSizeId ?? undefined,
@@ -3377,7 +3258,6 @@ export function AdminPage() {
         colorIds,
         furnitureColorIds,
         colorSizeVariants,
-        variantStocks,
         // Omit empty list on update so the API keeps existing per-color prices
         // (empty ColorPrices used to wipe Price/PriceWithLace back to null).
         ...(colorPrices.length > 0 ? { colorPrices } : {}),
@@ -3442,13 +3322,13 @@ export function AdminPage() {
     }
   };
 
-  const handleSaveCategory = async (name: string, trackStock: boolean) => {
+  const handleSaveCategory = async (name: string) => {
     setSaveError(null);
     try {
       if (categoryModal.editing) {
-        await editCategory(categoryModal.editing.id, name, trackStock);
+        await editCategory(categoryModal.editing.id, name);
       } else {
-        await addCategory(name, trackStock);
+        await addCategory(name);
       }
       setCategoryModal({ open: false, editing: null });
       refetch();
@@ -3568,16 +3448,6 @@ export function AdminPage() {
 
   const totalRevenue = Number(ordersSummary.totalRevenue ?? 0);
   const activeUsers = users.filter((u) => u.status === "active").length;
-  const isStockTracked = (p: AdminProduct) => p.categoryTrackStock !== false;
-  const lowStockCount = products.filter((p) => isStockTracked(p) && (p.stock ?? 0) < 10).length;
-  const criticalLowStockCount = products.filter((p) => isStockTracked(p) && (p.stock ?? 0) <= 2).length;
-  const criticalLowStockProducts = useMemo(
-    () =>
-      products
-        .filter((p) => isStockTracked(p) && (p.stock ?? 0) <= 2)
-        .sort((a, b) => (a.stock ?? 0) - (b.stock ?? 0)),
-    [products]
-  );
   const pendingOrdersCount = Number(ordersSummary.pendingOrders ?? 0);
   const adminDisplayName = user?.name || "Administrator";
   const adminDisplayEmail = user?.email || "admin@yarne.local";
@@ -3679,7 +3549,6 @@ export function AdminPage() {
                 { label: "Products", value: products.length.toString(), color: "#2D241E" },
                 { label: "Users", value: users.length.toString(), color: "#0A1128" },
                 { label: "Orders", value: orders.length.toString(), color: "#4A0E0E" },
-                { label: "Low Stock", value: lowStockCount.toString(), color: lowStockCount > 0 ? "#9B6B2E" : "#2D6A4F" },
               ].map((s) => (
                 <div
                   key={s.label}
@@ -3779,10 +3648,8 @@ export function AdminPage() {
                     icon: <Package size={20} />,
                     label: "Products",
                     value: products.length.toString(),
-                    sub: criticalLowStockCount === 1
-                      ? "1 product low stock"
-                      : `${criticalLowStockCount} products low stock`,
-                    color: criticalLowStockCount > 0 ? "#9B6B2E" : "#2D241E",
+                    sub: "In catalog",
+                    color: "#2D241E",
                     goTo: "products" as AdminTab,
                   },
                 ].map((card, i) => (
@@ -3819,61 +3686,6 @@ export function AdminPage() {
                 ))}
               </div>
 
-              {criticalLowStockProducts.length > 0 && (
-                <div
-                  className="rounded-[24px] p-6 mb-12"
-                  style={{
-                    border: "1px solid rgba(196,48,48,0.25)",
-                    backgroundColor: "rgba(196,48,48,0.08)",
-                  }}
-                >
-                  <div className="flex items-start gap-3 mb-4">
-                    <div
-                      className="w-9 h-9 rounded-full flex items-center justify-center shrink-0"
-                      style={{ backgroundColor: "rgba(196,48,48,0.15)", color: "#9B2C2C" }}
-                    >
-                      <AlertTriangle size={18} />
-                    </div>
-                    <div>
-                      <p className="text-[#2D241E]" style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "1.25rem" }}>
-                        Low stock alert
-                      </p>
-                      <p className="text-[#2D241E]/55 text-sm mt-0.5" style={{ fontFamily: "'DM Sans', sans-serif" }}>
-                        {criticalLowStockProducts.length === 1
-                          ? "1 product has 2 or fewer units left."
-                          : `${criticalLowStockProducts.length} products have 2 or fewer units left.`}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-                    {criticalLowStockProducts.map((p) => (
-                      <button
-                        key={`low-stock-${p.id}`}
-                        type="button"
-                        onClick={() => {
-                          setProductSearch(p.name);
-                          setActiveTab("products");
-                        }}
-                        className="flex items-center gap-3 rounded-[16px] px-3 py-2.5 text-left transition-colors hover:bg-[#2D241E]/[0.04]"
-                        style={{ border: "1px solid rgba(45,36,30,0.1)", backgroundColor: "rgba(245,242,237,0.85)" }}
-                      >
-                        <div className="w-11 h-11 rounded-[10px] overflow-hidden shrink-0" style={{ backgroundColor: "#EDE9E2" }}>
-                          <img src={getProductPreviewUrl(p)} alt={p.name} className="w-full h-full object-cover" />
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <p className="text-[#2D241E] text-sm truncate" style={{ fontFamily: "'DM Sans', sans-serif" }}>
-                            {p.name}
-                          </p>
-                          <p className="text-xs mt-0.5" style={{ fontFamily: "'DM Sans', sans-serif", color: p.stock === 0 ? "#4A0E0E" : "#9B6B2E" }}>
-                            {p.stock === 0 ? "Out of stock" : `${p.stock} left`} · {p.sku}
-                          </p>
-                        </div>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-
               {/* Products Preview */}
               <div className="grid md:grid-cols-2 gap-8">
                 {/* Recent Products */}
@@ -3900,9 +3712,6 @@ export function AdminPage() {
                         </div>
                         <div className="text-right">
                           <p className="text-[#2D241E] text-sm" style={{ fontFamily: "'Cormorant Garamond', serif" }}>{formatPriceCompact(p.price, "uk")}</p>
-                          <p className="text-xs" style={{ fontFamily: "'DM Sans', sans-serif", color: isStockTracked(p) && p.stock < 10 ? "#9B6B2E" : "rgba(45,36,30,0.4)" }}>
-                            {p.stock} in stock
-                          </p>
                         </div>
                       </div>
                     ))}
@@ -4737,8 +4546,8 @@ export function AdminPage() {
                         <div
                           className="rounded-[18px] p-3.5"
                           style={{
-                            border: isStockTracked(p) && (p.stock ?? 0) <= 2 ? "1px solid rgba(196,48,48,0.35)" : "1px solid rgba(45,36,30,0.09)",
-                            backgroundColor: isStockTracked(p) && (p.stock ?? 0) <= 2 ? "rgba(196,48,48,0.12)" : "rgba(245,242,237,0.8)",
+                            border: "1px solid rgba(45,36,30,0.09)",
+                            backgroundColor: "rgba(245,242,237,0.8)",
                           }}
                         >
                           <div className="flex items-start gap-3">
@@ -4783,10 +4592,7 @@ export function AdminPage() {
 
                           <div className="mt-2 flex items-center justify-between">
                             <div className="flex-1 pr-3">
-                              <p className="text-[11px] text-[#2D241E]/55" style={{ fontFamily: "'DM Sans', sans-serif" }}>
-                                Stock: {p.stock}
-                              </p>
-                              <p className="text-[11px] text-[#2D241E]/38 mt-1" style={{ fontFamily: "'DM Sans', sans-serif" }}>
+                              <p className="text-[11px] text-[#2D241E]/38" style={{ fontFamily: "'DM Sans', sans-serif" }}>
                                 SKU: {p.sku}
                               </p>
                             </div>
@@ -4854,7 +4660,7 @@ export function AdminPage() {
                 <div
                   className="grid px-6 py-4 text-xs tracking-widest uppercase"
                   style={{
-                    gridTemplateColumns: "2fr 1fr 80px 80px 100px 80px 100px",
+                    gridTemplateColumns: "2fr 1fr 80px 100px 80px 100px",
                     fontFamily: "'DM Sans', sans-serif",
                     letterSpacing: "0.12em",
                     color: "rgba(45,36,30,0.4)",
@@ -4865,7 +4671,6 @@ export function AdminPage() {
                   <span>Product</span>
                   <span>Category</span>
                   <span>Price</span>
-                  <span>Stock</span>
                   <span>Status</span>
                   <span>SKU</span>
                   <span className="text-right">Actions</span>
@@ -4883,8 +4688,7 @@ export function AdminPage() {
                         key={p.id}
                         className="grid items-center px-6 py-4 hover:bg-[#2D241E]/[0.02] transition-colors"
                         style={{
-                          gridTemplateColumns: "2fr 1fr 80px 80px 100px 80px 100px",
-                          backgroundColor: isStockTracked(p) && (p.stock ?? 0) <= 2 ? "rgba(196,48,48,0.12)" : "transparent",
+                          gridTemplateColumns: "2fr 1fr 80px 100px 80px 100px",
                         }}
                       >
                         {/* Product */}
@@ -4901,16 +4705,6 @@ export function AdminPage() {
                         <span className="text-[#2D241E]/60 text-sm" style={{ fontFamily: "'DM Sans', sans-serif" }}>{p.category}</span>
                         {/* Price */}
                         <span className="text-[#2D241E]" style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "0.95rem" }}>{formatPriceCompact(p.price, "uk")}</span>
-                        {/* Stock */}
-                        <span
-                          className="text-sm"
-                          style={{
-                            fontFamily: "'DM Sans', sans-serif",
-                            color: !isStockTracked(p) ? "rgba(45,36,30,0.6)" : p.stock < 10 ? "#9B6B2E" : p.stock === 0 ? "#4A0E0E" : "rgba(45,36,30,0.6)",
-                          }}
-                        >
-                          {p.stock}
-                        </span>
                         {/* Status */}
                         <div className="flex flex-wrap gap-1">
                           {p.isNew && (
@@ -5479,7 +5273,7 @@ export function AdminPage() {
                 <div
                   className="grid px-6 py-4 text-xs tracking-widest uppercase"
                   style={{
-                    gridTemplateColumns: "1fr 120px 100px",
+                    gridTemplateColumns: "1fr 100px",
                     fontFamily: "'DM Sans', sans-serif",
                     letterSpacing: "0.12em",
                     color: "rgba(45,36,30,0.4)",
@@ -5488,7 +5282,6 @@ export function AdminPage() {
                   }}
                 >
                   <span>Category</span>
-                  <span>Track Stock</span>
                   <span className="text-right">Actions</span>
                 </div>
                 <div className="divide-y" style={{ borderColor: "rgba(45,36,30,0.06)" }}>
@@ -5496,18 +5289,8 @@ export function AdminPage() {
                     <p className="py-12 text-center text-[#2D241E]/40 px-6" style={{ fontFamily: "'DM Sans', sans-serif" }}>No categories yet</p>
                   ) : (
                     categories.map((c) => (
-                      <div key={c.id} className={ADMIN_ROW} style={{ gridTemplateColumns: "1fr 120px 100px" }}>
+                      <div key={c.id} className={ADMIN_ROW} style={{ gridTemplateColumns: "1fr 100px" }}>
                         <p className="text-[#2D241E]" style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "1.15rem" }}>{c.name}</p>
-                        <span
-                          className="w-fit px-2.5 py-1 rounded-full text-xs"
-                          style={{
-                            fontFamily: "'DM Sans', sans-serif",
-                            backgroundColor: c.trackStock ? "rgba(45,106,79,0.1)" : "rgba(45,36,30,0.06)",
-                            color: c.trackStock ? "#2D6A4F" : "rgba(45,36,30,0.45)",
-                          }}
-                        >
-                          {c.trackStock ? "Yes" : "No"}
-                        </span>
                         <div className="flex items-center justify-end gap-2">
                           <button type="button" onClick={() => setCategoryModal({ open: true, editing: c })} className={ADMIN_ICON_EDIT} title="Edit" aria-label={`Edit ${c.name}`}><Pencil size={13} style={{ color: "#2D241E", opacity: 0.5 }} /></button>
                           <button type="button" onClick={() => setDeleteModal({ open: true, type: "category", id: String(c.id), idNum: c.id, name: c.name })} className={ADMIN_ICON_DELETE} title="Delete" aria-label={`Delete ${c.name}`}><Trash2 size={13} style={{ color: "#4A0E0E", opacity: 0.6 }} /></button>

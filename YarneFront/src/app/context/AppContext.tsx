@@ -32,7 +32,6 @@ export interface CartItem {
   withLace?: boolean | null;
   quantity: number;
   image: string;
-  maxQuantity: number;
 }
 
 interface WishlistContextType {
@@ -220,8 +219,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const closeLogin = useCallback(() => setLoginOpen(false), []);
 
   const addToCart = useCallback((item: Omit<CartItem, "cartId">) => {
-    const maxQty = Math.max(0, item.maxQuantity);
-    if (maxQty <= 0) return;
+    if (item.quantity <= 0) return;
 
     setCartItems((prev) => {
       const existing = prev.find(
@@ -233,19 +231,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           i.withLace === item.withLace
       );
       if (existing) {
-        const nextQty = Math.min(existing.quantity + item.quantity, maxQty);
-        if (nextQty <= existing.quantity) return prev;
         return prev.map((i) =>
-          i.cartId === existing.cartId ? { ...i, quantity: nextQty, maxQuantity: maxQty } : i
+          i.cartId === existing.cartId ? { ...i, quantity: i.quantity + item.quantity } : i
         );
       }
-      const quantity = Math.min(item.quantity, maxQty);
       return [
         ...prev,
         {
           ...item,
-          quantity,
-          maxQuantity: maxQty,
           cartId: `${item.productId}-${item.color}-${item.furnitureColor ?? "na"}-${item.size}-${item.withLace ?? "na"}-${Date.now()}`,
         },
       ];
@@ -262,11 +255,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       setCartItems((prev) => prev.filter((i) => i.cartId !== cartId));
     } else {
       setCartItems((prev) =>
-        prev.map((i) =>
-          i.cartId === cartId
-            ? { ...i, quantity: Math.min(qty, Math.max(1, i.maxQuantity)) }
-            : i
-        )
+        prev.map((i) => (i.cartId === cartId ? { ...i, quantity: qty } : i))
       );
     }
   }, []);

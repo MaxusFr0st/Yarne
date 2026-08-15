@@ -134,11 +134,8 @@ const uk: Translations = {
     size: "Розмір",
     sizeGuide: "Розмірна сітка",
     selectSize: "Оберіть розмір, щоб продовжити.",
-    inStock: "В наявності: {{count}}",
-    inStockShort: "{{count}} у наявності",
     addToBag: "Додати до кошика",
     addedToBag: "Додано до кошика",
-    outOfStock: "Немає в наявності",
     detailsTitle: "Деталі товару",
     madeBy: "Виробник: {{name}}",
     guarantee: {

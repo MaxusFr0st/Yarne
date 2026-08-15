@@ -26,8 +26,6 @@ type MobileProductDetailViewProps = {
   isWishlisted: boolean;
   addedToBag: boolean;
   sizeError: boolean;
-  outOfStock: boolean;
-  displayStock: number;
   laceEnabled: boolean;
   activeLace: boolean;
   onLaceChange: (next: boolean) => void;
@@ -52,8 +50,6 @@ export function MobileProductDetailView({
   isWishlisted,
   addedToBag,
   sizeError,
-  outOfStock,
-  displayStock,
   laceEnabled,
   activeLace,
   onLaceChange,
@@ -537,19 +533,6 @@ export function MobileProductDetailView({
                 >
                   {t("product.size")}
                 </p>
-                {activeSize && (
-                  <p
-                    className={displayStock <= 0 ? "text-[#4A0E0E]/75" : "text-[#2D241E]/50"}
-                    style={{
-                      fontFamily: "'DM Sans', sans-serif",
-                      fontSize: "clamp(0.68rem, 2.45vw, 0.78rem)",
-                    }}
-                  >
-                    {displayStock <= 0
-                      ? t("product.outOfStock")
-                      : t("product.inStockShort", { count: displayStock })}
-                  </p>
-                )}
               </div>
               <div
                 className={`flex flex-wrap gap-2 ${
@@ -637,10 +620,9 @@ export function MobileProductDetailView({
           <motion.button
             type="button"
             onClick={onAddToBag}
-            disabled={outOfStock}
-            className="shrink-0 mt-[clamp(8px,1.8vh,12px)] w-full h-12 flex items-center justify-center gap-2 rounded-full text-white touch-manipulation disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2D241E]/35"
+            className="shrink-0 mt-[clamp(8px,1.8vh,12px)] w-full h-12 flex items-center justify-center gap-2 rounded-full text-white touch-manipulation cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2D241E]/35"
           style={{
-            backgroundColor: outOfStock ? "#9A9088" : addedToBag ? "#2D5928" : "#2D241E",
+            backgroundColor: addedToBag ? "#2D5928" : "#2D241E",
             fontFamily: "'DM Sans', sans-serif",
             fontSize: "clamp(0.7rem, 2.6vw, 0.8rem)",
             letterSpacing: "0.12em",
@@ -656,9 +638,7 @@ export function MobileProductDetailView({
           ) : (
             <>
               <ShoppingBag size={14} strokeWidth={1.5} aria-hidden="true" />
-              <span className="uppercase tracking-widest">
-                {outOfStock ? t("product.outOfStock") : t("product.addToBag")}
-              </span>
+              <span className="uppercase tracking-widest">{t("product.addToBag")}</span>
             </>
           )}
           </motion.button>

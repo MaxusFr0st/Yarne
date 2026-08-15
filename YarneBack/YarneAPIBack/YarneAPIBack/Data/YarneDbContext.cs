@@ -48,8 +48,6 @@ public partial class YarneDbContext : DbContext
 
     public virtual DbSet<ProductSize> ProductSizes { get; set; }
 
-    public virtual DbSet<ProductVariantStock> ProductVariantStocks { get; set; }
-
     public virtual DbSet<ProductRecommendation> ProductRecommendations { get; set; }
 
     public virtual DbSet<Size> Sizes { get; set; }
@@ -205,23 +203,6 @@ public partial class YarneDbContext : DbContext
 
             entity.HasOne(d => d.ProductSize)
                 .WithMany(ps => ps.ColorSizeImages)
-                .HasForeignKey(d => new { d.ProductId, d.SizeId })
-                .OnDelete(DeleteBehavior.Cascade);
-        });
-
-        modelBuilder.Entity<ProductVariantStock>(entity =>
-        {
-            entity.HasKey(e => new { e.ProductId, e.ColorId, e.SizeId, e.Lace });
-            entity.ToTable("ProductVariantStock");
-            entity.Property(e => e.Lace).HasDefaultValue(false);
-
-            entity.HasOne(d => d.ProductColor)
-                .WithMany(pc => pc.VariantStocks)
-                .HasForeignKey(d => new { d.ProductId, d.ColorId })
-                .OnDelete(DeleteBehavior.Cascade);
-
-            entity.HasOne(d => d.ProductSize)
-                .WithMany(ps => ps.VariantStocks)
                 .HasForeignKey(d => new { d.ProductId, d.SizeId })
                 .OnDelete(DeleteBehavior.Cascade);
         });

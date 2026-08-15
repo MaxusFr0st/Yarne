@@ -97,7 +97,6 @@ public class ProductsController : ControllerBase
                 product.ProductCode,
                 product.Name,
                 product.Price,
-                product.QuantityInStock,
                 product.CategoryName,
                 product.IsNew,
                 product.IsBestseller,

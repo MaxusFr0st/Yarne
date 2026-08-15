@@ -90,8 +90,6 @@ function ProductCardInner({
     if (previewMode) return;
     e.preventDefault();
     e.stopPropagation();
-    const maxQuantity = Math.max(0, product.stock ?? 0);
-    if (maxQuantity <= 0) return;
     addToCart({
       productId: product.id,
       name: product.name,
@@ -103,7 +101,6 @@ function ProductCardInner({
       size: "S",
       withLace: null,
       quantity: 1,
-      maxQuantity,
       image: product.colors[activeColor].image.src,
     });
   };

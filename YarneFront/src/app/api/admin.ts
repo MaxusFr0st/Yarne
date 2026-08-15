@@ -3,7 +3,6 @@ import { apiRequest } from "./client";
 export interface CategoryDto {
   id: number;
   name: string;
-  trackStock: boolean;
 }
 
 export interface ColorDto {
@@ -42,18 +41,18 @@ export async function fetchCategories(): Promise<CategoryDto[]> {
   return Array.isArray(data) ? data : [];
 }
 
-export async function createCategory(name: string, trackStock: boolean = true): Promise<CategoryDto> {
+export async function createCategory(name: string): Promise<CategoryDto> {
   const data = await apiRequest<CategoryDto>("/api/categories", {
     method: "POST",
-    body: JSON.stringify({ name, trackStock }),
+    body: JSON.stringify({ name }),
   });
   return data;
 }
 
-export async function updateCategory(id: number, name: string, trackStock: boolean = true): Promise<CategoryDto> {
+export async function updateCategory(id: number, name: string): Promise<CategoryDto> {
   const data = await apiRequest<CategoryDto>(`/api/categories/${id}`, {
     method: "PUT",
-    body: JSON.stringify({ name, trackStock }),
+    body: JSON.stringify({ name }),
   });
   return data;
 }

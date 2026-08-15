@@ -21,8 +21,6 @@ public partial class Product
 
     public decimal MarginThresholdPct { get; set; } = 60m;
 
-    public int QuantityInStock { get; set; }
-
     public string? Material { get; set; }
 
     public string? ImageUrl { get; set; }

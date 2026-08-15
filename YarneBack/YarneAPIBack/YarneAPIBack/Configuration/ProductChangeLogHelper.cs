@@ -26,7 +26,6 @@ public static class ProductChangeLogHelper
             RecordChange(changes, "productCode", before.ProductCode, after.ProductCode);
             RecordChange(changes, "description", before.Description, after.Description);
             RecordChange(changes, "price", before.Price, after.Price);
-            RecordChange(changes, "quantityInStock", before.QuantityInStock, after.QuantityInStock);
             RecordChange(changes, "material", before.Material, after.Material);
             RecordChange(changes, "categoryName", before.CategoryName, after.CategoryName);
             RecordChange(changes, "isActive", before.IsActive, after.IsActive);

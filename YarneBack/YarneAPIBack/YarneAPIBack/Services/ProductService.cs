@@ -45,10 +45,6 @@ public class ProductService : IProductService
                 .ThenInclude(pc => pc.SizeImages)
                     .ThenInclude(si => si.ProductSize)
                         .ThenInclude(ps => ps.Size)
-            .Include(p => p.ProductColors)
-                .ThenInclude(pc => pc.VariantStocks)
-                    .ThenInclude(vs => vs.ProductSize)
-                        .ThenInclude(ps => ps.Size)
             .AsQueryable();
 
         query = query.Where(p => !p.IsVoid);
@@ -99,10 +95,6 @@ public class ProductService : IProductService
                 .ThenInclude(pc => pc.SizeImages)
                     .ThenInclude(si => si.ProductSize)
                         .ThenInclude(ps => ps.Size)
-            .Include(p => p.ProductColors)
-                .ThenInclude(pc => pc.VariantStocks)
-                    .ThenInclude(vs => vs.ProductSize)
-                        .ThenInclude(ps => ps.Size)
             .Include(p => p.Recommendations)
                 .ThenInclude(r => r.RelatedProduct)
                     .ThenInclude(rp => rp.Category)
@@ -132,12 +124,6 @@ public class ProductService : IProductService
                     .ThenInclude(rp => rp.ProductColors)
                         .ThenInclude(pc => pc.SizeImages)
                             .ThenInclude(si => si.ProductSize)
-                                .ThenInclude(ps => ps.Size)
-            .Include(p => p.Recommendations)
-                .ThenInclude(r => r.RelatedProduct)
-                    .ThenInclude(rp => rp.ProductColors)
-                        .ThenInclude(pc => pc.VariantStocks)
-                            .ThenInclude(vs => vs.ProductSize)
                                 .ThenInclude(ps => ps.Size)
             .FirstOrDefaultAsync(p => p.Id == id && !p.IsVoid && !p.IsInternalComponent && (!activeOnly || p.IsActive), ct);
 
@@ -169,10 +155,6 @@ public class ProductService : IProductService
                 .ThenInclude(pc => pc.SizeImages)
                     .ThenInclude(si => si.ProductSize)
                         .ThenInclude(ps => ps.Size)
-            .Include(p => p.ProductColors)
-                .ThenInclude(pc => pc.VariantStocks)
-                    .ThenInclude(vs => vs.ProductSize)
-                        .ThenInclude(ps => ps.Size)
             .Include(p => p.Recommendations)
                 .ThenInclude(r => r.RelatedProduct)
                     .ThenInclude(rp => rp.Category)
@@ -203,12 +185,6 @@ public class ProductService : IProductService
                         .ThenInclude(pc => pc.SizeImages)
                             .ThenInclude(si => si.ProductSize)
                                 .ThenInclude(ps => ps.Size)
-            .Include(p => p.Recommendations)
-                .ThenInclude(r => r.RelatedProduct)
-                    .ThenInclude(rp => rp.ProductColors)
-                        .ThenInclude(pc => pc.VariantStocks)
-                            .ThenInclude(vs => vs.ProductSize)
-                                .ThenInclude(ps => ps.Size)
             .FirstOrDefaultAsync(p => p.ProductCode == productCode && p.IsActive && !p.IsInternalComponent, ct);
 
         if (product == null)
@@ -219,11 +195,9 @@ public class ProductService : IProductService
     public async Task<ProductDto> CreateProductAsync(CreateProductRequest request, CancellationToken ct = default)
     {
         EnsureNonNegativePrice(request.Price);
-        EnsureNonNegativeStockInputs(request.QuantityInStock, request.VariantStocks);
 
         var validSizeIds = await ResolveSizeIdsAsync(request.SizeIds, request.DefaultSizeId, request.ColorSizeVariants.Select(v => v.SizeId), ct);
         var defaultSizeId = await ResolveDefaultSizeIdAsync(validSizeIds, request.DefaultSizeId, ct);
-        var computedTotalStock = ComputeTotalStock(request.QuantityInStock, request.VariantStocks);
 
         var productCode = await ResolveCreateProductCodeAsync(request.ProductCode, ct);
 
@@ -239,7 +213,6 @@ public class ProductService : IProductService
             Price = request.Price,
             SellingPriceCents = sellingPriceCents,
             SellingCurrencyCode = "UAH",
-            QuantityInStock = computedTotalStock,
             Material = request.Material,
             CategoryId = request.CategoryId,
             CollectionId = request.CollectionId,
@@ -277,7 +250,6 @@ public class ProductService : IProductService
             fallbackImages
         );
         await ReplaceColorSizeImagesAsync(product.Id, colorSizeVariants, ct);
-        await ReplaceVariantStocksAsync(product.Id, request.VariantStocks, ct);
         await ReplaceProductRecommendationsAsync(product.Id, product.ProductCode, request.SuggestedProductCodes, ct);
 
         await _context.SaveChangesAsync(ct);
@@ -300,10 +272,6 @@ public class ProductService : IProductService
             .Include(p => p.ProductColors)
                 .ThenInclude(pc => pc.SizeImages)
                     .ThenInclude(si => si.ProductSize)
-                        .ThenInclude(ps => ps.Size)
-            .Include(p => p.ProductColors)
-                .ThenInclude(pc => pc.VariantStocks)
-                    .ThenInclude(vs => vs.ProductSize)
                         .ThenInclude(ps => ps.Size)
             .FirstAsync(p => p.Id == product.Id, ct);
         return MapToProductDto(created);
@@ -345,7 +313,6 @@ public class ProductService : IProductService
     public async Task<ProductDto?> UpdateProductAsync(int id, UpdateProductRequest request, CancellationToken ct = default)
     {
         EnsureNonNegativePrice(request.Price);
-        EnsureNonNegativeStockInputs(request.QuantityInStock, request.VariantStocks);
 
         var product = await _context.Products
             .Include(p => p.ProductImages)
@@ -353,8 +320,6 @@ public class ProductService : IProductService
                 .ThenInclude(pc => pc.Images)
             .Include(p => p.ProductColors)
                 .ThenInclude(pc => pc.SizeImages)
-            .Include(p => p.ProductColors)
-                .ThenInclude(pc => pc.VariantStocks)
             .Include(p => p.ProductFurnitureColors)
             .Include(p => p.ProductSizes)
             .Include(p => p.DefaultSize)
@@ -378,7 +343,6 @@ public class ProductService : IProductService
                 0,
                 MidpointRounding.AwayFromZero);
         }
-        product.QuantityInStock = ComputeTotalStock(request.QuantityInStock, request.VariantStocks);
         product.Material = request.Material;
         product.CategoryId = request.CategoryId;
         product.CollectionId = request.CollectionId ?? product.CollectionId;
@@ -450,9 +414,6 @@ public class ProductService : IProductService
             await ReplaceColorSizeImagesAsync(product.Id, colorSizeVariants, ct);
         }
 
-        if (request.VariantStocks is not null)
-            await ReplaceVariantStocksAsync(product.Id, request.VariantStocks, ct);
-
         if (request.SuggestedProductCodes is not null)
             await ReplaceProductRecommendationsAsync(product.Id, product.ProductCode, request.SuggestedProductCodes, ct);
 
@@ -477,10 +438,6 @@ public class ProductService : IProductService
                 .ThenInclude(pc => pc.SizeImages)
                     .ThenInclude(si => si.ProductSize)
                         .ThenInclude(ps => ps.Size)
-            .Include(p => p.ProductColors)
-                .ThenInclude(pc => pc.VariantStocks)
-                    .ThenInclude(vs => vs.ProductSize)
-                        .ThenInclude(ps => ps.Size)
             .FirstAsync(p => p.Id == id, ct);
 
         await _uploadStorage.DeleteRemovedIfUnreferencedAsync(
@@ -489,16 +446,6 @@ public class ProductService : IProductService
             ct);
 
         return MapToProductDto(updated);
-    }
-
-    private static void EnsureNonNegativeStockInputs(int explicitStock, IEnumerable<VariantStockInput>? variantStocks)
-    {
-        if (explicitStock < 0)
-            throw new InvalidOperationException("Stock cannot be negative.");
-
-        if (variantStocks == null) return;
-        if (variantStocks.Any(v => v.QuantityInStock < 0))
-            throw new InvalidOperationException("Variant stock cannot be negative.");
     }
 
     private static void EnsureNonNegativePrice(decimal price)
@@ -576,13 +523,7 @@ public class ProductService : IProductService
                         g => ToImageDtoList(
                             g.OrderBy(si => si.SortOrder).Select(si => (si.ImageUrl, si.FocalX, si.FocalY)))
                     );
-                var sizeStocks = pc.VariantStocks
-                    .Where(vs => !vs.Lace)
-                    .GroupBy(vs => vs.ProductSize.Size.Name)
-                    .ToDictionary(g => g.Key, g => g.Sum(v => v.QuantityInStock));
-
                 var sizeNames = pc.SizeImages.Select(si => si.ProductSize.Size.Name)
-                    .Concat(pc.VariantStocks.Select(vs => vs.ProductSize.Size.Name))
                     .Distinct()
                     .ToList();
                 var laceVariants = sizeNames.ToDictionary(
@@ -599,12 +540,6 @@ public class ProductService : IProductService
                                 .Where(si => si.ProductSize.Size.Name == sizeName && !si.Lace)
                                 .OrderBy(si => si.SortOrder)
                                 .Select(si => (si.ImageUrl, si.FocalX, si.FocalY))),
-                        WithLaceStock = pc.VariantStocks
-                            .Where(vs => vs.ProductSize.Size.Name == sizeName && vs.Lace)
-                            .Sum(v => v.QuantityInStock),
-                        WithoutLaceStock = pc.VariantStocks
-                            .Where(vs => vs.ProductSize.Size.Name == sizeName && !vs.Lace)
-                            .Sum(v => v.QuantityInStock),
                     });
 
                 var defaultSizeImages = (!string.IsNullOrWhiteSpace(defaultSize) && sizeImages.TryGetValue(defaultSize, out var imgsForDefault))
@@ -630,7 +565,6 @@ public class ProductService : IProductService
                     Image = colorImages.Count > 0 ? colorImages[0] : fallback,
                     Images = colorImages.Count > 0 ? colorImages : new List<ProductImageDto> { fallback },
                     SizeImages = sizeImages,
-                    SizeStocks = sizeStocks,
                     LaceVariants = laceVariants,
                 };
             }).ToList()
@@ -682,7 +616,6 @@ public class ProductService : IProductService
             Name = p.Name,
             Description = p.Description,
             Price = p.Price,
-            QuantityInStock = p.QuantityInStock,
             Material = p.Material,
             PrimaryImage = images.FirstOrDefault() ?? ToImageDto(p.ImageUrl),
             Images = images,
@@ -693,7 +626,6 @@ public class ProductService : IProductService
             DefaultColor = p.DefaultColor?.Name ?? colors.FirstOrDefault()?.Name,
             DefaultFurnitureColor = p.DefaultFurnitureColor?.Name ?? furnitureColors.FirstOrDefault()?.Name,
             CategoryName = p.Category.Name,
-            CategoryTrackStock = p.Category.TrackStock,
             CollectionName = p.Collection?.Name,
             ProducerName = p.ProducerName,
             IsActive = p.IsActive,
@@ -732,12 +664,10 @@ public class ProductService : IProductService
             Name = baseDto.Name,
             Description = baseDto.Description,
             Price = baseDto.Price,
-            QuantityInStock = baseDto.QuantityInStock,
             Material = baseDto.Material,
             PrimaryImage = baseDto.PrimaryImage,
             Images = baseDto.Images,
             CategoryName = baseDto.CategoryName,
-            CategoryTrackStock = baseDto.CategoryTrackStock,
             CollectionName = baseDto.CollectionName,
             ProducerName = baseDto.ProducerName,
             IsActive = baseDto.IsActive,
@@ -1081,8 +1011,6 @@ public class ProductService : IProductService
         // Clear size-bound children first because ProductSize FK is NO ACTION.
         var existingSizeImages = await _context.ProductColorSizeImages.Where(v => v.ProductId == productId).ToListAsync(ct);
         _context.ProductColorSizeImages.RemoveRange(existingSizeImages);
-        var existingVariantStocks = await _context.ProductVariantStocks.Where(v => v.ProductId == productId).ToListAsync(ct);
-        _context.ProductVariantStocks.RemoveRange(existingVariantStocks);
 
         var existing = await _context.ProductSizes.Where(ps => ps.ProductId == productId).ToListAsync(ct);
         _context.ProductSizes.RemoveRange(existing);
@@ -1211,30 +1139,6 @@ public class ProductService : IProductService
         }
     }
 
-    private async Task ReplaceVariantStocksAsync(int productId, IEnumerable<VariantStockInput> variantStocks, CancellationToken ct)
-    {
-        var existing = await _context.ProductVariantStocks.Where(v => v.ProductId == productId).ToListAsync(ct);
-        _context.ProductVariantStocks.RemoveRange(existing);
-
-        var normalized = (variantStocks ?? new List<VariantStockInput>())
-            .Where(v => v.ColorId > 0 && v.SizeId > 0 && v.QuantityInStock >= 0)
-            .GroupBy(v => (v.ColorId, v.SizeId, v.Lace))
-            .Select(g => g.Last())
-            .ToList();
-
-        foreach (var stock in normalized)
-        {
-            _context.ProductVariantStocks.Add(new Models.ProductVariantStock
-            {
-                ProductId = productId,
-                ColorId = stock.ColorId,
-                SizeId = stock.SizeId,
-                Lace = stock.Lace,
-                QuantityInStock = stock.QuantityInStock,
-            });
-        }
-    }
-
     private async Task ReplaceProductRecommendationsAsync(
         int productId,
         string productCode,
@@ -1309,16 +1213,4 @@ public class ProductService : IProductService
         }
     }
 
-    private static int ComputeTotalStock(int explicitStock, IEnumerable<VariantStockInput>? variantStocks)
-    {
-        var variants = (variantStocks ?? new List<VariantStockInput>()).ToList();
-        if (variants.Count > 0)
-        {
-            return variants
-                .Where(v => v.QuantityInStock >= 0)
-                .Sum(v => v.QuantityInStock);
-        }
-
-        return Math.Max(0, explicitStock);
-    }
 }

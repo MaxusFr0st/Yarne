@@ -240,7 +240,6 @@ public class OrdersController : ControllerBase
             .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
 
         var orderItems = new List<OrderItem>();
-        var quantityByProductId = new Dictionary<int, int>();
         var now = DateTime.UtcNow;
         foreach (var item in request.Items)
         {
@@ -287,15 +286,7 @@ public class OrdersController : ControllerBase
             };
             OrderItemSnapshotHelper.ApplyProductSnapshot(orderItem, product);
             orderItems.Add(orderItem);
-
-            quantityByProductId[product.Id] = quantityByProductId.GetValueOrDefault(product.Id) + item.Quantity;
         }
-
-        // Categories with TrackStock=false (e.g. made-to-order items) skip availability checks,
-        // pooled decrements, and variant stock checks entirely — small reference table, cheap to load whole.
-        var trackStockByCategoryId = await _context.Categories
-            .AsNoTracking()
-            .ToDictionaryAsync(c => c.Id, c => c.TrackStock, ct);
 
         var orderTotalCents = orderItems.Sum(i => checked(i.ListedPriceCents * i.Quantity));
         var order = new Order
@@ -317,80 +308,10 @@ public class OrdersController : ControllerBase
             OrderItems = orderItems,
         };
 
-        ActionResult<OrderDto>? stockFailure = null;
-        var strategy = _context.Database.CreateExecutionStrategy();
-        await strategy.ExecuteAsync(async () =>
-        {
-            await using var transaction = await _context.Database.BeginTransactionAsync(
-                IsolationLevel.Serializable,
-                ct);
-
-            // Insert the order first within this transaction. If stock validation fails below,
-            // the insert is rolled back with the stock updates.
-            customer.PhoneNumber = contactPhone;
-            _context.Entry(customer).Property(c => c.PhoneNumber).IsModified = true;
-            _context.Orders.Add(order);
-            await _context.SaveChangesAsync(ct);
-
-            foreach (var productId in quantityByProductId.Keys.OrderBy(id => id))
-            {
-                var requestedQty = quantityByProductId[productId];
-                var product = await _context.Products
-                    .FromSqlInterpolated(
-                        $"""SELECT * FROM "Product" WHERE "Id" = {productId} FOR UPDATE""")
-                    .SingleOrDefaultAsync(ct);
-                if (product is null || product.IsVoid || !product.IsActive)
-                {
-                    stockFailure = BadRequest(new { message = "One or more products in the order were not found." });
-                    await transaction.RollbackAsync(ct);
-                    return;
-                }
-
-                var tracksStock = !trackStockByCategoryId.TryGetValue(product.CategoryId, out var tracks) || tracks;
-                if (!tracksStock)
-                {
-                    // Category doesn't track stock — allow the sale without touching
-                    // availability, pooled counters, or variant stock for this product.
-                    continue;
-                }
-
-                if (product.QuantityInStock < requestedQty)
-                {
-                    stockFailure = BadRequest(new
-                    {
-                        message = $"Not enough stock for '{product.ProductCode}'. Please refresh and try again.",
-                    });
-                    await transaction.RollbackAsync(ct);
-                    return;
-                }
-
-                product.QuantityInStock -= requestedQty;
-                product.UpdatedAt = now;
-                var itemsForProduct = orderItems.Where(item => item.ProductId == productId);
-                var variantFailure = await DecrementVariantStockAsync(productId, itemsForProduct, ct);
-                if (variantFailure != null)
-                {
-                    stockFailure = BadRequest(new { message = variantFailure });
-                    await transaction.RollbackAsync(ct);
-                    return;
-                }
-            }
-
-            try
-            {
-                await _context.SaveChangesAsync(ct);
-                await transaction.CommitAsync(ct);
-            }
-            catch (DbUpdateException ex)
-            {
-                _logger.LogWarning(ex, "Order save failed — likely stock or constraint conflict.");
-                await transaction.RollbackAsync(ct);
-                stockFailure = BadRequest(new { message = "Unable to place order. Please refresh and try again." });
-            }
-        });
-
-        if (stockFailure != null)
-            return stockFailure;
+        customer.PhoneNumber = contactPhone;
+        _context.Entry(customer).Property(c => c.PhoneNumber).IsModified = true;
+        _context.Orders.Add(order);
+        await _context.SaveChangesAsync(ct);
 
         var createdOrder = await BuildOrderQuery().FirstOrDefaultAsync(o => o.Id == order.Id, ct);
         if (createdOrder == null)
@@ -434,159 +355,36 @@ public class OrdersController : ControllerBase
             return NotFound();
 
         var previousStatus = order.Status;
-        var wasCanceled = string.Equals(previousStatus, "Canceled", StringComparison.OrdinalIgnoreCase);
-        var willBeCanceled = string.Equals(canonicalStatus, "Canceled", StringComparison.OrdinalIgnoreCase);
-        if (wasCanceled != willBeCanceled)
+
+        // Row-level lock so concurrent status writes on the same order serialize rather than
+        // silently last-write-win.
+        bool orderDisappeared = false;
+        var strategy = _context.Database.CreateExecutionStrategy();
+        await strategy.ExecuteAsync(async () =>
         {
-            var quantities = order.OrderItems
-                .Where(item => !item.IsVoid && item.ProductId.HasValue)
-                .GroupBy(item => item.ProductId!.Value)
-                .ToDictionary(group => group.Key, group => group.Sum(item => item.Quantity));
-
-            // Categories with TrackStock=false skip stock reverse/re-decrement entirely — small
-            // reference table, cheap to load whole.
-            var trackStockByCategoryId = await _context.Categories
-                .AsNoTracking()
-                .ToDictionaryAsync(c => c.Id, c => c.TrackStock, ct);
-
-            ActionResult<OrderDto>? stockFailure = null;
-            string? lockedPreviousStatus = null;
-            var strategy = _context.Database.CreateExecutionStrategy();
-            await strategy.ExecuteAsync(async () =>
+            await using var transaction = await _context.Database.BeginTransactionAsync(
+                IsolationLevel.RepeatableRead,
+                ct);
+            var lockedOrder = await _context.Orders
+                .FromSqlInterpolated($"""SELECT * FROM "Order" WHERE "Id" = {id} FOR UPDATE""")
+                .SingleOrDefaultAsync(ct);
+            if (lockedOrder is null)
             {
-                await using var transaction = await _context.Database.BeginTransactionAsync(
-                    IsolationLevel.Serializable,
-                    ct);
-                var lockedOrder = await _context.Orders
-                    .FromSqlInterpolated($"""SELECT * FROM "Order" WHERE "Id" = {id} FOR UPDATE""")
-                    .SingleOrDefaultAsync(ct);
-                if (lockedOrder is null)
-                {
-                    stockFailure = NotFound();
-                    await transaction.RollbackAsync(ct);
-                    return;
-                }
+                orderDisappeared = true;
+                await transaction.RollbackAsync(ct);
+                return;
+            }
 
-                lockedPreviousStatus = lockedOrder.Status;
-                var lockedWasCanceled = string.Equals(
-                    lockedPreviousStatus,
-                    "Canceled",
-                    StringComparison.OrdinalIgnoreCase);
-                if (lockedWasCanceled == willBeCanceled)
-                {
-                    // Another request already applied this cancel/reopen transition.
-                    lockedOrder.Status = canonicalStatus;
-                    lockedOrder.EstimatedDelivery = request.EstimatedDelivery;
-                    lockedOrder.UpdatedAt = DateTime.UtcNow;
-                    await _context.SaveChangesAsync(ct);
-                    await transaction.CommitAsync(ct);
-                    return;
-                }
+            previousStatus = lockedOrder.Status;
+            lockedOrder.Status = canonicalStatus;
+            lockedOrder.EstimatedDelivery = request.EstimatedDelivery;
+            lockedOrder.UpdatedAt = DateTime.UtcNow;
+            await _context.SaveChangesAsync(ct);
+            await transaction.CommitAsync(ct);
+        });
 
-                // Same identity-mapped Order/OrderItem instances as `order` above, already
-                // FOR UPDATE-locked via lockedOrder.
-                await _context.Entry(lockedOrder)
-                    .Collection(x => x.OrderItems)
-                    .Query()
-                    .Where(item => !item.IsVoid)
-                    .LoadAsync(ct);
-
-                var now = DateTime.UtcNow;
-                foreach (var productId in quantities.Keys.OrderBy(pid => pid))
-                {
-                    var quantity = quantities[productId];
-                    var product = await _context.Products
-                        .FromSqlInterpolated(
-                            $"""SELECT * FROM "Product" WHERE "Id" = {productId} FOR UPDATE""")
-                        .SingleOrDefaultAsync(ct);
-                    if (product is null || product.IsVoid)
-                    {
-                        stockFailure = BadRequest(new { message = "Order stock records are incomplete." });
-                        await transaction.RollbackAsync(ct);
-                        return;
-                    }
-
-                    var tracksStock = !trackStockByCategoryId.TryGetValue(product.CategoryId, out var tracks) || tracks;
-                    if (!tracksStock)
-                    {
-                        // Category doesn't track stock — nothing was decremented at checkout,
-                        // so there's nothing to reverse or re-decrement.
-                        continue;
-                    }
-
-                    var itemsForProduct = lockedOrder.OrderItems
-                        .Where(item => item.ProductId == productId)
-                        .OrderBy(item => item.Id)
-                        .ToList();
-                    if (willBeCanceled)
-                    {
-                        product.QuantityInStock = checked(product.QuantityInStock + quantity);
-                        await RestoreVariantStockAsync(productId, itemsForProduct, ct);
-                    }
-                    else
-                    {
-                        if (product.QuantityInStock < quantity)
-                        {
-                            stockFailure = BadRequest(new { message = "Not enough stock to reopen this canceled order." });
-                            await transaction.RollbackAsync(ct);
-                            return;
-                        }
-                        product.QuantityInStock -= quantity;
-                        var variantFailure = await DecrementVariantStockAsync(productId, itemsForProduct, ct);
-                        if (variantFailure != null)
-                        {
-                            stockFailure = BadRequest(new { message = variantFailure });
-                            await transaction.RollbackAsync(ct);
-                            return;
-                        }
-                    }
-                    product.UpdatedAt = now;
-                }
-
-                lockedOrder.Status = canonicalStatus;
-                lockedOrder.EstimatedDelivery = request.EstimatedDelivery;
-                lockedOrder.UpdatedAt = now;
-                await _context.SaveChangesAsync(ct);
-                await transaction.CommitAsync(ct);
-            });
-
-            if (stockFailure != null)
-                return stockFailure;
-
-            previousStatus = lockedPreviousStatus ?? previousStatus;
-        }
-        else
-        {
-            // Even for non-stock-touching transitions, take a row-level lock so concurrent
-            // status writes on the same order serialize rather than silently last-write-win.
-            bool orderDisappeared = false;
-            var strategy = _context.Database.CreateExecutionStrategy();
-            await strategy.ExecuteAsync(async () =>
-            {
-                await using var transaction = await _context.Database.BeginTransactionAsync(
-                    IsolationLevel.RepeatableRead,
-                    ct);
-                var lockedOrder = await _context.Orders
-                    .FromSqlInterpolated($"""SELECT * FROM "Order" WHERE "Id" = {id} FOR UPDATE""")
-                    .SingleOrDefaultAsync(ct);
-                if (lockedOrder is null)
-                {
-                    orderDisappeared = true;
-                    await transaction.RollbackAsync(ct);
-                    return;
-                }
-
-                previousStatus = lockedOrder.Status;
-                lockedOrder.Status = canonicalStatus;
-                lockedOrder.EstimatedDelivery = request.EstimatedDelivery;
-                lockedOrder.UpdatedAt = DateTime.UtcNow;
-                await _context.SaveChangesAsync(ct);
-                await transaction.CommitAsync(ct);
-            });
-
-            if (orderDisappeared)
-                return NotFound();
-        }
+        if (orderDisappeared)
+            return NotFound();
 
         var updatedOrder = await BuildOrderQuery().FirstOrDefaultAsync(o => o.Id == id, ct);
         if (updatedOrder == null)
@@ -790,112 +588,6 @@ public class OrdersController : ControllerBase
         if (string.IsNullOrWhiteSpace(value)) return null;
         return value.Trim();
     }
-
-    private async Task<string?> DecrementVariantStockAsync(
-        int productId,
-        IEnumerable<OrderItem> items,
-        CancellationToken ct)
-    {
-        var stocks = await LoadVariantStocksForUpdateAsync(productId, ct);
-        if (stocks.Count == 0)
-            return null;
-
-        var requested = BuildVariantQuantityMap(stocks, items, requireMatch: true, out var failure);
-        if (failure != null)
-            return failure;
-
-        foreach (var ((colorId, sizeId, lace), quantity) in requested)
-        {
-            var stock = stocks.FirstOrDefault(s => s.ColorId == colorId && s.SizeId == sizeId && s.Lace == lace);
-            if (stock == null)
-                return "Selected product variant is not available.";
-
-            if (stock.QuantityInStock < quantity)
-                return "Not enough stock for the selected product variant.";
-
-            stock.QuantityInStock -= quantity;
-        }
-
-        return null;
-    }
-
-    private async Task RestoreVariantStockAsync(
-        int productId,
-        IEnumerable<OrderItem> items,
-        CancellationToken ct)
-    {
-        var stocks = await LoadVariantStocksForUpdateAsync(productId, ct);
-        if (stocks.Count == 0)
-            return;
-
-        var requested = BuildVariantQuantityMap(stocks, items, requireMatch: false, out _);
-        foreach (var ((colorId, sizeId, lace), quantity) in requested)
-        {
-            var stock = stocks.FirstOrDefault(s => s.ColorId == colorId && s.SizeId == sizeId && s.Lace == lace);
-            if (stock != null)
-                stock.QuantityInStock = checked(stock.QuantityInStock + quantity);
-        }
-    }
-
-    private async Task<List<ProductVariantStock>> LoadVariantStocksForUpdateAsync(int productId, CancellationToken ct)
-    {
-        return await _context.ProductVariantStocks
-            .Where(s => s.ProductId == productId)
-            .Include(s => s.ProductColor)
-                .ThenInclude(pc => pc.Color)
-            .Include(s => s.ProductSize)
-                .ThenInclude(ps => ps.Size)
-            .ToListAsync(ct);
-    }
-
-    private static Dictionary<(int ColorId, int SizeId, bool Lace), int> BuildVariantQuantityMap(
-        IReadOnlyCollection<ProductVariantStock> stocks,
-        IEnumerable<OrderItem> items,
-        bool requireMatch,
-        out string? failure)
-    {
-        failure = null;
-        var result = new Dictionary<(int ColorId, int SizeId, bool Lace), int>();
-
-        foreach (var item in items)
-        {
-            var colorName = NormalizeVariantToken(item.ColorName);
-            var sizeName = NormalizeVariantToken(item.SizeName);
-            if (colorName == null || sizeName == null)
-            {
-                if (requireMatch)
-                    failure = "Selected product variant is missing color or size.";
-                continue;
-            }
-
-            var lace = item.WithLace == true;
-            var stock = stocks.FirstOrDefault(s =>
-                s.Lace == lace
-                && (VariantNameMatches(s.ProductColor.Color.Name, colorName)
-                    || VariantNameMatches(s.ProductColor.Color.NameUk, colorName))
-                && (VariantNameMatches(s.ProductSize.Size.Name, sizeName)
-                    || VariantNameMatches(s.ProductSize.Size.NameUk, sizeName)));
-
-            if (stock == null)
-            {
-                if (requireMatch)
-                    failure = "Selected product variant is not available.";
-                continue;
-            }
-
-            var key = (stock.ColorId, stock.SizeId, stock.Lace);
-            result[key] = result.GetValueOrDefault(key) + item.Quantity;
-        }
-
-        return result;
-    }
-
-    private static string? NormalizeVariantToken(string? value) =>
-        string.IsNullOrWhiteSpace(value) ? null : value.Trim();
-
-    private static bool VariantNameMatches(string? candidate, string requested) =>
-        !string.IsNullOrWhiteSpace(candidate)
-        && string.Equals(candidate.Trim(), requested, StringComparison.OrdinalIgnoreCase);
 
     private static string? NormalizePhone(string? value)
     {

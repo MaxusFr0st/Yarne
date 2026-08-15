@@ -69,7 +69,6 @@ function toColorVariant(c: ColorVariantDto): ColorVariant {
     image: imgs[0] ?? primary,
     images: imgs,
     sizeImages: Object.keys(sizeImages).length ? sizeImages : undefined,
-    sizeStocks: c.sizeStocks ?? {},
     laceVariants: normalizeLaceVariants(c.laceVariants),
   };
 }
@@ -91,7 +90,6 @@ function mapToFrontendProduct(d: ProductDto): Product {
     name: d.name,
     subtitle: d.material ?? d.producerName ?? "",
     price: Number(d.price),
-    stock: d.quantityInStock,
     category: d.categoryName,
     isNew: d.isNew ?? false,
     isBestseller: d.isBestseller ?? false,
@@ -145,7 +143,6 @@ function mapDetailToFrontend(d: ProductDetailDto): Product {
     name: d.name,
     subtitle: d.subtitle ?? d.material ?? "",
     price: Number(d.price),
-    stock: d.quantityInStock,
     category: d.categoryName,
     isNew: d.isNew,
     isBestseller: d.isBestseller,

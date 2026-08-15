@@ -180,7 +180,6 @@ internal static class YarneCatalogSeed
                 Name = def.Name,
                 Description = def.Description,
                 Price = def.Price,
-                QuantityInStock = def.QuantityInStock,
                 Material = def.Material,
                 CategoryId = categoryId,
                 CollectionId = collectionId,
@@ -257,15 +256,6 @@ internal static class YarneCatalogSeed
                         Lace = false,
                         ImageUrl = pci.ImageUrl,
                         SortOrder = pci.SortOrder,
-                    });
-
-                    db.ProductVariantStocks.Add(new ProductVariantStock
-                    {
-                        ProductId = product.Id,
-                        ColorId = pci.ColorId,
-                        SizeId = ps.SizeId,
-                        Lace = false,
-                        QuantityInStock = Math.Max(1, def.QuantityInStock / 10),
                     });
                 }
             }

@@ -19,6 +19,4 @@ public partial class ProductColor
     public virtual ICollection<ProductColorImage> Images { get; set; } = new List<ProductColorImage>();
 
     public virtual ICollection<ProductColorSizeImage> SizeImages { get; set; } = new List<ProductColorSizeImage>();
-
-    public virtual ICollection<ProductVariantStock> VariantStocks { get; set; } = new List<ProductVariantStock>();
 }

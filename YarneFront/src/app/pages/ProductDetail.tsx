@@ -17,7 +17,7 @@ import { getSupplementaryProductDetails, hasSupplementaryProductDetails } from "
 import { MobileRelatedProducts } from "../components/MobileRelatedProducts";
 import { ProductGuaranteeBlock } from "../components/ProductGuaranteeBlock";
 import { resolveDisplayImages } from "../utils/variantImages";
-import { resolveDisplayPrice, resolveDisplayStock } from "../utils/variantStock";
+import { resolveDisplayPrice } from "../utils/variantStock";
 import { resolveMediaUrl } from "../utils/storefrontMedia";
 import { scrollToPageTop } from "../utils/scrollToTop";
 import { clearScrollForRoute } from "../utils/scrollRestoration";
@@ -183,9 +183,6 @@ export function ProductDetail() {
   const selectedFurnitureLabel = selectedFurniture
     ? localizedCatalogName(selectedFurniture.name, selectedFurniture.nameUk, locale)
     : "";
-  const displayStock = product && selectedColor
-    ? resolveDisplayStock(selectedColor, activeSize, activeLace, product.stock)
-    : 0;
   const images = product && selectedColor
     ? resolveDisplayImages(product, selectedColor, activeSize, activeLace)
     : [];
@@ -212,7 +209,6 @@ export function ProductDetail() {
       setTimeout(() => setSizeError(false), 2000);
       return;
     }
-    if (displayStock <= 0) return;
     addToCart({
       productId: product.id,
       name: product.name,
@@ -226,14 +222,11 @@ export function ProductDetail() {
       size: activeSize,
       withLace: product.lace ? activeLace : null,
       quantity: 1,
-      maxQuantity: displayStock,
       image: images[0]?.src ?? selectedColor.image.src,
     });
     setAddedToBag(true);
     setTimeout(() => setAddedToBag(false), 2500);
   };
-
-  const outOfStock = displayStock <= 0;
 
   const displayPrice = product ? resolveDisplayPrice(selectedColor, activeLace, product.price) : 0;
 
@@ -255,8 +248,6 @@ export function ProductDetail() {
         isWishlisted={isWishlisted}
         addedToBag={addedToBag}
         sizeError={sizeError}
-        outOfStock={outOfStock}
-        displayStock={displayStock}
         laceEnabled={product!.lace === true}
         activeLace={activeLace}
         onLaceChange={handleLaceChange}
@@ -609,14 +600,6 @@ export function ProductDetail() {
                   </motion.p>
                 )}
               </AnimatePresence>
-              {typeof displayStock === "number" && (
-                <p
-                  className="text-[#2D241E]/50 text-[0.7rem] mt-2 tabular-nums"
-                  style={{ fontFamily: "'DM Sans', sans-serif" }}
-                >
-                  {t("product.inStock", { count: displayStock })}
-                </p>
-              )}
             </div>
 
             {/* Add to Bag — primary action; matches wishlist height */}
@@ -624,10 +607,9 @@ export function ProductDetail() {
               <motion.button
                 type="button"
                 onClick={handleAddToBag}
-                disabled={outOfStock}
-                className="flex-1 h-12 rounded-full flex items-center justify-center gap-2.5 text-white touch-manipulation transition-[background-color,opacity] duration-200 hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:opacity-40 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2D241E]/35 focus-visible:ring-offset-2 focus-visible:ring-offset-[#F5F2ED]"
+                className="flex-1 h-12 rounded-full flex items-center justify-center gap-2.5 text-white touch-manipulation transition-[background-color,opacity] duration-200 hover:opacity-90 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2D241E]/35 focus-visible:ring-offset-2 focus-visible:ring-offset-[#F5F2ED]"
                 style={{
-                  backgroundColor: outOfStock ? "#9A9088" : addedToBag ? "#2D5928" : "#2D241E",
+                  backgroundColor: addedToBag ? "#2D5928" : "#2D241E",
                   fontFamily: "'DM Sans', sans-serif",
                   fontSize: "0.72rem",
                   letterSpacing: "0.14em",
@@ -642,9 +624,7 @@ export function ProductDetail() {
                 ) : (
                   <>
                     <ShoppingBag size={15} strokeWidth={1.5} aria-hidden="true" />
-                    <span className="uppercase tracking-widest">
-                      {outOfStock ? t("product.outOfStock") : t("product.addToBag")}
-                    </span>
+                    <span className="uppercase tracking-widest">{t("product.addToBag")}</span>
                   </>
                 )}
               </motion.button>

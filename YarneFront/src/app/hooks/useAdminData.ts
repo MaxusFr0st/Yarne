@@ -65,12 +65,11 @@ function mapColorVariant(c: ColorVariantDto) {
     image: allImages[0] ?? primary ?? PLACEHOLDER_IMG,
     images: allImages.length > 0 ? allImages : [PLACEHOLDER_IMG],
     sizeImages: Object.keys(sizeImages).length ? sizeImages : undefined,
-    sizeStocks: c.sizeStocks ?? {},
     laceVariants: normalizeLaceVariants(c.laceVariants),
   };
 }
 
-function mapProductDtoToProduct(d: ProductDto): Product & { idNum: number; sku: string; stock: number } {
+function mapProductDtoToProduct(d: ProductDto): Product & { idNum: number; sku: string } {
   const colors = d.colors && d.colors.length > 0
     ? d.colors.map(mapColorVariant)
     : d.images && d.images.length > 0
@@ -86,7 +85,6 @@ function mapProductDtoToProduct(d: ProductDto): Product & { idNum: number; sku: 
     subtitle: d.material ?? d.producerName ?? "",
     price: Number(d.price),
     category: d.categoryName,
-    categoryTrackStock: d.categoryTrackStock ?? true,
     isNew: d.isNew ?? false,
     isBestseller: d.isBestseller ?? false,
     lace: d.lace ?? false,
@@ -111,8 +109,7 @@ function mapProductDtoToProduct(d: ProductDto): Product & { idNum: number; sku: 
       hex: fc.hex,
     })),
     sku: d.productCode,
-    stock: d.quantityInStock,
-  } as Product & { idNum: number; sku: string; stock: number };
+  } as Product & { idNum: number; sku: string };
 }
 
 function mapUserDtoToAdminUser(u: UserDto): {
@@ -186,7 +183,7 @@ function formatLoadError(label: string, reason: unknown): string {
 
 export function useAdminData() {
   const { isAdmin } = useApp();
-  const [products, setProducts] = useState<(Product & { idNum: number; sku: string; stock: number })[]>([]);
+  const [products, setProducts] = useState<(Product & { idNum: number; sku: string })[]>([]);
   const [users, setUsers] = useState<ReturnType<typeof mapUserDtoToAdminUser>[]>([]);
   const [categories, setCategories] = useState<CategoryDto[]>([]);
   const [colors, setColors] = useState<ColorDto[]>([]);
@@ -337,14 +334,14 @@ export function useAdminData() {
     setProducts((prev) => prev.filter((p) => p.idNum !== id));
   }, []);
 
-  const addCategory = useCallback(async (name: string, trackStock: boolean = true) => {
-    const created = await createCategory(name, trackStock);
+  const addCategory = useCallback(async (name: string) => {
+    const created = await createCategory(name);
     setCategories((prev) => [...prev, created].sort((a, b) => a.name.localeCompare(b.name)));
     return created;
   }, []);
 
-  const editCategory = useCallback(async (id: number, name: string, trackStock: boolean = true) => {
-    const updated = await updateCategory(id, name, trackStock);
+  const editCategory = useCallback(async (id: number, name: string) => {
+    const updated = await updateCategory(id, name);
     setCategories((prev) =>
       prev.map((c) => (c.id === id ? updated : c)).sort((a, b) => a.name.localeCompare(b.name))
     );

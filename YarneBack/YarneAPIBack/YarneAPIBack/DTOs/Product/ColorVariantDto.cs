@@ -40,9 +40,6 @@ public class ColorVariantDto
     /// <summary>Size-scoped galleries. Key = size name, value = ordered gallery.</summary>
     public Dictionary<string, List<ProductImageDto>> SizeImages { get; set; } = new();
 
-    /// <summary>Size-scoped stock. Key = size name, value = quantity.</summary>
-    public Dictionary<string, int> SizeStocks { get; set; } = new();
-
     /// <summary>Lace-scoped variant data per size. Key = size name.</summary>
     public Dictionary<string, LaceSizeVariantDto> LaceVariants { get; set; } = new();
 }
@@ -52,8 +49,4 @@ public class LaceSizeVariantDto
     public List<ProductImageDto> WithLaceImages { get; set; } = new();
 
     public List<ProductImageDto> WithoutLaceImages { get; set; } = new();
-
-    public int WithLaceStock { get; set; }
-
-    public int WithoutLaceStock { get; set; }
 }

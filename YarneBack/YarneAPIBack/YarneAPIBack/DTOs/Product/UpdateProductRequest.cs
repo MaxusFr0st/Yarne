@@ -18,9 +18,6 @@ public class UpdateProductRequest
     [Range(0, double.MaxValue)]
     public decimal Price { get; set; }
 
-    [Range(0, int.MaxValue)]
-    public int QuantityInStock { get; set; }
-
     [StringLength(100)]
     public string? Material { get; set; }
 
@@ -83,12 +80,6 @@ public class UpdateProductRequest
     /// Empty list = clear all color+size image variants.
     /// </summary>
     public List<ColorSizeVariantInput>? ColorSizeVariants { get; set; }
-
-    /// <summary>
-    /// Optional on update. Null = keep existing variant stocks.
-    /// Empty list = clear all variant stocks.
-    /// </summary>
-    public List<VariantStockInput>? VariantStocks { get; set; }
 
     /// <summary>
     /// Optional on update. Null or empty = keep existing per-color prices.

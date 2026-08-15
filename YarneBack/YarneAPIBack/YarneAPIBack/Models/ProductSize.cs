@@ -13,6 +13,4 @@ public class ProductSize
     public virtual Size Size { get; set; } = null!;
 
     public virtual ICollection<ProductColorSizeImage> ColorSizeImages { get; set; } = new List<ProductColorSizeImage>();
-
-    public virtual ICollection<ProductVariantStock> VariantStocks { get; set; } = new List<ProductVariantStock>();
 }

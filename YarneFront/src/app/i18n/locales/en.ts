@@ -132,11 +132,8 @@ const en = {
     size: "Size",
     sizeGuide: "Size guide",
     selectSize: "Please select a size to continue.",
-    inStock: "In stock: {{count}}",
-    inStockShort: "{{count}} available",
     addToBag: "Add to Bag",
     addedToBag: "Added to Bag",
-    outOfStock: "Out of stock",
     detailsTitle: "Product Details",
     madeBy: "Made by {{name}}",
     guarantee: {

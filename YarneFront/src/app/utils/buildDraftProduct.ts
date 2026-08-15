@@ -11,7 +11,6 @@ export type DraftProductFormInput = {
   name: string;
   subtitle: string;
   price: string;
-  stock: string;
   isNew: boolean;
   isBestseller: boolean;
   lace: boolean;
@@ -120,14 +119,12 @@ export function buildDraftProduct(
   }
 
   const derivedPrice = deriveBasePrice(form.colorIds, form.defaultColorId, form.colorPrices, Number(form.price) || 0);
-  const parsedStock = Number(form.stock);
 
   return {
     id: "preview-draft",
     name: form.name.trim() || "Product name",
     subtitle: form.subtitle.trim() || "Subtitle / material",
     price: derivedPrice,
-    stock: Number.isFinite(parsedStock) ? parsedStock : 1,
     category: categoryName || "Collection",
     isNew: form.isNew,
     isBestseller: form.isBestseller,

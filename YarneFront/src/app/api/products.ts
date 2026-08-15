@@ -9,8 +9,6 @@ export interface ProductImageDto {
 export interface LaceSizeVariantDto {
   withLaceImages: ProductImageDto[];
   withoutLaceImages: ProductImageDto[];
-  withLaceStock: number;
-  withoutLaceStock: number;
 }
 
 export interface ColorVariantDto {
@@ -23,7 +21,6 @@ export interface ColorVariantDto {
   image: ProductImageDto;
   images: ProductImageDto[];
   sizeImages?: Record<string, ProductImageDto[]>;
-  sizeStocks?: Record<string, number>;
   laceVariants?: Record<string, LaceSizeVariantDto>;
 }
 
@@ -44,7 +41,6 @@ export interface ProductDto {
   name: string;
   description: string | null;
   price: number;
-  quantityInStock: number;
   material: string | null;
   primaryImage: ProductImageDto | null;
   images: ProductImageDto[];
@@ -55,7 +51,6 @@ export interface ProductDto {
   defaultColor?: string | null;
   defaultFurnitureColor?: string | null;
   categoryName: string;
-  categoryTrackStock: boolean;
   collectionName: string | null;
   producerName: string | null;
   isActive: boolean;
@@ -122,13 +117,6 @@ export interface ColorSizeVariantInput {
   imageUrls: string[];
 }
 
-export interface VariantStockInput {
-  colorId: number;
-  sizeId: number;
-  lace: boolean;
-  quantityInStock: number;
-}
-
 export interface ColorPriceInput {
   colorId: number;
   price?: number;
@@ -140,7 +128,6 @@ export interface CreateProductRequest {
   name: string;
   description?: string;
   price: number;
-  quantityInStock?: number;
   material?: string;
   categoryId: number;
   collectionId?: number;
@@ -154,7 +141,6 @@ export interface CreateProductRequest {
   furnitureColorIds?: number[];
   colorVariants?: ColorVariantInput[];
   colorSizeVariants?: ColorSizeVariantInput[];
-  variantStocks?: VariantStockInput[];
   colorPrices?: ColorPriceInput[];
   isNew?: boolean;
   isBestseller?: boolean;

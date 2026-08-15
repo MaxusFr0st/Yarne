@@ -12,8 +12,6 @@ public class ProductDto
 
     public decimal Price { get; set; }
 
-    public int QuantityInStock { get; set; }
-
     public string? Material { get; set; }
 
     public ProductImageDto? PrimaryImage { get; set; }
@@ -33,8 +31,6 @@ public class ProductDto
     public string? DefaultFurnitureColor { get; set; }
 
     public string CategoryName { get; set; } = null!;
-
-    public bool CategoryTrackStock { get; set; } = true;
 
     public string? CollectionName { get; set; }
 
