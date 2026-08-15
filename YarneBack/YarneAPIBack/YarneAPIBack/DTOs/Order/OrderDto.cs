@@ -4,7 +4,7 @@ public class OrderDto
 {
     public int Id { get; set; }
 
-    public int CustomerId { get; set; }
+    public int? CustomerId { get; set; }
 
     public string CustomerName { get; set; } = string.Empty;
 
@@ -25,6 +25,28 @@ public class OrderDto
     public string PaymentMethodName { get; set; } = string.Empty;
 
     public int? ShippingAddrId { get; set; }
+
+    public string? RecipientFirstName { get; set; }
+
+    public string? RecipientLastName { get; set; }
+
+    public string? RecipientPhone { get; set; }
+
+    public string? DeliveryCityRef { get; set; }
+
+    public string? DeliveryCityName { get; set; }
+
+    public string? DeliveryWarehouseRef { get; set; }
+
+    public string? DeliveryWarehouseName { get; set; }
+
+    public string? TtnNumber { get; set; }
+
+    public DateTime? TtnCreatedAt { get; set; }
+
+    public string? TrackingStatus { get; set; }
+
+    public DateTime? TrackingCheckedAt { get; set; }
 
     public List<OrderItemDto> Items { get; set; } = [];
 }

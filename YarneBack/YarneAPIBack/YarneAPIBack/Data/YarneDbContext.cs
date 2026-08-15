@@ -284,6 +284,18 @@ public partial class YarneDbContext : DbContext
                 .HasMaxLength(50)
                 .HasDefaultValue("Pending");
             entity.Property(e => e.TotalCents).HasColumnType("bigint");
+            entity.Property(e => e.RecipientFirstName).HasMaxLength(100);
+            entity.Property(e => e.RecipientLastName).HasMaxLength(100);
+            entity.Property(e => e.RecipientPhone).HasMaxLength(32);
+            entity.Property(e => e.DeliveryCityRef).HasMaxLength(64);
+            entity.Property(e => e.DeliveryCityName).HasMaxLength(200);
+            entity.Property(e => e.DeliveryWarehouseRef).HasMaxLength(64);
+            entity.Property(e => e.DeliveryWarehouseName).HasMaxLength(500);
+            entity.Property(e => e.TtnNumber).HasMaxLength(32);
+            entity.Property(e => e.TtnRef).HasMaxLength(64);
+            entity.Property(e => e.TrackingStatus).HasMaxLength(200);
+            entity.Property(e => e.TrackingStatusCode).HasMaxLength(16);
+            entity.Property(e => e.GuestEmail).HasMaxLength(320);
 
             entity.HasOne(d => d.Customer).WithMany(p => p.Orders)
                 .HasForeignKey(d => d.CustomerId)

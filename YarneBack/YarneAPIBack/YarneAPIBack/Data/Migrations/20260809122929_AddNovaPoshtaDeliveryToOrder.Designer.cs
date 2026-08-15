@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using YarneAPIBack.Data;
@@ -11,13 +12,15 @@ using YarneAPIBack.Data;
 namespace YarneAPIBack.Data.Migrations
 {
     [DbContext(typeof(YarneDbContext))]
-    partial class YarneDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260809122929_AddNovaPoshtaDeliveryToOrder")]
+    partial class AddNovaPoshtaDeliveryToOrder
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "9.0.19")
+                .HasAnnotation("ProductVersion", "9.0.18")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
@@ -109,6 +112,9 @@ namespace YarneAPIBack.Data.Migrations
                         .IsRequired()
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");
+
+                    b.Property<bool>("TrackStock")
+                        .HasColumnType("boolean");
 
                     b.HasKey("Id")
                         .HasName("PK__Category__3214EC07C3469575");
@@ -355,7 +361,7 @@ namespace YarneAPIBack.Data.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
-                    b.Property<int?>("CustomerId")
+                    b.Property<int>("CustomerId")
                         .HasColumnType("integer");
 
                     b.Property<string>("DeliveryCityName")
@@ -379,10 +385,6 @@ namespace YarneAPIBack.Data.Migrations
 
                     b.Property<decimal>("ExchangeRateToBase")
                         .HasColumnType("numeric");
-
-                    b.Property<string>("GuestEmail")
-                        .HasMaxLength(320)
-                        .HasColumnType("character varying(320)");
 
                     b.Property<bool>("IsChannelFeeOverridden")
                         .HasColumnType("boolean");
@@ -668,6 +670,9 @@ namespace YarneAPIBack.Data.Migrations
                         .HasMaxLength(50)
                         .HasColumnType("character varying(50)");
 
+                    b.Property<int>("QuantityInStock")
+                        .HasColumnType("integer");
+
                     b.Property<string>("SellingCurrencyCode")
                         .IsRequired()
                         .HasColumnType("text");
@@ -902,6 +907,32 @@ namespace YarneAPIBack.Data.Migrations
                     b.ToTable("ProductSize", (string)null);
                 });
 
+            modelBuilder.Entity("YarneAPIBack.Models.ProductVariantStock", b =>
+                {
+                    b.Property<int>("ProductId")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("ColorId")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("SizeId")
+                        .HasColumnType("integer");
+
+                    b.Property<bool>("Lace")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false);
+
+                    b.Property<int>("QuantityInStock")
+                        .HasColumnType("integer");
+
+                    b.HasKey("ProductId", "ColorId", "SizeId", "Lace");
+
+                    b.HasIndex("ProductId", "SizeId");
+
+                    b.ToTable("ProductVariantStock", (string)null);
+                });
+
             modelBuilder.Entity("YarneAPIBack.Models.RefreshToken", b =>
                 {
                     b.Property<int>("Id")
@@ -1031,6 +1062,7 @@ namespace YarneAPIBack.Data.Migrations
                     b.HasOne("YarneAPIBack.Models.Customer", "Customer")
                         .WithMany("Orders")
                         .HasForeignKey("CustomerId")
+                        .IsRequired()
                         .HasConstraintName("FK__Order__CustomerI__628FA481");
 
                     b.HasOne("YarneAPIBack.Models.PaymentMethod", "PaymentMethod")
@@ -1242,6 +1274,25 @@ namespace YarneAPIBack.Data.Migrations
                     b.Navigation("Size");
                 });
 
+            modelBuilder.Entity("YarneAPIBack.Models.ProductVariantStock", b =>
+                {
+                    b.HasOne("YarneAPIBack.Models.ProductColor", "ProductColor")
+                        .WithMany("VariantStocks")
+                        .HasForeignKey("ProductId", "ColorId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("YarneAPIBack.Models.ProductSize", "ProductSize")
+                        .WithMany("VariantStocks")
+                        .HasForeignKey("ProductId", "SizeId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("ProductColor");
+
+                    b.Navigation("ProductSize");
+                });
+
             modelBuilder.Entity("YarneAPIBack.Models.RefreshToken", b =>
                 {
                     b.HasOne("YarneAPIBack.Models.Customer", "Customer")
@@ -1330,11 +1381,15 @@ namespace YarneAPIBack.Data.Migrations
                     b.Navigation("Images");
 
                     b.Navigation("SizeImages");
+
+                    b.Navigation("VariantStocks");
                 });
 
             modelBuilder.Entity("YarneAPIBack.Models.ProductSize", b =>
                 {
                     b.Navigation("ColorSizeImages");
+
+                    b.Navigation("VariantStocks");
                 });
 
             modelBuilder.Entity("YarneAPIBack.Models.Role", b =>

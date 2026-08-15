@@ -96,6 +96,8 @@ import {
 } from "lucide-react";
 import { fetchActivityLogs, type AdminActivityLogDto } from "../api/admin";
 import { fetchProduct } from "../api/products";
+import { NovaPoshtaPicker, type NovaPoshtaSelection } from "../components/NovaPoshtaPicker";
+import { fetchNovaPoshtaSenders, type CreateWaybillRequest, type NovaPoshtaSenderProfile } from "../api/orders";
 import { FocalPointEditor } from "../components/admin/FocalPointEditor";
 import { AdminHomeCopyEditor } from "../components/admin/AdminHomeCopyEditor";
 import { AdminOurHistoryEditor } from "../components/admin/AdminOurHistoryEditor";
@@ -349,6 +351,292 @@ function OrderStatusPill({ status }: { status: string }) {
     >
       {status}
     </span>
+  );
+}
+
+function NovaPoshtaOrderPanel({
+  order,
+  busy,
+  onOpenWaybillDialog,
+  onRefreshTracking,
+}: {
+  order: {
+    id: number;
+    recipientFirstName: string | null;
+    recipientLastName: string | null;
+    recipientPhone: string | null;
+    deliveryCityName: string | null;
+    deliveryWarehouseName: string | null;
+    ttnNumber: string | null;
+    ttnCreatedAt: string | null;
+    trackingStatus: string | null;
+    trackingCheckedAt: string | null;
+  };
+  busy: boolean;
+  onOpenWaybillDialog: (orderId: number) => void;
+  onRefreshTracking: (orderId: number) => void;
+}) {
+  if (!order.deliveryWarehouseName && !order.recipientFirstName) return null;
+
+  return (
+    <div
+      className="rounded-[18px] p-3 space-y-2"
+      style={{ border: "1px solid rgba(45,36,30,0.08)", backgroundColor: "rgba(255,255,255,0.55)" }}
+    >
+      <p className="text-[10px] uppercase tracking-widest text-[#2D241E]/40" style={{ fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.1em" }}>
+        Nova Poshta
+      </p>
+      {order.recipientFirstName && (
+        <p className="text-sm text-[#2D241E]" style={{ fontFamily: "'DM Sans', sans-serif" }}>
+          {order.recipientFirstName} {order.recipientLastName} · {order.recipientPhone}
+        </p>
+      )}
+      {order.deliveryWarehouseName && (
+        <p className="text-sm text-[#2D241E]/70" style={{ fontFamily: "'DM Sans', sans-serif" }}>
+          {order.deliveryWarehouseName}
+          {order.deliveryCityName ? `, ${order.deliveryCityName}` : ""}
+        </p>
+      )}
+      {order.ttnNumber ? (
+        <div className="flex items-center justify-between gap-2 pt-1">
+          <p className="text-sm text-[#2D241E]" style={{ fontFamily: "'DM Sans', sans-serif" }}>
+            ТТН <span className="font-medium">{order.ttnNumber}</span>
+            {order.trackingStatus ? ` — ${order.trackingStatus}` : ""}
+          </p>
+          <button
+            type="button"
+            onClick={() => onRefreshTracking(order.id)}
+            disabled={busy}
+            className="px-2.5 py-1.5 rounded-full border text-[#2D241E] transition-all disabled:opacity-50 whitespace-nowrap"
+            style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "0.68rem", borderColor: "rgba(45,36,30,0.2)" }}
+          >
+            {busy ? "…" : "Refresh tracking"}
+          </button>
+        </div>
+      ) : (
+        order.deliveryWarehouseName && (
+          <button
+            type="button"
+            onClick={() => onOpenWaybillDialog(order.id)}
+            disabled={busy}
+            className="px-2.5 py-1.5 rounded-full text-[#F5F2ED] transition-all disabled:opacity-50"
+            style={{ backgroundColor: "#2D241E", fontFamily: "'DM Sans', sans-serif", fontSize: "0.68rem", letterSpacing: "0.06em" }}
+          >
+            Create Nova Poshta waybill
+          </button>
+        )
+      )}
+    </div>
+  );
+}
+
+function SenderProfileCard({
+  profile,
+  selected,
+  onSelect,
+}: {
+  profile: NovaPoshtaSenderProfile;
+  selected: boolean;
+  onSelect: () => void;
+}) {
+  return (
+    <div
+      onClick={onSelect}
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") onSelect();
+      }}
+      className="flex-1 rounded-[16px] px-4 py-3.5 text-center transition-all cursor-pointer"
+      style={{
+        border: selected ? "1.5px solid #2D241E" : "1px solid rgba(45,36,30,0.15)",
+        backgroundColor: selected ? "#2D241E" : "transparent",
+      }}
+    >
+      <span
+        style={{
+          fontFamily: "'DM Sans', sans-serif",
+          fontSize: "0.9rem",
+          fontWeight: 500,
+          color: selected ? "#F5F2ED" : "#2D241E",
+        }}
+      >
+        {profile.label}
+      </span>
+    </div>
+  );
+}
+
+function CreateWaybillModal({
+  orderId,
+  onClose,
+  onConfirm,
+}: {
+  orderId: number;
+  onClose: () => void;
+  onConfirm: (orderId: number, payload: CreateWaybillRequest) => Promise<void>;
+}) {
+  const [senders, setSenders] = useState<NovaPoshtaSenderProfile[]>([]);
+  const [sendersLoading, setSendersLoading] = useState(true);
+  const [selectedSenderId, setSelectedSenderId] = useState<string | null>(null);
+  const [warehouse, setWarehouse] = useState<NovaPoshtaSelection | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  useBodyScrollLock(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetchNovaPoshtaSenders()
+      .then((profiles) => {
+        if (cancelled) return;
+        setSenders(profiles);
+        const defaultProfile = profiles.find((p) => p.isDefault) ?? profiles[0];
+        if (defaultProfile) {
+          setSelectedSenderId(defaultProfile.id);
+          if (defaultProfile.defaultCityRef && defaultProfile.defaultWarehouseRef) {
+            setWarehouse({
+              cityRef: defaultProfile.defaultCityRef,
+              cityName: defaultProfile.defaultCityName ?? "",
+              warehouseRef: defaultProfile.defaultWarehouseRef,
+              warehouseName: defaultProfile.defaultWarehouseName ?? "",
+            });
+          }
+        }
+      })
+      .catch((e) => setError(e instanceof Error ? e.message : "Failed to load Nova Poshta senders."))
+      .finally(() => {
+        if (!cancelled) setSendersLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const selectSender = (profile: NovaPoshtaSenderProfile) => {
+    setSelectedSenderId(profile.id);
+    if (profile.defaultCityRef && profile.defaultWarehouseRef) {
+      setWarehouse({
+        cityRef: profile.defaultCityRef,
+        cityName: profile.defaultCityName ?? "",
+        warehouseRef: profile.defaultWarehouseRef,
+        warehouseName: profile.defaultWarehouseName ?? "",
+      });
+    }
+  };
+
+  const handleConfirm = async () => {
+    if (!selectedSenderId) {
+      setError("Choose who's sending.");
+      return;
+    }
+    if (!warehouse) {
+      setError("Choose a ship-from address.");
+      return;
+    }
+    setSubmitting(true);
+    setError(null);
+    try {
+      await onConfirm(orderId, {
+        senderProfileId: selectedSenderId,
+        senderCityRef: warehouse.cityRef,
+        senderWarehouseRef: warehouse.warehouseRef,
+      });
+      onClose();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to create waybill.");
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <div
+      className="fixed inset-0 z-[60] flex items-center justify-center p-4"
+      style={{ backgroundColor: "rgba(45,36,30,0.45)", backdropFilter: "blur(6px)" }}
+      onClick={onClose}
+    >
+      <div
+        role="dialog"
+        aria-modal="true"
+        className="w-full max-w-[440px] rounded-[24px] p-6 space-y-4"
+        style={{ backgroundColor: "#F5F2ED", border: "1px solid rgba(45,36,30,0.1)", boxShadow: "0 24px 64px rgba(45,36,30,0.25)" }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div>
+          <h3 className="text-[#2D241E]" style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "1.3rem", fontWeight: 400 }}>
+            Create Nova Poshta waybill
+          </h3>
+          <p className="text-xs text-[#2D241E]/45 mt-1" style={{ fontFamily: "'DM Sans', sans-serif" }}>
+            Order #{orderId}
+          </p>
+        </div>
+
+        <div>
+          <p
+            className="text-[10px] uppercase tracking-widest text-[#2D241E]/45 mb-2"
+            style={{ fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.1em" }}
+          >
+            Sender
+          </p>
+          {sendersLoading ? (
+            <p className="text-sm text-[#2D241E]/50" style={{ fontFamily: "'DM Sans', sans-serif" }}>
+              Loading…
+            </p>
+          ) : senders.length === 0 ? (
+            <p className="text-sm text-[#4A0E0E]" style={{ fontFamily: "'DM Sans', sans-serif" }}>
+              No Nova Poshta sender is configured on this server.
+            </p>
+          ) : (
+            <div className="flex gap-2">
+              {senders.map((profile) => (
+                <SenderProfileCard
+                  key={profile.id}
+                  profile={profile}
+                  selected={selectedSenderId === profile.id}
+                  onSelect={() => selectSender(profile)}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div>
+          <p
+            className="text-[10px] uppercase tracking-widest text-[#2D241E]/45 mb-2"
+            style={{ fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.1em" }}
+          >
+            Ship from
+          </p>
+          <NovaPoshtaPicker value={warehouse} onSelect={setWarehouse} />
+        </div>
+
+        {error && (
+          <p className="text-sm text-[#4A0E0E]" style={{ fontFamily: "'DM Sans', sans-serif" }}>
+            {error}
+          </p>
+        )}
+
+        <div className="flex justify-end gap-2 pt-1">
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={submitting}
+            className="px-4 py-2.5 rounded-full border text-[#2D241E] transition-all disabled:opacity-50"
+            style={{ borderColor: "rgba(45,36,30,0.2)", fontFamily: "'DM Sans', sans-serif", fontSize: "0.8rem" }}
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={handleConfirm}
+            disabled={submitting || sendersLoading || senders.length === 0}
+            className="px-4 py-2.5 rounded-full text-[#F5F2ED] transition-all disabled:opacity-50"
+            style={{ backgroundColor: "#2D241E", fontFamily: "'DM Sans', sans-serif", fontSize: "0.8rem" }}
+          >
+            {submitting ? "Creating…" : "Create waybill"}
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -2667,6 +2955,8 @@ export function AdminPage() {
     orders,
     ordersSummary,
     setOrderStatus,
+    createWaybill,
+    refreshTracking,
     addUser,
     refetchOrders,
   } = useAdminData();
@@ -2679,6 +2969,8 @@ export function AdminPage() {
   const [saveError, setSaveError] = useState<string | null>(null);
   const [orderActionError, setOrderActionError] = useState<string | null>(null);
   const [savingOrderId, setSavingOrderId] = useState<number | null>(null);
+  const [novaPoshtaBusyOrderId, setNovaPoshtaBusyOrderId] = useState<number | null>(null);
+  const [waybillDialogOrderId, setWaybillDialogOrderId] = useState<number | null>(null);
   const [orderStatusDrafts, setOrderStatusDrafts] = useState<Record<number, OrderStatus>>({});
   const [orderDeliveryDrafts, setOrderDeliveryDrafts] = useState<Record<number, string>>({});
   const [expandedOrders, setExpandedOrders] = useState<Record<number, boolean>>({});
@@ -3472,6 +3764,22 @@ export function AdminPage() {
       setOrderActionError(e instanceof Error ? e.message : "Failed to update order status.");
     } finally {
       setSavingOrderId(null);
+    }
+  };
+
+  const handleConfirmWaybill = async (orderId: number, payload: CreateWaybillRequest) => {
+    await createWaybill(orderId, payload);
+  };
+
+  const handleRefreshTracking = async (orderId: number) => {
+    setOrderActionError(null);
+    setNovaPoshtaBusyOrderId(orderId);
+    try {
+      await refreshTracking(orderId);
+    } catch (e) {
+      setOrderActionError(e instanceof Error ? e.message : "Failed to refresh tracking status.");
+    } finally {
+      setNovaPoshtaBusyOrderId(null);
     }
   };
 
@@ -5011,6 +5319,13 @@ export function AdminPage() {
                           </div>
                         )}
 
+                        <NovaPoshtaOrderPanel
+                          order={order}
+                          busy={novaPoshtaBusyOrderId === order.id}
+                          onOpenWaybillDialog={setWaybillDialogOrderId}
+                          onRefreshTracking={handleRefreshTracking}
+                        />
+
                         <div className="space-y-2">
                           <select
                             value={draftStatus}
@@ -5203,28 +5518,36 @@ export function AdminPage() {
                           </div>
                           </div>
 
-                          {isExpanded && order.items.length > 0 && (
-                            <div className="px-6 pb-5">
-                              <div
-                                className="rounded-[20px] p-4"
-                                style={{ border: "1px solid rgba(45,36,30,0.08)", backgroundColor: "rgba(245,242,237,0.7)" }}
-                              >
-                                <div className="grid gap-4" style={{ gridTemplateColumns: "repeat(2, minmax(0, 1fr))" }}>
-                                  {order.items.map((item) => {
-                                    const img = item.productImageUrl ? resolveMediaUrl(item.productImageUrl) : "";
-                                    return (
-                                      <div key={`order-${order.id}-item-${item.id}`} className="flex gap-4">
-                                        <div className="w-[72px] h-[72px] rounded-[18px] overflow-hidden shrink-0" style={{ backgroundColor: "rgba(45,36,30,0.06)" }}>
-                                          {img ? <img src={img} alt="" className="w-full h-full object-cover" /> : null}
+                          {isExpanded && (
+                            <div className="px-6 pb-5 space-y-4">
+                              <NovaPoshtaOrderPanel
+                                order={order}
+                                busy={novaPoshtaBusyOrderId === order.id}
+                                onOpenWaybillDialog={setWaybillDialogOrderId}
+                                onRefreshTracking={handleRefreshTracking}
+                              />
+                              {order.items.length > 0 && (
+                                <div
+                                  className="rounded-[20px] p-4"
+                                  style={{ border: "1px solid rgba(45,36,30,0.08)", backgroundColor: "rgba(245,242,237,0.7)" }}
+                                >
+                                  <div className="grid gap-4" style={{ gridTemplateColumns: "repeat(2, minmax(0, 1fr))" }}>
+                                    {order.items.map((item) => {
+                                      const img = item.productImageUrl ? resolveMediaUrl(item.productImageUrl) : "";
+                                      return (
+                                        <div key={`order-${order.id}-item-${item.id}`} className="flex gap-4">
+                                          <div className="w-[72px] h-[72px] rounded-[18px] overflow-hidden shrink-0" style={{ backgroundColor: "rgba(45,36,30,0.06)" }}>
+                                            {img ? <img src={img} alt="" className="w-full h-full object-cover" /> : null}
+                                          </div>
+                                          <div className="flex-1 min-w-0">
+                                            <OrderLineDetails line={orderItemDtoToLineDetails(item)} locale="uk" />
+                                          </div>
                                         </div>
-                                        <div className="flex-1 min-w-0">
-                                          <OrderLineDetails line={orderItemDtoToLineDetails(item)} locale="uk" />
-                                        </div>
-                                      </div>
-                                    );
-                                  })}
+                                      );
+                                    })}
+                                  </div>
                                 </div>
-                              </div>
+                              )}
                             </div>
                           )}
                         </div>
@@ -5762,6 +6085,13 @@ export function AdminPage() {
             });
             setShowcaseFocalEditor(null);
           }}
+        />
+      )}
+      {waybillDialogOrderId != null && (
+        <CreateWaybillModal
+          orderId={waybillDialogOrderId}
+          onClose={() => setWaybillDialogOrderId(null)}
+          onConfirm={handleConfirmWaybill}
         />
       )}
     </main>

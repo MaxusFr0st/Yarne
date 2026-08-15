@@ -34,7 +34,7 @@ import {
   type UserDto,
 } from "../api/admin";
 import { register } from "../api/auth";
-import { fetchAdminOrders, fetchAdminOrdersSummary, updateOrderStatus, type OrderDto, type AdminOrdersSummaryDto, type OrderItemDto, type OrderStatus } from "../api/orders";
+import { fetchAdminOrders, fetchAdminOrdersSummary, updateOrderStatus, createOrderWaybill, refreshOrderTracking, type OrderDto, type AdminOrdersSummaryDto, type OrderItemDto, type OrderStatus, type CreateWaybillRequest } from "../api/orders";
 import { ApiRequestError } from "../api/errors";
 import type { Product } from "../types/product";
 import { normalizeLaceVariants } from "../utils/variantStock";
@@ -145,6 +145,15 @@ function mapOrderDtoToAdminOrder(o: OrderDto): {
   orderDate: string;
   estimatedDelivery: string | null;
   paymentMethodName: string;
+  recipientFirstName: string | null;
+  recipientLastName: string | null;
+  recipientPhone: string | null;
+  deliveryCityName: string | null;
+  deliveryWarehouseName: string | null;
+  ttnNumber: string | null;
+  ttnCreatedAt: string | null;
+  trackingStatus: string | null;
+  trackingCheckedAt: string | null;
   items: OrderItemDto[];
 } {
   return {
@@ -158,6 +167,15 @@ function mapOrderDtoToAdminOrder(o: OrderDto): {
     orderDate: o.orderDate,
     estimatedDelivery: o.estimatedDelivery,
     paymentMethodName: o.paymentMethodName,
+    recipientFirstName: o.recipientFirstName ?? null,
+    recipientLastName: o.recipientLastName ?? null,
+    recipientPhone: o.recipientPhone ?? null,
+    deliveryCityName: o.deliveryCityName ?? null,
+    deliveryWarehouseName: o.deliveryWarehouseName ?? null,
+    ttnNumber: o.ttnNumber ?? null,
+    ttnCreatedAt: o.ttnCreatedAt ?? null,
+    trackingStatus: o.trackingStatus ?? null,
+    trackingCheckedAt: o.trackingCheckedAt ?? null,
     items: o.items,
   };
 }
@@ -423,6 +441,20 @@ export function useAdminData() {
     return updated;
   }, []);
 
+  const createWaybill = useCallback(async (id: number, override?: CreateWaybillRequest) => {
+    const updated = await createOrderWaybill(id, override);
+    const mapped = mapOrderDtoToAdminOrder(updated);
+    setOrders((prev) => prev.map((o) => (o.id === id ? mapped : o)));
+    return updated;
+  }, []);
+
+  const refreshTracking = useCallback(async (id: number) => {
+    const updated = await refreshOrderTracking(id);
+    const mapped = mapOrderDtoToAdminOrder(updated);
+    setOrders((prev) => prev.map((o) => (o.id === id ? mapped : o)));
+    return updated;
+  }, []);
+
   return {
     products,
     users,
@@ -432,6 +464,8 @@ export function useAdminData() {
     loadWarnings,
     refetch: load,
     refetchOrders,
+    createWaybill,
+    refreshTracking,
     addProduct,
     editProduct,
     removeProduct,

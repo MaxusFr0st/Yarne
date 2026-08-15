@@ -17,7 +17,7 @@ import {
   ShoppingBag,
   User,
 } from "lucide-react";
-import { fetchMyOrders, type OrderDto } from "../api/orders";
+import { fetchMyOrders, trackOrderByTtn, type OrderDto } from "../api/orders";
 import { ImageWithFallback } from "../components/figma/ImageWithFallback";
 import { useApp } from "../context/AppContext";
 import { LangLink } from "../i18n/LangLink";
@@ -54,6 +54,8 @@ interface Order {
   }[];
   total: number;
   estimatedDelivery?: string;
+  ttnNumber?: string | null;
+  trackingStatus?: string | null;
 }
 
 function toOrderStatus(value: string): OrderStatus {
@@ -83,6 +85,8 @@ function mapOrderDto(order: OrderDto): Order {
     date: order.orderDate,
     status: toOrderStatus(order.status),
     estimatedDelivery: order.estimatedDelivery || undefined,
+    ttnNumber: order.ttnNumber,
+    trackingStatus: order.trackingStatus,
     total: Number(order.total),
     items: order.items.map((item) => ({
       id: item.id,
@@ -232,6 +236,15 @@ function OrderRow({ order, productImageByCode }: { order: Order; productImageByC
               </div>
 
               <div className="flex flex-wrap gap-4 mt-5 pt-5 items-center" style={{ borderTop: "1px solid rgba(45,36,30,0.06)" }}>
+                {order.ttnNumber && (
+                  <div className="flex items-center gap-2">
+                    <Package size={13} style={{ color: "#2D241E", opacity: 0.45 }} />
+                    <span className="text-xs" style={{ fontFamily: "'DM Sans', sans-serif", color: "#2D241E", opacity: 0.6 }}>
+                      {t("account.orderRow.ttn")}: {order.ttnNumber}
+                      {order.trackingStatus ? ` — ${order.trackingStatus}` : ""}
+                    </span>
+                  </div>
+                )}
                 {order.estimatedDelivery && (
                   <div className="flex items-center gap-2">
                     <Calendar size={13} style={{ color: "#2D241E", opacity: 0.45 }} />
@@ -267,6 +280,10 @@ export function AccountPage() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [ordersLoading, setOrdersLoading] = useState(false);
   const [ordersError, setOrdersError] = useState<string | null>(null);
+  const [trackingQuery, setTrackingQuery] = useState("");
+  const [trackingResult, setTrackingResult] = useState<Order | null>(null);
+  const [trackingError, setTrackingError] = useState<string | null>(null);
+  const [trackingLoading, setTrackingLoading] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [profileForm, setProfileForm] = useState({
     name: user?.name ?? "",
@@ -292,6 +309,22 @@ export function AccountPage() {
       .catch((e) => setOrdersError(e instanceof Error ? e.message : t("account.errors.loadOrders")))
       .finally(() => setOrdersLoading(false));
   }, [isLoggedIn, t]);
+
+  const handleTrackParcel = async () => {
+    const ttn = trackingQuery.trim();
+    if (!ttn) return;
+    setTrackingLoading(true);
+    setTrackingError(null);
+    setTrackingResult(null);
+    try {
+      const dto = await trackOrderByTtn(ttn);
+      setTrackingResult(mapOrderDto(dto));
+    } catch (e) {
+      setTrackingError(e instanceof Error ? e.message : t("account.tracking.errors.notFound"));
+    } finally {
+      setTrackingLoading(false);
+    }
+  };
 
   const productImageByCode = useMemo(
     () =>
@@ -482,6 +515,46 @@ export function AccountPage() {
                 <span className="text-[#2D241E]/45 text-xs uppercase tracking-widest" style={{ fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.1em" }}>
                   {t("account.orders.count", { count: orders.length })}
                 </span>
+              </div>
+
+              <div className="rounded-[24px] p-5 mb-6" style={{ backgroundColor: "#EDE9E2" }}>
+                <p className="text-xs uppercase tracking-widest text-[#2D241E]/55 mb-2" style={{ fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.1em" }}>
+                  {t("account.tracking.title")}
+                </p>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={trackingQuery}
+                    onChange={(e) => {
+                      setTrackingQuery(e.target.value);
+                      if (trackingError) setTrackingError(null);
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") void handleTrackParcel();
+                    }}
+                    placeholder={t("account.tracking.placeholder")}
+                    className="flex-1 min-w-0 rounded-[16px] border bg-[#F5F2ED]/80 px-4 py-2.5 text-[#2D241E] focus:outline-none text-sm"
+                    style={{ borderColor: "rgba(45,36,30,0.15)", fontFamily: "'DM Sans', sans-serif" }}
+                  />
+                  <button
+                    onClick={() => void handleTrackParcel()}
+                    disabled={trackingLoading || trackingQuery.trim().length === 0}
+                    className="px-5 py-2.5 rounded-full text-[#F5F2ED] uppercase tracking-widest transition-all duration-300 disabled:opacity-50 whitespace-nowrap"
+                    style={{ backgroundColor: "#2D241E", fontFamily: "'DM Sans', sans-serif", fontSize: "0.72rem", letterSpacing: "0.1em" }}
+                  >
+                    {trackingLoading ? t("account.tracking.loading") : t("account.tracking.button")}
+                  </button>
+                </div>
+                {trackingError && (
+                  <p className="text-[#4A0E0E] text-sm mt-3" style={{ fontFamily: "'DM Sans', sans-serif" }}>
+                    {trackingError}
+                  </p>
+                )}
+                {trackingResult && (
+                  <div className="mt-4">
+                    <OrderRow order={trackingResult} productImageByCode={productImageByCode} />
+                  </div>
+                )}
               </div>
 
               {ordersLoading && (

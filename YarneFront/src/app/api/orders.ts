@@ -21,7 +21,7 @@ export interface OrderItemDto {
 
 export interface OrderDto {
   id: number;
-  customerId: number;
+  customerId: number | null;
   customerName: string;
   customerEmail: string;
   customerPhoneNumber: string | null;
@@ -32,6 +32,17 @@ export interface OrderDto {
   paymentMethodId: number;
   paymentMethodName: string;
   shippingAddrId: number | null;
+  recipientFirstName: string | null;
+  recipientLastName: string | null;
+  recipientPhone: string | null;
+  deliveryCityRef: string | null;
+  deliveryCityName: string | null;
+  deliveryWarehouseRef: string | null;
+  deliveryWarehouseName: string | null;
+  ttnNumber: string | null;
+  ttnCreatedAt: string | null;
+  trackingStatus: string | null;
+  trackingCheckedAt: string | null;
   items: OrderItemDto[];
 }
 
@@ -56,8 +67,17 @@ export interface CreateOrderItemRequest {
 export interface CreateOrderRequest {
   items: CreateOrderItemRequest[];
   phoneNumber: string;
+  /** Required for guest checkout (no logged-in customer). */
+  email?: string;
   paymentMethodId?: number;
   shippingAddrId?: number;
+  recipientFirstName: string;
+  recipientLastName: string;
+  recipientPhone: string;
+  deliveryCityRef: string;
+  deliveryCityName: string;
+  deliveryWarehouseRef: string;
+  deliveryWarehouseName: string;
 }
 
 export type OrderStatus =
@@ -76,6 +96,10 @@ export interface UpdateOrderStatusRequest {
 
 export async function fetchMyOrders(): Promise<OrderDto[]> {
   return apiRequest<OrderDto[]>("/api/orders/my");
+}
+
+export async function trackOrderByTtn(ttn: string): Promise<OrderDto> {
+  return apiRequest<OrderDto>(`/api/orders/track?ttn=${encodeURIComponent(ttn)}`);
 }
 
 export async function fetchAdminOrders(): Promise<OrderDto[]> {
@@ -98,4 +122,35 @@ export async function updateOrderStatus(orderId: number, payload: UpdateOrderSta
     method: "PATCH",
     body: JSON.stringify(payload),
   });
+}
+
+export interface CreateWaybillRequest {
+  senderProfileId?: string;
+  senderCityRef?: string;
+  senderWarehouseRef?: string;
+}
+
+export interface NovaPoshtaSenderProfile {
+  id: string;
+  label: string;
+  isDefault: boolean;
+  defaultCityRef: string | null;
+  defaultCityName: string | null;
+  defaultWarehouseRef: string | null;
+  defaultWarehouseName: string | null;
+}
+
+export async function fetchNovaPoshtaSenders(): Promise<NovaPoshtaSenderProfile[]> {
+  return apiRequest<NovaPoshtaSenderProfile[]>("/api/orders/nova-poshta/senders");
+}
+
+export async function createOrderWaybill(orderId: number, payload?: CreateWaybillRequest): Promise<OrderDto> {
+  return apiRequest<OrderDto>(`/api/orders/${orderId}/ttn`, {
+    method: "POST",
+    body: payload ? JSON.stringify(payload) : undefined,
+  });
+}
+
+export async function refreshOrderTracking(orderId: number): Promise<OrderDto> {
+  return apiRequest<OrderDto>(`/api/orders/${orderId}/tracking`, { method: "POST" });
 }

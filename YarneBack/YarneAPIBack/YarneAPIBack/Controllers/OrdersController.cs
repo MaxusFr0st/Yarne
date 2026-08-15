@@ -14,7 +14,6 @@ namespace YarneAPIBack.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-[Authorize]
 public class OrdersController : ControllerBase
 {
     private static readonly Dictionary<string, string> AllowedStatuses = new(StringComparer.OrdinalIgnoreCase)
@@ -36,6 +35,7 @@ public class OrdersController : ControllerBase
     private readonly YarneDbContext _context;
     private readonly IAdminActivityLogService _activityLogs;
     private readonly IEmailService _emailService;
+    private readonly INovaPoshtaService _novaPoshta;
     private readonly ILogger<OrdersController> _logger;
     private readonly IConfiguration _configuration;
 
@@ -43,17 +43,20 @@ public class OrdersController : ControllerBase
         YarneDbContext context,
         IAdminActivityLogService activityLogs,
         IEmailService emailService,
+        INovaPoshtaService novaPoshta,
         IConfiguration configuration,
         ILogger<OrdersController> logger)
     {
         _context = context;
         _activityLogs = activityLogs;
         _emailService = emailService;
+        _novaPoshta = novaPoshta;
         _configuration = configuration;
         _logger = logger;
     }
 
     [HttpGet("my")]
+    [Authorize]
     [ProducesResponseType(typeof(IEnumerable<OrderDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     public async Task<ActionResult<IEnumerable<OrderDto>>> GetMyOrders(CancellationToken ct = default)
@@ -71,6 +74,7 @@ public class OrdersController : ControllerBase
     }
 
     [HttpGet("{id:int}")]
+    [Authorize]
     [ProducesResponseType(typeof(OrderDto), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
@@ -90,6 +94,55 @@ public class OrdersController : ControllerBase
             return Forbid();
 
         return Ok(MapOrder(order));
+    }
+
+    /// <summary>
+    /// Looks up one of the caller's own orders by Nova Poshta tracking number and refreshes
+    /// its live status. Scoped to the caller's own orders — a logged-in customer cannot use
+    /// this to peek at someone else's shipment by guessing a TTN.
+    /// </summary>
+    [HttpGet("track")]
+    [Authorize]
+    [ProducesResponseType(typeof(OrderDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<OrderDto>> TrackByTtn([FromQuery] string ttn, CancellationToken ct = default)
+    {
+        var customerId = GetCurrentCustomerId();
+        if (customerId == null)
+            return Unauthorized();
+
+        var normalizedTtn = ttn?.Trim();
+        if (string.IsNullOrWhiteSpace(normalizedTtn))
+            return BadRequest(new { message = "Tracking number is required." });
+
+        var order = await BuildOrderQuery().FirstOrDefaultAsync(
+            o => o.CustomerId == customerId.Value && o.TtnNumber == normalizedTtn,
+            ct);
+        if (order == null)
+            return NotFound(new { message = "No order with this tracking number was found on your account." });
+
+        var orderId = order.Id;
+        try
+        {
+            var status = await _novaPoshta.GetTrackingStatusAsync(order.TtnNumber!, ct);
+            if (status != null)
+            {
+                var tracked = await _context.Orders.FirstAsync(o => o.Id == orderId, ct);
+                tracked.TrackingStatus = status.Status;
+                tracked.TrackingStatusCode = status.StatusCode;
+                tracked.TrackingCheckedAt = DateTime.UtcNow;
+                await _context.SaveChangesAsync(ct);
+                order = await BuildOrderQuery().FirstOrDefaultAsync(o => o.Id == orderId, ct);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to refresh Nova Poshta tracking for order #{OrderId} via TTN lookup.", orderId);
+        }
+
+        return Ok(MapOrder(order!));
     }
 
     [HttpGet]
@@ -139,9 +192,9 @@ public class OrdersController : ControllerBase
     }
 
     [HttpPost]
+    [AllowAnonymous]
     [ProducesResponseType(typeof(OrderDto), StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
-    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     public async Task<ActionResult<OrderDto>> CreateOrder([FromBody] CreateOrderRequest request, CancellationToken ct = default)
     {
         try
@@ -161,20 +214,42 @@ public class OrdersController : ControllerBase
             return BadRequest(new { message = "Order must include at least one item." });
 
         var customerId = GetCurrentCustomerId();
-        if (customerId == null)
-            return Unauthorized();
+        Customer? customer = null;
+        string? guestEmail = null;
 
-        var customer = await _context.Customers.FirstOrDefaultAsync(c => c.Id == customerId.Value, ct);
-        if (customer == null)
-            return BadRequest(new { message = "Customer account was not found." });
+        if (customerId != null)
+        {
+            customer = await _context.Customers.FirstOrDefaultAsync(c => c.Id == customerId.Value, ct);
+            if (customer == null)
+                return BadRequest(new { message = "Customer account was not found." });
+        }
+        else
+        {
+            guestEmail = request.Email?.Trim();
+            if (string.IsNullOrWhiteSpace(guestEmail))
+                return BadRequest(new { message = "Email is required to place an order." });
+        }
 
         var contactPhone = NormalizePhone(request.PhoneNumber);
         if (string.IsNullOrWhiteSpace(contactPhone))
             return BadRequest(new { message = "Phone number is required." });
 
+        var recipientFirstName = request.RecipientFirstName.Trim();
+        var recipientLastName = request.RecipientLastName.Trim();
+        var recipientPhone = NormalizePhone(request.RecipientPhone);
+        if (string.IsNullOrWhiteSpace(recipientFirstName) || string.IsNullOrWhiteSpace(recipientLastName) || string.IsNullOrWhiteSpace(recipientPhone))
+            return BadRequest(new { message = "Recipient name and phone are required." });
+
+        var deliveryCityRef = request.DeliveryCityRef.Trim();
+        var deliveryCityName = request.DeliveryCityName.Trim();
+        var deliveryWarehouseRef = request.DeliveryWarehouseRef.Trim();
+        var deliveryWarehouseName = request.DeliveryWarehouseName.Trim();
+        if (string.IsNullOrWhiteSpace(deliveryCityRef) || string.IsNullOrWhiteSpace(deliveryWarehouseRef))
+            return BadRequest(new { message = "A Nova Poshta delivery point is required." });
+
         if (request.ShippingAddrId.HasValue)
         {
-            var ownsAddress = await _context.CustomerAddresses.AnyAsync(
+            var ownsAddress = customerId != null && await _context.CustomerAddresses.AnyAsync(
                 a => a.Id == request.ShippingAddrId.Value && a.CustomerId == customerId.Value,
                 ct
             );
@@ -275,7 +350,7 @@ public class OrdersController : ControllerBase
                 NetPriceCents = checked((long)decimal.Round(unitPrice * 100m, 0, MidpointRounding.AwayFromZero)),
                 UnitCogsCents = 0,
                 VatAmountCents = 0,
-                CreatedBy = customerId.Value,
+                CreatedBy = customerId,
                 CreatedAt = now,
                 UpdatedAt = now,
                 ProductSubtitle = NormalizeOptional(item.ProductSubtitle),
@@ -291,9 +366,17 @@ public class OrdersController : ControllerBase
         var orderTotalCents = orderItems.Sum(i => checked(i.ListedPriceCents * i.Quantity));
         var order = new Order
         {
-            CustomerId = customerId.Value,
+            CustomerId = customerId,
+            GuestEmail = guestEmail,
             PaymentMethodId = paymentMethodId,
             ShippingAddrId = request.ShippingAddrId,
+            RecipientFirstName = recipientFirstName,
+            RecipientLastName = recipientLastName,
+            RecipientPhone = recipientPhone,
+            DeliveryCityRef = deliveryCityRef,
+            DeliveryCityName = deliveryCityName,
+            DeliveryWarehouseRef = deliveryWarehouseRef,
+            DeliveryWarehouseName = deliveryWarehouseName,
             ChannelId = null,
             ChannelFeeCents = 0,
             IsChannelFeeOverridden = false,
@@ -304,12 +387,15 @@ public class OrdersController : ControllerBase
             OrderDate = now,
             CreatedAt = now,
             UpdatedAt = now,
-            CreatedBy = customerId.Value,
+            CreatedBy = customerId,
             OrderItems = orderItems,
         };
 
-        customer.PhoneNumber = contactPhone;
-        _context.Entry(customer).Property(c => c.PhoneNumber).IsModified = true;
+        if (customer != null)
+        {
+            customer.PhoneNumber = contactPhone;
+            _context.Entry(customer).Property(c => c.PhoneNumber).IsModified = true;
+        }
         _context.Orders.Add(order);
         await _context.SaveChangesAsync(ct);
 
@@ -386,6 +472,14 @@ public class OrdersController : ControllerBase
         if (orderDisappeared)
             return NotFound();
 
+        if (string.Equals(canonicalStatus, "Shipped", StringComparison.OrdinalIgnoreCase)
+            && !string.Equals(previousStatus, "Shipped", StringComparison.OrdinalIgnoreCase))
+        {
+            var defaultSenderId = _novaPoshta.DefaultSenderProfile?.Id;
+            if (defaultSenderId != null)
+                await CreateWaybillForOrderAsync(id, defaultSenderId, senderAddressOverride: null, ct);
+        }
+
         var updatedOrder = await BuildOrderQuery().FirstOrDefaultAsync(o => o.Id == id, ct);
         if (updatedOrder == null)
             return StatusCode(StatusCodes.Status500InternalServerError, new { message = "Order was updated but could not be loaded." });
@@ -420,7 +514,7 @@ public class OrdersController : ControllerBase
                 previousStatus,
                 newStatus = canonicalStatus,
                 estimatedDelivery = request.EstimatedDelivery,
-                customerEmail = updatedOrder.Customer.Email,
+                customerEmail = updatedOrder.Customer?.Email ?? updatedOrder.GuestEmail,
                 total = updatedOrder.TotalCents / 100m,
             },
             actorUserId,
@@ -428,6 +522,158 @@ public class OrdersController : ControllerBase
             ct);
 
         return Ok(MapOrder(updatedOrder));
+    }
+
+    [HttpGet("nova-poshta/senders")]
+    [Authorize(Roles = "Admin")]
+    [ProducesResponseType(typeof(IEnumerable<NovaPoshtaSenderProfileDto>), StatusCodes.Status200OK)]
+    public ActionResult<IEnumerable<NovaPoshtaSenderProfileDto>> GetNovaPoshtaSenders()
+    {
+        var defaultId = _novaPoshta.DefaultSenderProfile?.Id;
+        return Ok(_novaPoshta.SenderProfiles.Select(p => new NovaPoshtaSenderProfileDto
+        {
+            Id = p.Id,
+            Label = p.Label,
+            IsDefault = p.Id == defaultId,
+            DefaultCityRef = p.DefaultCityRef,
+            DefaultCityName = p.DefaultCityName,
+            DefaultWarehouseRef = p.DefaultWarehouseRef,
+            DefaultWarehouseName = p.DefaultWarehouseName,
+        }));
+    }
+
+    [HttpPost("{id:int}/ttn")]
+    [Authorize(Roles = "Admin")]
+    [ProducesResponseType(typeof(OrderDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status502BadGateway)]
+    public async Task<ActionResult<OrderDto>> CreateWaybill(int id, [FromBody] CreateWaybillRequest? request, CancellationToken ct = default)
+    {
+        if (!_novaPoshta.IsConfigured)
+            return BadRequest(new { message = "Nova Poshta is not configured on this server." });
+
+        var order = await _context.Orders.FirstOrDefaultAsync(o => o.Id == id, ct);
+        if (order == null)
+            return NotFound();
+        if (!string.IsNullOrWhiteSpace(order.TtnNumber))
+            return BadRequest(new { message = "This order already has a waybill." });
+
+        var senderProfileId = string.IsNullOrWhiteSpace(request?.SenderProfileId)
+            ? _novaPoshta.DefaultSenderProfile?.Id
+            : request.SenderProfileId;
+        if (senderProfileId == null)
+            return BadRequest(new { message = "No Nova Poshta sender is configured." });
+
+        var senderAddressOverride = BuildSenderAddressOverride(request);
+
+        var (ok, error) = await CreateWaybillForOrderAsync(id, senderProfileId, senderAddressOverride, ct);
+        if (!ok)
+            return StatusCode(StatusCodes.Status502BadGateway, new { message = error ?? "Nova Poshta rejected the waybill request." });
+
+        var updated = await BuildOrderQuery().FirstOrDefaultAsync(o => o.Id == id, ct);
+        return Ok(MapOrder(updated!));
+    }
+
+    private static NovaPoshtaSenderAddress? BuildSenderAddressOverride(CreateWaybillRequest? request)
+    {
+        if (request == null
+            || string.IsNullOrWhiteSpace(request.SenderCityRef)
+            || string.IsNullOrWhiteSpace(request.SenderWarehouseRef))
+        {
+            return null;
+        }
+
+        return new NovaPoshtaSenderAddress(request.SenderCityRef.Trim(), request.SenderWarehouseRef.Trim());
+    }
+
+    [HttpPost("{id:int}/tracking")]
+    [Authorize(Roles = "Admin")]
+    [ProducesResponseType(typeof(OrderDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<OrderDto>> RefreshTracking(int id, CancellationToken ct = default)
+    {
+        var order = await _context.Orders.FirstOrDefaultAsync(o => o.Id == id, ct);
+        if (order == null)
+            return NotFound();
+        if (string.IsNullOrWhiteSpace(order.TtnNumber))
+            return BadRequest(new { message = "This order has no waybill yet." });
+
+        try
+        {
+            var status = await _novaPoshta.GetTrackingStatusAsync(order.TtnNumber, ct);
+            if (status != null)
+            {
+                order.TrackingStatus = status.Status;
+                order.TrackingStatusCode = status.StatusCode;
+                order.TrackingCheckedAt = DateTime.UtcNow;
+                await _context.SaveChangesAsync(ct);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to refresh Nova Poshta tracking for order #{OrderId}.", id);
+        }
+
+        var updated = await BuildOrderQuery().FirstOrDefaultAsync(o => o.Id == id, ct);
+        return Ok(MapOrder(updated!));
+    }
+
+    /// <summary>
+    /// Creates a Nova Poshta waybill for the given order if it has a delivery point and no
+    /// waybill yet. Swallows Nova Poshta errors (logged) so callers driven by a status
+    /// transition never fail the transition itself; the explicit ttn endpoint surfaces them.
+    /// </summary>
+    private async Task<(bool Ok, string? Error)> CreateWaybillForOrderAsync(
+        int orderId,
+        string senderProfileId,
+        NovaPoshtaSenderAddress? senderAddressOverride,
+        CancellationToken ct)
+    {
+        if (!_novaPoshta.IsConfigured)
+            return (false, "Nova Poshta is not configured on this server.");
+
+        var order = await _context.Orders.FirstOrDefaultAsync(o => o.Id == orderId, ct);
+        if (order == null || !string.IsNullOrWhiteSpace(order.TtnNumber))
+            return (true, null);
+
+        if (string.IsNullOrWhiteSpace(order.DeliveryCityRef)
+            || string.IsNullOrWhiteSpace(order.DeliveryWarehouseRef)
+            || string.IsNullOrWhiteSpace(order.RecipientFirstName)
+            || string.IsNullOrWhiteSpace(order.RecipientLastName)
+            || string.IsNullOrWhiteSpace(order.RecipientPhone))
+        {
+            const string message = "Order is missing recipient or delivery point details.";
+            _logger.LogWarning("Skipping Nova Poshta waybill for order #{OrderId}: {Message}", orderId, message);
+            return (false, message);
+        }
+
+        try
+        {
+            var waybill = await _novaPoshta.CreateWaybillAsync(
+                senderProfileId,
+                senderAddressOverride,
+                order.RecipientFirstName,
+                order.RecipientLastName,
+                order.RecipientPhone,
+                order.DeliveryCityRef,
+                order.DeliveryWarehouseRef,
+                order.TotalCents / 100m,
+                ct);
+
+            order.TtnNumber = waybill.TtnNumber;
+            order.TtnRef = waybill.TtnRef;
+            order.TtnCreatedAt = DateTime.UtcNow;
+            order.UpdatedAt = DateTime.UtcNow;
+            await _context.SaveChangesAsync(ct);
+            return (true, null);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to create Nova Poshta waybill for order #{OrderId}.", orderId);
+            return (false, ex.Message);
+        }
     }
 
     private IQueryable<Order> BuildAdminOrderListQuery()
@@ -482,19 +728,27 @@ public class OrdersController : ControllerBase
     private static OrderDto MapOrder(Order order)
     {
         var customer = order.Customer;
-        var customerName = customer == null
-            ? "Customer"
-            : $"{customer.FirstName} {customer.LastName}".Trim();
-        if (customer != null && string.IsNullOrWhiteSpace(customerName))
-            customerName = customer.UserName ?? customer.Email ?? "Customer";
+        string customerName;
+        if (customer != null)
+        {
+            customerName = $"{customer.FirstName} {customer.LastName}".Trim();
+            if (string.IsNullOrWhiteSpace(customerName))
+                customerName = customer.UserName ?? customer.Email ?? "Customer";
+        }
+        else
+        {
+            customerName = $"{order.RecipientFirstName} {order.RecipientLastName}".Trim();
+            if (string.IsNullOrWhiteSpace(customerName))
+                customerName = "Guest";
+        }
 
         return new OrderDto
         {
             Id = order.Id,
             CustomerId = order.CustomerId,
             CustomerName = customerName,
-            CustomerEmail = customer?.Email ?? string.Empty,
-            CustomerPhoneNumber = customer?.PhoneNumber,
+            CustomerEmail = customer?.Email ?? order.GuestEmail ?? string.Empty,
+            CustomerPhoneNumber = customer?.PhoneNumber ?? order.RecipientPhone,
             Total = order.TotalCents / 100m,
             Status = order.Status,
             OrderDate = order.OrderDate,
@@ -502,6 +756,17 @@ public class OrdersController : ControllerBase
             PaymentMethodId = order.PaymentMethodId,
             PaymentMethodName = order.PaymentMethod?.Name ?? "Card",
             ShippingAddrId = order.ShippingAddrId,
+            RecipientFirstName = order.RecipientFirstName,
+            RecipientLastName = order.RecipientLastName,
+            RecipientPhone = order.RecipientPhone,
+            DeliveryCityRef = order.DeliveryCityRef,
+            DeliveryCityName = order.DeliveryCityName,
+            DeliveryWarehouseRef = order.DeliveryWarehouseRef,
+            DeliveryWarehouseName = order.DeliveryWarehouseName,
+            TtnNumber = order.TtnNumber,
+            TtnCreatedAt = order.TtnCreatedAt,
+            TrackingStatus = order.TrackingStatus,
+            TrackingCheckedAt = order.TrackingCheckedAt,
             Items = order.OrderItems
                 .OrderBy(i => i.Id)
                 .Select(i => new OrderItemDto
@@ -527,10 +792,11 @@ public class OrdersController : ControllerBase
 
     private void QueueOrderStatusEmail(Order order, OrderEmailEvent emailEvent)
     {
-        if (order.Customer == null || string.IsNullOrWhiteSpace(order.Customer.Email))
+        var recipientEmail = order.Customer?.Email ?? order.GuestEmail;
+        if (string.IsNullOrWhiteSpace(recipientEmail))
         {
             _logger.LogWarning(
-                "Skipping order status email for order #{OrderId}: customer email is missing.",
+                "Skipping order status email for order #{OrderId}: no email on file.",
                 order.Id);
             return;
         }
@@ -599,10 +865,23 @@ public class OrdersController : ControllerBase
 
     private OrderConfirmationEmailMessage BuildOrderStatusMessage(Order order, OrderEmailEvent emailEvent)
     {
-        var customer = order.Customer ?? throw new InvalidOperationException("Order customer is not loaded.");
-        var customerName = $"{customer.FirstName} {customer.LastName}".Trim();
-        if (string.IsNullOrWhiteSpace(customerName))
-            customerName = customer.UserName ?? customer.Email ?? "Customer";
+        var customer = order.Customer;
+        string customerName;
+        string customerEmail;
+        if (customer != null)
+        {
+            customerName = $"{customer.FirstName} {customer.LastName}".Trim();
+            if (string.IsNullOrWhiteSpace(customerName))
+                customerName = customer.UserName ?? customer.Email ?? "Customer";
+            customerEmail = customer.Email ?? string.Empty;
+        }
+        else
+        {
+            customerName = $"{order.RecipientFirstName} {order.RecipientLastName}".Trim();
+            if (string.IsNullOrWhiteSpace(customerName))
+                customerName = "Customer";
+            customerEmail = order.GuestEmail ?? throw new InvalidOperationException("Guest order is missing an email.");
+        }
 
         var frontendBase = (_configuration["FRONTEND_BASE_URL"]
             ?? Environment.GetEnvironmentVariable("FRONTEND_BASE_URL")
@@ -616,8 +895,8 @@ public class OrdersController : ControllerBase
             OrderId = order.Id,
             Event = emailEvent,
             CustomerName = customerName,
-            CustomerEmail = customer.Email ?? string.Empty,
-            ToEmail = customer.Email ?? string.Empty,
+            CustomerEmail = customerEmail,
+            ToEmail = customerEmail,
             BccEmails = [],
             AccountUrl = accountUrl,
             OrderDateUtc = order.OrderDate,

@@ -135,6 +135,7 @@ builder.Services.AddScoped<IOAuthService, OAuthService>();
 builder.Services.AddScoped<IProductService, ProductService>();
 builder.Services.AddScoped<IStorefrontSettingsService, StorefrontSettingsService>();
 builder.Services.AddScoped<IAdminActivityLogService, AdminActivityLogService>();
+builder.Services.AddScoped<INovaPoshtaService, NovaPoshtaService>();
 builder.Services.AddSingleton<IEmailService>(sp =>
 {
     var configuration = sp.GetRequiredService<IConfiguration>();
