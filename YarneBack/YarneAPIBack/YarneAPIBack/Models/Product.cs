@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using YarneAPIBack.Accounting.Models;
 
 namespace YarneAPIBack.Models;
 
@@ -81,5 +82,13 @@ public partial class Product
     public virtual ICollection<ProductSize> ProductSizes { get; set; } = new List<ProductSize>();
 
     public virtual ICollection<ProductRecommendation> Recommendations { get; set; } = new List<ProductRecommendation>();
+
+    public virtual AccountingCurrency SellingCurrency { get; set; } = null!;
+
+    public virtual ProductBom? Bom { get; set; }
+
+    public virtual FinishedGoodsInventory? FinishedGoodsInventory { get; set; }
+
+    public virtual ICollection<ProductionOrder> ProductionOrders { get; set; } = new List<ProductionOrder>();
 
 }

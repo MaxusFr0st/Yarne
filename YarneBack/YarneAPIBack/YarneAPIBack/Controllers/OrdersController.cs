@@ -3,6 +3,7 @@ using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using YarneAPIBack.Accounting.Services.Contracts;
 using YarneAPIBack.Configuration;
 using YarneAPIBack.Data;
 using YarneAPIBack.DTOs.Order;
@@ -38,6 +39,7 @@ public class OrdersController : ControllerBase
     private readonly INovaPoshtaService _novaPoshta;
     private readonly ILogger<OrdersController> _logger;
     private readonly IConfiguration _configuration;
+    private readonly ISalesAccountingService _salesAccountingService;
 
     public OrdersController(
         YarneDbContext context,
@@ -45,7 +47,8 @@ public class OrdersController : ControllerBase
         IEmailService emailService,
         INovaPoshtaService novaPoshta,
         IConfiguration configuration,
-        ILogger<OrdersController> logger)
+        ILogger<OrdersController> logger,
+        ISalesAccountingService salesAccountingService)
     {
         _context = context;
         _activityLogs = activityLogs;
@@ -53,6 +56,7 @@ public class OrdersController : ControllerBase
         _novaPoshta = novaPoshta;
         _configuration = configuration;
         _logger = logger;
+        _salesAccountingService = salesAccountingService;
     }
 
     [HttpGet("my")]
@@ -499,6 +503,22 @@ public class OrdersController : ControllerBase
             if (statusEmailEvent.HasValue)
                 QueueOrderStatusEmail(updatedOrder, statusEmailEvent.Value);
 
+        }
+
+        // Marking an order Received is a fulfillment fact and must succeed regardless of
+        // accounting state — auto-composing the Sales-tab entry never blocks it; failures are
+        // only logged for manual follow-up.
+        if (string.Equals(canonicalStatus, "Received", StringComparison.OrdinalIgnoreCase))
+        {
+            try
+            {
+                var (composeActorId, _) = AdminActivityLogHelper.GetActor(HttpContext);
+                await _salesAccountingService.ComposeReceivedOrderAsync(id, composeActorId, ct);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to auto-compose accounting sale for order #{OrderId} after marking Received.", id);
+            }
         }
 
         var (actorUserId, actorEmail) = AdminActivityLogHelper.GetActor(HttpContext);

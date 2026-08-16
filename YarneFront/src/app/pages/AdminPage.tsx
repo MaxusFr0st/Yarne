@@ -102,6 +102,7 @@ import { FocalPointEditor } from "../components/admin/FocalPointEditor";
 import { AdminHomeCopyEditor } from "../components/admin/AdminHomeCopyEditor";
 import { AdminOurHistoryEditor } from "../components/admin/AdminOurHistoryEditor";
 import { AdminCollectionsTab } from "../components/admin/AdminCollectionsTab";
+import { AdminAccountingTab } from "../components/admin/AdminAccountingTab";
 import { formatPriceCompact } from "../i18n/format";
 import { PriceTag } from "../components/PriceTag";
 import { OrderLineDetails, orderItemDtoToLineDetails } from "../components/OrderLineDetails";
@@ -2700,7 +2701,7 @@ function DeleteModal({
 /* ─────────────────────────────────────────────
    MAIN ADMIN PAGE
 ───────────────────────────────────────────── */
-type AdminTab = "dashboard" | "contents" | "products" | "users" | "orders" | "logs" | "categories" | "collections" | "colors" | "furniture" | "sizes";
+type AdminTab = "dashboard" | "contents" | "products" | "users" | "orders" | "logs" | "accounting" | "categories" | "collections" | "colors" | "furniture" | "sizes";
 type LogsSubTab = "all" | "product" | "user" | "push" | "order" | "catalog" | "image";
 
 function formatLogTimestamp(iso: string) {
@@ -3900,6 +3901,7 @@ export function AdminPage() {
               { key: "users" as AdminTab, label: "Users", icon: <Users size={14} /> },
               { key: "orders" as AdminTab, label: "Orders", icon: <ShoppingCart size={14} /> },
               { key: "logs" as AdminTab, label: "Logs", icon: <ScrollText size={14} /> },
+              { key: "accounting" as AdminTab, label: "Accounting", icon: <DollarSign size={14} /> },
               { key: "categories" as AdminTab, label: "Categories", icon: <Tag size={14} /> },
               { key: "collections" as AdminTab, label: "Collections", icon: <Star size={14} /> },
               { key: "colors" as AdminTab, label: "Colors", icon: <Palette size={14} /> },
@@ -3948,7 +3950,7 @@ export function AdminPage() {
               transition={{ duration: 0.4, ease: easing }}
             >
               {/* Stat Cards */}
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-5 mb-12">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-5 mb-12">
                 {[
                   { icon: <DollarSign size={20} />, label: "Est. Revenue", value: formatPriceCompact(totalRevenue, "uk"), sub: "Sum of all placed orders", color: "#2D6A4F" },
                   { icon: <ShoppingCart size={20} />, label: "Total Orders", value: String(ordersSummary.totalOrders ?? 0), sub: `${pendingOrdersCount} pending`, color: "#0A1128", goTo: "orders" as AdminTab },
@@ -3960,6 +3962,7 @@ export function AdminPage() {
                     color: "#2D241E",
                     goTo: "products" as AdminTab,
                   },
+                  { icon: <DollarSign size={20} />, label: "Accounting", value: "Finance", sub: "Purchases, revenue & reports", color: "#1E3A5F", goTo: "accounting" as AdminTab },
                 ].map((card, i) => (
                   <motion.div
                     key={card.label}
@@ -5570,6 +5573,8 @@ export function AdminPage() {
               </div>
             </motion.div>
           )}
+
+          {activeTab === "accounting" && (<AdminAccountingTab />)}
 
           {/* ── CATEGORIES ── */}
           {activeTab === "categories" && (

@@ -1,4 +1,6 @@
 ﻿using System;
+using System.Collections.Generic;
+using YarneAPIBack.Accounting.Models;
 
 namespace YarneAPIBack.Models;
 
@@ -55,4 +57,9 @@ public partial class OrderItem
     public virtual Order Order { get; set; } = null!;
 
     public virtual Product? Product { get; set; }
+
+    public virtual ICollection<ReturnOrderItem> ReturnItems { get; set; } = new List<ReturnOrderItem>();
+
+    public virtual ICollection<SalesFinishedGoodsConsumption> FinishedGoodsConsumptions { get; set; } =
+        new List<SalesFinishedGoodsConsumption>();
 }
