@@ -15,4 +15,6 @@ public interface IProductService
     Task<ProductDto?> UpdateProductAsync(int id, UpdateProductRequest request, CancellationToken ct = default);
 
     Task<bool> DeleteProductAsync(int id, CancellationToken ct = default);
+
+    Task<ProductDto?> SetShareImageUrlAsync(int id, string? shareImageUrl, CancellationToken ct = default);
 }

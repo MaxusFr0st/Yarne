@@ -109,6 +109,7 @@ function mapProductDtoToProduct(d: ProductDto): Product & { idNum: number; sku: 
       hex: fc.hex,
     })),
     sku: d.productCode,
+    shareImageUrl: d.shareImageUrl ?? null,
   } as Product & { idNum: number; sku: string };
 }
 

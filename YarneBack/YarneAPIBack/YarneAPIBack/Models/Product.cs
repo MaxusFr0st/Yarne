@@ -26,6 +26,9 @@ public partial class Product
 
     public string? ImageUrl { get; set; }
 
+    /// <summary>Dedicated photo for link-share previews and order emails, stored in R2. Falls back to the primary product image when unset.</summary>
+    public string? ShareImageUrl { get; set; }
+
     public int CategoryId { get; set; }
 
     public int? CollectionId { get; set; }

@@ -95,7 +95,7 @@ import {
   Crosshair,
 } from "lucide-react";
 import { fetchActivityLogs, type AdminActivityLogDto } from "../api/admin";
-import { fetchProduct } from "../api/products";
+import { fetchProduct, uploadProductShareImage, deleteProductShareImage } from "../api/products";
 import { NovaPoshtaPicker, type NovaPoshtaSelection } from "../components/NovaPoshtaPicker";
 import { fetchNovaPoshtaSenders, type CreateWaybillRequest, type NovaPoshtaSenderProfile } from "../api/orders";
 import { FocalPointEditor } from "../components/admin/FocalPointEditor";
@@ -673,6 +673,115 @@ interface ProductFormData {
   suggestionsTouched: boolean;
 }
 
+
+/** Dedicated photo for link-share previews and order emails, uploaded straight to R2 — separate from the product card gallery. */
+function ShareImageEditor({ productId, initialUrl }: { productId: number | null; initialUrl?: string | null }) {
+  const [url, setUrl] = useState<string | null>(initialUrl ?? null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    setUrl(initialUrl ?? null);
+  }, [initialUrl]);
+
+  const handleFile = async (file: File) => {
+    if (!productId) return;
+    setBusy(true);
+    setError(null);
+    try {
+      setUrl(await uploadProductShareImage(productId, file));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Upload failed");
+    } finally {
+      setBusy(false);
+      if (inputRef.current) inputRef.current.value = "";
+    }
+  };
+
+  const handleRemove = async () => {
+    if (!productId) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await deleteProductShareImage(productId);
+      setUrl(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Remove failed");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const labelStyle = { fontFamily: "'DM Sans', sans-serif", color: "rgba(45,36,30,0.4)", letterSpacing: "0.14em" } as const;
+  const buttonStyle = { fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.12em" } as const;
+
+  return (
+    <div>
+      <label className="block text-xs mb-2 tracking-widest uppercase" style={labelStyle}>
+        Share / Email Photo
+      </label>
+      {!productId ? (
+        <p className="text-xs" style={{ fontFamily: "'DM Sans', sans-serif", color: "rgba(45,36,30,0.4)" }}>
+          Save the product first, then add a dedicated photo for link previews and order emails.
+        </p>
+      ) : (
+        <div className="flex items-center gap-4">
+          {url ? (
+            <img src={url} alt="" className="w-16 h-16 object-cover rounded-[10px]" style={{ backgroundColor: "rgba(45,36,30,0.06)" }} />
+          ) : (
+            <div
+              className="w-16 h-16 rounded-[10px] flex items-center justify-center text-[10px]"
+              style={{ backgroundColor: "rgba(45,36,30,0.06)", color: "rgba(45,36,30,0.35)", fontFamily: "'DM Sans', sans-serif" }}
+            >
+              None
+            </div>
+          )}
+          <div className="flex flex-col gap-2">
+            <div className="flex gap-2">
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => inputRef.current?.click()}
+                className="px-4 py-2 rounded-full text-xs uppercase tracking-widest transition-colors duration-200 disabled:opacity-50"
+                style={{ ...buttonStyle, backgroundColor: "rgba(45,36,30,0.06)", color: "#2D241E" }}
+              >
+                {url ? "Replace" : "Upload"}
+              </button>
+              {url ? (
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={handleRemove}
+                  className="px-4 py-2 rounded-full text-xs uppercase tracking-widest transition-colors duration-200 disabled:opacity-50"
+                  style={{ ...buttonStyle, backgroundColor: "rgba(74,14,14,0.08)", color: "#4A0E0E" }}
+                >
+                  Remove
+                </button>
+              ) : null}
+            </div>
+            <p className="text-[10px]" style={{ fontFamily: "'DM Sans', sans-serif", color: "rgba(45,36,30,0.35)" }}>
+              Used for link-share previews and order emails. Falls back to the product card photo if unset.
+            </p>
+            {error ? (
+              <p className="text-[10px]" style={{ color: "#B42318", fontFamily: "'DM Sans', sans-serif" }}>{error}</p>
+            ) : null}
+          </div>
+          <input
+            ref={inputRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (file) void handleFile(file);
+            }}
+          />
+        </div>
+      )}
+    </div>
+  );
+}
 
 type ProductModalTab = "details" | "suggested" | "preview";
 
@@ -1472,6 +1581,8 @@ function ProductModal({
           {formErrors.name && (
             <p className="text-xs text-[#B42318] -mt-2" style={{ fontFamily: "'DM Sans', sans-serif" }}>{formErrors.name}</p>
           )}
+
+          <ShareImageEditor productId={product?.idNum ?? null} initialUrl={product?.shareImageUrl} />
 
           {/* Price, Category, SKU */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">

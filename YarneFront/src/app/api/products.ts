@@ -43,6 +43,8 @@ export interface ProductDto {
   price: number;
   material: string | null;
   primaryImage: ProductImageDto | null;
+  /** Dedicated photo for link-share previews and order emails. Null = falls back to primaryImage. */
+  shareImageUrl?: string | null;
   images: ProductImageDto[];
   colors?: ColorVariantDto[];
   furnitureColors?: FurnitureColorVariantDto[];
@@ -182,4 +184,19 @@ export async function updateFocalPoint(imageUrl: string, focalX: number, focalY:
     method: "PATCH",
     body: JSON.stringify({ imageUrl, focalX, focalY }),
   });
+}
+
+/** Uploads the product's dedicated photo for link-share previews and order emails (stored in R2). */
+export async function uploadProductShareImage(id: number, file: File): Promise<string> {
+  const formData = new FormData();
+  formData.append("file", file, file.name);
+  const result = await apiRequest<{ shareImageUrl: string }>(`/api/products/${id}/share-image`, {
+    method: "POST",
+    body: formData,
+  });
+  return result.shareImageUrl;
+}
+
+export async function deleteProductShareImage(id: number): Promise<void> {
+  await apiRequest(`/api/products/${id}/share-image`, { method: "DELETE" });
 }

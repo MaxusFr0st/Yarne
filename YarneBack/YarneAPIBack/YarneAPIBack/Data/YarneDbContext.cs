@@ -399,6 +399,7 @@ public partial class YarneDbContext : DbContext
 
             entity.Property(e => e.CreatedAt).HasDefaultValueSql("CURRENT_TIMESTAMP");
             entity.Property(e => e.ImageUrl).HasMaxLength(500);
+            entity.Property(e => e.ShareImageUrl).HasMaxLength(500);
             entity.Property(e => e.IsActive).HasDefaultValue(true);
             entity.Property(e => e.IsNew).HasDefaultValue(false);
             entity.Property(e => e.IsBestseller).HasDefaultValue(false);

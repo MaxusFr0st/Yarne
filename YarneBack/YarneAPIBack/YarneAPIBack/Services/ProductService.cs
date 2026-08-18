@@ -454,6 +454,16 @@ public class ProductService : IProductService
             throw new InvalidOperationException("Price cannot be negative.");
     }
 
+    public async Task<ProductDto?> SetShareImageUrlAsync(int id, string? shareImageUrl, CancellationToken ct = default)
+    {
+        var updated = await _context.Products
+            .Where(p => p.Id == id)
+            .ExecuteUpdateAsync(s => s.SetProperty(p => p.ShareImageUrl, shareImageUrl), ct);
+        if (updated == 0) return null;
+
+        return await GetProductByIdAsync(id, ct: ct);
+    }
+
     public async Task<bool> DeleteProductAsync(int id, CancellationToken ct = default)
     {
         var product = await _context.Products
@@ -618,6 +628,7 @@ public class ProductService : IProductService
             Price = p.Price,
             Material = p.Material,
             PrimaryImage = images.FirstOrDefault() ?? ToImageDto(p.ImageUrl),
+            ShareImageUrl = p.ShareImageUrl,
             Images = images,
             Colors = colors,
             FurnitureColors = furnitureColors,
@@ -666,6 +677,7 @@ public class ProductService : IProductService
             Price = baseDto.Price,
             Material = baseDto.Material,
             PrimaryImage = baseDto.PrimaryImage,
+            ShareImageUrl = baseDto.ShareImageUrl,
             Images = baseDto.Images,
             CategoryName = baseDto.CategoryName,
             CollectionName = baseDto.CollectionName,

@@ -20,9 +20,9 @@ RUN node ./node_modules/vite/bin/vite.js build && node scripts/generate-serve-he
 FROM node:20-alpine AS runtime
 WORKDIR /app
 
-RUN npm install -g serve
 COPY --from=build /app/dist ./dist
 COPY scripts/generate-serve-headers.mjs ./scripts/generate-serve-headers.mjs
+COPY scripts/server.mjs ./scripts/server.mjs
 COPY scripts/docker-entrypoint.sh ./scripts/docker-entrypoint.sh
 RUN chmod +x ./scripts/docker-entrypoint.sh
 

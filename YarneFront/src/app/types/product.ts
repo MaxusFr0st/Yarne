@@ -55,4 +55,6 @@ export interface Product {
   suggestedProducts?: Product[];
   hasConfiguredSuggestions?: boolean;
   producerName?: string;
+  /** Dedicated photo for link-share previews and order emails. Null/undefined = falls back to the primary product image. */
+  shareImageUrl?: string | null;
 }

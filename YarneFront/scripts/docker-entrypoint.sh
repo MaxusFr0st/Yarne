@@ -14,4 +14,4 @@ EOF
   node /app/scripts/generate-serve-headers.mjs
 fi
 
-exec serve -s dist -l 8080
+exec node ./scripts/server.mjs

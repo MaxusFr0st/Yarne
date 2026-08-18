@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using SixLabors.ImageSharp;
 using YarneAPIBack.Configuration;
 using YarneAPIBack.DTOs.Product;
 using YarneAPIBack.Services;
@@ -11,13 +12,23 @@ namespace YarneAPIBack.Controllers;
 [Route("api/[controller]")]
 public class ProductsController : ControllerBase
 {
+    private const int MaxShareImageSizeBytes = 15 * 1024 * 1024; // 15 MB — normalized to WebP on save
+
     private readonly IProductService _productService;
     private readonly IAdminActivityLogService _activityLogs;
+    private readonly IImageUploadNormalizer _imageNormalizer;
+    private readonly IR2ImageStorageService _r2Storage;
 
-    public ProductsController(IProductService productService, IAdminActivityLogService activityLogs)
+    public ProductsController(
+        IProductService productService,
+        IAdminActivityLogService activityLogs,
+        IImageUploadNormalizer imageNormalizer,
+        IR2ImageStorageService r2Storage)
     {
         _productService = productService;
         _activityLogs = activityLogs;
+        _imageNormalizer = imageNormalizer;
+        _r2Storage = r2Storage;
     }
 
     [HttpGet]
@@ -206,6 +217,98 @@ public class ProductsController : ControllerBase
                 actorEmail,
                 ct);
         }
+
+        return NoContent();
+    }
+
+    /// <summary>
+    /// Uploads the product's dedicated photo for link-share previews and order emails (stored in R2).
+    /// Distinct from the storefront product-card gallery managed via /api/images.
+    /// </summary>
+    [HttpPost("{id}/share-image")]
+    [Authorize(Roles = "Admin")]
+    [RequestSizeLimit(MaxShareImageSizeBytes)]
+    [ProducesResponseType(typeof(object), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<object>> UploadShareImage(int id, IFormFile file, CancellationToken ct = default)
+    {
+        if (!_r2Storage.IsConfigured)
+            return BadRequest(new { message = "R2 storage is not configured" });
+        if (file == null || file.Length == 0)
+            return BadRequest(new { message = "No file uploaded" });
+
+        var existing = await _productService.GetProductByIdAsync(id, ct: ct);
+        if (existing == null) return NotFound();
+
+        NormalizedUploadImage normalized;
+        await using (var uploadStream = file.OpenReadStream())
+        {
+            try
+            {
+                normalized = await _imageNormalizer.NormalizeAsync(uploadStream, ct);
+            }
+            catch (UnknownImageFormatException)
+            {
+                return BadRequest(new { message = "Could not read image file" });
+            }
+            catch (InvalidImageContentException)
+            {
+                return BadRequest(new { message = "Image file is corrupted or unsupported" });
+            }
+        }
+
+        string url;
+        await using (normalized.Output)
+        {
+            url = await _r2Storage.UploadAsync(normalized.Output, normalized.ContentType, normalized.FileExtension, ct);
+        }
+
+        var product = await _productService.SetShareImageUrlAsync(id, url, ct);
+        if (product == null) return NotFound();
+
+        if (!string.IsNullOrWhiteSpace(existing.ShareImageUrl))
+            await _r2Storage.DeleteAsync(existing.ShareImageUrl, ct);
+
+        var (actorUserId, actorEmail) = AdminActivityLogHelper.GetActor(HttpContext);
+        await _activityLogs.LogAsync(
+            "product",
+            "share-image-updated",
+            $"Updated share image for \"{product.Name}\" ({product.ProductCode})",
+            product.Id.ToString(),
+            product.Name,
+            new { shareImageUrl = url },
+            actorUserId,
+            actorEmail,
+            ct);
+
+        return Ok(new { shareImageUrl = url });
+    }
+
+    [HttpDelete("{id}/share-image")]
+    [Authorize(Roles = "Admin")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult> DeleteShareImage(int id, CancellationToken ct = default)
+    {
+        var existing = await _productService.GetProductByIdAsync(id, ct: ct);
+        if (existing == null) return NotFound();
+
+        await _productService.SetShareImageUrlAsync(id, null, ct);
+        if (!string.IsNullOrWhiteSpace(existing.ShareImageUrl))
+            await _r2Storage.DeleteAsync(existing.ShareImageUrl, ct);
+
+        var (actorUserId, actorEmail) = AdminActivityLogHelper.GetActor(HttpContext);
+        await _activityLogs.LogAsync(
+            "product",
+            "share-image-removed",
+            $"Removed share image for \"{existing.Name}\" ({existing.ProductCode})",
+            id.ToString(),
+            existing.Name,
+            new { },
+            actorUserId,
+            actorEmail,
+            ct);
 
         return NoContent();
     }

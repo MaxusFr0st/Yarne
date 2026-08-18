@@ -16,6 +16,9 @@ public class ProductDto
 
     public ProductImageDto? PrimaryImage { get; set; }
 
+    /// <summary>Dedicated photo for link-share previews and order emails. Null = falls back to PrimaryImage.</summary>
+    public string? ShareImageUrl { get; set; }
+
     public List<ProductImageDto> Images { get; set; } = new();
 
     public List<ColorVariantDto> Colors { get; set; } = new();

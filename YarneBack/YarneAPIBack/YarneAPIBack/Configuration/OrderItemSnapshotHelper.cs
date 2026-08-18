@@ -9,7 +9,9 @@ public static class OrderItemSnapshotHelper
         item.ProductId = product.Id;
         item.ProductName = product.Name;
         item.ProductCode = product.ProductCode;
-        item.ProductImageUrl = ResolvePrimaryImageUrl(product);
+        item.ProductImageUrl = !string.IsNullOrWhiteSpace(product.ShareImageUrl)
+            ? product.ShareImageUrl
+            : ResolvePrimaryImageUrl(product);
     }
 
     public static string ResolveProductName(OrderItem item) =>
@@ -25,7 +27,9 @@ public static class OrderItemSnapshotHelper
     public static string? ResolveProductImageUrl(OrderItem item) =>
         !string.IsNullOrWhiteSpace(item.ProductImageUrl)
             ? item.ProductImageUrl
-            : ResolvePrimaryImageUrl(item.Product);
+            : !string.IsNullOrWhiteSpace(item.Product?.ShareImageUrl)
+                ? item.Product!.ShareImageUrl
+                : ResolvePrimaryImageUrl(item.Product);
 
     public static string? ResolvePrimaryImageUrl(Product? product)
     {

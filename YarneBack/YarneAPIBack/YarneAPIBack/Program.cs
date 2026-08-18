@@ -61,6 +61,15 @@ builder.Services.Configure<CloudinarySettings>(options =>
     options.UploadPreset = Environment.GetEnvironmentVariable("CLOUDINARY_UPLOAD_PRESET") ?? options.UploadPreset;
     options.Folder = Environment.GetEnvironmentVariable("CLOUDINARY_FOLDER") ?? options.Folder;
 });
+builder.Services.Configure<R2Settings>(options =>
+{
+    options.AccountId = Environment.GetEnvironmentVariable("R2_ACCOUNT_ID") ?? options.AccountId;
+    options.AccessKeyId = Environment.GetEnvironmentVariable("R2_ACCESS_KEY_ID") ?? options.AccessKeyId;
+    options.SecretAccessKey = Environment.GetEnvironmentVariable("R2_SECRET_ACCESS_KEY") ?? options.SecretAccessKey;
+    options.BucketName = Environment.GetEnvironmentVariable("R2_BUCKET_NAME") ?? options.BucketName;
+    options.PublicUrl = Environment.GetEnvironmentVariable("R2_PUBLIC_URL") ?? options.PublicUrl;
+});
+builder.Services.AddSingleton<IR2ImageStorageService, R2ImageStorageService>();
 var jwtSettings = builder.Configuration.GetSection(JwtSettings.SectionName).Get<JwtSettings>()
     ?? new JwtSettings();
 builder.Configuration.GetSection(JwtSettings.SectionName).Bind(jwtSettings);
