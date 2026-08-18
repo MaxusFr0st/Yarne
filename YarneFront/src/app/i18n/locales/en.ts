@@ -57,13 +57,6 @@ const en = {
       eyebrow: "Most Loved",
       title: "Best Sellers",
     },
-    featured: {
-      eyebrow: "Curated Pieces",
-      title: "Featured this season",
-      viewAll: "View all",
-      shopAllPieces_one: "Shop All {{count}} Piece",
-      shopAllPieces_other: "Shop All {{count}} Pieces",
-    },
     editorial: {
       eyebrow: "Our Philosophy",
       titleLine1: "Every stitch tells",
@@ -74,16 +67,6 @@ const en = {
         "A Yarné piece is not designed for one season. It is designed to be worn, reworn, and passed on — a small act of resistance against disposable fashion.",
       ourStory: "Our Story",
       yearsLabel: "Years of craft",
-    },
-    lookbook: {
-      eyebrow: "Lookbook — Winter 2026",
-      titleLine1: "The art of dressing",
-      titleLine2: "for yourself",
-      cta: "View Lookbook",
-    },
-    moreFromCollection: {
-      eyebrow: "Complete the look",
-      title: "More from the collection",
     },
     why: {
       eyebrow: "The Craft",

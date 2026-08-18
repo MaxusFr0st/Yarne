@@ -1,17 +1,11 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { motion, useReducedMotion, useScroll, useTransform } from "motion/react";
 import { ArrowRight, ChevronDown } from "lucide-react";
 import { useHomePageCopy } from "../hooks/useHomePageCopy";
-import { useProducts } from "../hooks/useProducts";
-import { ProductCard } from "../components/ProductCard";
 import { BestSellersCarousel } from "../components/BestSellersCarousel";
 import { FeaturedShowcase } from "../components/FeaturedShowcase";
 import { ImageWithFallback as Img } from "../components/figma/ImageWithFallback";
 import { LangLink } from "../i18n/LangLink";
-import {
-  getDefaultHomeSectionsSelection,
-  loadHomeSectionsSelection,
-} from "../utils/homeSectionsSelection";
 import {
   getDefaultHomePageMediaSelection,
   getInitialHomePageMediaSelection,
@@ -56,19 +50,14 @@ export function Home() {
   const heroY = useTransform(heroScroll, [0, 1], ["0%", "22%"]);
   const editorialY = useTransform(editorialScroll, [0, 1], ["0%", "-10%"]);
 
-  const { products } = useProducts();
-  const [homeSectionsSelection, setHomeSectionsSelection] = useState(getDefaultHomeSectionsSelection);
   const [homePageMedia, setHomePageMedia] = useState(getInitialHomePageMediaSelection);
 
   useEffect(() => {
     let cancelled = false;
-    void Promise.all([loadHomeSectionsSelection(), loadHomePageMediaSelection()]).then(
-      ([sections, media]) => {
-        if (cancelled) return;
-        setHomeSectionsSelection(sections);
-        setHomePageMedia(media);
-      }
-    );
+    void loadHomePageMediaSelection().then((media) => {
+      if (cancelled) return;
+      setHomePageMedia(media);
+    });
     return () => {
       cancelled = true;
     };
@@ -76,7 +65,6 @@ export function Home() {
 
   const heroImageSrc = homePageMedia.heroImageUrl.trim();
   const editorialImageSrc = homePageMedia.editorialImageUrl.trim();
-  const lookbookImageSrc = homePageMedia.lookbookImageUrl.trim();
 
   useEffect(() => {
     const resolvedHero = resolveMediaUrl(heroImageSrc);
@@ -86,21 +74,6 @@ export function Home() {
     img.fetchPriority = "high";
     img.src = resolvedHero;
   }, [heroImageSrc]);
-
-  const featured = useMemo(() => {
-    const selected = homeSectionsSelection.featuredProductCodes
-      .map((code) => products.find((product) => product.id === code))
-      .filter((product): product is (typeof products)[number] => Boolean(product));
-    return selected.length > 0 ? selected : products.slice(0, 4);
-  }, [homeSectionsSelection.featuredProductCodes, products]);
-
-  const moreFromCollectionProducts = useMemo(() => {
-    const selected = homeSectionsSelection.moreFromCollectionProductCodes
-      .map((code) => products.find((product) => product.id === code))
-      .filter((product): product is (typeof products)[number] => Boolean(product));
-    return selected.length > 0 ? selected : products.slice(3);
-  }, [homeSectionsSelection.moreFromCollectionProductCodes, products]);
-
 
   return (
     <main
@@ -220,51 +193,6 @@ export function Home() {
         <BestSellersCarousel />
       </ScrollReveal>
 
-      {/* ─── FEATURED GRID ─── */}
-      <ScrollReveal {...SECTION_REVEAL}>
-      <section className="relative py-12 md:py-16 bg-gradient-to-b from-[#EDE9E2]/70 via-[#EDE9E2]/45 to-[#F5F2ED]">
-        <div className="max-w-[1400px] mx-auto px-6 md:px-10">
-          <ScrollReveal className="md:sticky z-30 mb-10 md:mb-12 -mx-6 md:-mx-10 px-6 md:px-10 py-4 flex items-end justify-between gap-4 border-b border-[#2D241E]/6 md:border-0" style={{ top: "var(--main-header-h)", backgroundColor: "rgba(237,233,226,0.9)", backdropFilter: "blur(8px)" }}>
-            <div>
-              <SectionEyebrow>{copy.featured.eyebrow}</SectionEyebrow>
-              <SectionTitle>
-                {copy.featured.title}
-              </SectionTitle>
-            </div>
-            <LangLink
-              to="/collection"
-              className="hidden md:flex items-center gap-2 text-[#2D241E]/55 hover:text-[#4A0E0E] transition-colors duration-200 group shrink-0 cursor-pointer"
-              style={{ fontSize: "0.75rem", letterSpacing: "0.14em" }}
-            >
-              <span className="uppercase tracking-widest">{copy.featured.viewAll}</span>
-              <ArrowRight size={14} className="group-hover:translate-x-0.5 transition-transform duration-200" />
-            </LangLink>
-          </ScrollReveal>
-
-          <div className="grid grid-cols-1 min-[540px]:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-y-9 gap-x-5 md:gap-x-6 xl:gap-7">
-            {featured.map((product, i) => (
-              <ScrollReveal key={product.id} delay={i * 0.05} y={18}>
-                <ProductCard product={product} index={i} subtleEntrance />
-              </ScrollReveal>
-            ))}
-          </div>
-
-          <ScrollReveal delay={0.15} className="flex justify-center mt-12 md:mt-14">
-            <LangLink
-              to="/collection"
-              className="group flex items-center gap-3 px-9 py-4 rounded-full bg-[#2D241E] text-[#F5F2ED] hover:bg-[#4A0E0E] transition-colors duration-200 cursor-pointer"
-              style={{ fontSize: "0.75rem", letterSpacing: "0.15em" }}
-            >
-              <span className="uppercase tracking-widest">
-                {copy.featured.shopAllPieces.replace("{{count}}", String(products.length))}
-              </span>
-              <ArrowRight size={14} className="group-hover:translate-x-0.5 transition-transform duration-200" />
-            </LangLink>
-          </ScrollReveal>
-        </div>
-      </section>
-      </ScrollReveal>
-
       {/* ─── EDITORIAL ─── */}
       <ScrollReveal {...SECTION_REVEAL}>
       <section ref={editorialRef} className="relative py-16 md:py-24 overflow-hidden bg-[#F5F2ED]">
@@ -328,78 +256,6 @@ export function Home() {
                 </LangLink>
               </ScrollReveal>
             </div>
-          </div>
-        </div>
-      </section>
-      </ScrollReveal>
-
-      {/* ─── LOOKBOOK BANNER ─── */}
-      <ScrollReveal {...SECTION_REVEAL}>
-      <section className="relative overflow-hidden h-[min(70vh,640px)] min-h-[380px]">
-        <div className="absolute inset-0">
-          {lookbookImageSrc ? (
-            <Img
-              src={lookbookImageSrc}
-              alt="Lookbook"
-              className="h-full w-full object-cover"
-              style={{ objectPosition: `${(homePageMedia.lookbookFocalX * 100).toFixed(1)}% ${(homePageMedia.lookbookFocalY * 100).toFixed(1)}%` }}
-            />
-          ) : (
-            <div className="h-full w-full bg-[#2D241E]/25" />
-          )}
-          <div
-            className="absolute inset-0"
-            style={{ background: "linear-gradient(120deg, rgba(45,36,30,0.82) 0%, rgba(45,36,30,0.25) 100%)" }}
-          />
-        </div>
-        <div className="relative z-10 h-full flex flex-col items-center justify-center text-center px-6">
-          <ScrollReveal>
-            <p
-              className="text-white/55 tracking-[0.28em] uppercase text-[0.65rem] mb-4"
-              style={{ fontFamily: "'DM Sans', sans-serif" }}
-            >
-              {copy.lookbook.eyebrow}
-            </p>
-            <h2
-              className="text-white font-light leading-[1.12] mb-8"
-              style={{
-                fontFamily: "'Cormorant Garamond', serif",
-                fontSize: "clamp(2rem, 5.5vw, 3.75rem)",
-              }}
-            >
-              {copy.lookbook.titleLine1}
-              <br />
-              {copy.lookbook.titleLine2}
-            </h2>
-            <LangLink
-              to="/collection"
-              className="inline-flex px-9 py-3.5 rounded-full border border-white/40 text-white hover:bg-white hover:text-[#2D241E] transition-colors duration-200 cursor-pointer"
-              style={{ fontSize: "0.75rem", letterSpacing: "0.15em" }}
-            >
-              <span className="uppercase tracking-widest">{copy.lookbook.cta}</span>
-            </LangLink>
-          </ScrollReveal>
-        </div>
-      </section>
-      </ScrollReveal>
-
-      {/* ─── MORE FROM COLLECTION ─── */}
-      <ScrollReveal {...SECTION_REVEAL}>
-      <section className="relative py-12 md:py-16 bg-[#F5F2ED]">
-        <div className="max-w-[1400px] mx-auto px-6 md:px-10">
-          <ScrollReveal className="text-center mb-10 md:mb-14 md:sticky z-30 -mx-6 md:-mx-10 px-6 md:px-10 py-4" style={{ top: "var(--main-header-h)", backgroundColor: "rgba(245,242,237,0.88)", backdropFilter: "blur(10px)" }}>
-            <SectionEyebrow className="mb-2">{copy.moreFromCollection.eyebrow}</SectionEyebrow>
-            <SectionTitle>
-              {copy.moreFromCollection.title}
-            </SectionTitle>
-          </ScrollReveal>
-
-          <div className="grid grid-cols-1 min-[540px]:grid-cols-2 lg:grid-cols-3 gap-y-10 gap-x-6 lg:gap-8">
-            {moreFromCollectionProducts.map((product, i) => (
-              <ScrollReveal key={product.id} delay={(i % 3) * 0.06} y={16}>
-                <ProductCard product={product} index={i} size="collection" subtleEntrance />
-              </ScrollReveal>
-            ))}
           </div>
         </div>
       </section>

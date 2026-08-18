@@ -23,12 +23,6 @@ export type HomePageCopyLocale = {
     eyebrow: string;
     title: string;
   };
-  featured: {
-    eyebrow: string;
-    title: string;
-    viewAll: string;
-    shopAllPieces: string;
-  };
   editorial: {
     eyebrow: string;
     titleLine1: string;
@@ -37,16 +31,6 @@ export type HomePageCopyLocale = {
     paragraph2: string;
     ourStory: string;
   };
-  lookbook: {
-    eyebrow: string;
-    titleLine1: string;
-    titleLine2: string;
-    cta: string;
-  };
-  moreFromCollection: {
-    eyebrow: string;
-    title: string;
-  };
 };
 
 export type HomePageCopy = Record<Locale, HomePageCopyLocale>;
@@ -54,7 +38,6 @@ export type HomePageCopy = Record<Locale, HomePageCopyLocale>;
 function pickLocaleCopy(
   home: typeof en.home,
   showcase: typeof en.showcase,
-  locale: "en" | "uk",
 ): HomePageCopyLocale {
   return {
     hero: {
@@ -74,12 +57,6 @@ function pickLocaleCopy(
       eyebrow: showcase.defaultEyebrow,
       title: showcase.defaultTitle,
     },
-    featured: {
-      eyebrow: home.featured.eyebrow,
-      title: home.featured.title,
-      viewAll: home.featured.viewAll,
-      shopAllPieces: locale === "uk" ? "Усі {{count}} речі" : "Shop All {{count}} Pieces",
-    },
     editorial: {
       eyebrow: home.editorial.eyebrow,
       titleLine1: home.editorial.titleLine1,
@@ -88,22 +65,12 @@ function pickLocaleCopy(
       paragraph2: home.editorial.paragraph2,
       ourStory: home.editorial.ourStory,
     },
-    lookbook: {
-      eyebrow: home.lookbook.eyebrow,
-      titleLine1: home.lookbook.titleLine1,
-      titleLine2: home.lookbook.titleLine2,
-      cta: home.lookbook.cta,
-    },
-    moreFromCollection: {
-      eyebrow: home.moreFromCollection.eyebrow,
-      title: home.moreFromCollection.title,
-    },
   };
 }
 
 export const DEFAULT_HOME_PAGE_COPY: HomePageCopy = {
-  en: pickLocaleCopy(en.home, en.showcase, "en"),
-  uk: pickLocaleCopy(uk.home, uk.showcase, "uk"),
+  en: pickLocaleCopy(en.home, en.showcase),
+  uk: pickLocaleCopy(uk.home, uk.showcase),
 };
 
 function normalizeString(value: unknown, fallback: string): string {
@@ -121,21 +88,9 @@ function normalizeLocaleCopy(value: unknown, fallback: HomePageCopyLocale): Home
     typeof source.showcase === "object" && source.showcase !== null
       ? (source.showcase as Record<string, unknown>)
       : {};
-  const featured =
-    typeof source.featured === "object" && source.featured !== null
-      ? (source.featured as Record<string, unknown>)
-      : {};
   const editorial =
     typeof source.editorial === "object" && source.editorial !== null
       ? (source.editorial as Record<string, unknown>)
-      : {};
-  const lookbook =
-    typeof source.lookbook === "object" && source.lookbook !== null
-      ? (source.lookbook as Record<string, unknown>)
-      : {};
-  const moreFromCollection =
-    typeof source.moreFromCollection === "object" && source.moreFromCollection !== null
-      ? (source.moreFromCollection as Record<string, unknown>)
       : {};
 
   return {
@@ -156,12 +111,6 @@ function normalizeLocaleCopy(value: unknown, fallback: HomePageCopyLocale): Home
       eyebrow: normalizeString(showcase.eyebrow, fallback.showcase.eyebrow),
       title: normalizeString(showcase.title, fallback.showcase.title),
     },
-    featured: {
-      eyebrow: normalizeString(featured.eyebrow, fallback.featured.eyebrow),
-      title: normalizeString(featured.title, fallback.featured.title),
-      viewAll: normalizeString(featured.viewAll, fallback.featured.viewAll),
-      shopAllPieces: normalizeString(featured.shopAllPieces, fallback.featured.shopAllPieces),
-    },
     editorial: {
       eyebrow: normalizeString(editorial.eyebrow, fallback.editorial.eyebrow),
       titleLine1: normalizeString(editorial.titleLine1, fallback.editorial.titleLine1),
@@ -169,16 +118,6 @@ function normalizeLocaleCopy(value: unknown, fallback: HomePageCopyLocale): Home
       paragraph1: normalizeString(editorial.paragraph1, fallback.editorial.paragraph1),
       paragraph2: normalizeString(editorial.paragraph2, fallback.editorial.paragraph2),
       ourStory: normalizeString(editorial.ourStory, fallback.editorial.ourStory),
-    },
-    lookbook: {
-      eyebrow: normalizeString(lookbook.eyebrow, fallback.lookbook.eyebrow),
-      titleLine1: normalizeString(lookbook.titleLine1, fallback.lookbook.titleLine1),
-      titleLine2: normalizeString(lookbook.titleLine2, fallback.lookbook.titleLine2),
-      cta: normalizeString(lookbook.cta, fallback.lookbook.cta),
-    },
-    moreFromCollection: {
-      eyebrow: normalizeString(moreFromCollection.eyebrow, fallback.moreFromCollection.eyebrow),
-      title: normalizeString(moreFromCollection.title, fallback.moreFromCollection.title),
     },
   };
 }

@@ -57,15 +57,6 @@ const uk: Translations = {
       eyebrow: "Найулюбленіші",
       title: "Бестселери",
     },
-    featured: {
-      eyebrow: "Кураторський вибір",
-      title: "Добірка сезону",
-      viewAll: "Дивитись усе",
-      shopAllPieces_one: "Переглянути {{count}} модель",
-      shopAllPieces_few: "Переглянути {{count}} моделі",
-      shopAllPieces_many: "Переглянути всі {{count}} моделей",
-      shopAllPieces_other: "Переглянути {{count}} моделей",
-    },
     editorial: {
       eyebrow: "Наша філософія",
       titleLine1: "Кожен стібок розповідає",
@@ -76,16 +67,6 @@ const uk: Translations = {
         "Виріб Yarné створено не для одного сезону. Його носять, переносять і передають далі — як тихий жест супротиву одноразовій моді.",
       ourStory: "Наша історія",
       yearsLabel: "роки майстерності",
-    },
-    lookbook: {
-      eyebrow: "Лукбук — Зима 2026",
-      titleLine1: "Мистецтво вдягатися",
-      titleLine2: "для себе",
-      cta: "Переглянути лукбук",
-    },
-    moreFromCollection: {
-      eyebrow: "Завершіть образ",
-      title: "Більше з колекції",
     },
     why: {
       eyebrow: "Майстерність",

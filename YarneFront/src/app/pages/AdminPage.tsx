@@ -38,12 +38,6 @@ import {
   persistCarouselSelection,
 } from "../utils/carouselSelection";
 import {
-  getDefaultHomeSectionsSelection,
-  loadHomeSectionsSelectionForAdmin,
-  persistHomeSectionsSelection,
-  type HomeSectionsSelection,
-} from "../utils/homeSectionsSelection";
-import {
   getDefaultFeaturedShowcaseSelection,
   loadFeaturedShowcaseSelectionForAdmin,
   persistFeaturedShowcaseSelection,
@@ -3093,9 +3087,6 @@ export function AdminPage() {
   const [orderDeliveryDrafts, setOrderDeliveryDrafts] = useState<Record<number, string>>({});
   const [expandedOrders, setExpandedOrders] = useState<Record<number, boolean>>({});
   const [carouselProductCodes, setCarouselProductCodes] = useState<string[]>([]);
-  const [homeSectionsSelection, setHomeSectionsSelection] = useState<HomeSectionsSelection>(
-    getDefaultHomeSectionsSelection
-  );
   const [featuredShowcaseSelection, setFeaturedShowcaseSelectionState] =
     useState<FeaturedShowcaseSelection>(getDefaultFeaturedShowcaseSelection);
   const [showcaseUploading, setShowcaseUploading] = useState<Record<string, boolean>>({});
@@ -3114,7 +3105,7 @@ export function AdminPage() {
   const [homeMediaUploading, setHomeMediaUploading] = useState<Record<string, boolean>>({});
   const [homeMediaUploadError, setHomeMediaUploadError] = useState<string | null>(null);
   const [homeFocalEditor, setHomeFocalEditor] = useState<{
-    field: "hero" | "editorial" | "lookbook";
+    field: "hero" | "editorial";
     imageSrc: string;
     focalX: number;
     focalY: number;
@@ -3187,9 +3178,8 @@ export function AdminPage() {
     let cancelled = false;
     const syncFromApi = async () => {
       try {
-        const [carousel, home, showcase, media, guarantee, shareDefault] = await Promise.all([
+        const [carousel, showcase, media, guarantee, shareDefault] = await Promise.all([
           loadCarouselSelectionForAdmin(),
-          loadHomeSectionsSelectionForAdmin(),
           loadFeaturedShowcaseSelectionForAdmin(),
           loadHomePageMediaSelectionForAdmin(),
           loadProductGuaranteeContentForAdmin(),
@@ -3197,7 +3187,6 @@ export function AdminPage() {
         ]);
         if (cancelled) return;
         setCarouselProductCodes(carousel.productCodes);
-        setHomeSectionsSelection(home);
         setFeaturedShowcaseSelectionState(showcase);
         setHomePageMedia(media);
         setProductGuaranteeContent(guarantee);
@@ -3255,14 +3244,6 @@ export function AdminPage() {
   }, [activeTab, logsSubTab, apiAvailable]);
 
   const carouselProductSet = useMemo(() => new Set(carouselProductCodes), [carouselProductCodes]);
-  const featuredHomeProductSet = useMemo(
-    () => new Set(homeSectionsSelection.featuredProductCodes),
-    [homeSectionsSelection.featuredProductCodes]
-  );
-  const moreFromCollectionProductSet = useMemo(
-    () => new Set(homeSectionsSelection.moreFromCollectionProductCodes),
-    [homeSectionsSelection.moreFromCollectionProductCodes]
-  );
 
   const carouselProducts = useMemo(
     () =>
@@ -3279,61 +3260,6 @@ export function AdminPage() {
       .catch((e) =>
         setSaveError(e instanceof Error ? e.message : "Failed to save carousel to server.")
       );
-  };
-
-  const featuredHomeProducts = useMemo(
-    () =>
-      homeSectionsSelection.featuredProductCodes
-        .map((code) => products.find((p) => p.id === code))
-        .filter((p): p is AdminProduct => Boolean(p)),
-    [homeSectionsSelection.featuredProductCodes, products]
-  );
-
-  const moreFromCollectionProducts = useMemo(
-    () =>
-      homeSectionsSelection.moreFromCollectionProductCodes
-        .map((code) => products.find((p) => p.id === code))
-        .filter((p): p is AdminProduct => Boolean(p)),
-    [homeSectionsSelection.moreFromCollectionProductCodes, products]
-  );
-
-  const updateHomeSelection = (next: HomeSectionsSelection) => {
-    setSaveError(null);
-    void persistHomeSectionsSelection(next)
-      .then((selection) => setHomeSectionsSelection(selection))
-      .catch((e) =>
-        setSaveError(e instanceof Error ? e.message : "Failed to save home sections to server.")
-      );
-  };
-
-  const addFeaturedHomeProduct = (productCode: string) => {
-    if (featuredHomeProductSet.has(productCode)) return;
-    updateHomeSelection({
-      ...homeSectionsSelection,
-      featuredProductCodes: [...homeSectionsSelection.featuredProductCodes, productCode],
-    });
-  };
-
-  const removeFeaturedHomeProduct = (productCode: string) => {
-    updateHomeSelection({
-      ...homeSectionsSelection,
-      featuredProductCodes: homeSectionsSelection.featuredProductCodes.filter((code) => code !== productCode),
-    });
-  };
-
-  const addMoreFromCollectionProduct = (productCode: string) => {
-    if (moreFromCollectionProductSet.has(productCode)) return;
-    updateHomeSelection({
-      ...homeSectionsSelection,
-      moreFromCollectionProductCodes: [...homeSectionsSelection.moreFromCollectionProductCodes, productCode],
-    });
-  };
-
-  const removeMoreFromCollectionProduct = (productCode: string) => {
-    updateHomeSelection({
-      ...homeSectionsSelection,
-      moreFromCollectionProductCodes: homeSectionsSelection.moreFromCollectionProductCodes.filter((code) => code !== productCode),
-    });
   };
 
   const updateFeaturedShowcaseSelection = (next: FeaturedShowcaseSelection) => {
@@ -3381,7 +3307,6 @@ export function AdminPage() {
   const HOME_MEDIA_ASPECT: Record<HomeMediaField, number> = {
     heroImageUrl: 16 / 10,
     editorialImageUrl: 4 / 5,
-    lookbookImageUrl: 16 / 9,
   };
 
   const SHOWCASE_SLOT_ASPECT = {
@@ -3395,8 +3320,6 @@ export function AdminPage() {
       "Crop ratio: 16 × 10 — matches the home page hero. Re-crop opens the original so you can zoom out and show more.",
     editorialImageUrl:
       "Crop ratio: 4 × 5 — matches the editorial image block. Re-crop opens the original so you can zoom out and show more.",
-    lookbookImageUrl:
-      "Crop ratio: 16 × 9 — matches the lookbook banner. Re-crop opens the original so you can zoom out and show more.",
   };
 
   const SHOWCASE_SLOT_HINTS = {
@@ -3432,7 +3355,7 @@ export function AdminPage() {
       if (oldUrl.trim()) {
         updateContentsCropMeta((prev) => removeImageCropMeta(prev, oldUrl));
       }
-      const focalField = field.replace("ImageUrl", "") as "hero" | "editorial" | "lookbook";
+      const focalField = field.replace("ImageUrl", "") as "hero" | "editorial";
       updateHomePageMedia({
         [field]: normalizedDisplayUrl,
         [`${focalField}FocalX`]: 0.5,
@@ -3466,7 +3389,7 @@ export function AdminPage() {
       updateContentsCropMeta((prev) =>
         setImageCropMeta(prev, normalizedDisplayUrl, buildCropMetaEntry(sourceUrl, settings)),
       );
-      const focalField = field.replace("ImageUrl", "") as "hero" | "editorial" | "lookbook";
+      const focalField = field.replace("ImageUrl", "") as "hero" | "editorial";
       updateHomePageMedia({
         [field]: normalizedDisplayUrl,
         [`${focalField}FocalX`]: 0.5,
@@ -4203,7 +4126,7 @@ export function AdminPage() {
                     Home Page Images
                   </p>
                   <p className="text-[#2D241E]/45 text-xs mt-1" style={{ fontFamily: "'DM Sans', sans-serif" }}>
-                    Hero, editorial block, and lookbook banner. Upload-only — empty slots stay blank until you add an image.
+                    Hero and editorial block. Upload-only — empty slots stay blank until you add an image.
                   </p>
                 </div>
                 <div className="px-6 py-5">
@@ -4219,7 +4142,6 @@ export function AdminPage() {
                       [
                         { field: "heroImageUrl" as const, label: "Hero (top)", aspect: "16 / 10" },
                         { field: "editorialImageUrl" as const, label: "Editorial", aspect: "4 / 5" },
-                        { field: "lookbookImageUrl" as const, label: "Lookbook banner", aspect: "16 / 9" },
                       ] as const
                     ).map(({ field, label, aspect }) => {
                       const preview = homeMediaPreview(field);
@@ -4324,7 +4246,7 @@ export function AdminPage() {
                               <button
                                 type="button"
                                 onClick={() => {
-                                  const focalField = field.replace("ImageUrl", "") as "hero" | "editorial" | "lookbook";
+                                  const focalField = field.replace("ImageUrl", "") as "hero" | "editorial";
                                   const focalXKey = `${focalField}FocalX` as keyof HomePageMediaSelection;
                                   const focalYKey = `${focalField}FocalY` as keyof HomePageMediaSelection;
                                   setHomeFocalEditor({
@@ -4460,119 +4382,6 @@ export function AdminPage() {
                           );
                         })
                       )}
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Home Collection Sections Editor */}
-              <div className="rounded-[28px] overflow-hidden mb-8" style={{ border: "1px solid rgba(45,36,30,0.08)" }}>
-                <div className="px-6 py-4" style={{ backgroundColor: "rgba(45,36,30,0.03)", borderBottom: "1px solid rgba(45,36,30,0.06)" }}>
-                  <p className="text-[#2D241E] uppercase tracking-widest text-xs" style={{ fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.12em" }}>
-                    Home Collection Sections
-                  </p>
-                  <p className="text-[#2D241E]/45 text-xs mt-1" style={{ fontFamily: "'DM Sans', sans-serif" }}>
-                    Choose products for the featured grid and “More from the collection”. Section titles are edited in Home Page Text above.
-                  </p>
-                </div>
-                <div className="px-6 py-5 space-y-8">
-                  <div>
-                    {featuredHomeProducts.length > 0 && (
-                      <div className="mb-4 flex flex-wrap gap-2">
-                        {featuredHomeProducts.map((product) => (
-                          <span
-                            key={`featured-home-chip-${product.id}`}
-                            className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs"
-                            style={{ backgroundColor: "rgba(45,36,30,0.06)", color: "#2D241E", fontFamily: "'DM Sans', sans-serif" }}
-                          >
-                            {product.name}
-                          </span>
-                        ))}
-                      </div>
-                    )}
-                    <div className="max-h-[280px] overflow-y-auto divide-y rounded-[18px]" style={{ border: "1px solid rgba(45,36,30,0.08)", borderColor: "rgba(45,36,30,0.08)" }}>
-                      {products.map((product) => {
-                        const isSelected = featuredHomeProductSet.has(product.id);
-                        return (
-                          <div key={`featured-home-list-${product.id}`} className="grid items-center px-4 py-3" style={{ gridTemplateColumns: "2fr 1fr 110px" }}>
-                            <div className="min-w-0">
-                              <p className="text-[#2D241E] truncate" style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "0.88rem" }}>
-                                {product.name}
-                              </p>
-                              <p className="text-[#2D241E]/40 text-xs truncate" style={{ fontFamily: "'DM Sans', sans-serif" }}>
-                                {product.sku}
-                              </p>
-                            </div>
-                            <p className="text-[#2D241E]/60 text-sm truncate" style={{ fontFamily: "'DM Sans', sans-serif" }}>
-                              {product.category}
-                            </p>
-                            <div className="flex justify-end">
-                              <button
-                                onClick={() => (isSelected ? removeFeaturedHomeProduct(product.id) : addFeaturedHomeProduct(product.id))}
-                                className="px-4 py-1.5 rounded-full text-xs uppercase tracking-widest transition-all duration-300 hover:opacity-85"
-                                style={{
-                                  fontFamily: "'DM Sans', sans-serif",
-                                  letterSpacing: "0.1em",
-                                  backgroundColor: isSelected ? "rgba(74,14,14,0.1)" : "#2D241E",
-                                  color: isSelected ? "#4A0E0E" : "#F5F2ED",
-                                }}
-                              >
-                                {isSelected ? "Delete" : "Add"}
-                              </button>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-
-                  <div>
-                    {moreFromCollectionProducts.length > 0 && (
-                      <div className="mb-4 flex flex-wrap gap-2">
-                        {moreFromCollectionProducts.map((product) => (
-                          <span
-                            key={`more-home-chip-${product.id}`}
-                            className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs"
-                            style={{ backgroundColor: "rgba(45,36,30,0.06)", color: "#2D241E", fontFamily: "'DM Sans', sans-serif" }}
-                          >
-                            {product.name}
-                          </span>
-                        ))}
-                      </div>
-                    )}
-                    <div className="max-h-[280px] overflow-y-auto divide-y rounded-[18px]" style={{ border: "1px solid rgba(45,36,30,0.08)", borderColor: "rgba(45,36,30,0.08)" }}>
-                      {products.map((product) => {
-                        const isSelected = moreFromCollectionProductSet.has(product.id);
-                        return (
-                          <div key={`more-home-list-${product.id}`} className="grid items-center px-4 py-3" style={{ gridTemplateColumns: "2fr 1fr 110px" }}>
-                            <div className="min-w-0">
-                              <p className="text-[#2D241E] truncate" style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "0.88rem" }}>
-                                {product.name}
-                              </p>
-                              <p className="text-[#2D241E]/40 text-xs truncate" style={{ fontFamily: "'DM Sans', sans-serif" }}>
-                                {product.sku}
-                              </p>
-                            </div>
-                            <p className="text-[#2D241E]/60 text-sm truncate" style={{ fontFamily: "'DM Sans', sans-serif" }}>
-                              {product.category}
-                            </p>
-                            <div className="flex justify-end">
-                              <button
-                                onClick={() => (isSelected ? removeMoreFromCollectionProduct(product.id) : addMoreFromCollectionProduct(product.id))}
-                                className="px-4 py-1.5 rounded-full text-xs uppercase tracking-widest transition-all duration-300 hover:opacity-85"
-                                style={{
-                                  fontFamily: "'DM Sans', sans-serif",
-                                  letterSpacing: "0.1em",
-                                  backgroundColor: isSelected ? "rgba(74,14,14,0.1)" : "#2D241E",
-                                  color: isSelected ? "#4A0E0E" : "#F5F2ED",
-                                }}
-                              >
-                                {isSelected ? "Delete" : "Add"}
-                              </button>
-                            </div>
-                          </div>
-                        );
-                      })}
                     </div>
                   </div>
                 </div>

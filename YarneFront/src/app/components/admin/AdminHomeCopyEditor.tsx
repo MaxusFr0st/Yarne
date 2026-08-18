@@ -45,15 +45,6 @@ const SECTIONS: { title: string; fields: FieldDef[] }[] = [
     ],
   },
   {
-    title: "Featured Grid",
-    fields: [
-      { key: "featured.eyebrow", label: "Eyebrow", path: (c) => c.featured.eyebrow, set: (c, v) => ({ ...c, featured: { ...c.featured, eyebrow: v } }) },
-      { key: "featured.title", label: "Title (e.g. Featured this season)", path: (c) => c.featured.title, set: (c, v) => ({ ...c, featured: { ...c.featured, title: v } }) },
-      { key: "featured.viewAll", label: "View all link", path: (c) => c.featured.viewAll, set: (c, v) => ({ ...c, featured: { ...c.featured, viewAll: v } }) },
-      { key: "featured.shopAllPieces", label: "Shop all button (use {{count}})", path: (c) => c.featured.shopAllPieces, set: (c, v) => ({ ...c, featured: { ...c.featured, shopAllPieces: v } }) },
-    ],
-  },
-  {
     title: "Editorial Block",
     fields: [
       { key: "editorial.eyebrow", label: "Eyebrow", path: (c) => c.editorial.eyebrow, set: (c, v) => ({ ...c, editorial: { ...c.editorial, eyebrow: v } }) },
@@ -62,22 +53,6 @@ const SECTIONS: { title: string; fields: FieldDef[] }[] = [
       { key: "editorial.paragraph1", label: "Paragraph 1", multiline: true, path: (c) => c.editorial.paragraph1, set: (c, v) => ({ ...c, editorial: { ...c.editorial, paragraph1: v } }) },
       { key: "editorial.paragraph2", label: "Paragraph 2", multiline: true, path: (c) => c.editorial.paragraph2, set: (c, v) => ({ ...c, editorial: { ...c.editorial, paragraph2: v } }) },
       { key: "editorial.ourStory", label: "Our story link", path: (c) => c.editorial.ourStory, set: (c, v) => ({ ...c, editorial: { ...c.editorial, ourStory: v } }) },
-    ],
-  },
-  {
-    title: "Lookbook Banner",
-    fields: [
-      { key: "lookbook.eyebrow", label: "Eyebrow", path: (c) => c.lookbook.eyebrow, set: (c, v) => ({ ...c, lookbook: { ...c.lookbook, eyebrow: v } }) },
-      { key: "lookbook.titleLine1", label: "Title line 1", path: (c) => c.lookbook.titleLine1, set: (c, v) => ({ ...c, lookbook: { ...c.lookbook, titleLine1: v } }) },
-      { key: "lookbook.titleLine2", label: "Title line 2", path: (c) => c.lookbook.titleLine2, set: (c, v) => ({ ...c, lookbook: { ...c.lookbook, titleLine2: v } }) },
-      { key: "lookbook.cta", label: "CTA button", path: (c) => c.lookbook.cta, set: (c, v) => ({ ...c, lookbook: { ...c.lookbook, cta: v } }) },
-    ],
-  },
-  {
-    title: "More From Collection",
-    fields: [
-      { key: "moreFromCollection.eyebrow", label: "Eyebrow", path: (c) => c.moreFromCollection.eyebrow, set: (c, v) => ({ ...c, moreFromCollection: { ...c.moreFromCollection, eyebrow: v } }) },
-      { key: "moreFromCollection.title", label: "Title (e.g. More from the collection)", path: (c) => c.moreFromCollection.title, set: (c, v) => ({ ...c, moreFromCollection: { ...c.moreFromCollection, title: v } }) },
     ],
   },
 ];

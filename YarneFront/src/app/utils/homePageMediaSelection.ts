@@ -10,9 +10,6 @@ export type HomePageMediaSelection = {
   editorialImageUrl: string;
   editorialFocalX: number;
   editorialFocalY: number;
-  lookbookImageUrl: string;
-  lookbookFocalX: number;
-  lookbookFocalY: number;
 };
 
 export function normalizeHomePageMediaSelection(value: unknown): HomePageMediaSelection {
@@ -28,9 +25,6 @@ export function normalizeHomePageMediaSelection(value: unknown): HomePageMediaSe
     editorialImageUrl: str("editorialImageUrl"),
     editorialFocalX: focal("editorialFocalX", 0.5),
     editorialFocalY: focal("editorialFocalY", 0.35),
-    lookbookImageUrl: str("lookbookImageUrl"),
-    lookbookFocalX: focal("lookbookFocalX", 0.5),
-    lookbookFocalY: focal("lookbookFocalY", 0.35),
   };
 }
 
@@ -63,7 +57,6 @@ function hasConfiguredMedia(selection: HomePageMediaSelection): boolean {
   return Boolean(
     selection.heroImageUrl.trim()
     || selection.editorialImageUrl.trim()
-    || selection.lookbookImageUrl.trim()
   );
 }
 
