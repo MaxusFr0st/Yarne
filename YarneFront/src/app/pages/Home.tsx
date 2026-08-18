@@ -206,7 +206,7 @@ export function Home() {
                       <Img
                         src={editorialImageSrc}
                         alt={copy.editorial.eyebrow}
-                        className="h-full w-full object-cover"
+                        className="h-[112%] w-full object-cover"
                         style={{ objectPosition: `${(homePageMedia.editorialFocalX * 100).toFixed(1)}% ${(homePageMedia.editorialFocalY * 100).toFixed(1)}%` }}
                       />
                     ) : null}

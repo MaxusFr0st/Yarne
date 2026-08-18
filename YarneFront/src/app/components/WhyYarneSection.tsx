@@ -8,8 +8,14 @@ import {
   useTransform,
   type MotionValue,
 } from "motion/react";
-import { useTranslation } from "react-i18next";
 import { ScrollReveal } from "./ScrollReveal";
+import { useLocale } from "../i18n/useLocale";
+import { resolveMediaUrl } from "../utils/storefrontMedia";
+import {
+  getDefaultWhySectionContent,
+  loadWhySectionContent,
+  type WhySectionContent,
+} from "../utils/whySectionContent";
 import cherieSrc from "../../../assets/CherieOxBloddGen-removebg-preview.png";
 import dvaSrc from "../../../assets/DvaShopperYelowGen-removebg-preview.png";
 
@@ -20,11 +26,8 @@ const femmoraSrc = new URL(
   import.meta.url
 ).href;
 
-const IMAGES = [
-  { key: "femmora", src: femmoraSrc },
-  { key: "cherie", src: cherieSrc },
-  { key: "dva", src: dvaSrc },
-] as const;
+const DEFAULT_IMAGES = [femmoraSrc, cherieSrc, dvaSrc] as const;
+const BAG_COUNT = 3;
 
 const TILT_RAD = (26 * Math.PI) / 180;
 const SCALE_MAX = 1.62; // active bag scale
@@ -107,10 +110,8 @@ function BagArcImage({ progress, rowH, index, src, alt }: BagArcImageProps) {
   );
 }
 
-type WhyFact = { n: string; title: string; body: string };
-
 export const WhyYarneSection = forwardRef<WhyBagHandle>(function WhyYarneSection(_props, ref) {
-  const { t } = useTranslation();
+  const locale = useLocale();
   const reducedMotion = useReducedMotion();
   const stageRef = useRef<HTMLDivElement>(null);
   const progress = useMotionValue(0);
@@ -118,6 +119,17 @@ export const WhyYarneSection = forwardRef<WhyBagHandle>(function WhyYarneSection
   const indexRef = useRef(0);
   const animRef = useRef<ReturnType<typeof animate> | null>(null);
   const [factIndex, setFactIndex] = useState(0);
+  const [content, setContent] = useState<WhySectionContent>(getDefaultWhySectionContent);
+
+  useEffect(() => {
+    let cancelled = false;
+    void loadWhySectionContent().then((next) => {
+      if (!cancelled) setContent(next);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useMotionValueEvent(progress, "change", (v) => {
     setFactIndex(Math.round(v));
@@ -135,7 +147,7 @@ export const WhyYarneSection = forwardRef<WhyBagHandle>(function WhyYarneSection
 
   const stepTo = useCallback(
     (i: number) => {
-      const clamped = Math.max(0, Math.min(IMAGES.length - 1, i));
+      const clamped = Math.max(0, Math.min(BAG_COUNT - 1, i));
       indexRef.current = clamped;
       animRef.current?.stop();
       if (reducedMotion) {
@@ -149,7 +161,7 @@ export const WhyYarneSection = forwardRef<WhyBagHandle>(function WhyYarneSection
 
   const jumpTo = useCallback(
     (i: number) => {
-      const clamped = Math.max(0, Math.min(IMAGES.length - 1, i));
+      const clamped = Math.max(0, Math.min(BAG_COUNT - 1, i));
       animRef.current?.stop();
       indexRef.current = clamped;
       progress.set(clamped);
@@ -163,7 +175,7 @@ export const WhyYarneSection = forwardRef<WhyBagHandle>(function WhyYarneSection
       stepTo,
       jumpTo,
       getIndex: () => indexRef.current,
-      count: IMAGES.length,
+      count: BAG_COUNT,
     }),
     [stepTo, jumpTo]
   );
@@ -188,8 +200,14 @@ export const WhyYarneSection = forwardRef<WhyBagHandle>(function WhyYarneSection
   const factY = useTransform(delta, (d) => -d * 34);
   const captionX = useTransform(delta, (d) => d * 30);
 
-  const facts = t("home.why.facts", { returnObjects: true }) as WhyFact[];
-  const captions = t("home.why.captions", { returnObjects: true }) as string[];
+  const localeCopy = content[locale];
+  const images = content.images.map((url, i) => resolveMediaUrl(url) || DEFAULT_IMAGES[i]);
+  const facts = localeCopy.items.map((item, i) => ({
+    n: String(i + 1).padStart(2, "0"),
+    title: item.factTitle,
+    body: item.factBody,
+  }));
+  const captions = localeCopy.items.map((item) => item.caption);
   const fact = facts[factIndex] ?? facts[0];
   const caption = captions[factIndex] ?? captions[0];
 
@@ -226,20 +244,20 @@ export const WhyYarneSection = forwardRef<WhyBagHandle>(function WhyYarneSection
               <div className="absolute inset-0 overflow-hidden">
                 <motion.div className="flex flex-col" style={{ height: "200%", y: trackY }}>
                   <div style={{ height: "12.5%" }} className="shrink-0" />
-                  {IMAGES.map((img, i) => (
+                  {images.map((src, i) => (
                     <div
-                      key={img.key}
+                      key={i}
                       style={{ height: "25%" }}
                       className="flex shrink-0 items-center justify-center overflow-visible"
                     >
-                      <BagArcImage progress={progress} rowH={rowH} index={i} src={img.src} alt={captions[i] ?? img.key} />
+                      <BagArcImage progress={progress} rowH={rowH} index={i} src={src} alt={captions[i] ?? ""} />
                     </div>
                   ))}
                   <div style={{ height: "12.5%" }} className="shrink-0" />
                 </motion.div>
               </div>
 
-              <div className="pointer-events-none absolute left-3.5 right-auto top-[8%] bottom-[8%] w-[2px] bg-white/15 md:left-auto md:right-[-26px] md:top-[12%] md:bottom-[12%]">
+              <div className="pointer-events-none hidden md:block absolute md:left-auto md:right-[-26px] md:top-[12%] md:bottom-[12%] w-[2px] bg-white/15">
                 <motion.div
                   className="absolute left-1/2 h-2 w-2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-[#F5F2ED]"
                   style={{ top: railTop }}
@@ -262,15 +280,15 @@ export const WhyYarneSection = forwardRef<WhyBagHandle>(function WhyYarneSection
                 className="mb-3.5 text-[11px] uppercase tracking-[0.24em] text-[#F5F2ED]/40"
                 style={{ fontFamily: "'DM Sans', sans-serif" }}
               >
-                {t("home.why.eyebrow")}
+                {localeCopy.eyebrow}
               </p>
               <h2
                 className="text-[#F5F2ED] font-normal leading-[1.12]"
                 style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "clamp(1.5rem, 3.4vw, 2.6rem)" }}
               >
-                {t("home.why.titleLine1")}
+                {localeCopy.titleLine1}
                 <br />
-                <em className="font-light italic opacity-[0.85]">{t("home.why.titleAccent")}</em>
+                <em className="font-light italic opacity-[0.85]">{localeCopy.titleAccent}</em>
               </h2>
             </ScrollReveal>
 

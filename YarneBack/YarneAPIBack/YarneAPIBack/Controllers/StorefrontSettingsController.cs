@@ -21,6 +21,7 @@ public class StorefrontSettingsController : ControllerBase
             ["yarne.staticPages.v1"] = "Static pages copy",
             ["yarne.product.guarantee.v1"] = "Product page guarantee",
             ["yarne.share.default.v1"] = "Default share card",
+            ["yarne.why.v1"] = "Why Yarné section",
         };
 
     private readonly IStorefrontSettingsService _settings;
@@ -122,7 +123,8 @@ public class StorefrontSettingsController : ControllerBase
     private static bool IsMediaSettingKey(string key) =>
         string.Equals(key, "yarne.home.media.v1", StringComparison.Ordinal)
         || string.Equals(key, "yarne.featuredShowcase.v1", StringComparison.Ordinal)
-        || string.Equals(key, "yarne.home.sections.v1", StringComparison.Ordinal);
+        || string.Equals(key, "yarne.home.sections.v1", StringComparison.Ordinal)
+        || string.Equals(key, "yarne.why.v1", StringComparison.Ordinal);
 
     private static object? ParseJson(string valueJson)
     {

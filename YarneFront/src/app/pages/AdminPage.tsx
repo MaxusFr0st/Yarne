@@ -66,6 +66,12 @@ import {
   type ShareDefaultContent,
 } from "../utils/shareDefaultContent";
 import { ShareDefaultEditor } from "../components/admin/ShareDefaultEditor";
+import {
+  getDefaultWhySectionContent,
+  loadWhySectionContentForAdmin,
+  type WhySectionContent,
+} from "../utils/whySectionContent";
+import { AdminWhySectionEditor } from "../components/admin/AdminWhySectionEditor";
 import { ApiRequestError } from "../api/errors";
 import {
   LayoutDashboard,
@@ -3101,6 +3107,9 @@ export function AdminPage() {
   const [shareDefaultContent, setShareDefaultContent] = useState<ShareDefaultContent>(
     getEmptyShareDefaultContent
   );
+  const [whySectionContent, setWhySectionContent] = useState<WhySectionContent>(
+    getDefaultWhySectionContent
+  );
   const [productSaveError, setProductSaveError] = useState<string | null>(null);
   const [homeMediaUploading, setHomeMediaUploading] = useState<Record<string, boolean>>({});
   const [homeMediaUploadError, setHomeMediaUploadError] = useState<string | null>(null);
@@ -3178,12 +3187,13 @@ export function AdminPage() {
     let cancelled = false;
     const syncFromApi = async () => {
       try {
-        const [carousel, showcase, media, guarantee, shareDefault] = await Promise.all([
+        const [carousel, showcase, media, guarantee, shareDefault, whySection] = await Promise.all([
           loadCarouselSelectionForAdmin(),
           loadFeaturedShowcaseSelectionForAdmin(),
           loadHomePageMediaSelectionForAdmin(),
           loadProductGuaranteeContentForAdmin(),
           loadShareDefaultContentForAdmin(),
+          loadWhySectionContentForAdmin(),
         ]);
         if (cancelled) return;
         setCarouselProductCodes(carousel.productCodes);
@@ -3191,6 +3201,7 @@ export function AdminPage() {
         setHomePageMedia(media);
         setProductGuaranteeContent(guarantee);
         setShareDefaultContent(shareDefault);
+        setWhySectionContent(whySection);
       } catch (e) {
         if (!cancelled) {
           setSaveError(
@@ -4059,7 +4070,7 @@ export function AdminPage() {
                       <div key={p.id} className="flex items-center justify-between px-6 py-4">
                         <div className="flex items-center gap-3">
                           <div className="w-8 h-8 rounded-[10px] overflow-hidden flex-shrink-0" style={{ backgroundColor: "#EDE9E2" }}>
-                            <img src={getProductPreviewUrl(p)} alt={p.name} className="w-full h-full object-cover" />
+                            <img src={getProductPreviewUrl(p)} alt={p.name} className="w-full h-full object-contain" />
                           </div>
                           <div>
                             <p className="text-[#2D241E] text-sm" style={{ fontFamily: "'DM Sans', sans-serif", lineHeight: 1.3 }}>{p.name}</p>
@@ -4116,6 +4127,15 @@ export function AdminPage() {
               transition={{ duration: 0.4, ease: easing }}
             >
               <AdminHomeCopyEditor onError={(message) => setSaveError(message)} />
+
+              <AdminWhySectionEditor
+                initialContent={whySectionContent}
+                onSaved={(content) => {
+                  setWhySectionContent(content);
+                  setSaveError(null);
+                }}
+                onError={(message) => setSaveError(message)}
+              />
 
               <AdminOurHistoryEditor onError={(message) => setSaveError(message)} />
 
@@ -4485,7 +4505,11 @@ export function AdminPage() {
                               }}
                             >
                               {previewImage ? (
-                                <img src={previewImage} alt="Slot preview" className="w-full h-full object-cover" />
+                                <img
+                                  src={previewImage}
+                                  alt="Slot preview"
+                                  className={`w-full h-full ${slot.imageUrl ? "object-cover" : "object-contain"}`}
+                                />
                               ) : (
                                 <p className="text-[10px] text-[#2D241E]/35 uppercase tracking-widest text-center px-2" style={{ fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.12em" }}>
                                   No image
