@@ -66,6 +66,12 @@ import {
   type ProductGuaranteeContent,
 } from "../utils/productGuaranteeContent";
 import { ProductGuaranteeEditor } from "../components/admin/ProductGuaranteeEditor";
+import {
+  getEmptyShareDefaultContent,
+  loadShareDefaultContentForAdmin,
+  type ShareDefaultContent,
+} from "../utils/shareDefaultContent";
+import { ShareDefaultEditor } from "../components/admin/ShareDefaultEditor";
 import { ApiRequestError } from "../api/errors";
 import {
   LayoutDashboard,
@@ -3101,6 +3107,9 @@ export function AdminPage() {
   const [productGuaranteeContent, setProductGuaranteeContent] = useState<ProductGuaranteeContent>(
     getEmptyProductGuaranteeContent
   );
+  const [shareDefaultContent, setShareDefaultContent] = useState<ShareDefaultContent>(
+    getEmptyShareDefaultContent
+  );
   const [productSaveError, setProductSaveError] = useState<string | null>(null);
   const [homeMediaUploading, setHomeMediaUploading] = useState<Record<string, boolean>>({});
   const [homeMediaUploadError, setHomeMediaUploadError] = useState<string | null>(null);
@@ -3178,12 +3187,13 @@ export function AdminPage() {
     let cancelled = false;
     const syncFromApi = async () => {
       try {
-        const [carousel, home, showcase, media, guarantee] = await Promise.all([
+        const [carousel, home, showcase, media, guarantee, shareDefault] = await Promise.all([
           loadCarouselSelectionForAdmin(),
           loadHomeSectionsSelectionForAdmin(),
           loadFeaturedShowcaseSelectionForAdmin(),
           loadHomePageMediaSelectionForAdmin(),
           loadProductGuaranteeContentForAdmin(),
+          loadShareDefaultContentForAdmin(),
         ]);
         if (cancelled) return;
         setCarouselProductCodes(carousel.productCodes);
@@ -3191,6 +3201,7 @@ export function AdminPage() {
         setFeaturedShowcaseSelectionState(showcase);
         setHomePageMedia(media);
         setProductGuaranteeContent(guarantee);
+        setShareDefaultContent(shareDefault);
       } catch (e) {
         if (!cancelled) {
           setSaveError(
@@ -4571,6 +4582,15 @@ export function AdminPage() {
                 initialContent={productGuaranteeContent}
                 onSaved={(content) => {
                   setProductGuaranteeContent(content);
+                  setSaveError(null);
+                }}
+                onError={(message) => setSaveError(message)}
+              />
+
+              <ShareDefaultEditor
+                initialContent={shareDefaultContent}
+                onSaved={(content) => {
+                  setShareDefaultContent(content);
                   setSaveError(null);
                 }}
                 onError={(message) => setSaveError(message)}

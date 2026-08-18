@@ -1,6 +1,5 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using SixLabors.ImageSharp;
 using YarneAPIBack.Configuration;
 using YarneAPIBack.DTOs.Product;
 using YarneAPIBack.Services;
@@ -233,36 +232,12 @@ public class ProductsController : ControllerBase
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult<object>> UploadShareImage(int id, IFormFile file, CancellationToken ct = default)
     {
-        if (!_r2Storage.IsConfigured)
-            return BadRequest(new { message = "R2 storage is not configured" });
-        if (file == null || file.Length == 0)
-            return BadRequest(new { message = "No file uploaded" });
-
         var existing = await _productService.GetProductByIdAsync(id, ct: ct);
         if (existing == null) return NotFound();
 
-        NormalizedUploadImage normalized;
-        await using (var uploadStream = file.OpenReadStream())
-        {
-            try
-            {
-                normalized = await _imageNormalizer.NormalizeAsync(uploadStream, ct);
-            }
-            catch (UnknownImageFormatException)
-            {
-                return BadRequest(new { message = "Could not read image file" });
-            }
-            catch (InvalidImageContentException)
-            {
-                return BadRequest(new { message = "Image file is corrupted or unsupported" });
-            }
-        }
-
-        string url;
-        await using (normalized.Output)
-        {
-            url = await _r2Storage.UploadAsync(normalized.Output, normalized.ContentType, normalized.FileExtension, ct);
-        }
+        var uploaded = await ShareImageUploadHelper.UploadAsync(file, _imageNormalizer, _r2Storage, ct);
+        if (uploaded.Error != null) return BadRequest(new { message = uploaded.Error });
+        var url = uploaded.Url!;
 
         var product = await _productService.SetShareImageUrlAsync(id, url, ct);
         if (product == null) return NotFound();

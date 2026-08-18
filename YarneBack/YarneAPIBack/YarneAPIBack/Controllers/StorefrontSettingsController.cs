@@ -20,20 +20,40 @@ public class StorefrontSettingsController : ControllerBase
             ["yarne.home.copy.v1"] = "Home page copy",
             ["yarne.staticPages.v1"] = "Static pages copy",
             ["yarne.product.guarantee.v1"] = "Product page guarantee",
+            ["yarne.share.default.v1"] = "Default share card",
         };
 
     private readonly IStorefrontSettingsService _settings;
     private readonly IAdminActivityLogService _activityLogs;
     private readonly IUploadFileStorageService _uploadStorage;
+    private readonly IImageUploadNormalizer _imageNormalizer;
+    private readonly IR2ImageStorageService _r2Storage;
 
     public StorefrontSettingsController(
         IStorefrontSettingsService settings,
         IAdminActivityLogService activityLogs,
-        IUploadFileStorageService uploadStorage)
+        IUploadFileStorageService uploadStorage,
+        IImageUploadNormalizer imageNormalizer,
+        IR2ImageStorageService r2Storage)
     {
         _settings = settings;
         _activityLogs = activityLogs;
         _uploadStorage = uploadStorage;
+        _imageNormalizer = imageNormalizer;
+        _r2Storage = r2Storage;
+    }
+
+    /// <summary>Uploads the site-wide default share/link-preview photo (stored in R2). Used when a product has no dedicated share photo.</summary>
+    [HttpPost("share-default/image")]
+    [Authorize(Roles = "Admin")]
+    [RequestSizeLimit(15 * 1024 * 1024)]
+    [ProducesResponseType(typeof(object), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<ActionResult<object>> UploadShareDefaultImage(IFormFile file, CancellationToken ct = default)
+    {
+        var uploaded = await ShareImageUploadHelper.UploadAsync(file, _imageNormalizer, _r2Storage, ct);
+        if (uploaded.Error != null) return BadRequest(new { message = uploaded.Error });
+        return Ok(new { url = uploaded.Url });
     }
 
     [HttpGet("{key}")]

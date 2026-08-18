@@ -35,3 +35,14 @@ export async function saveStorefrontSetting<T>(key: string, value: T): Promise<T
   );
   return res.value;
 }
+
+/** Uploads the site-wide default share/link-preview photo (stored in R2). */
+export async function uploadShareDefaultImage(file: File): Promise<string> {
+  const formData = new FormData();
+  formData.append("file", file, file.name);
+  const result = await apiRequest<{ url: string }>("/api/storefront-settings/share-default/image", {
+    method: "POST",
+    body: formData,
+  });
+  return result.url;
+}

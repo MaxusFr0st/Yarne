@@ -95,33 +95,63 @@ async function fetchProduct(id) {
   }
 }
 
-function toAbsoluteImageUrl(src, origin) {
-  if (!src) return DEFAULT_IMAGE_URL;
+function toAbsoluteImageUrl(src, origin, fallback) {
+  if (!src) return fallback;
   if (/^https?:\/\//i.test(src)) return src;
   const base = apiUrl || origin;
   return `${base}${src.startsWith("/") ? src : `/${src}`}`;
 }
 
+// Admin-editable default share card (title/description/photo), used for the homepage,
+// collection pages, and any product without its own dedicated share photo.
+// Cached briefly so most requests don't round-trip to the API just to unfurl a link.
+const SHARE_DEFAULT_KEY = "yarne.share.default.v1";
+const SHARE_DEFAULT_TTL_MS = 5 * 60 * 1000;
+let shareDefaultCache = null;
+let shareDefaultFetchedAt = 0;
+
+async function getShareDefault() {
+  if (!apiUrl) return null;
+  const isStale = Date.now() - shareDefaultFetchedAt > SHARE_DEFAULT_TTL_MS;
+  if (!isStale) return shareDefaultCache;
+
+  try {
+    const res = await fetch(`${apiUrl}/api/storefront-settings/${SHARE_DEFAULT_KEY}`);
+    if (res.ok) {
+      const json = await res.json();
+      shareDefaultCache = json.value ?? null;
+      shareDefaultFetchedAt = Date.now();
+    }
+  } catch {
+    // keep the previous cached value (or null) on failure
+  }
+  return shareDefaultCache;
+}
+
 async function renderHtml(req, origin) {
   const pageUrl = `${origin}${req.url}`;
-  const match = PRODUCT_PATH.exec(req.url);
+  const shareDefault = await getShareDefault();
+  const fallbackTitle = shareDefault?.title || DEFAULT_TITLE;
+  const fallbackDescription = shareDefault?.description || DEFAULT_DESCRIPTION;
+  const fallbackImage = shareDefault?.imageUrl || DEFAULT_IMAGE_URL;
 
+  const match = PRODUCT_PATH.exec(req.url);
   if (match) {
     const product = await fetchProduct(match[1]);
     if (product) {
       return buildMetaBlock({
         title: `${product.name} — ${SITE_NAME}`,
-        description: product.description || DEFAULT_DESCRIPTION,
-        imageUrl: product.shareImageUrl || toAbsoluteImageUrl(product.primaryImage?.src, origin),
+        description: product.description || fallbackDescription,
+        imageUrl: product.shareImageUrl || toAbsoluteImageUrl(product.primaryImage?.src, origin, fallbackImage),
         pageUrl,
       });
     }
   }
 
   return buildMetaBlock({
-    title: DEFAULT_TITLE,
-    description: DEFAULT_DESCRIPTION,
-    imageUrl: DEFAULT_IMAGE_URL,
+    title: fallbackTitle,
+    description: fallbackDescription,
+    imageUrl: fallbackImage,
     pageUrl,
   });
 }
