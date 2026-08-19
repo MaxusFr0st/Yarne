@@ -288,7 +288,7 @@ function ProductCardInner({
 
           {(product.colors.length > 1 || activeColorLabel) && (
           <div
-            className={`flex items-center gap-2 min-w-0 overflow-x-auto [&::-webkit-scrollbar]:hidden ${isCarouselCard ? "mt-2 py-1.5 pl-1 -ml-1" : "mt-3"} ${previewMode ? "pb-1 -mx-0.5 px-0.5" : ""}`}
+            className={`flex items-center gap-2 min-w-0 py-1.5 overflow-x-auto [&::-webkit-scrollbar]:hidden ${isCarouselCard ? "mt-2 pl-1 -ml-1" : "mt-[calc(0.75rem-6px)]"} ${previewMode ? "-mx-0.5 px-0.5" : ""}`}
             style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
           >
             {product.colors.map((color, i) => {
