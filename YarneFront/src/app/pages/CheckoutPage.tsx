@@ -170,7 +170,7 @@ export function CheckoutPage() {
 
   return (
     <main style={{ backgroundColor: "#F3EFE8", minHeight: "100vh" }}>
-      <section className="pt-28 pb-8 md:pt-36 md:pb-10">
+      <section className="pt-[calc(var(--main-header-h)+20px)] pb-5 md:pt-[calc(var(--main-header-h)+32px)] md:pb-7">
         <div className="max-w-[1300px] mx-auto px-5 md:px-14">
           <motion.div
             initial={{ opacity: 0, y: 24 }}
@@ -207,7 +207,7 @@ export function CheckoutPage() {
             {t("checkout.orderDetails")} · {t("checkout.itemCount", { count: activeItems.length })}
           </p>
 
-          <div className="space-y-3">
+          <div className="space-y-3 max-h-[360px] md:max-h-[520px] overflow-y-auto pr-1 -mr-1">
             {activeItems.map((item) => {
               const productHref = item.productId ? `/product/${item.productId}` : "/collection";
               const imageSrc = item.image || ORDER_ITEM_PLACEHOLDER;

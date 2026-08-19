@@ -263,7 +263,7 @@ export function ProductDetail() {
       {related.length > 0 && <MobileRelatedProducts products={related} />}
 
       {/* ── Desktop layout ── */}
-      <div className="hidden md:block max-w-[1180px] mx-auto px-6 md:px-12 pt-7 pb-[72px]">
+      <div className="hidden md:block max-w-[1360px] mx-auto px-6 md:px-12 pt-[calc(var(--main-header-h)+28px)] pb-[72px]">
         <button
           type="button"
           onClick={() => navigate(-1)}
@@ -297,7 +297,7 @@ export function ProductDetail() {
           {/* Col 2: main image */}
           <div className="w-full">
             <div
-              className="relative rounded-[28px] overflow-hidden bg-[#EDE9E2] h-[min(62vh,600px)] min-h-[420px]"
+              className="relative rounded-[28px] overflow-hidden bg-[#EDE9E2] h-[min(68vh,760px)] min-h-[460px]"
               style={{ boxShadow: "0 20px 44px -20px rgba(45,36,30,0.18)" }}
             >
               {images.length > 0 && (
