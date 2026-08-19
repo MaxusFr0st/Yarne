@@ -490,7 +490,7 @@ export function MobileProductDetailView({
                   </AnimatePresence>
                 </p>
               </div>
-              <div className="flex flex-wrap gap-[clamp(8px,2vw,10px)] pl-[6px] pr-[4px] py-[4px]">
+              <div className="flex flex-wrap gap-[clamp(8px,2vw,10px)] pl-[6px] pr-[4px] py-[8px]">
                 {furnitureList.map((fc, i) => {
                   const isActive = i === activeFurniture;
                   const furnitureLabel = localizedCatalogName(fc.name, fc.nameUk, locale);
