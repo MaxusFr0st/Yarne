@@ -415,7 +415,7 @@ export function ProductDetail() {
                     </AnimatePresence>
                   </p>
                 </div>
-                <div className="flex flex-wrap gap-2.5">
+                <div className="flex flex-wrap gap-2.5 pl-1.5">
                   {product.colors.map((color, i) => {
                     const colorLabel = localizedCatalogName(color.name, color.nameUk, locale);
                     const isActive = i === activeColor;
@@ -523,7 +523,7 @@ export function ProductDetail() {
                       </AnimatePresence>
                     </p>
                   </div>
-                  <div className="flex flex-wrap gap-2.5 py-2">
+                  <div className="flex flex-wrap gap-2.5 py-2 pl-1.5">
                     {furnitureList.map((fc, i) => {
                       const furnitureLabel = localizedCatalogName(fc.name, fc.nameUk, locale);
                       const isActive = i === activeFurniture;
