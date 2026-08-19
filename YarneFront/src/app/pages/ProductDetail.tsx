@@ -83,6 +83,22 @@ export function ProductDetail() {
     observer.observe(el);
     infoColObserverRef.current = observer;
   }, []);
+  // Same measure-don't-guess approach for the furniture panel itself: its natural content height
+  // is measured once (and on any resize), then the panel animates to that known number instead of
+  // framer-motion's height:"auto", which re-measures on every toggle and was the actual source of
+  // the lag (the image chasing that re-measured value downstream just made it visible).
+  const [furnitureContentHeight, setFurnitureContentHeight] = useState(0);
+  const furnitureObserverRef = useRef<ResizeObserver | null>(null);
+  const furnitureContentRef = useCallback((el: HTMLDivElement | null) => {
+    furnitureObserverRef.current?.disconnect();
+    furnitureObserverRef.current = null;
+    if (!el) return;
+    const observer = new ResizeObserver(([entry]) => {
+      setFurnitureContentHeight(entry.contentRect.height);
+    });
+    observer.observe(el);
+    furnitureObserverRef.current = observer;
+  }, []);
   const supplementaryDetails = useMemo(
     () => (product ? getSupplementaryProductDetails(product) : []),
     [product]
@@ -520,17 +536,20 @@ export function ProductDetail() {
                 </div>
               )}
 
-              {/* Furniture / hardware — only relevant once a strap is chosen */}
-              <AnimatePresence initial={false}>
-                {showFurniture && (
+              {/* Furniture / hardware — only relevant once a strap is chosen. Stays mounted
+                  (whenever the product has furniture options at all) so its natural height can
+                  be measured directly via ResizeObserver, instead of asking framer-motion to
+                  animate to height:"auto" — which has to re-measure content on every mount/toggle,
+                  and compounded with the col2 image also chasing that ambiguous, re-measured
+                  value downstream, produced the animation lag. Both ends now animate to a stable,
+                  pre-known number. */}
+              {furnitureList.length > 0 && (
                 <motion.div
-                  key="furniture"
-                  initial={reduceMotion ? false : { height: 0, opacity: 0 }}
-                  animate={{ height: "auto", opacity: 1 }}
-                  exit={reduceMotion ? undefined : { height: 0, opacity: 0 }}
-                  transition={{ duration: 0.35, ease: easing }}
+                  animate={{ height: showFurniture ? furnitureContentHeight : 0, opacity: showFurniture ? 1 : 0 }}
+                  transition={{ duration: reduceMotion ? 0 : 0.35, ease: easing }}
                   className="overflow-hidden"
                 >
+                  <div ref={furnitureContentRef} aria-hidden={!showFurniture} style={{ pointerEvents: showFurniture ? undefined : "none" }}>
                   <div className="flex items-center justify-between mb-2.5">
                     <p
                       className="text-[#2D241E]/45 uppercase"
@@ -560,6 +579,7 @@ export function ProductDetail() {
                         <motion.button
                           key={fc.name}
                           type="button"
+                          disabled={!showFurniture}
                           onClick={() => handleFurnitureChange(i)}
                           title={furnitureLabel}
                           aria-label={furnitureLabel}
@@ -580,9 +600,9 @@ export function ProductDetail() {
                       );
                     })}
                   </div>
+                  </div>
                 </motion.div>
-                )}
-              </AnimatePresence>
+              )}
 
               {/* Size */}
               <div>
