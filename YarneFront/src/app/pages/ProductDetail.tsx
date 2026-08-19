@@ -312,17 +312,20 @@ export function ProductDetail() {
             ))}
           </div>
 
-          {/* Col 2: main image — height tracks the info column, animated by the same framer-motion
-              engine (and transition config) that drives the furniture panel itself, so the two
-              stay in lockstep instead of a CSS transition trying to chase a separately-driven
-              target (which is what still lagged on collapse). No upper cap: it grows to match
-              the column, including when the furniture panel opens it up further. */}
+          {/* Col 2: main image — height tracks the info column so it resizes with the furniture
+              panel. Uses a spring, not a fixed-duration tween: the target (infoColHeight) updates
+              on every ResizeObserver tick while the panel animates, and a duration-based tween
+              restarts its full 0.35s clock on every one of those retargets — so it kept chasing
+              a moving goalpost and finished ~350ms after the real content had already settled,
+              which is exactly the "lags on close" symptom. A spring converges toward a moving
+              target continuously instead of resetting, so it tracks in real time either direction.
+              max-height keeps it from ever exceeding the viewport, with margin below. */}
           <div className="w-full flex flex-col self-start">
             <motion.div
-              className="relative rounded-[28px] overflow-hidden bg-[#EDE9E2]"
+              className="relative rounded-[28px] overflow-hidden bg-[#EDE9E2] max-h-[calc(100dvh-200px)]"
               initial={false}
-              animate={{ height: Math.max(460, infoColHeight ?? 650) }}
-              transition={{ duration: reduceMotion ? 0 : 0.35, ease: easing }}
+              animate={{ height: Math.max(740, infoColHeight ?? 740) }}
+              transition={reduceMotion ? { duration: 0 } : { type: "spring", stiffness: 260, damping: 32 }}
               style={{ boxShadow: "0 20px 44px -20px rgba(45,36,30,0.18)" }}
             >
               {images.length > 0 && (
