@@ -265,7 +265,7 @@ export function ProductDetail() {
       {related.length > 0 && <MobileRelatedProducts products={related} />}
 
       {/* ── Desktop layout ── */}
-      <div className="hidden md:block max-w-[1360px] mx-auto px-6 md:px-12 pt-[calc(var(--main-header-h)+28px)] pb-[72px]">
+      <div className="hidden md:block max-w-[1360px] mx-auto px-6 md:px-12 pt-[calc(var(--main-header-h)+28px)] pb-[120px]">
         <button
           type="button"
           onClick={() => navigate(-1)}
