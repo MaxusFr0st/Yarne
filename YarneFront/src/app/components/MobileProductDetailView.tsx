@@ -361,8 +361,23 @@ export function MobileProductDetailView({
                   boxShadow: isActive ? "0 0 0 2px #fff, 0 0 0 3.5px #2D241E" : "none",
                 } as const;
 
+                if (!motionEnabled) {
+                  return (
+                    <button
+                      key={color.name}
+                      type="button"
+                      onClick={() => onColorChange(i)}
+                      title={colorLabel}
+                      aria-label={colorLabel}
+                      aria-pressed={isActive}
+                      className="relative shrink-0 rounded-full cursor-pointer touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2D241E]/40"
+                      style={colorStyle}
+                    />
+                  );
+                }
+
                 return (
-                  <button
+                  <motion.button
                     key={color.name}
                     type="button"
                     onClick={() => onColorChange(i)}
@@ -370,6 +385,8 @@ export function MobileProductDetailView({
                     aria-label={colorLabel}
                     aria-pressed={isActive}
                     className="relative shrink-0 rounded-full cursor-pointer touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2D241E]/40"
+                    animate={{ scale: isActive ? 1.06 : 1 }}
+                    transition={{ duration: 0.2, ease: transitionEase }}
                     style={colorStyle}
                   />
                 );
@@ -485,8 +502,23 @@ export function MobileProductDetailView({
                     boxShadow: isActive ? "0 0 0 2px #fff, 0 0 0 3.5px #2D241E" : "none",
                   } as const;
 
+                  if (!motionEnabled) {
+                    return (
+                      <button
+                        key={fc.name}
+                        type="button"
+                        onClick={() => onFurnitureChange(i)}
+                        title={furnitureLabel}
+                        aria-label={furnitureLabel}
+                        aria-pressed={isActive}
+                        className="relative shrink-0 rounded-full cursor-pointer touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2D241E]/40"
+                        style={furnitureStyle}
+                      />
+                    );
+                  }
+
                   return (
-                    <button
+                    <motion.button
                       key={fc.name}
                       type="button"
                       onClick={() => onFurnitureChange(i)}
@@ -494,6 +526,8 @@ export function MobileProductDetailView({
                       aria-label={furnitureLabel}
                       aria-pressed={isActive}
                       className="relative shrink-0 rounded-full cursor-pointer touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2D241E]/40"
+                      animate={{ scale: isActive ? 1.06 : 1 }}
+                      transition={{ duration: 0.2, ease: transitionEase }}
                       style={furnitureStyle}
                     />
                   );

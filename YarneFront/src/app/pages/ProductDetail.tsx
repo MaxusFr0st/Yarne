@@ -428,6 +428,8 @@ export function ProductDetail() {
                         aria-label={colorLabel}
                         aria-pressed={isActive}
                         className="cursor-pointer touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2D241E]/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
+                        animate={{ scale: isActive ? 1.06 : 1 }}
+                        transition={{ duration: 0.2, ease: easing }}
                         style={{
                           width: 28,
                           height: 28,
@@ -534,6 +536,8 @@ export function ProductDetail() {
                           aria-label={furnitureLabel}
                           aria-pressed={isActive}
                           className="cursor-pointer touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2D241E]/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
+                          animate={{ scale: isActive ? 1.06 : 1 }}
+                          transition={{ duration: 0.2, ease: easing }}
                           style={{
                             width: 28,
                             height: 28,
