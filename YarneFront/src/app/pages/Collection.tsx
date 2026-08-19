@@ -129,7 +129,7 @@ export function Collection() {
 
   return (
     <main style={{ backgroundColor: "#F5F2ED", minHeight: "100vh", overflowX: "hidden" }}>
-      <section className="pt-28 pb-8 md:pt-32 md:pb-10">
+      <section className="pt-24 pb-4 md:pt-32 md:pb-10">
         <div className="max-w-[1400px] mx-auto px-6 md:px-10">
           <div>
             <p
@@ -301,7 +301,7 @@ export function Collection() {
       </div>
 
       <div
-        className="max-w-[1400px] mx-auto px-6 md:px-10 py-10 md:py-12 pb-24"
+        className="max-w-[1400px] mx-auto px-6 md:px-10 pt-5 pb-24 md:pt-8 md:pb-24"
         aria-busy={loading}
       >
         {loading ? (
@@ -311,7 +311,7 @@ export function Collection() {
                 <CollectionCardSkeleton key={i} />
               ))}
             </div>
-            <div className="md:hidden grid grid-cols-1 gap-y-8 w-full">
+            <div className="md:hidden grid grid-cols-2 gap-x-3 gap-y-8 w-full">
               {Array.from({ length: SKELETON_COUNT }).map((_, i) => (
                 <CollectionCardSkeleton key={i} />
               ))}
@@ -337,7 +337,7 @@ export function Collection() {
                 <ProductCard key={product.id} product={product} index={i} size="collection" subtleEntrance />
               ))}
             </div>
-            <div className="md:hidden grid grid-cols-1 gap-y-8 w-full">
+            <div className="md:hidden grid grid-cols-2 gap-x-3 gap-y-8 w-full">
               {filtered.map((product, i) => (
                 <ProductCard key={product.id} product={product} index={i} size="collection" subtleEntrance />
               ))}

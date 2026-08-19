@@ -118,6 +118,8 @@ export function MobileProductDetailView({
       )
     : "";
   const furnitureList = product.furnitureColors ?? [];
+  // Hardware colour is a strap detail — only relevant once the strap itself is selected.
+  const showFurniture = furnitureList.length > 0 && (!laceEnabled || activeLace);
   const activeFurnitureLabel = furnitureList[activeFurniture]
     ? localizedCatalogName(
         furnitureList[activeFurniture].name,
@@ -392,7 +394,60 @@ export function MobileProductDetailView({
             </div>
           </div>
 
-          {furnitureList.length > 0 && (
+          {laceEnabled && (
+            <div className="pt-[12px]" style={{ borderTop: "1px solid rgba(45,36,30,0.08)" }}>
+              <p
+                className="text-[#2D241E] uppercase mb-[clamp(4px,1vw,6px)]"
+                style={{
+                  fontFamily: "'DM Sans', sans-serif",
+                  letterSpacing: "0.14em",
+                  fontSize: "clamp(0.64rem, 2.4vw, 0.74rem)",
+                }}
+              >
+                {t("product.lace.label")}
+              </p>
+              <LayoutGroup id="mobile-lace">
+                <div
+                  className="relative inline-flex p-[clamp(2px,0.6vw,3px)] rounded-full"
+                  style={{ backgroundColor: "rgba(45,36,30,0.06)", border: "1px solid rgba(45,36,30,0.12)" }}
+                >
+                  {[
+                    { value: false, label: t("product.lace.withoutLace") },
+                    { value: true, label: t("product.lace.withLace") },
+                  ].map((opt) => (
+                    <button
+                      key={String(opt.value)}
+                      type="button"
+                      onClick={() => onLaceChange(opt.value)}
+                      className="relative z-10 rounded-full cursor-pointer"
+                      style={{
+                        fontFamily: "'DM Sans', sans-serif",
+                        letterSpacing: "0.04em",
+                        fontSize: "clamp(0.66rem, 2.5vw, 0.76rem)",
+                        padding: "clamp(6px, 1.6vw, 8px) clamp(12px, 3vw, 16px)",
+                        color: activeLace === opt.value ? "#F5F2ED" : "#2D241E",
+                        backgroundColor: !motionEnabled && activeLace === opt.value ? "#2D241E" : "transparent",
+                        transition: "color 0.22s ease",
+                      }}
+                    >
+                      {motionEnabled && activeLace === opt.value && (
+                        <motion.span
+                          layoutId="mobile-lace-pill"
+                          className="absolute inset-0 rounded-full bg-[#2D241E]"
+                          style={{ zIndex: -1 }}
+                          transition={{ duration: 0.28, ease: transitionEase }}
+                        />
+                      )}
+                      <span className="relative">{opt.label}</span>
+                    </button>
+                  ))}
+                </div>
+              </LayoutGroup>
+
+            </div>
+          )}
+
+          {showFurniture && (
             <div className="pt-[12px]" style={{ borderTop: "1px solid rgba(45,36,30,0.08)" }}>
               <div className="flex items-center justify-between mb-[clamp(4px,1vw,6px)]">
                 <p
@@ -468,59 +523,6 @@ export function MobileProductDetailView({
                   );
                 })}
               </div>
-            </div>
-          )}
-
-          {laceEnabled && (
-            <div className="pt-[12px]" style={{ borderTop: "1px solid rgba(45,36,30,0.08)" }}>
-              <p
-                className="text-[#2D241E] uppercase mb-[clamp(4px,1vw,6px)]"
-                style={{
-                  fontFamily: "'DM Sans', sans-serif",
-                  letterSpacing: "0.14em",
-                  fontSize: "clamp(0.64rem, 2.4vw, 0.74rem)",
-                }}
-              >
-                {t("product.lace.label")}
-              </p>
-              <LayoutGroup id="mobile-lace">
-                <div
-                  className="relative inline-flex p-[clamp(2px,0.6vw,3px)] rounded-full"
-                  style={{ backgroundColor: "rgba(45,36,30,0.06)", border: "1px solid rgba(45,36,30,0.12)" }}
-                >
-                  {[
-                    { value: false, label: t("product.lace.withoutLace") },
-                    { value: true, label: t("product.lace.withLace") },
-                  ].map((opt) => (
-                    <button
-                      key={String(opt.value)}
-                      type="button"
-                      onClick={() => onLaceChange(opt.value)}
-                      className="relative z-10 rounded-full cursor-pointer"
-                      style={{
-                        fontFamily: "'DM Sans', sans-serif",
-                        letterSpacing: "0.04em",
-                        fontSize: "clamp(0.66rem, 2.5vw, 0.76rem)",
-                        padding: "clamp(6px, 1.6vw, 8px) clamp(12px, 3vw, 16px)",
-                        color: activeLace === opt.value ? "#F5F2ED" : "#2D241E",
-                        backgroundColor: !motionEnabled && activeLace === opt.value ? "#2D241E" : "transparent",
-                        transition: "color 0.22s ease",
-                      }}
-                    >
-                      {motionEnabled && activeLace === opt.value && (
-                        <motion.span
-                          layoutId="mobile-lace-pill"
-                          className="absolute inset-0 rounded-full bg-[#2D241E]"
-                          style={{ zIndex: -1 }}
-                          transition={{ duration: 0.28, ease: transitionEase }}
-                        />
-                      )}
-                      <span className="relative">{opt.label}</span>
-                    </button>
-                  ))}
-                </div>
-              </LayoutGroup>
-
             </div>
           )}
 

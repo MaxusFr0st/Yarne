@@ -179,6 +179,8 @@ export function ProductDetail() {
     ? localizedCatalogName(selectedColor.name, selectedColor.nameUk, locale)
     : "";
   const furnitureList = product?.furnitureColors ?? [];
+  // Hardware colour is a strap detail — only relevant once the strap itself is selected.
+  const showFurniture = furnitureList.length > 0 && (product?.lace !== true || activeLace);
   const selectedFurniture = furnitureList[activeFurniture];
   const selectedFurnitureLabel = selectedFurniture
     ? localizedCatalogName(selectedFurniture.name, selectedFurniture.nameUk, locale)
@@ -217,8 +219,8 @@ export function ProductDetail() {
       color: selectedColor.name,
       colorId: selectedColor.colorId,
       colorHex: selectedColor.hex,
-      furnitureColor: selectedFurniture?.name,
-      furnitureColorHex: selectedFurniture?.hex,
+      furnitureColor: showFurniture ? selectedFurniture?.name : undefined,
+      furnitureColorHex: showFurniture ? selectedFurniture?.hex : undefined,
       size: activeSize,
       withLace: product.lace ? activeLace : null,
       quantity: 1,
@@ -274,9 +276,9 @@ export function ProductDetail() {
           <span>{t("product.back")}</span>
         </button>
 
-        <div className="grid md:grid-cols-2 lg:grid-cols-[88px_1fr_420px] gap-6 items-start mt-0">
-          {/* Col 1: thumbnail rail (lg+) */}
-          <div className="hidden lg:flex flex-col gap-2.5">
+        <div className="grid md:grid-cols-2 lg:grid-cols-[88px_1fr_420px] gap-6 items-stretch mt-0">
+          {/* Col 1: thumbnail rail (lg+) — fixed-size thumbs, doesn't stretch */}
+          <div className="hidden lg:flex flex-col gap-2.5 self-start">
             {images.map((img, i) => (
               <button
                 key={i}
@@ -294,10 +296,10 @@ export function ProductDetail() {
             ))}
           </div>
 
-          {/* Col 2: main image */}
-          <div className="w-full">
+          {/* Col 2: main image — stretches to match the info column's height, within a sane band */}
+          <div className="w-full h-full flex flex-col">
             <div
-              className="relative rounded-[28px] overflow-hidden bg-[#EDE9E2] h-[min(68vh,760px)] min-h-[460px]"
+              className="relative rounded-[28px] overflow-hidden bg-[#EDE9E2] flex-1 min-h-[460px] max-h-[880px]"
               style={{ boxShadow: "0 20px 44px -20px rgba(45,36,30,0.18)" }}
             >
               {images.length > 0 && (
@@ -443,8 +445,54 @@ export function ProductDetail() {
                 </div>
               </div>
 
-              {/* Furniture / hardware */}
-              {furnitureList.length > 0 && (
+              {/* Lace */}
+              {product.lace === true && (
+                <div>
+                  <p
+                    className="text-[#2D241E]/45 uppercase mb-2.5"
+                    style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "0.66rem", letterSpacing: "0.12em" }}
+                  >
+                    {t("product.lace.label")}
+                  </p>
+                  <LayoutGroup id="desktop-lace">
+                    <div
+                      className="relative inline-flex p-1 rounded-full"
+                      style={{ backgroundColor: "rgba(45,36,30,0.06)", border: "1px solid rgba(45,36,30,0.12)" }}
+                    >
+                      {[
+                        { value: false, label: t("product.lace.withoutLace") },
+                        { value: true, label: t("product.lace.withLace") },
+                      ].map((opt) => (
+                        <button
+                          key={String(opt.value)}
+                          type="button"
+                          onClick={() => handleLaceChange(opt.value)}
+                          className="relative z-10 px-4 py-2 rounded-full text-xs cursor-pointer"
+                          style={{
+                            fontFamily: "'DM Sans', sans-serif",
+                            letterSpacing: "0.08em",
+                            color: activeLace === opt.value ? "#F5F2ED" : "#2D241E",
+                            transition: "color 0.22s ease",
+                          }}
+                        >
+                          {activeLace === opt.value && (
+                            <motion.span
+                              layoutId="desktop-lace-pill"
+                              className="absolute inset-0 rounded-full bg-[#2D241E]"
+                              style={{ zIndex: -1 }}
+                              transition={{ duration: reduceMotion ? 0 : 0.2, ease: easing }}
+                            />
+                          )}
+                          <span className="relative">{opt.label}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </LayoutGroup>
+                </div>
+              )}
+
+              {/* Furniture / hardware — only relevant once a strap is chosen */}
+              {showFurniture && (
                 <div>
                   <div className="flex items-center justify-between mb-2.5">
                     <p
@@ -495,52 +543,6 @@ export function ProductDetail() {
                       );
                     })}
                   </div>
-                </div>
-              )}
-
-              {/* Lace */}
-              {product.lace === true && (
-                <div>
-                  <p
-                    className="text-[#2D241E]/45 uppercase mb-2.5"
-                    style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "0.66rem", letterSpacing: "0.12em" }}
-                  >
-                    {t("product.lace.label")}
-                  </p>
-                  <LayoutGroup id="desktop-lace">
-                    <div
-                      className="relative inline-flex p-1 rounded-full"
-                      style={{ backgroundColor: "rgba(45,36,30,0.06)", border: "1px solid rgba(45,36,30,0.12)" }}
-                    >
-                      {[
-                        { value: false, label: t("product.lace.withoutLace") },
-                        { value: true, label: t("product.lace.withLace") },
-                      ].map((opt) => (
-                        <button
-                          key={String(opt.value)}
-                          type="button"
-                          onClick={() => handleLaceChange(opt.value)}
-                          className="relative z-10 px-4 py-2 rounded-full text-xs cursor-pointer"
-                          style={{
-                            fontFamily: "'DM Sans', sans-serif",
-                            letterSpacing: "0.08em",
-                            color: activeLace === opt.value ? "#F5F2ED" : "#2D241E",
-                            transition: "color 0.22s ease",
-                          }}
-                        >
-                          {activeLace === opt.value && (
-                            <motion.span
-                              layoutId="desktop-lace-pill"
-                              className="absolute inset-0 rounded-full bg-[#2D241E]"
-                              style={{ zIndex: -1 }}
-                              transition={{ duration: reduceMotion ? 0 : 0.2, ease: easing }}
-                            />
-                          )}
-                          <span className="relative">{opt.label}</span>
-                        </button>
-                      ))}
-                    </div>
-                  </LayoutGroup>
                 </div>
               )}
 
