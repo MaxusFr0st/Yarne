@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useParams, useNavigate, useLocation } from "react-router";
 import { motion, AnimatePresence, LayoutGroup, useReducedMotion } from "motion/react";
 import { ArrowLeft, Heart, ChevronDown, ShoppingBag, Check } from "lucide-react";
@@ -67,20 +67,21 @@ export function ProductDetail() {
   const [addedToBag, setAddedToBag] = useState(false);
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [sizeError, setSizeError] = useState(false);
-  // Tracks the sticky info column's real height so the image can smoothly transition to match it
-  // via a CSS `transition`, instead of relying on CSS Grid `items-stretch` to reflow it live —
-  // grid stretch on a sticky item doesn't reflow in lockstep with the furniture panel's
-  // framer-motion height animation, which is what caused the old lag-then-snap.
-  const infoColRef = useRef<HTMLDivElement>(null);
+  // Tracks the sticky info column's real height so the image can animate to match it. A callback
+  // ref (not useEffect+useRef) because the column only mounts once `showContent` flips true —
+  // an effect with an empty dep array would run before that node exists and never reattach,
+  // which is exactly what left the image frozen at its fallback height.
   const [infoColHeight, setInfoColHeight] = useState<number | null>(null);
-  useEffect(() => {
-    const el = infoColRef.current;
+  const infoColObserverRef = useRef<ResizeObserver | null>(null);
+  const infoColRef = useCallback((el: HTMLDivElement | null) => {
+    infoColObserverRef.current?.disconnect();
+    infoColObserverRef.current = null;
     if (!el) return;
     const observer = new ResizeObserver(([entry]) => {
       setInfoColHeight(entry.contentRect.height);
     });
     observer.observe(el);
-    return () => observer.disconnect();
+    infoColObserverRef.current = observer;
   }, []);
   const supplementaryDetails = useMemo(
     () => (product ? getSupplementaryProductDetails(product) : []),
