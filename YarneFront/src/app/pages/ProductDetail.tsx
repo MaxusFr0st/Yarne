@@ -265,7 +265,7 @@ export function ProductDetail() {
       {related.length > 0 && <MobileRelatedProducts products={related} />}
 
       {/* ── Desktop layout ── */}
-      <div className="hidden md:block max-w-[1360px] mx-auto px-6 md:px-12 pt-[calc(var(--main-header-h)+28px)] pb-[120px]">
+      <div className="hidden md:block max-w-[1360px] mx-auto px-6 md:px-12 pt-[calc(var(--main-header-h)+16px)] pb-[120px]">
         <button
           type="button"
           onClick={() => navigate(-1)}
@@ -299,7 +299,7 @@ export function ProductDetail() {
           {/* Col 2: main image — stretches to match the info column's height, within a sane band */}
           <div className="w-full h-full flex flex-col">
             <div
-              className="relative rounded-[28px] overflow-hidden bg-[#EDE9E2] flex-1 min-h-[460px] max-h-[880px]"
+              className="relative rounded-[28px] overflow-hidden bg-[#EDE9E2] flex-1 min-h-[460px] max-h-[720px]"
               style={{ boxShadow: "0 20px 44px -20px rgba(45,36,30,0.18)" }}
             >
               {images.length > 0 && (
@@ -357,7 +357,7 @@ export function ProductDetail() {
           </div>
 
           {/* Col 3: Product Info */}
-          <div className="flex flex-col gap-4 md:sticky md:top-[calc(var(--main-header-h)+24px)]">
+          <div className="flex flex-col gap-3 md:sticky md:top-[calc(var(--main-header-h)+24px)]">
             <div>
               <p
                 className="text-[#2D241E]/40 uppercase"
@@ -387,7 +387,7 @@ export function ProductDetail() {
 
             {/* Buy box — price, colour, size, add to cart grouped in one card */}
             <div
-              className="rounded-[24px] p-6 flex flex-col gap-[18px]"
+              className="rounded-[24px] p-5 flex flex-col gap-[14px]"
               style={{ backgroundColor: "#fff", boxShadow: "0 16px 36px -18px rgba(45,36,30,0.14)" }}
             >
               <PriceTag amount={displayPrice} locale={locale} variant="display" />
