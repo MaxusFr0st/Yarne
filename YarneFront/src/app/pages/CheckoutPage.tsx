@@ -139,7 +139,7 @@ export function CheckoutPage() {
 
   if (cartItems.length === 0 && !placedOrder) {
     return (
-      <main className="min-h-[100vh] flex items-center justify-center px-6" style={{ backgroundColor: "#F5F2ED", paddingTop: "120px" }}>
+      <main className="min-h-[100vh] flex items-center justify-center px-6" style={{ backgroundColor: "#F3EFE8", paddingTop: "120px" }}>
         <motion.div
           className="text-center max-w-[500px]"
           initial={{ opacity: 0, y: 20 }}
@@ -169,18 +169,18 @@ export function CheckoutPage() {
   }
 
   return (
-    <main style={{ backgroundColor: "#F5F2ED", minHeight: "100vh" }}>
-      <section className="pt-32 pb-12 md:pt-40 md:pb-14" style={{ borderBottom: "1px solid rgba(45,36,30,0.08)" }}>
-        <div className="max-w-[1300px] mx-auto px-6 md:px-10">
+    <main style={{ backgroundColor: "#F3EFE8", minHeight: "100vh" }}>
+      <section className="pt-28 pb-8 md:pt-36 md:pb-10">
+        <div className="max-w-[1300px] mx-auto px-5 md:px-14">
           <motion.div
             initial={{ opacity: 0, y: 24 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, ease: easing }}
           >
-            <p className="text-[#2D241E]/40 uppercase tracking-widest mb-2" style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "0.68rem", letterSpacing: "0.15em" }}>
+            <p className="text-[#2D241E]/40 uppercase" style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "0.68rem", letterSpacing: "0.18em" }}>
               {t("checkout.eyebrow")}
             </p>
-            <h1 className="text-[#2D241E]" style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "clamp(2rem, 5vw, 3rem)", fontWeight: 400 }}>
+            <h1 className="text-[#2D241E] mt-2" style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "clamp(1.7rem, 5vw, 2.4rem)", fontWeight: 500 }}>
               {t("checkout.title")}
             </h1>
             <p className="text-[#2D241E]/50 mt-2" style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "0.9rem" }}>
@@ -192,24 +192,22 @@ export function CheckoutPage() {
         </div>
       </section>
 
-      <div className="max-w-[1300px] mx-auto px-6 md:px-10 py-10 md:py-14 grid lg:grid-cols-[1.2fr_0.8fr] gap-8">
+      <div className="max-w-[1300px] mx-auto px-5 md:px-14 pb-10 md:pb-16 grid lg:grid-cols-[1.2fr_0.9fr] gap-6">
         <motion.section
           initial={{ opacity: 0, y: 24 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, ease: easing }}
-          className="rounded-[30px] p-6 md:p-8"
-          style={{ border: "1px solid rgba(45,36,30,0.08)", backgroundColor: "rgba(245,242,237,0.8)" }}
+          className="rounded-[20px] md:rounded-[28px] p-4 md:p-9"
+          style={{ backgroundColor: "#fff", boxShadow: "0 16px 40px -16px rgba(45,36,30,0.1)" }}
         >
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-[#2D241E]" style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "1.7rem", fontWeight: 400 }}>
-              {t("checkout.orderDetails")}
-            </h2>
-            <span className="text-[#2D241E]/45 uppercase tracking-widest text-xs" style={{ fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.12em" }}>
-              {t("checkout.itemCount", { count: activeItems.length })}
-            </span>
-          </div>
+          <p
+            className="text-[#2D241E]/45 uppercase mb-4 md:mb-5"
+            style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "0.68rem", letterSpacing: "0.12em" }}
+          >
+            {t("checkout.orderDetails")} · {t("checkout.itemCount", { count: activeItems.length })}
+          </p>
 
-          <div className="space-y-4">
+          <div className="space-y-3">
             {activeItems.map((item) => {
               const productHref = item.productId ? `/product/${item.productId}` : "/collection";
               const imageSrc = item.image || ORDER_ITEM_PLACEHOLDER;
@@ -217,17 +215,17 @@ export function CheckoutPage() {
                 <LangLink
                   key={item.cartId}
                   to={productHref}
-                  className="block rounded-[22px] p-4 md:p-5"
-                  style={{ border: "1px solid rgba(45,36,30,0.08)", backgroundColor: "rgba(45,36,30,0.02)" }}
+                  className="block rounded-[20px] p-4"
+                  style={{ backgroundColor: "#F8F5F0" }}
                   aria-label={t("checkout.openProduct", { name: item.name })}
                 >
-                  <div className="flex gap-4">
-                    <div className="w-20 h-24 rounded-[16px] overflow-hidden bg-[#EDE9E2] flex-shrink-0">
+                  <div className="flex gap-4 md:gap-[18px]">
+                    <div className="w-[60px] h-[74px] md:w-[76px] md:h-[92px] rounded-[14px] overflow-hidden bg-white flex-shrink-0">
                       <ImageWithFallback src={imageSrc} alt={item.name} className="w-full h-full object-contain" />
                     </div>
                     <div className="flex-1 flex flex-col min-w-0">
                       <div>
-                        <p className="text-[#2D241E]" style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "1.08rem", fontWeight: 500 }}>
+                        <p className="text-[#2D241E]" style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "1.1rem", fontWeight: 500 }}>
                           {item.name}
                         </p>
                       </div>
@@ -248,34 +246,37 @@ export function CheckoutPage() {
           initial={{ opacity: 0, y: 24 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.55, delay: 0.05, ease: easing }}
-          className="rounded-[30px] p-6 md:p-8 h-fit lg:sticky lg:top-28"
-          style={{ border: "1px solid rgba(45,36,30,0.08)", backgroundColor: "#EDE9E2" }}
+          className="rounded-[20px] md:rounded-[28px] p-5 md:p-9 h-fit lg:sticky lg:top-28"
+          style={{ backgroundColor: "#2D241E", color: "#F5F2ED" }}
         >
-          <h3 className="text-[#2D241E] mb-5" style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "1.4rem", fontWeight: 400 }}>
+          <p
+            className="uppercase mb-4 md:mb-5"
+            style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "0.68rem", letterSpacing: "0.12em", color: "rgba(245,242,237,0.55)" }}
+          >
             {t("checkout.summary")}
-          </h3>
+          </p>
 
-          <div className="space-y-3 pb-5 border-b border-[#2D241E]/10">
+          <div className="space-y-3 pb-4 border-b" style={{ borderColor: "rgba(245,242,237,0.15)" }}>
             <div className="flex items-center justify-between text-sm" style={{ fontFamily: "'DM Sans', sans-serif" }}>
-              <span className="text-[#2D241E]/60">{t("checkout.subtotal")}</span>
-              <PriceTag amount={displaySubtotal} locale={locale} variant="line" withUnit />
+              <span style={{ color: "rgba(245,242,237,0.65)" }}>{t("checkout.subtotal")}</span>
+              <PriceTag amount={displaySubtotal} locale={locale} variant="line" tone="light" withUnit />
             </div>
-            <div className="flex items-center justify-between mt-2">
-              <span className="text-[#2D241E]/70 uppercase tracking-widest text-xs" style={{ fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.1em" }}>
-                {t("checkout.total")}
-              </span>
-              <PriceTag amount={displayTotal} locale={locale} variant="emphasis" withUnit />
-            </div>
+          </div>
+          <div className="flex items-center justify-between mt-4">
+            <span className="uppercase" style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "0.68rem", letterSpacing: "0.1em", color: "rgba(245,242,237,0.65)" }}>
+              {t("checkout.total")}
+            </span>
+            <PriceTag amount={displayTotal} locale={locale} variant="emphasis" tone="light" withUnit />
           </div>
 
           {!placedOrder && (
             <>
               {!isLoggedIn && (
-                <div className="pb-5 border-b border-[#2D241E]/10">
+                <div className="mt-5">
                   <label
                     htmlFor="checkout-email"
-                    className="block text-[#2D241E]/55 uppercase tracking-widest text-xs mb-2"
-                    style={{ fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.1em" }}
+                    className="block uppercase mb-2"
+                    style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "0.68rem", letterSpacing: "0.1em", color: "rgba(245,242,237,0.55)" }}
                   >
                     {t("checkout.email")}
                   </label>
@@ -289,20 +290,20 @@ export function CheckoutPage() {
                       if (error) setError(null);
                     }}
                     placeholder={t("checkout.emailPlaceholder")}
-                    className="w-full rounded-[16px] border bg-[#F5F2ED]/80 px-4 py-3 text-[#2D241E] focus:outline-none"
-                    style={{ borderColor: "rgba(45,36,30,0.15)", fontFamily: "'DM Sans', sans-serif", fontSize: "0.9rem" }}
+                    className="w-full rounded-[14px] border-0 px-4 py-3 focus:outline-none placeholder-[#F5F2ED]/40"
+                    style={{ backgroundColor: "rgba(245,242,237,0.14)", color: "#F5F2ED", fontFamily: "'DM Sans', sans-serif", fontSize: "0.88rem" }}
                   />
                 </div>
               )}
 
-              <div className="pb-5 border-b border-[#2D241E]/10 space-y-3">
+              <div className="mt-5 space-y-2.5">
                 <p
-                  className="text-[#2D241E]/55 uppercase tracking-widest text-xs"
-                  style={{ fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.1em" }}
+                  className="uppercase"
+                  style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "0.68rem", letterSpacing: "0.1em", color: "rgba(245,242,237,0.55)" }}
                 >
                   {t("checkout.recipient")}
                 </p>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-2 gap-2.5">
                   <div>
                     <label htmlFor="checkout-recipient-first-name" className="sr-only">
                       {t("checkout.recipientFirstName")}
@@ -317,8 +318,8 @@ export function CheckoutPage() {
                         if (error) setError(null);
                       }}
                       placeholder={t("checkout.recipientFirstName")}
-                      className="w-full rounded-[16px] border bg-[#F5F2ED]/80 px-4 py-3 text-[#2D241E] focus:outline-none"
-                      style={{ borderColor: "rgba(45,36,30,0.15)", fontFamily: "'DM Sans', sans-serif", fontSize: "0.9rem" }}
+                      className="w-full rounded-[14px] border-0 px-4 py-3 focus:outline-none placeholder-[#F5F2ED]/40"
+                      style={{ backgroundColor: "rgba(245,242,237,0.14)", color: "#F5F2ED", fontFamily: "'DM Sans', sans-serif", fontSize: "0.88rem" }}
                     />
                   </div>
                   <div>
@@ -335,8 +336,8 @@ export function CheckoutPage() {
                         if (error) setError(null);
                       }}
                       placeholder={t("checkout.recipientLastName")}
-                      className="w-full rounded-[16px] border bg-[#F5F2ED]/80 px-4 py-3 text-[#2D241E] focus:outline-none"
-                      style={{ borderColor: "rgba(45,36,30,0.15)", fontFamily: "'DM Sans', sans-serif", fontSize: "0.9rem" }}
+                      className="w-full rounded-[14px] border-0 px-4 py-3 focus:outline-none placeholder-[#F5F2ED]/40"
+                      style={{ backgroundColor: "rgba(245,242,237,0.14)", color: "#F5F2ED", fontFamily: "'DM Sans', sans-serif", fontSize: "0.88rem" }}
                     />
                   </div>
                 </div>
@@ -354,16 +355,16 @@ export function CheckoutPage() {
                       if (error) setError(null);
                     }}
                     placeholder={t("checkout.phonePlaceholder")}
-                    className="w-full rounded-[16px] border bg-[#F5F2ED]/80 px-4 py-3 text-[#2D241E] focus:outline-none"
-                    style={{ borderColor: "rgba(45,36,30,0.15)", fontFamily: "'DM Sans', sans-serif", fontSize: "0.9rem" }}
+                    className="w-full rounded-[14px] border-0 px-4 py-3 focus:outline-none placeholder-[#F5F2ED]/40"
+                    style={{ backgroundColor: "rgba(245,242,237,0.14)", color: "#F5F2ED", fontFamily: "'DM Sans', sans-serif", fontSize: "0.88rem" }}
                   />
                 </div>
               </div>
 
-              <div className="pt-5 pb-5 border-b border-[#2D241E]/10">
+              <div className="mt-5">
                 <p
-                  className="text-[#2D241E]/55 uppercase tracking-widest text-xs mb-2"
-                  style={{ fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.1em" }}
+                  className="uppercase mb-2"
+                  style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "0.68rem", letterSpacing: "0.1em", color: "rgba(245,242,237,0.55)" }}
                 >
                   {t("checkout.delivery")}
                 </p>
@@ -373,6 +374,7 @@ export function CheckoutPage() {
                     setDelivery(selection);
                     if (error) setError(null);
                   }}
+                  tone="dark"
                 />
               </div>
             </>
@@ -380,24 +382,24 @@ export function CheckoutPage() {
 
           {placedOrder ? (
             <div className="mt-6">
-              <div className="rounded-[20px] p-4 mb-4" style={{ backgroundColor: "rgba(45,106,79,0.08)" }}>
-                <div className="flex items-center gap-2 text-[#2D6A4F] mb-1" style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "0.85rem" }}>
+              <div className="rounded-[16px] p-4 mb-4" style={{ backgroundColor: "rgba(245,242,237,0.08)" }}>
+                <div className="flex items-center gap-2 mb-1" style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "0.85rem", color: "#9FDCAE" }}>
                   <CheckCircle2 size={15} />
                   {t("checkout.orderPlaced")}
                 </div>
-                <p className="text-[#2D241E]/70 text-sm" style={{ fontFamily: "'DM Sans', sans-serif" }}>
+                <p className="text-sm" style={{ fontFamily: "'DM Sans', sans-serif", color: "rgba(245,242,237,0.65)" }}>
                   #{placedOrder.id} · {toDisplayDate(placedOrder.orderDate, locale)}
                 </p>
               </div>
               <div className="space-y-2 text-sm" style={{ fontFamily: "'DM Sans', sans-serif" }}>
-                <p className="text-[#2D241E]/70">{t("checkout.status")}: <span className="text-[#2D241E]">{placedOrder.status}</span></p>
-                <p className="text-[#2D241E]/70">{t("checkout.payment")}: <span className="text-[#2D241E]">{placedOrder.paymentMethodName}</span></p>
-                <p className="text-[#2D241E]/70">{t("checkout.itemsInOrder")}: <span className="text-[#2D241E]">{placedOrder.items.length}</span></p>
+                <p style={{ color: "rgba(245,242,237,0.65)" }}>{t("checkout.status")}: <span style={{ color: "#F5F2ED" }}>{placedOrder.status}</span></p>
+                <p style={{ color: "rgba(245,242,237,0.65)" }}>{t("checkout.payment")}: <span style={{ color: "#F5F2ED" }}>{placedOrder.paymentMethodName}</span></p>
+                <p style={{ color: "rgba(245,242,237,0.65)" }}>{t("checkout.itemsInOrder")}: <span style={{ color: "#F5F2ED" }}>{placedOrder.items.length}</span></p>
               </div>
               <LangLink
                 to="/account"
-                className="mt-6 inline-flex items-center gap-2 text-[#4A0E0E] hover:opacity-80 transition-opacity text-sm"
-                style={{ fontFamily: "'DM Sans', sans-serif" }}
+                className="mt-6 inline-flex items-center gap-2 hover:opacity-80 transition-opacity text-sm"
+                style={{ fontFamily: "'DM Sans', sans-serif", color: "#F5F2ED" }}
               >
                 {t("checkout.viewInAccount")}
                 <ArrowRight size={14} />
@@ -406,15 +408,15 @@ export function CheckoutPage() {
           ) : (
             <>
               {error && (
-                <p className="mt-4 text-sm text-[#4A0E0E]" style={{ fontFamily: "'DM Sans', sans-serif" }}>
+                <p className="mt-4 text-sm" style={{ fontFamily: "'DM Sans', sans-serif", color: "#F2B8B8" }}>
                   {error}
                 </p>
               )}
             <button
               onClick={placeOrder}
               disabled={placingOrder || cartItems.length === 0 || !isEmailValid || !isRecipientValid || !isDeliveryValid}
-              className="mt-6 w-full py-4 rounded-full text-[#F5F2ED] uppercase tracking-widest transition-all duration-300 disabled:opacity-60"
-              style={{ backgroundColor: "#2D241E", fontFamily: "'DM Sans', sans-serif", fontSize: "0.78rem", letterSpacing: "0.14em" }}
+              className="mt-6 w-full h-[52px] rounded-[26px] uppercase transition-opacity duration-300 disabled:opacity-60 cursor-pointer"
+              style={{ backgroundColor: "#F5F2ED", color: "#4A0E0E", fontFamily: "'DM Sans', sans-serif", fontSize: "0.75rem", letterSpacing: "0.14em" }}
             >
               {placingOrder ? t("checkout.placingOrder") : t("checkout.placeOrder")}
             </button>

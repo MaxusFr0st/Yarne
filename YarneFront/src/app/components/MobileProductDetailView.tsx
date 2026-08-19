@@ -206,7 +206,7 @@ export function MobileProductDetailView({
       <div
         className="relative z-10 -mt-[clamp(12px,3vw,16px)] rounded-t-[clamp(20px,5vw,28px)] px-[clamp(14px,3.6vw,22px)] pt-[clamp(14px,3.5vw,18px)] pb-[clamp(14px,3.5vw,20px)]"
         style={{
-          backgroundColor: "#FAF8F5",
+          backgroundColor: "#F3EFE8",
           boxShadow: "0 -8px 32px rgba(45,36,30,0.1)",
         }}
       >
@@ -222,20 +222,17 @@ export function MobileProductDetailView({
             {product.category}
           </p>
 
-          <div className="flex items-start justify-between gap-2 shrink-0">
-            <h1
-              className="text-[#2D241E] min-w-0"
-              style={{
-                fontFamily: "'Cormorant Garamond', serif",
-                fontSize: "clamp(1.4rem, 5.8vw, 1.85rem)",
-                fontWeight: 500,
-                lineHeight: 1.05,
-              }}
-            >
-              {product.name}
-            </h1>
-            <PriceTag amount={displayPrice} locale={locale} variant="display" />
-          </div>
+          <h1
+            className="text-[#2D241E] min-w-0 shrink-0"
+            style={{
+              fontFamily: "'Cormorant Garamond', serif",
+              fontSize: "clamp(1.4rem, 5.8vw, 1.85rem)",
+              fontWeight: 500,
+              lineHeight: 1.05,
+            }}
+          >
+            {product.name}
+          </h1>
 
           <MobileAccordionSection
             title={t("product.description")}
@@ -311,7 +308,14 @@ export function MobileProductDetailView({
             </MobileAccordionSection>
           ) : null}
 
-          <div className="shrink-0">
+          {/* Buy box: price + colour + size + CTA in one card */}
+          <div
+            className="shrink-0 rounded-[22px] p-4 flex flex-col gap-[13px]"
+            style={{ backgroundColor: "#fff", boxShadow: "0 14px 30px -18px rgba(45,36,30,0.16)" }}
+          >
+          <PriceTag amount={displayPrice} locale={locale} variant="display" />
+
+          <div className="pt-[12px]" style={{ borderTop: "1px solid rgba(45,36,30,0.08)" }}>
             <div className="flex items-center justify-between mb-[clamp(4px,1vw,6px)]">
               <p
                 className="text-[#2D241E] uppercase"
@@ -348,11 +352,11 @@ export function MobileProductDetailView({
                 const isActive = i === activeColor;
                 const colorLabel = localizedCatalogName(color.name, color.nameUk, locale);
                 const colorStyle = {
-                  width: "clamp(28px, 7vw, 34px)",
-                  height: "clamp(28px, 7vw, 34px)",
+                  width: "clamp(22px, 6vw, 26px)",
+                  height: "clamp(22px, 6vw, 26px)",
                   backgroundColor: color.hex,
-                  border: isActive ? "2px solid #2D241E" : "1.5px solid rgba(45,36,30,0.18)",
-                  boxShadow: isActive ? "0 0 0 2px #FAF8F5, 0 0 0 4px #2D241E" : "none",
+                  border: isActive ? "none" : "1.5px solid rgba(45,36,30,0.18)",
+                  boxShadow: isActive ? "0 0 0 2px #fff, 0 0 0 3.5px #2D241E" : "none",
                 } as const;
 
                 if (!motionEnabled) {
@@ -389,7 +393,7 @@ export function MobileProductDetailView({
           </div>
 
           {furnitureList.length > 0 && (
-            <div className="shrink-0">
+            <div className="pt-[12px]" style={{ borderTop: "1px solid rgba(45,36,30,0.08)" }}>
               <div className="flex items-center justify-between mb-[clamp(4px,1vw,6px)]">
                 <p
                   className="text-[#2D241E] uppercase"
@@ -426,11 +430,11 @@ export function MobileProductDetailView({
                   const isActive = i === activeFurniture;
                   const furnitureLabel = localizedCatalogName(fc.name, fc.nameUk, locale);
                   const furnitureStyle = {
-                    width: "clamp(28px, 7vw, 34px)",
-                    height: "clamp(28px, 7vw, 34px)",
+                    width: "clamp(22px, 6vw, 26px)",
+                    height: "clamp(22px, 6vw, 26px)",
                     backgroundColor: fc.hex,
-                    border: isActive ? "2px solid #2D241E" : "1.5px solid rgba(45,36,30,0.18)",
-                    boxShadow: isActive ? "0 0 0 2px #FAF8F5, 0 0 0 4px #2D241E" : "none",
+                    border: isActive ? "none" : "1.5px solid rgba(45,36,30,0.18)",
+                    boxShadow: isActive ? "0 0 0 2px #fff, 0 0 0 3.5px #2D241E" : "none",
                   } as const;
 
                   if (!motionEnabled) {
@@ -468,7 +472,7 @@ export function MobileProductDetailView({
           )}
 
           {laceEnabled && (
-            <div className="shrink-0">
+            <div className="pt-[12px]" style={{ borderTop: "1px solid rgba(45,36,30,0.08)" }}>
               <p
                 className="text-[#2D241E] uppercase mb-[clamp(4px,1vw,6px)]"
                 style={{
@@ -521,7 +525,7 @@ export function MobileProductDetailView({
           )}
 
           {displaySizes.length > 0 && (
-            <div className="shrink-0">
+            <div className="pt-[12px]" style={{ borderTop: "1px solid rgba(45,36,30,0.08)" }}>
               <div className="flex items-center justify-between mb-[clamp(4px,1vw,6px)]">
                 <p
                   className="text-[#2D241E] uppercase"
@@ -533,6 +537,13 @@ export function MobileProductDetailView({
                 >
                   {t("product.size")}
                 </p>
+                <button
+                  type="button"
+                  className="text-[#2D241E]/45 underline underline-offset-2 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2D241E]/35 rounded-sm"
+                  style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "clamp(0.7rem, 2.6vw, 0.78rem)" }}
+                >
+                  {t("product.sizeGuide")}
+                </button>
               </div>
               <div
                 className={`flex flex-wrap gap-2 ${
@@ -620,7 +631,7 @@ export function MobileProductDetailView({
           <motion.button
             type="button"
             onClick={onAddToBag}
-            className="shrink-0 mt-[clamp(8px,1.8vh,12px)] w-full h-12 flex items-center justify-center gap-2 rounded-full text-white touch-manipulation cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2D241E]/35"
+            className="shrink-0 w-full h-[50px] flex items-center justify-center gap-2 rounded-[25px] text-white touch-manipulation cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2D241E]/35"
           style={{
             backgroundColor: addedToBag ? "#2D5928" : "#2D241E",
             fontFamily: "'DM Sans', sans-serif",
@@ -642,6 +653,7 @@ export function MobileProductDetailView({
             </>
           )}
           </motion.button>
+          </div>
 
           <ProductGuaranteeBlock
             content={guaranteeContent}

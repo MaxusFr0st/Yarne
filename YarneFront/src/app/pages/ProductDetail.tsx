@@ -231,7 +231,7 @@ export function ProductDetail() {
   const displayPrice = product ? resolveDisplayPrice(selectedColor, activeLace, product.price) : 0;
 
   return (
-    <main className="overflow-x-hidden min-h-[100vh]" style={{ backgroundColor: "#F5F2ED" }}>
+    <main className="overflow-x-hidden min-h-[100vh]" style={{ backgroundColor: "#F3EFE8" }}>
       {!showContent ? (
         <div className="min-h-[50vh]" aria-busy="true" />
       ) : (
@@ -263,24 +263,43 @@ export function ProductDetail() {
       {related.length > 0 && <MobileRelatedProducts products={related} />}
 
       {/* ── Desktop layout ── */}
-      <div className="hidden md:block max-w-[1400px] mx-auto px-5 md:px-10 pt-24 pb-24">
+      <div className="hidden md:block max-w-[1180px] mx-auto px-6 md:px-12 pt-7 pb-[72px]">
         <button
           type="button"
           onClick={() => navigate(-1)}
-          className="flex items-center gap-2 text-[#2D241E]/50 hover:text-[#2D241E] transition-colors duration-300 mb-5 group"
-          style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "0.78rem", letterSpacing: "0.12em" }}
+          className="flex items-center gap-2 text-[#2D241E]/45 hover:text-[#2D241E] transition-colors duration-300 mb-5 group"
+          style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "0.76rem", letterSpacing: "0.1em" }}
         >
-          <ArrowLeft size={14} className="group-hover:-translate-x-1 transition-transform duration-300" />
-          <span className="uppercase tracking-widest">{t("product.back")}</span>
+          <ArrowLeft size={15} strokeWidth={1.5} className="group-hover:-translate-x-1 transition-transform duration-300" />
+          <span>{t("product.back")}</span>
         </button>
 
-        <div className="grid md:grid-cols-2 lg:grid-cols-[minmax(0,1fr)_minmax(340px,420px)] gap-6 md:gap-8 lg:gap-12 items-start mt-0">
-          {/* Left: Image Gallery */}
-          <div
-            className="w-full max-w-[335px] sm:max-w-[380px] mx-auto md:max-w-none md:mx-0 lg:max-w-[620px] lg:justify-self-center"
-          >
-            {/* Main Image */}
-            <div className="relative rounded-[34px] sm:rounded-[40px] overflow-hidden bg-[#EDE9E2] h-[min(64vh,430px)] min-h-[320px] sm:min-h-[340px] md:h-[min(62vh,640px)] md:min-h-[440px] lg:h-[min(68vh,720px)] lg:min-h-[500px]">
+        <div className="grid md:grid-cols-2 lg:grid-cols-[88px_1fr_420px] gap-6 items-start mt-0">
+          {/* Col 1: thumbnail rail (lg+) */}
+          <div className="hidden lg:flex flex-col gap-2.5">
+            {images.map((img, i) => (
+              <button
+                key={i}
+                onClick={() => setActiveImage(i)}
+                className="rounded-2xl overflow-hidden aspect-square cursor-pointer transition-opacity duration-300"
+                style={{ boxShadow: safeImageIndex === i ? "0 0 0 2px #2D241E" : "none", opacity: safeImageIndex === i ? 1 : 0.55 }}
+              >
+                <ImageWithFallback
+                  src={img.src}
+                  focal={{ x: img.focalX, y: img.focalY }}
+                  alt={`${selectedColorLabel} - ${i + 1}`}
+                  className="w-full h-full object-cover"
+                />
+              </button>
+            ))}
+          </div>
+
+          {/* Col 2: main image */}
+          <div className="w-full">
+            <div
+              className="relative rounded-[28px] overflow-hidden bg-[#EDE9E2] h-[min(62vh,600px)] min-h-[420px]"
+              style={{ boxShadow: "0 20px 44px -20px rgba(45,36,30,0.18)" }}
+            >
               {images.length > 0 && (
                 <CrossfadeImage
                   src={images[safeImageIndex].src}
@@ -294,16 +313,16 @@ export function ProductDetail() {
               <div className="absolute top-5 left-5 flex gap-2">
                 {product.isNew && (
                   <span
-                    className="px-3 py-1 rounded-full text-xs text-white"
-                    style={{ backgroundColor: "#4A0E0E", fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.12em", fontSize: "0.65rem" }}
+                    className="px-3.5 py-1.5 rounded-2xl"
+                    style={{ backgroundColor: "#fff", color: "#2D241E", fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.12em", fontSize: "0.62rem" }}
                   >
                     {t("product.badgeNew")}
                   </span>
                 )}
                 {product.isBestseller && (
                   <span
-                    className="px-3 py-1 rounded-full text-xs"
-                    style={{ backgroundColor: "rgba(245,242,237,0.9)", color: "#2D241E", fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.1em", fontSize: "0.65rem" }}
+                    className="px-3.5 py-1.5 rounded-2xl"
+                    style={{ backgroundColor: "rgba(255,255,255,0.85)", color: "#2D241E", fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.1em", fontSize: "0.62rem" }}
                   >
                     {t("product.badgeBestseller")}
                   </span>
@@ -311,13 +330,13 @@ export function ProductDetail() {
               </div>
             </div>
 
-            {/* Thumbnail strip (images for selected color) */}
-            <div className="flex gap-2.5 sm:gap-3 mt-2.5 sm:mt-4">
+            {/* Thumbnail strip — fallback for md (below lg rail) */}
+            <div className="flex gap-2.5 mt-3 lg:hidden">
               {images.map((img, i) => (
                 <button
                   key={i}
                   onClick={() => setActiveImage(i)}
-                  className="flex-1 rounded-[16px] sm:rounded-[18px] overflow-hidden bg-[#EDE9E2] transition-all duration-300 ease-out cursor-pointer h-[64px] sm:h-[84px] md:h-[110px] lg:h-[124px] xl:h-[132px]"
+                  className="flex-1 rounded-[18px] overflow-hidden bg-[#EDE9E2] transition-all duration-300 ease-out cursor-pointer h-[110px]"
                   style={{
                     opacity: safeImageIndex === i ? 1 : 0.45,
                     border: safeImageIndex === i ? "2px solid #2D241E" : "2px solid transparent",
@@ -333,141 +352,89 @@ export function ProductDetail() {
                 </button>
               ))}
             </div>
-
           </div>
 
-          {/* Right: Product Info */}
-          <div
-            className="flex flex-col gap-5 md:sticky md:top-[calc(var(--main-header-h)+24px)]"
-          >
-            {/* Category */}
-            <p
-              className="text-[#2D241E]/45 tracking-widest uppercase text-[0.7rem]"
-              style={{ fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.18em" }}
-            >
-              {product.category}
-            </p>
-
-            {/* Name & Price */}
-            <div className="-mt-1">
+          {/* Col 3: Product Info */}
+          <div className="flex flex-col gap-4 md:sticky md:top-[calc(var(--main-header-h)+24px)]">
+            <div>
+              <p
+                className="text-[#2D241E]/40 uppercase"
+                style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "0.66rem", letterSpacing: "0.18em" }}
+              >
+                {product.category}
+              </p>
               <h1
-                className="text-[#2D241E] text-pretty"
-                style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "clamp(1.8rem, 4vw, 2.5rem)", fontWeight: 400, lineHeight: 1.15 }}
+                className="text-[#2D241E] text-pretty mt-2.5"
+                style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "clamp(1.9rem, 3.4vw, 2.7rem)", fontWeight: 500, lineHeight: 1.05 }}
               >
                 {product.name}
               </h1>
               <p
-                className="text-[#2D241E]/60 mt-1.5"
-                style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "0.875rem" }}
+                className="text-[#2D241E]/50 mt-2"
+                style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "0.85rem" }}
               >
                 {product.subtitle}
               </p>
-              <PriceTag amount={displayPrice} locale={locale} variant="display" className="mt-3" />
+              <p
+                className="text-[#2D241E]/60 mt-4"
+                style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "0.88rem", lineHeight: 1.75, whiteSpace: "pre-line" }}
+              >
+                {product.description}
+              </p>
             </div>
 
-            {/* Color Selection */}
-            <div>
-              <div className="flex items-center justify-between mb-3">
-                <p
-                  className="text-[#2D241E] text-xs tracking-widest uppercase"
-                  style={{ fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.14em" }}
-                >
-                  {t("product.colour")}
-                </p>
-                <p
-                  className="text-[#2D241E]/60 text-xs"
-                  style={{ fontFamily: "'DM Sans', sans-serif" }}
-                >
-                  <AnimatePresence mode="wait">
-                    <motion.span
-                      key={selectedColorLabel}
-                      initial={reduceMotion ? false : { opacity: 0, y: 4 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={reduceMotion ? undefined : { opacity: 0, y: -4 }}
-                      transition={{ duration: 0.2, ease: easing }}
-                    >
-                      {selectedColorLabel}
-                    </motion.span>
-                  </AnimatePresence>
-                </p>
-              </div>
-              <div className="flex flex-wrap gap-2.5">
-                {product.colors.map((color, i) => {
-                  const colorLabel = localizedCatalogName(color.name, color.nameUk, locale);
-                  return (
-                  <motion.button
-                    key={color.name}
-                    type="button"
-                    onClick={() => handleColorChange(i)}
-                    title={colorLabel}
-                    aria-label={colorLabel}
-                    aria-pressed={i === activeColor}
-                    className="cursor-pointer touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2D241E]/40 focus-visible:ring-offset-2 focus-visible:ring-offset-[#F5F2ED]"
-                    animate={{ scale: i === activeColor ? 1.06 : 1 }}
-                    transition={{ duration: 0.2, ease: easing }}
-                    style={{
-                      width: 30,
-                      height: 30,
-                      borderRadius: "50%",
-                      backgroundColor: color.hex,
-                      border: i === activeColor ? "2px solid #2D241E" : "1.5px solid rgba(45,36,30,0.2)",
-                      boxShadow: i === activeColor ? "0 0 0 3px #F5F2ED, 0 0 0 5px #2D241E" : "none",
-                      transition: "border-color 0.2s ease, box-shadow 0.2s ease",
-                    }}
-                  />
-                  );
-                })}
-              </div>
-            </div>
+            {/* Buy box — price, colour, size, add to cart grouped in one card */}
+            <div
+              className="rounded-[24px] p-6 flex flex-col gap-[18px]"
+              style={{ backgroundColor: "#fff", boxShadow: "0 16px 36px -18px rgba(45,36,30,0.14)" }}
+            >
+              <PriceTag amount={displayPrice} locale={locale} variant="display" />
 
-            {/* Furniture / Hardware Selection */}
-            {furnitureList.length > 0 && (
+              {/* Colour */}
               <div>
-                <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center justify-between mb-2.5">
                   <p
-                    className="text-[#2D241E] text-xs tracking-widest uppercase"
-                    style={{ fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.14em" }}
+                    className="text-[#2D241E]/45 uppercase"
+                    style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "0.66rem", letterSpacing: "0.12em" }}
                   >
-                    {t("product.furniture")}
+                    {t("product.colour")}
                   </p>
-                  <p
-                    className="text-[#2D241E]/60 text-xs"
-                    style={{ fontFamily: "'DM Sans', sans-serif" }}
-                  >
+                  <p className="text-[#2D241E]/55 text-xs" style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "0.78rem" }}>
                     <AnimatePresence mode="wait">
                       <motion.span
-                        key={selectedFurnitureLabel}
+                        key={selectedColorLabel}
                         initial={reduceMotion ? false : { opacity: 0, y: 4 }}
                         animate={{ opacity: 1, y: 0 }}
                         exit={reduceMotion ? undefined : { opacity: 0, y: -4 }}
                         transition={{ duration: 0.2, ease: easing }}
                       >
-                        {selectedFurnitureLabel}
+                        {selectedColorLabel}
                       </motion.span>
                     </AnimatePresence>
                   </p>
                 </div>
                 <div className="flex flex-wrap gap-2.5">
-                  {furnitureList.map((fc, i) => {
-                    const furnitureLabel = localizedCatalogName(fc.name, fc.nameUk, locale);
+                  {product.colors.map((color, i) => {
+                    const colorLabel = localizedCatalogName(color.name, color.nameUk, locale);
+                    const isActive = i === activeColor;
                     return (
                       <motion.button
-                        key={fc.name}
+                        key={color.name}
                         type="button"
-                        onClick={() => handleFurnitureChange(i)}
-                        title={furnitureLabel}
-                        aria-label={furnitureLabel}
-                        aria-pressed={i === activeFurniture}
-                        className="cursor-pointer touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2D241E]/40 focus-visible:ring-offset-2 focus-visible:ring-offset-[#F5F2ED]"
-                        animate={{ scale: i === activeFurniture ? 1.06 : 1 }}
+                        onClick={() => handleColorChange(i)}
+                        title={colorLabel}
+                        aria-label={colorLabel}
+                        aria-pressed={isActive}
+                        className="cursor-pointer touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2D241E]/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
+                        animate={{ scale: isActive ? 1.06 : 1 }}
                         transition={{ duration: 0.2, ease: easing }}
                         style={{
-                          width: 30,
-                          height: 30,
+                          width: 28,
+                          height: 28,
                           borderRadius: "50%",
-                          backgroundColor: fc.hex,
-                          border: i === activeFurniture ? "2px solid #2D241E" : "1.5px solid rgba(45,36,30,0.2)",
-                          boxShadow: i === activeFurniture ? "0 0 0 3px #F5F2ED, 0 0 0 5px #2D241E" : "none",
+                          backgroundColor: color.hex,
+                          border: isActive ? "none" : "1.5px solid rgba(45,36,30,0.2)",
+                          boxShadow: isActive ? "0 0 0 2px #fff, 0 0 0 3.5px #2D241E" : "none",
                           transition: "border-color 0.2s ease, box-shadow 0.2s ease",
                         }}
                       />
@@ -475,241 +442,280 @@ export function ProductDetail() {
                   })}
                 </div>
               </div>
-            )}
 
-            {/* Lace Selection */}
-            {product.lace === true && (
-              <div>
-                <p
-                  className="text-[#2D241E] text-xs tracking-widest uppercase mb-3"
-                  style={{ fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.14em" }}
-                >
-                  {t("product.lace.label")}
-                </p>
-                <LayoutGroup id="desktop-lace">
-                  <div
-                    className="relative inline-flex p-1 rounded-full"
-                    style={{ backgroundColor: "rgba(45,36,30,0.06)", border: "1px solid rgba(45,36,30,0.12)" }}
+              {/* Furniture / hardware */}
+              {furnitureList.length > 0 && (
+                <div>
+                  <div className="flex items-center justify-between mb-2.5">
+                    <p
+                      className="text-[#2D241E]/45 uppercase"
+                      style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "0.66rem", letterSpacing: "0.12em" }}
+                    >
+                      {t("product.furniture")}
+                    </p>
+                    <p className="text-[#2D241E]/55" style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "0.78rem" }}>
+                      <AnimatePresence mode="wait">
+                        <motion.span
+                          key={selectedFurnitureLabel}
+                          initial={reduceMotion ? false : { opacity: 0, y: 4 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={reduceMotion ? undefined : { opacity: 0, y: -4 }}
+                          transition={{ duration: 0.2, ease: easing }}
+                        >
+                          {selectedFurnitureLabel}
+                        </motion.span>
+                      </AnimatePresence>
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap gap-2.5">
+                    {furnitureList.map((fc, i) => {
+                      const furnitureLabel = localizedCatalogName(fc.name, fc.nameUk, locale);
+                      const isActive = i === activeFurniture;
+                      return (
+                        <motion.button
+                          key={fc.name}
+                          type="button"
+                          onClick={() => handleFurnitureChange(i)}
+                          title={furnitureLabel}
+                          aria-label={furnitureLabel}
+                          aria-pressed={isActive}
+                          className="cursor-pointer touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2D241E]/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
+                          animate={{ scale: isActive ? 1.06 : 1 }}
+                          transition={{ duration: 0.2, ease: easing }}
+                          style={{
+                            width: 28,
+                            height: 28,
+                            borderRadius: "50%",
+                            backgroundColor: fc.hex,
+                            border: isActive ? "none" : "1.5px solid rgba(45,36,30,0.2)",
+                            boxShadow: isActive ? "0 0 0 2px #fff, 0 0 0 3.5px #2D241E" : "none",
+                            transition: "border-color 0.2s ease, box-shadow 0.2s ease",
+                          }}
+                        />
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Lace */}
+              {product.lace === true && (
+                <div>
+                  <p
+                    className="text-[#2D241E]/45 uppercase mb-2.5"
+                    style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "0.66rem", letterSpacing: "0.12em" }}
                   >
-                    {[
-                      { value: false, label: t("product.lace.withoutLace") },
-                      { value: true, label: t("product.lace.withLace") },
-                    ].map((opt) => (
-                      <button
-                        key={String(opt.value)}
+                    {t("product.lace.label")}
+                  </p>
+                  <LayoutGroup id="desktop-lace">
+                    <div
+                      className="relative inline-flex p-1 rounded-full"
+                      style={{ backgroundColor: "rgba(45,36,30,0.06)", border: "1px solid rgba(45,36,30,0.12)" }}
+                    >
+                      {[
+                        { value: false, label: t("product.lace.withoutLace") },
+                        { value: true, label: t("product.lace.withLace") },
+                      ].map((opt) => (
+                        <button
+                          key={String(opt.value)}
+                          type="button"
+                          onClick={() => handleLaceChange(opt.value)}
+                          className="relative z-10 px-4 py-2 rounded-full text-xs cursor-pointer"
+                          style={{
+                            fontFamily: "'DM Sans', sans-serif",
+                            letterSpacing: "0.08em",
+                            color: activeLace === opt.value ? "#F5F2ED" : "#2D241E",
+                            transition: "color 0.22s ease",
+                          }}
+                        >
+                          {activeLace === opt.value && (
+                            <motion.span
+                              layoutId="desktop-lace-pill"
+                              className="absolute inset-0 rounded-full bg-[#2D241E]"
+                              style={{ zIndex: -1 }}
+                              transition={{ duration: reduceMotion ? 0 : 0.2, ease: easing }}
+                            />
+                          )}
+                          <span className="relative">{opt.label}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </LayoutGroup>
+                </div>
+              )}
+
+              {/* Size */}
+              <div>
+                <div className="flex items-center justify-between mb-2.5">
+                  <p
+                    className="text-[#2D241E]/45 uppercase"
+                    style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "0.66rem", letterSpacing: "0.12em" }}
+                  >
+                    {t("product.size")}
+                  </p>
+                  <button
+                    type="button"
+                    className="text-[#2D241E]/45 hover:text-[#4A0E0E] transition-colors duration-200 underline underline-offset-2 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2D241E]/35 rounded-sm"
+                    style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "0.78rem" }}
+                  >
+                    {t("product.sizeGuide")}
+                  </button>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {displaySizes.map((size) => {
+                    const sizeMeta = product?.sizes.find((s) => s.name === size);
+                    const sizeLabel = localizedCatalogName(size, sizeMeta?.nameUk, locale);
+                    const single = displaySizes.length === 1;
+                    const isActive = activeSize === size;
+                    return (
+                      <motion.button
+                        key={size}
                         type="button"
-                        onClick={() => handleLaceChange(opt.value)}
-                        className="relative z-10 px-4 py-2 rounded-full text-xs cursor-pointer"
+                        onClick={() => { setActiveSize(size); setSizeError(false); }}
+                        aria-pressed={isActive}
+                        className="rounded-full cursor-pointer touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2D241E]/35"
+                        animate={reduceMotion ? undefined : { scale: isActive && !single ? 1.02 : 1 }}
+                        transition={{ duration: 0.2, ease: easing }}
                         style={{
                           fontFamily: "'DM Sans', sans-serif",
-                          letterSpacing: "0.08em",
-                          color: activeLace === opt.value ? "#F5F2ED" : "#2D241E",
-                          transition: "color 0.22s ease",
+                          fontSize: "0.78rem",
+                          letterSpacing: "0.06em",
+                          minHeight: "40px",
+                          minWidth: single ? undefined : "48px",
+                          padding: single ? "10px 24px" : "8px 14px",
+                          // Single size: quiet status chip — solid ink reserved for Add to bag
+                          backgroundColor: single
+                            ? "rgba(45,36,30,0.06)"
+                            : isActive
+                              ? "#2D241E"
+                              : "transparent",
+                          color: single || !isActive ? "#2D241E" : "#F5F2ED",
+                          border: single
+                            ? "1px solid rgba(45,36,30,0.15)"
+                            : isActive
+                              ? "1.5px solid #2D241E"
+                              : sizeError
+                                ? "1.5px solid rgba(74,14,14,0.5)"
+                                : "1.5px solid rgba(45,36,30,0.2)",
+                          transition: "background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease",
                         }}
                       >
-                        {activeLace === opt.value && (
-                          <motion.span
-                            layoutId="desktop-lace-pill"
-                            className="absolute inset-0 rounded-full bg-[#2D241E]"
-                            style={{ zIndex: -1 }}
-                            transition={{ duration: reduceMotion ? 0 : 0.2, ease: easing }}
-                          />
-                        )}
-                        <span className="relative">{opt.label}</span>
-                      </button>
-                    ))}
-                  </div>
-                </LayoutGroup>
-
+                        {sizeLabel}
+                      </motion.button>
+                    );
+                  })}
+                </div>
+                <AnimatePresence>
+                  {sizeError && (
+                    <motion.p
+                      className="text-[#4A0E0E] text-xs mt-2"
+                      style={{ fontFamily: "'DM Sans', sans-serif" }}
+                      initial={{ opacity: 0, y: -4 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0 }}
+                      role="status"
+                      aria-live="polite"
+                    >
+                      {t("product.selectSize")}
+                    </motion.p>
+                  )}
+                </AnimatePresence>
               </div>
-            )}
 
-            {/* Size Selection */}
-            <div>
-              <div className="flex items-center justify-between mb-2.5">
-                <p
-                  className="text-[#2D241E] text-xs tracking-widest uppercase"
-                  style={{ fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.14em" }}
+              {/* Actions */}
+              <div className="flex items-center gap-2.5">
+                <motion.button
+                  type="button"
+                  onClick={handleAddToBag}
+                  className="flex-1 h-[54px] rounded-[27px] flex items-center justify-center gap-2.5 text-white touch-manipulation transition-[background-color,opacity] duration-200 hover:opacity-90 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2D241E]/35 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
+                  style={{
+                    backgroundColor: addedToBag ? "#2D5928" : "#2D241E",
+                    fontFamily: "'DM Sans', sans-serif",
+                    fontSize: "0.74rem",
+                    letterSpacing: "0.14em",
+                  }}
+                  whileTap={reduceMotion ? undefined : { scale: 0.98 }}
                 >
-                  {t("product.size")}
-                </p>
+                  {addedToBag ? (
+                    <>
+                      <Check size={15} aria-hidden="true" />
+                      <span className="uppercase tracking-widest">{t("product.addedToBag")}</span>
+                    </>
+                  ) : (
+                    <>
+                      <ShoppingBag size={15} strokeWidth={1.5} aria-hidden="true" />
+                      <span className="uppercase tracking-widest">{t("product.addToBag")}</span>
+                    </>
+                  )}
+                </motion.button>
+
                 <button
                   type="button"
-                  className="text-[#2D241E]/50 text-xs hover:text-[#4A0E0E] transition-colors duration-200 underline underline-offset-2 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2D241E]/35 rounded-sm"
-                  style={{ fontFamily: "'DM Sans', sans-serif" }}
+                  onClick={() => toggleWishlist(product.id)}
+                  className="shrink-0 w-[54px] h-[54px] rounded-[27px] flex items-center justify-center touch-manipulation cursor-pointer transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2D241E]/35 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
+                  aria-label={isWishlisted ? t("product.wishlistRemove") : t("product.wishlistAdd")}
+                  aria-pressed={isWishlisted}
+                  style={{ backgroundColor: isWishlisted ? "#4A0E0E" : "#F3EFE8" }}
                 >
-                  {t("product.sizeGuide")}
+                  <Heart
+                    size={17}
+                    strokeWidth={1.5}
+                    aria-hidden="true"
+                    fill={isWishlisted ? "white" : "none"}
+                    stroke={isWishlisted ? "white" : "#2D241E"}
+                  />
                 </button>
               </div>
-              <div className="flex flex-wrap gap-2">
-                {displaySizes.map((size) => {
-                  const sizeMeta = product?.sizes.find((s) => s.name === size);
-                  const sizeLabel = localizedCatalogName(size, sizeMeta?.nameUk, locale);
-                  const single = displaySizes.length === 1;
-                  const isActive = activeSize === size;
-                  return (
-                  <motion.button
-                    key={size}
-                    type="button"
-                    onClick={() => { setActiveSize(size); setSizeError(false); }}
-                    aria-pressed={isActive}
-                    className="rounded-full cursor-pointer touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2D241E]/35"
-                    animate={reduceMotion ? undefined : { scale: isActive && !single ? 1.02 : 1 }}
-                    transition={{ duration: 0.2, ease: easing }}
-                    style={{
-                      fontFamily: "'DM Sans', sans-serif",
-                      fontSize: "0.75rem",
-                      letterSpacing: "0.06em",
-                      minHeight: "40px",
-                      minWidth: single ? undefined : "48px",
-                      padding: single ? "8px 18px" : "8px 14px",
-                      // Single size: quiet status chip — solid ink reserved for Add to bag
-                      backgroundColor: single
-                        ? "rgba(45,36,30,0.06)"
-                        : isActive
-                          ? "#2D241E"
-                          : "transparent",
-                      color: single || !isActive ? "#2D241E" : "#F5F2ED",
-                      border: single
-                        ? "1px solid rgba(45,36,30,0.14)"
-                        : isActive
-                          ? "1.5px solid #2D241E"
-                          : sizeError
-                            ? "1.5px solid rgba(74,14,14,0.5)"
-                            : "1.5px solid rgba(45,36,30,0.2)",
-                      transition: "background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease",
-                    }}
-                  >
-                    {sizeLabel}
-                  </motion.button>
-                  );
-                })}
-              </div>
-              <AnimatePresence>
-                {sizeError && (
-                  <motion.p
-                    className="text-[#4A0E0E] text-xs mt-2"
-                    style={{ fontFamily: "'DM Sans', sans-serif" }}
-                    initial={{ opacity: 0, y: -4 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0 }}
-                    role="status"
-                    aria-live="polite"
-                  >
-                    {t("product.selectSize")}
-                  </motion.p>
-                )}
-              </AnimatePresence>
-            </div>
-
-            {/* Add to Bag — primary action; matches wishlist height */}
-            <div className="flex items-center gap-2.5 pt-0.5">
-              <motion.button
-                type="button"
-                onClick={handleAddToBag}
-                className="flex-1 h-12 rounded-full flex items-center justify-center gap-2.5 text-white touch-manipulation transition-[background-color,opacity] duration-200 hover:opacity-90 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2D241E]/35 focus-visible:ring-offset-2 focus-visible:ring-offset-[#F5F2ED]"
-                style={{
-                  backgroundColor: addedToBag ? "#2D5928" : "#2D241E",
-                  fontFamily: "'DM Sans', sans-serif",
-                  fontSize: "0.72rem",
-                  letterSpacing: "0.14em",
-                }}
-                whileTap={reduceMotion ? undefined : { scale: 0.98 }}
-              >
-                {addedToBag ? (
-                  <>
-                    <Check size={15} aria-hidden="true" />
-                    <span className="uppercase tracking-widest">{t("product.addedToBag")}</span>
-                  </>
-                ) : (
-                  <>
-                    <ShoppingBag size={15} strokeWidth={1.5} aria-hidden="true" />
-                    <span className="uppercase tracking-widest">{t("product.addToBag")}</span>
-                  </>
-                )}
-              </motion.button>
-
-              <button
-                type="button"
-                onClick={() => toggleWishlist(product.id)}
-                className="shrink-0 w-12 h-12 rounded-full border flex items-center justify-center touch-manipulation cursor-pointer transition-[background-color,border-color] duration-200 hover:border-[#2D241E]/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2D241E]/35 focus-visible:ring-offset-2 focus-visible:ring-offset-[#F5F2ED]"
-                aria-label={isWishlisted ? t("product.wishlistRemove") : t("product.wishlistAdd")}
-                aria-pressed={isWishlisted}
-                style={{
-                  borderColor: isWishlisted ? "#4A0E0E" : "rgba(45,36,30,0.18)",
-                  backgroundColor: isWishlisted ? "#4A0E0E" : "transparent",
-                }}
-              >
-                <Heart
-                  size={16}
-                  strokeWidth={1.5}
-                  aria-hidden="true"
-                  fill={isWishlisted ? "white" : "none"}
-                  stroke={isWishlisted ? "white" : "#2D241E"}
-                />
-              </button>
-            </div>
-
-            {/* Description */}
-            <div className="border-t border-[#2D241E]/10 pt-7">
-              <p
-                className="text-[#2D241E]/70 leading-relaxed"
-                style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "0.9rem", lineHeight: 1.8, whiteSpace: "pre-line" }}
-              >
-                {product.description}
-              </p>
             </div>
 
             {/* Details Accordion */}
             {showSupplementaryDetails ? (
-            <div className="border-t border-[#2D241E]/10">
-              <button
-                onClick={() => setDetailsOpen(!detailsOpen)}
-                className="w-full flex items-center justify-between py-5 text-left group"
-              >
-                <span
-                  className="text-[#2D241E] text-xs tracking-widest uppercase"
-                  style={{ fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.14em" }}
+              <div>
+                <button
+                  onClick={() => setDetailsOpen(!detailsOpen)}
+                  className="w-full flex items-center justify-between pb-3 text-left group"
+                  style={{ borderBottom: "1px solid rgba(45,36,30,0.1)" }}
                 >
-                  {t("product.detailsTitle")}
-                </span>
-                <motion.div animate={{ rotate: detailsOpen ? 180 : 0 }} transition={{ duration: 0.3 }}>
-                  <ChevronDown size={16} className="text-[#2D241E]/50" />
-                </motion.div>
-              </button>
-              <AnimatePresence>
-                {detailsOpen && (
-                  <motion.ul
-                    initial={{ height: 0, opacity: 0 }}
-                    animate={{ height: "auto", opacity: 1 }}
-                    exit={{ height: 0, opacity: 0 }}
-                    transition={{ duration: 0.35, ease: easing }}
-                    className="overflow-hidden pb-5 space-y-2"
-                  >
-                    {product.producerName ? (
-                      <li
-                        key="producer"
-                        className="flex items-start gap-3 text-[#2D241E]/60 text-sm"
-                        style={{ fontFamily: "'DM Sans', sans-serif" }}
-                      >
-                        <span className="mt-1.5 w-1 h-1 rounded-full bg-[#4A0E0E] flex-shrink-0" />
-                        {t("product.madeBy", { name: product.producerName })}
-                      </li>
-                    ) : null}
-                    {supplementaryDetails.map((detail) => (
-                      <li
-                        key={detail}
-                        className="flex items-start gap-3 text-[#2D241E]/60 text-sm"
-                        style={{ fontFamily: "'DM Sans', sans-serif" }}
-                      >
-                        <span className="mt-1.5 w-1 h-1 rounded-full bg-[#4A0E0E] flex-shrink-0" />
-                        {detail}
-                      </li>
-                    ))}
-                  </motion.ul>
-                )}
-              </AnimatePresence>
-            </div>
+                  <span className="text-[#2D241E]/60" style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "0.82rem" }}>
+                    {t("product.detailsTitle")}
+                  </span>
+                  <motion.div animate={{ rotate: detailsOpen ? 180 : 0 }} transition={{ duration: 0.3 }}>
+                    <ChevronDown size={14} className="text-[#2D241E]/35" />
+                  </motion.div>
+                </button>
+                <AnimatePresence>
+                  {detailsOpen && (
+                    <motion.ul
+                      initial={{ height: 0, opacity: 0 }}
+                      animate={{ height: "auto", opacity: 1 }}
+                      exit={{ height: 0, opacity: 0 }}
+                      transition={{ duration: 0.35, ease: easing }}
+                      className="overflow-hidden pt-3 space-y-2"
+                    >
+                      {product.producerName ? (
+                        <li
+                          key="producer"
+                          className="flex items-start gap-3 text-[#2D241E]/60 text-sm"
+                          style={{ fontFamily: "'DM Sans', sans-serif" }}
+                        >
+                          <span className="mt-1.5 w-1 h-1 rounded-full bg-[#4A0E0E] flex-shrink-0" />
+                          {t("product.madeBy", { name: product.producerName })}
+                        </li>
+                      ) : null}
+                      {supplementaryDetails.map((detail) => (
+                        <li
+                          key={detail}
+                          className="flex items-start gap-3 text-[#2D241E]/60 text-sm"
+                          style={{ fontFamily: "'DM Sans', sans-serif" }}
+                        >
+                          <span className="mt-1.5 w-1 h-1 rounded-full bg-[#4A0E0E] flex-shrink-0" />
+                          {detail}
+                        </li>
+                      ))}
+                    </motion.ul>
+                  )}
+                </AnimatePresence>
+              </div>
             ) : null}
 
             <ProductGuaranteeBlock content={guaranteeContent} locale={locale} />
