@@ -296,10 +296,11 @@ export function ProductDetail() {
             ))}
           </div>
 
-          {/* Col 2: main image — stretches to match the info column's height, within a sane band */}
-          <div className="w-full h-full flex flex-col">
+          {/* Col 2: main image — sized from the viewport, not the sticky info column, so it never
+              resizes when that column's height changes (e.g. the furniture panel opening) */}
+          <div className="w-full flex flex-col self-start">
             <div
-              className="relative rounded-[28px] overflow-hidden bg-[#EDE9E2] flex-1 min-h-[460px] max-h-[720px]"
+              className="relative rounded-[28px] overflow-hidden bg-[#EDE9E2] h-[clamp(460px,72vh,720px)]"
               style={{ boxShadow: "0 20px 44px -20px rgba(45,36,30,0.18)" }}
             >
               {images.length > 0 && (
