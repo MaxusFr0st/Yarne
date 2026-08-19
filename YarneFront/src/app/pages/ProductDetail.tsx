@@ -311,19 +311,18 @@ export function ProductDetail() {
             ))}
           </div>
 
-          {/* Col 2: main image — height tracks the info column via ResizeObserver + a CSS
-              transition, so it glides smoothly in sync with the furniture panel opening instead
-              of relying on CSS Grid `items-stretch` (which lagged, then snapped) */}
+          {/* Col 2: main image — height tracks the info column, animated by the same framer-motion
+              engine (and transition config) that drives the furniture panel itself, so the two
+              stay in lockstep instead of a CSS transition trying to chase a separately-driven
+              target (which is what still lagged on collapse). No upper cap: it grows to match
+              the column, including when the furniture panel opens it up further. */}
           <div className="w-full flex flex-col self-start">
-            <div
-              className="relative rounded-[28px] overflow-hidden bg-[#EDE9E2] h-[clamp(460px,72vh,720px)]"
-              style={{
-                boxShadow: "0 20px 44px -20px rgba(45,36,30,0.18)",
-                ...(infoColHeight
-                  ? { height: `${Math.min(720, Math.max(460, infoColHeight))}px` }
-                  : {}),
-                transition: "height 0.35s cubic-bezier(0.25,0.1,0.25,1)",
-              }}
+            <motion.div
+              className="relative rounded-[28px] overflow-hidden bg-[#EDE9E2]"
+              initial={false}
+              animate={{ height: Math.max(460, infoColHeight ?? 650) }}
+              transition={{ duration: reduceMotion ? 0 : 0.35, ease: easing }}
+              style={{ boxShadow: "0 20px 44px -20px rgba(45,36,30,0.18)" }}
             >
               {images.length > 0 && (
                 <CrossfadeImage
@@ -353,7 +352,7 @@ export function ProductDetail() {
                   </span>
                 )}
               </div>
-            </div>
+            </motion.div>
 
             {/* Thumbnail strip — fallback for md (below lg rail) */}
             <div className="flex gap-2.5 mt-3 lg:hidden">
