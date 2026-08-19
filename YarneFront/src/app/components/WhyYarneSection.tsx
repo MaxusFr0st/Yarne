@@ -215,7 +215,7 @@ export const WhyYarneSection = forwardRef<WhyBagHandle>(function WhyYarneSection
     <section
       data-snap-why
       className="relative isolate overflow-hidden bg-[#2D241E] text-[#F5F2ED] pt-[66px] pb-0 md:pt-7 md:pb-7"
-      style={{ height: "calc(var(--app-vh, 1vh) * 100)" }}
+      style={{ height: "100dvh" }}
     >
       <div className="max-w-[1400px] mx-auto px-3.5 md:px-6 h-full">
         <div className="grid grid-cols-1 md:grid-cols-2 md:gap-12 h-full items-stretch">

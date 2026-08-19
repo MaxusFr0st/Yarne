@@ -133,7 +133,7 @@ export function MobileProductDetailView({
       {/* Gallery — tall hero; page scrolls naturally below */}
       <div
         className="relative w-full bg-[#EDE9E2] overflow-hidden"
-        style={{ height: "calc(var(--app-vh, 1vh) * 58)", maxHeight: "420px" }}
+        style={{ height: "58dvh", maxHeight: "420px" }}
       >
         <div ref={emblaRef} className="h-full overflow-hidden">
           <div className="flex h-full [touch-action:pan-y_pinch-zoom]" style={touchMobile ? undefined : { willChange: "transform" }}>
@@ -447,8 +447,18 @@ export function MobileProductDetailView({
             </div>
           )}
 
-          {showFurniture && (
-            <div className="pt-[12px]" style={{ borderTop: "1px solid rgba(45,36,30,0.08)" }}>
+          <AnimatePresence initial={false}>
+            {showFurniture && (
+            <motion.div
+              key="furniture"
+              initial={motionEnabled ? { height: 0, opacity: 0 } : false}
+              animate={{ height: "auto", opacity: 1 }}
+              exit={motionEnabled ? { height: 0, opacity: 0 } : undefined}
+              transition={{ duration: motionEnabled ? 0.3 : 0, ease: transitionEase }}
+              className="overflow-hidden"
+              style={{ borderTop: "1px solid rgba(45,36,30,0.08)" }}
+            >
+              <div className="pt-[12px]">
               <div className="flex items-center justify-between mb-[clamp(4px,1vw,6px)]">
                 <p
                   className="text-[#2D241E] uppercase"
@@ -523,8 +533,10 @@ export function MobileProductDetailView({
                   );
                 })}
               </div>
-            </div>
-          )}
+              </div>
+            </motion.div>
+            )}
+          </AnimatePresence>
 
           {displaySizes.length > 0 && (
             <div className="pt-[12px]" style={{ borderTop: "1px solid rgba(45,36,30,0.08)" }}>

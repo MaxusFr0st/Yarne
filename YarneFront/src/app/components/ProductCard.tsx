@@ -277,7 +277,7 @@ function ProductCardInner({
                 {product.name}
               </p>
               <p
-                className="text-[#2D241E]/50 text-xs mt-0.5 line-clamp-1"
+                className={`text-[#2D241E]/50 text-xs mt-0.5 line-clamp-1 ${size === "collection" ? "hidden md:block" : ""}`}
                 style={{ fontFamily: "'DM Sans', sans-serif", fontSize: isCarouselCard ? "0.68rem" : undefined }}
               >
                 {product.subtitle}
@@ -288,7 +288,8 @@ function ProductCardInner({
 
           {(product.colors.length > 1 || activeColorLabel) && (
           <div
-            className={`flex items-center gap-2 ${isCarouselCard ? "mt-2 py-1.5 pl-1 -ml-1" : "mt-3"} ${previewMode ? "overflow-x-auto pb-1 -mx-0.5 px-0.5" : ""}`}
+            className={`flex items-center gap-2 min-w-0 overflow-x-auto [&::-webkit-scrollbar]:hidden ${isCarouselCard ? "mt-2 py-1.5 pl-1 -ml-1" : "mt-3"} ${previewMode ? "pb-1 -mx-0.5 px-0.5" : ""}`}
+            style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
           >
             {product.colors.map((color, i) => {
               const colorLabel = localizedCatalogName(color.name, color.nameUk, locale);
@@ -337,15 +338,15 @@ function ProductCardInner({
         delay: inCarousel || touchMobile ? 0 : index * 0.08,
         ease: [0.25, 0.1, 0.25, 1],
       }}
-      className={`group/card ${isCarouselCard ? "overflow-visible" : ""}`}
+      className={`group/card min-w-0 ${isCarouselCard ? "overflow-visible" : ""}`}
       data-product-card={product.id}
     >
       {previewMode ? (
-        <div className={`block ${isCarouselCard ? "overflow-visible" : ""}`}>{cardBody}</div>
+        <div className={`block min-w-0 ${isCarouselCard ? "overflow-visible" : ""}`}>{cardBody}</div>
       ) : (
         <LangLink
           to={`/product/${product.id}`}
-          className={`block ${isCarouselCard ? "overflow-visible" : ""}`}
+          className={`block min-w-0 ${isCarouselCard ? "overflow-visible" : ""}`}
           onClick={handleCardClick}
         >
           {cardBody}

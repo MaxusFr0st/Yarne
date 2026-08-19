@@ -492,8 +492,16 @@ export function ProductDetail() {
               )}
 
               {/* Furniture / hardware — only relevant once a strap is chosen */}
-              {showFurniture && (
-                <div>
+              <AnimatePresence initial={false}>
+                {showFurniture && (
+                <motion.div
+                  key="furniture"
+                  initial={reduceMotion ? false : { height: 0, opacity: 0 }}
+                  animate={{ height: "auto", opacity: 1 }}
+                  exit={reduceMotion ? undefined : { height: 0, opacity: 0 }}
+                  transition={{ duration: 0.35, ease: easing }}
+                  className="overflow-hidden"
+                >
                   <div className="flex items-center justify-between mb-2.5">
                     <p
                       className="text-[#2D241E]/45 uppercase"
@@ -543,8 +551,9 @@ export function ProductDetail() {
                       );
                     })}
                   </div>
-                </div>
-              )}
+                </motion.div>
+                )}
+              </AnimatePresence>
 
               {/* Size */}
               <div>
