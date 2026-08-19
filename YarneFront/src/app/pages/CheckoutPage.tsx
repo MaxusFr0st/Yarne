@@ -207,7 +207,10 @@ export function CheckoutPage() {
             {t("checkout.orderDetails")} · {t("checkout.itemCount", { count: activeItems.length })}
           </p>
 
-          <div className="space-y-3 max-h-[360px] md:max-h-[520px] overflow-y-auto pr-1 -mr-1">
+          <div
+            className="divide-y divide-[#2D241E]/8 max-h-[300px] md:max-h-[440px] overflow-y-auto [&::-webkit-scrollbar]:hidden"
+            style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
+          >
             {activeItems.map((item) => {
               const productHref = item.productId ? `/product/${item.productId}` : "/collection";
               const imageSrc = item.image || ORDER_ITEM_PLACEHOLDER;
@@ -215,26 +218,22 @@ export function CheckoutPage() {
                 <LangLink
                   key={item.cartId}
                   to={productHref}
-                  className="block rounded-[20px] p-4"
-                  style={{ backgroundColor: "#F8F5F0" }}
+                  className="flex items-center gap-3 md:gap-4 rounded-[16px] px-2 py-2.5 md:px-2.5 md:py-3 transition-colors duration-200 hover:bg-[#F3EEE5]"
                   aria-label={t("checkout.openProduct", { name: item.name })}
                 >
-                  <div className="flex gap-4 md:gap-[18px]">
-                    <div className="w-[60px] h-[74px] md:w-[76px] md:h-[92px] rounded-[14px] overflow-hidden bg-white flex-shrink-0">
-                      <ImageWithFallback src={imageSrc} alt={item.name} className="w-full h-full object-contain" />
-                    </div>
-                    <div className="flex-1 flex flex-col min-w-0">
-                      <div>
-                        <p className="text-[#2D241E]" style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "1.1rem", fontWeight: 500 }}>
-                          {item.name}
-                        </p>
-                      </div>
-                      <OrderLineDetails
-                        line={cartItemToLineDetails(item)}
-                        locale={locale}
-                        className="mt-3 pt-3 border-t border-[#2D241E]/8"
-                      />
-                    </div>
+                  <div className="w-[52px] h-[64px] md:w-[60px] md:h-[74px] rounded-[12px] overflow-hidden bg-[#F8F5F0] flex-shrink-0">
+                    <ImageWithFallback src={imageSrc} alt={item.name} className="w-full h-full object-contain" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[#2D241E] truncate" style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "1.05rem", fontWeight: 500 }}>
+                      {item.name}
+                    </p>
+                    <OrderLineDetails
+                      line={cartItemToLineDetails(item)}
+                      locale={locale}
+                      variant="compact"
+                      className="mt-1"
+                    />
                   </div>
                 </LangLink>
               );
@@ -290,8 +289,8 @@ export function CheckoutPage() {
                       if (error) setError(null);
                     }}
                     placeholder={t("checkout.emailPlaceholder")}
-                    className="w-full rounded-[14px] border-0 px-4 py-3 focus:outline-none placeholder-[#F5F2ED]/40"
-                    style={{ backgroundColor: "rgba(245,242,237,0.14)", color: "#F5F2ED", fontFamily: "'DM Sans', sans-serif", fontSize: "0.88rem" }}
+                    className="w-full rounded-[14px] border-0 px-4 py-3 text-base md:text-[0.88rem] focus:outline-none placeholder-[#F5F2ED]/40"
+                    style={{ backgroundColor: "rgba(245,242,237,0.14)", color: "#F5F2ED", fontFamily: "'DM Sans', sans-serif" }}
                   />
                 </div>
               )}
@@ -318,8 +317,8 @@ export function CheckoutPage() {
                         if (error) setError(null);
                       }}
                       placeholder={t("checkout.recipientFirstName")}
-                      className="w-full rounded-[14px] border-0 px-4 py-3 focus:outline-none placeholder-[#F5F2ED]/40"
-                      style={{ backgroundColor: "rgba(245,242,237,0.14)", color: "#F5F2ED", fontFamily: "'DM Sans', sans-serif", fontSize: "0.88rem" }}
+                      className="w-full rounded-[14px] border-0 px-4 py-3 text-base md:text-[0.88rem] focus:outline-none placeholder-[#F5F2ED]/40"
+                      style={{ backgroundColor: "rgba(245,242,237,0.14)", color: "#F5F2ED", fontFamily: "'DM Sans', sans-serif" }}
                     />
                   </div>
                   <div>
@@ -336,8 +335,8 @@ export function CheckoutPage() {
                         if (error) setError(null);
                       }}
                       placeholder={t("checkout.recipientLastName")}
-                      className="w-full rounded-[14px] border-0 px-4 py-3 focus:outline-none placeholder-[#F5F2ED]/40"
-                      style={{ backgroundColor: "rgba(245,242,237,0.14)", color: "#F5F2ED", fontFamily: "'DM Sans', sans-serif", fontSize: "0.88rem" }}
+                      className="w-full rounded-[14px] border-0 px-4 py-3 text-base md:text-[0.88rem] focus:outline-none placeholder-[#F5F2ED]/40"
+                      style={{ backgroundColor: "rgba(245,242,237,0.14)", color: "#F5F2ED", fontFamily: "'DM Sans', sans-serif" }}
                     />
                   </div>
                 </div>
@@ -355,8 +354,8 @@ export function CheckoutPage() {
                       if (error) setError(null);
                     }}
                     placeholder={t("checkout.phonePlaceholder")}
-                    className="w-full rounded-[14px] border-0 px-4 py-3 focus:outline-none placeholder-[#F5F2ED]/40"
-                    style={{ backgroundColor: "rgba(245,242,237,0.14)", color: "#F5F2ED", fontFamily: "'DM Sans', sans-serif", fontSize: "0.88rem" }}
+                    className="w-full rounded-[14px] border-0 px-4 py-3 text-base md:text-[0.88rem] focus:outline-none placeholder-[#F5F2ED]/40"
+                    style={{ backgroundColor: "rgba(245,242,237,0.14)", color: "#F5F2ED", fontFamily: "'DM Sans', sans-serif" }}
                   />
                 </div>
               </div>

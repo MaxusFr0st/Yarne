@@ -76,9 +76,11 @@ type OrderLineDetailsProps = {
   line: OrderLineDetailsData;
   locale: Locale;
   className?: string;
+  /** `compact` folds code/colour/size/lace/qty/price into one line — used on checkout's order card. */
+  variant?: "stacked" | "compact";
 };
 
-export function OrderLineDetails({ line, locale, className = "" }: OrderLineDetailsProps) {
+export function OrderLineDetails({ line, locale, className = "", variant = "stacked" }: OrderLineDetailsProps) {
   const { t } = useTranslation();
 
   const laceLabel =
@@ -86,7 +88,30 @@ export function OrderLineDetails({ line, locale, className = "" }: OrderLineDeta
       ? t("product.lace.withLace")
       : line.withLace === false
         ? t("product.lace.withoutLace")
-        : t("checkout.laceNotApplicable");
+        : null;
+
+  if (variant === "compact") {
+    const segments = [
+      line.productCode,
+      line.color?.trim(),
+      line.furnitureColor?.trim(),
+      line.size?.trim(),
+      laceLabel,
+      `×${line.quantity}`,
+    ].filter(Boolean);
+
+    return (
+      <div className={`flex items-center justify-between gap-3 ${className}`}>
+        <span
+          className="text-[#2D241E]/55 text-xs truncate"
+          style={{ fontFamily: "'DM Sans', sans-serif" }}
+        >
+          {segments.join(" · ")}
+        </span>
+        <PriceTag amount={line.unitPrice} locale={locale} variant="line" className="shrink-0" />
+      </div>
+    );
+  }
 
   const lineTotal = line.unitPrice * line.quantity;
 
@@ -99,7 +124,7 @@ export function OrderLineDetails({ line, locale, className = "" }: OrderLineDeta
         <DetailRow label={t("product.furniture")} value={line.furnitureColor!.trim()} />
       )}
       <DetailRow label={t("checkout.size")} value={line.size?.trim() || "—"} />
-      <DetailRow label={t("checkout.lace")} value={laceLabel} />
+      <DetailRow label={t("checkout.lace")} value={laceLabel ?? t("checkout.laceNotApplicable")} />
       <DetailRow label={t("checkout.quantity")} value={String(line.quantity)} />
       <div className="flex items-start justify-between gap-4 text-xs pt-1" style={{ fontFamily: "'DM Sans', sans-serif" }}>
         <span className="text-[#2D241E]/50 shrink-0">{t("checkout.unitPrice")}</span>
