@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useMemo, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useParams, useNavigate, useLocation } from "react-router";
 import { motion, AnimatePresence, LayoutGroup, useReducedMotion } from "motion/react";
 import { ArrowLeft, Heart, ChevronDown, ShoppingBag, Check } from "lucide-react";
@@ -67,6 +67,21 @@ export function ProductDetail() {
   const [addedToBag, setAddedToBag] = useState(false);
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [sizeError, setSizeError] = useState(false);
+  // Tracks the sticky info column's real height so the image can smoothly transition to match it
+  // via a CSS `transition`, instead of relying on CSS Grid `items-stretch` to reflow it live —
+  // grid stretch on a sticky item doesn't reflow in lockstep with the furniture panel's
+  // framer-motion height animation, which is what caused the old lag-then-snap.
+  const infoColRef = useRef<HTMLDivElement>(null);
+  const [infoColHeight, setInfoColHeight] = useState<number | null>(null);
+  useEffect(() => {
+    const el = infoColRef.current;
+    if (!el) return;
+    const observer = new ResizeObserver(([entry]) => {
+      setInfoColHeight(entry.contentRect.height);
+    });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
   const supplementaryDetails = useMemo(
     () => (product ? getSupplementaryProductDetails(product) : []),
     [product]
@@ -296,12 +311,19 @@ export function ProductDetail() {
             ))}
           </div>
 
-          {/* Col 2: main image — sized from the viewport, not the sticky info column, so it never
-              resizes when that column's height changes (e.g. the furniture panel opening) */}
+          {/* Col 2: main image — height tracks the info column via ResizeObserver + a CSS
+              transition, so it glides smoothly in sync with the furniture panel opening instead
+              of relying on CSS Grid `items-stretch` (which lagged, then snapped) */}
           <div className="w-full flex flex-col self-start">
             <div
               className="relative rounded-[28px] overflow-hidden bg-[#EDE9E2] h-[clamp(460px,72vh,720px)]"
-              style={{ boxShadow: "0 20px 44px -20px rgba(45,36,30,0.18)" }}
+              style={{
+                boxShadow: "0 20px 44px -20px rgba(45,36,30,0.18)",
+                ...(infoColHeight
+                  ? { height: `${Math.min(720, Math.max(460, infoColHeight))}px` }
+                  : {}),
+                transition: "height 0.35s cubic-bezier(0.25,0.1,0.25,1)",
+              }}
             >
               {images.length > 0 && (
                 <CrossfadeImage
@@ -358,7 +380,10 @@ export function ProductDetail() {
           </div>
 
           {/* Col 3: Product Info */}
-          <div className="flex flex-col gap-3 md:sticky md:top-[calc(var(--main-header-h)+24px)]">
+          <div
+            ref={infoColRef}
+            className="flex flex-col gap-3 md:sticky md:top-[calc(var(--main-header-h)+24px)]"
+          >
             <div>
               <p
                 className="text-[#2D241E]/40 uppercase"
