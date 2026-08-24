@@ -143,13 +143,18 @@
 
   html {
     font-size: var(--font-size);
-    /* `clip`, not `hidden`. Setting overflow-x:hidden forces the other axis to compute
-       to `auto`, which silently turns the element into a scroll container and kills
-       `position: sticky` for everything inside it. `clip` suppresses horizontal
-       overflow identically without creating that scroll container. The `hidden`
-       line stays first as the fallback for engines without `clip`. */
+    /* Horizontal overflow is contained HERE and nowhere else, and with `hidden` rather
+       than `clip`.
+       Per the overflow spec, a non-visible overflow on the root element is propagated to
+       the viewport, and the root's own used value then becomes `visible` — so the viewport
+       clips sideways while <html> itself never becomes a scroll container, leaving
+       `position: sticky` working for everything inside. `clip` would do the same on
+       Chromium, but its root-to-viewport propagation is not dependable in Safari, where it
+       let the overflow through and produced real horizontal scrolling on phones.
+       Do not add overflow-x to <body>: body's value only propagates when html's is
+       visible, so it would stay on the element, make body a scroll container, and kill
+       sticky again — which is exactly what it did before. */
     overflow-x: hidden;
-    overflow-x: clip;
     scroll-behavior: auto;
   }
 
@@ -164,10 +169,7 @@
   }
 
   body {
-    /* Same reason as html above — `hidden` here made <body> the scroll container that
-       broke every sticky element in the app. */
-    overflow-x: hidden;
-    overflow-x: clip;
+    /* Intentionally no overflow-x — see the note on html. The viewport already clips. */
   }
 
   h1 {
