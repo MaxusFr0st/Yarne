@@ -277,9 +277,6 @@ export function NovaPoshtaPicker({
             style={{
               backgroundColor: "#F3EFE8",
               height: compact ? "86svh" : "min(78svh, 700px)",
-              // Keeps the widget's last row clear of the home indicator on gesture-nav phones;
-              // resolves to 0 everywhere else, so it costs nothing on devices without one.
-              paddingBottom: compact ? "env(safe-area-inset-bottom, 0px)" : undefined,
               boxShadow: "0 -12px 48px rgba(45,36,30,0.28)",
             }}
             {...panelMotion}
@@ -321,7 +318,18 @@ export function NovaPoshtaPicker({
               </button>
             </header>
 
-            <div className="relative flex-1 min-h-0" style={{ backgroundColor: "#fff" }}>
+            {/* Safe-area padding lives HERE, not on the panel. On the panel it painted in the
+                sheet's cream, so a phone with a home indicator showed an empty band under a
+                white widget — reading as a rendering gap with the branch list clipped above
+                it. Inside this container the reserved strip is the same white as the widget,
+                so the surface stays continuous down to the screen edge. */}
+            <div
+              className="relative flex-1 min-h-0"
+              style={{
+                backgroundColor: "#fff",
+                paddingBottom: compact ? "env(safe-area-inset-bottom, 0px)" : undefined,
+              }}
+            >
               {!frameLoaded && (
                 <div
                   className="absolute inset-0 flex items-center justify-center"

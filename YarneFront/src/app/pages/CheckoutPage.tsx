@@ -333,10 +333,11 @@ export function CheckoutPage() {
                   className="flex items-center gap-3 md:gap-4 rounded-[16px] px-2 py-2.5 md:px-2.5 md:py-3 transition-colors duration-200 hover:bg-[#F3EEE5]"
                   aria-label={t("checkout.openProduct", { name: item.name })}
                 >
-                  {/* 4:5 box to match the product photography's own ratio, so object-contain
-                      neither crops nor leaves letterbox bars. Bumped ~23% for legibility
-                      without letting the thumbnail dominate the line. */}
-                  <div className="w-[64px] h-[80px] md:w-[72px] md:h-[90px] rounded-[12px] overflow-hidden bg-[#F8F5F0] flex-shrink-0">
+                  {/* 3:4, matching what admin actually stores — ImageCropDialog crops every
+                      upload to 3/4 before it reaches us. A 4:5 box left ~2px of background
+                      down each side; this fills exactly, with object-contain still there so a
+                      differently-shaped legacy image letterboxes rather than losing pixels. */}
+                  <div className="w-[60px] h-[80px] md:w-[68px] md:h-[90px] rounded-[12px] overflow-hidden bg-[#F8F5F0] flex-shrink-0">
                     <ImageWithFallback src={imageSrc} alt={item.name} className="w-full h-full object-contain" />
                   </div>
                   <div className="flex-1 min-w-0">
