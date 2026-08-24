@@ -70,6 +70,22 @@ export function MobileProductDetailView({
   const [galleryIndex, setGalleryIndex] = useState(0);
   const [descriptionOpen, setDescriptionOpen] = useState(false);
   const [detailsOpen, setDetailsOpen] = useState(false);
+  // Furniture panel animates to this measured pixel height instead of framer-motion's
+  // height:"auto" — "auto" has to re-measure content on every mount/toggle via
+  // AnimatePresence, and that re-measurement is what produced the slide-then-jump on
+  // close (same root cause fixed on desktop in ProductDetail.tsx's furnitureContentHeight).
+  const [furnitureContentHeight, setFurnitureContentHeight] = useState(0);
+  const furnitureObserverRef = useRef<ResizeObserver | null>(null);
+  const furnitureContentRef = useCallback((el: HTMLDivElement | null) => {
+    furnitureObserverRef.current?.disconnect();
+    furnitureObserverRef.current = null;
+    if (!el) return;
+    const observer = new ResizeObserver(([entry]) => {
+      setFurnitureContentHeight(entry.contentRect.height);
+    });
+    observer.observe(el);
+    furnitureObserverRef.current = observer;
+  }, []);
   const imageKey = images.map(i => i.src).join("|");
   const canLoop = images.length > 1;
 
@@ -79,6 +95,12 @@ export function MobileProductDetailView({
     containScroll: false,
     duration: touchMobile || reduceMotion ? 0 : 22,
     skipSnaps: false,
+    // This gallery stays mounted at every viewport width and is only hidden via the
+    // `md:hidden` class, so crossing that breakpoint collapses it to 0×0. Embla's default
+    // resize watcher would reInit against that corrupted zero-size reading, then visibly
+    // snap once the container becomes visible again — ignore resize entries with no area
+    // so the cached geometry survives the round trip.
+    watchResize: (_api, entries) => entries.every((entry) => entry.contentRect.width > 0 && entry.contentRect.height > 0),
   }, [], { wheelAxis: "x" });
 
   const onGallerySelect = useCallback(() => {
@@ -149,7 +171,9 @@ export function MobileProductDetailView({
         className="sticky z-0 w-full bg-[#EDE9E2] overflow-hidden"
         // svh (not dvh) — dvh recalculates live as the mobile browser's address bar
         // collapses/expands during scroll, which visibly resized this sticky image.
-        style={{ top: "var(--main-header-h)", height: "62svh", maxHeight: "460px" }}
+        // +10px over the old 62svh/460px so the info sheet's rounded corner always
+        // lands on image, not on the bare container background peeking past it.
+        style={{ top: "var(--main-header-h)", height: "calc(62svh + 10px)", maxHeight: "470px" }}
       >
         <div ref={emblaRef} className="h-full overflow-hidden">
           <div className="flex h-full [touch-action:pan-y_pinch-zoom]" style={touchMobile ? undefined : { willChange: "transform" }}>
@@ -465,20 +489,33 @@ export function MobileProductDetailView({
             </div>
           )}
 
-          <AnimatePresence initial={false}>
-            {showFurniture && (
+          {furnitureList.length > 0 && (
             <motion.div
-              key="furniture"
               // marginTop/marginBottom cancel the parent's 13px flex gap while collapsed, so the
-              // panel doesn't pop by a fixed 26px the instant it mounts/unmounts around the animation.
-              initial={motionEnabled ? { height: 0, opacity: 0, marginTop: -13, marginBottom: -13 } : false}
-              animate={{ height: "auto", opacity: 1, marginTop: 0, marginBottom: 0 }}
-              exit={motionEnabled ? { height: 0, opacity: 0, marginTop: -13, marginBottom: -13 } : undefined}
+              // panel doesn't pop by a fixed 26px the instant it's hidden.
+              initial={false}
+              animate={{
+                // +12 restores the measured element's own pt-[12px] — ResizeObserver's
+                // contentRect excludes an element's own padding, so the raw reading undershoots
+                // by exactly that much and the panel would clip its bottom edge without this.
+                height: showFurniture ? furnitureContentHeight + 12 : 0,
+                opacity: showFurniture ? 1 : 0,
+                marginTop: showFurniture ? 0 : -13,
+                marginBottom: showFurniture ? 0 : -13,
+              }}
               transition={{ duration: motionEnabled ? 0.3 : 0, ease: transitionEase }}
               className="overflow-hidden"
-              style={{ borderTop: "1px solid rgba(45,36,30,0.08)" }}
+              // content-box (overriding the app's global border-box reset) so the animated
+              // `height` is pure content height and this border-top adds on top of it instead
+              // of eating 1px from it — otherwise the panel clipped its own bottom edge by 1px.
+              style={{ borderTop: "1px solid rgba(45,36,30,0.08)", boxSizing: "content-box" }}
             >
-              <div className="pt-[12px]">
+              <div
+                ref={furnitureContentRef}
+                className="pt-[12px]"
+                aria-hidden={!showFurniture}
+                style={{ pointerEvents: showFurniture ? undefined : "none" }}
+              >
               <div className="flex items-center justify-between mb-[clamp(4px,1vw,6px)]">
                 <p
                   className="text-[#2D241E] uppercase"
@@ -527,6 +564,7 @@ export function MobileProductDetailView({
                       <button
                         key={fc.name}
                         type="button"
+                        disabled={!showFurniture}
                         onClick={() => onFurnitureChange(i)}
                         title={furnitureLabel}
                         aria-label={furnitureLabel}
@@ -541,6 +579,7 @@ export function MobileProductDetailView({
                     <motion.button
                       key={fc.name}
                       type="button"
+                      disabled={!showFurniture}
                       onClick={() => onFurnitureChange(i)}
                       title={furnitureLabel}
                       aria-label={furnitureLabel}
@@ -555,8 +594,7 @@ export function MobileProductDetailView({
               </div>
               </div>
             </motion.div>
-            )}
-          </AnimatePresence>
+          )}
 
           {displaySizes.length > 0 && (
             <div className="pt-[12px]" style={{ borderTop: "1px solid rgba(45,36,30,0.08)" }}>
