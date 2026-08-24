@@ -12,6 +12,7 @@ import { PriceTag } from "../components/PriceTag";
 import { OrderLineDetails, cartItemToLineDetails } from "../components/OrderLineDetails";
 import { cartItemsTotal, mergePlacedOrderDisplay } from "../utils/mergePlacedOrderItems";
 import { NovaPoshtaPicker, type NovaPoshtaSelection } from "../components/NovaPoshtaPicker";
+import { orderStatusKey } from "../utils/orderStatusKey";
 
 const easing = [0.25, 0.1, 0.25, 1] as const;
 /** Order lines shown before the list becomes a scroll region. */
@@ -450,9 +451,11 @@ export function CheckoutPage() {
                   #{placedOrder.id} · {toDisplayDate(placedOrder.orderDate, locale)}
                 </p>
               </div>
+              {/* Payment method line removed — the store bills one way, so naming it here
+                  was noise. Status now goes through the same account.status.* keys the
+                  account page uses, instead of printing the API's raw English enum. */}
               <div className="space-y-2 text-sm" style={{ fontFamily: "'DM Sans', sans-serif" }}>
-                <p style={{ color: "rgba(245,242,237,0.65)" }}>{t("checkout.status")}: <span style={{ color: "#F5F2ED" }}>{placedOrder.status}</span></p>
-                <p style={{ color: "rgba(245,242,237,0.65)" }}>{t("checkout.payment")}: <span style={{ color: "#F5F2ED" }}>{placedOrder.paymentMethodName}</span></p>
+                <p style={{ color: "rgba(245,242,237,0.65)" }}>{t("checkout.status")}: <span style={{ color: "#F5F2ED" }}>{t(`account.status.${orderStatusKey(placedOrder.status)}`)}</span></p>
                 <p style={{ color: "rgba(245,242,237,0.65)" }}>{t("checkout.itemsInOrder")}: <span style={{ color: "#F5F2ED" }}>{placedOrder.items.length}</span></p>
               </div>
               <LangLink

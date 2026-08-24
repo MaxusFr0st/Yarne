@@ -1,14 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ChevronRight } from "lucide-react";
+import { createPortal } from "react-dom";
+import { motion, AnimatePresence, useReducedMotion } from "motion/react";
+import { ChevronRight, X } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { useBodyScrollLock } from "../hooks/useBodyScrollLock";
-
-// Ported as closely as possible from Nova Poshta's own buttonHtml_v2.html reference
-// integration — same markup, same CSS, same widget URL/postMessage protocol. Deliberately
-// does NOT use the app's design system: this is meant to look like Nova Poshta's own
-// component, not a Yarne-themed one.
 
 const WIDGET_ORIGIN = "https://widget.novapost.com";
 const WIDGET_URL = "https://widget.novapost.com/division/index.html";
+const EASE_OUT = [0.16, 1, 0.3, 1] as const;
 
 export interface NovaPoshtaSelection {
   cityRef: string;
@@ -28,6 +27,32 @@ interface NovaPoshtaWidgetMessage {
   };
 }
 
+/** Nova Poshta's mark, kept as-is — it is their brand asset, not ours to restyle. */
+function NovaPoshtaMark({ size = 18 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden>
+      <path
+        d="M11.9401 16.4237H16.0596V21.271H19.2101L15.39 25.0911C14.6227 25.8585 13.3791 25.8585 12.6118 25.0911L8.79166 21.271H11.9401V16.4237ZM21.2688 19.2102V8.78972L25.091 12.6098C25.8583 13.3772 25.8583 14.6207 25.091 15.3881L21.2688 19.2102ZM16.0596 6.73099V11.5763H11.9401V6.73099H8.78958L12.6097 2.90882C13.377 2.14148 14.6206 2.14148 15.3879 2.90882L19.2101 6.73099H16.0596ZM2.90868 12.6098L6.72877 8.78972V19.2102L2.90868 15.3901C2.14133 14.6228 2.14133 13.3772 2.90868 12.6098Z"
+        fill="#DA291C"
+      />
+    </svg>
+  );
+}
+
+/** Width-only check — the sheet/dialog split is about available width, not input type. */
+function useCompactViewport(): boolean {
+  const [compact, setCompact] = useState(
+    () => typeof window !== "undefined" && window.matchMedia("(max-width: 639px)").matches
+  );
+  useEffect(() => {
+    const mql = window.matchMedia("(max-width: 639px)");
+    const onChange = () => setCompact(mql.matches);
+    mql.addEventListener("change", onChange);
+    return () => mql.removeEventListener("change", onChange);
+  }, []);
+  return compact;
+}
+
 export function NovaPoshtaPicker({
   value,
   onSelect,
@@ -35,10 +60,18 @@ export function NovaPoshtaPicker({
 }: {
   value: NovaPoshtaSelection | null;
   onSelect: (selection: NovaPoshtaSelection) => void;
-  /** `dark` renders a minimal trigger for dark cards (checkout summary); default matches Nova Poshta's own widget look. */
+  /** `dark` sits on the checkout summary card; `light` on white surfaces (admin). */
   tone?: "light" | "dark";
 }) {
+  const { t } = useTranslation();
+  const reduceMotion = useReducedMotion();
+  const compact = useCompactViewport();
   const [open, setOpen] = useState(false);
+  const [frameLoaded, setFrameLoaded] = useState(false);
+  const [coords, setCoords] = useState<{ latitude: number | ""; longitude: number | "" }>({
+    latitude: "",
+    longitude: "",
+  });
   const iframeRef = useRef<HTMLIFrameElement>(null);
   useBodyScrollLock(open);
 
@@ -58,7 +91,7 @@ export function NovaPoshtaPicker({
       });
       setOpen(false);
     },
-    [onSelect],
+    [onSelect]
   );
 
   useEffect(() => {
@@ -67,214 +100,210 @@ export function NovaPoshtaPicker({
     return () => window.removeEventListener("message", handleMessage);
   }, [open, handleMessage]);
 
-  function sendConfig(latitude: number | string, longitude: number | string) {
-    const iframe = iframeRef.current;
-    if (!iframe) return;
-    iframe.onload = () => {
-      iframe.contentWindow?.postMessage(
-        { placeName: value?.cityName || "", latitude, longitude, domain: window.location.hostname },
-        "*",
-      );
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setOpen(false);
     };
-  }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [open]);
 
-  function openFrame() {
-    setOpen(true);
-    sendConfig("", "");
-    navigator.geolocation?.getCurrentPosition(
-      (position) => sendConfig(position.coords.latitude, position.coords.longitude),
-      () => {},
+  // Hand the widget its config whenever we have something new to tell it. This has to be an
+  // effect keyed on both readiness and coordinates: the previous version assigned
+  // iframe.onload inside the geolocation callback, but by the time the user answers the
+  // browser's permission prompt the frame has already fired load — so the handler never ran
+  // again and approving "Share location" did nothing at all. Re-posting on every change also
+  // means the initial (empty) config still lands if permission is denied or never answered.
+  useEffect(() => {
+    if (!open || !frameLoaded) return;
+    iframeRef.current?.contentWindow?.postMessage(
+      {
+        placeName: value?.cityName ?? "",
+        latitude: coords.latitude,
+        longitude: coords.longitude,
+        domain: window.location.hostname,
+      },
+      WIDGET_ORIGIN
     );
-  }
+  }, [open, frameLoaded, coords, value?.cityName]);
 
-  function closeFrame() {
-    setOpen(false);
-  }
+  const openFrame = useCallback(() => {
+    setFrameLoaded(false);
+    setCoords({ latitude: "", longitude: "" });
+    setOpen(true);
+    // Geolocation only resolves on a secure origin, and the prompt is answered long after
+    // this returns — the effect above is what actually delivers the result.
+    navigator.geolocation?.getCurrentPosition(
+      (position) => setCoords({ latitude: position.coords.latitude, longitude: position.coords.longitude }),
+      () => {
+        /* denied or unavailable — the widget simply opens without centring on the user */
+      },
+      { enableHighAccuracy: false, timeout: 10_000, maximumAge: 300_000 }
+    );
+  }, []);
+
+  const dark = tone === "dark";
+  const primaryLine = value ? value.warehouseName : t("checkout.deliveryChoose");
+  const secondaryLine = value ? value.cityName : t("checkout.deliveryChooseHint");
+
+  const trigger = (
+    <button
+      type="button"
+      onClick={openFrame}
+      aria-haspopup="dialog"
+      className="w-full flex items-center gap-3 rounded-[14px] px-3.5 py-3 text-left cursor-pointer transition-colors duration-200"
+      style={{
+        backgroundColor: dark ? "rgba(245,242,237,0.10)" : "#fff",
+        border: `1px solid ${dark ? "rgba(245,242,237,0.18)" : "rgba(45,36,30,0.14)"}`,
+        fontFamily: "'DM Sans', sans-serif",
+      }}
+    >
+      {/* Logo keeps a light tile on both tones so the red mark stays legible. */}
+      <span
+        className="shrink-0 flex items-center justify-center rounded-[10px]"
+        style={{ width: 34, height: 34, backgroundColor: dark ? "#F5F2ED" : "#F8F5F0" }}
+      >
+        <NovaPoshtaMark size={18} />
+      </span>
+
+      {/* min-w-0 is what lets the truncation below actually engage: without it this flex
+          child refuses to shrink under its content, and a long branch name ("Відділення №8
+          (до 30 кг на одне місце): вул. …") pushed the whole summary card past the viewport. */}
+      <span className="flex-1 min-w-0 flex flex-col">
+        <span
+          className="truncate"
+          style={{
+            fontSize: "0.85rem",
+            color: dark ? "#F5F2ED" : "#2D241E",
+            fontWeight: value ? 500 : 400,
+          }}
+        >
+          {primaryLine}
+        </span>
+        <span
+          className="truncate"
+          style={{
+            fontSize: "0.75rem",
+            marginTop: 1,
+            color: dark ? "rgba(245,242,237,0.55)" : "rgba(45,36,30,0.55)",
+          }}
+        >
+          {secondaryLine}
+        </span>
+      </span>
+
+      <ChevronRight
+        size={16}
+        strokeWidth={1.5}
+        className="shrink-0"
+        style={{ color: dark ? "rgba(245,242,237,0.6)" : "rgba(45,36,30,0.45)" }}
+      />
+    </button>
+  );
+
+  const panelMotion = reduceMotion
+    ? { initial: false as const, animate: {}, exit: {} }
+    : compact
+      ? { initial: { y: "100%" }, animate: { y: 0 }, exit: { y: "100%" } }
+      : { initial: { opacity: 0, scale: 0.97, y: 12 }, animate: { opacity: 1, scale: 1, y: 0 }, exit: { opacity: 0, scale: 0.97, y: 12 } };
+
+  const dialog = (
+    <AnimatePresence>
+      {open && (
+        <motion.div
+          className="fixed inset-0 z-[1000] flex justify-center items-end sm:items-center sm:p-6"
+          initial={reduceMotion ? false : { opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={reduceMotion ? undefined : { opacity: 0 }}
+          transition={{ duration: 0.2, ease: EASE_OUT }}
+          style={{ backgroundColor: "rgba(45,36,30,0.55)", backdropFilter: "blur(3px)" }}
+          onClick={() => setOpen(false)}
+        >
+          <motion.div
+            role="dialog"
+            aria-modal="true"
+            aria-label={t("checkout.deliveryPickerTitle")}
+            className="relative w-full sm:max-w-[560px] flex flex-col overflow-hidden rounded-t-[26px] sm:rounded-[24px]"
+            style={{
+              backgroundColor: "#F3EFE8",
+              height: compact ? "86svh" : "min(78svh, 700px)",
+              boxShadow: "0 -12px 48px rgba(45,36,30,0.28)",
+            }}
+            {...panelMotion}
+            transition={{ duration: reduceMotion ? 0 : 0.36, ease: EASE_OUT }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Grab affordance — the sheet reads as draggable-adjacent on phones even though
+                dismissal is via the backdrop or the close control. */}
+            <div className="sm:hidden pt-2.5 pb-1 flex justify-center shrink-0">
+              <span className="block rounded-full" style={{ width: 40, height: 4, backgroundColor: "rgba(45,36,30,0.18)" }} />
+            </div>
+
+            <header
+              className="shrink-0 flex items-center justify-between gap-3 px-4 sm:px-5 py-3"
+              style={{ borderBottom: "1px solid rgba(45,36,30,0.10)" }}
+            >
+              <span className="flex items-center gap-2.5 min-w-0">
+                <NovaPoshtaMark size={17} />
+                <span
+                  className="uppercase truncate"
+                  style={{
+                    fontFamily: "'DM Sans', sans-serif",
+                    fontSize: "0.68rem",
+                    letterSpacing: "0.14em",
+                    color: "rgba(45,36,30,0.55)",
+                  }}
+                >
+                  {t("checkout.deliveryPickerTitle")}
+                </span>
+              </span>
+              <button
+                type="button"
+                onClick={() => setOpen(false)}
+                aria-label={t("checkout.deliveryPickerClose")}
+                className="shrink-0 flex items-center justify-center rounded-full cursor-pointer transition-colors duration-200 hover:bg-[#2D241E]/8 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2D241E]/30"
+                style={{ width: 34, height: 34 }}
+              >
+                <X size={17} strokeWidth={1.5} className="text-[#2D241E]" />
+              </button>
+            </header>
+
+            <div className="relative flex-1 min-h-0" style={{ backgroundColor: "#fff" }}>
+              {!frameLoaded && (
+                <div
+                  className="absolute inset-0 flex items-center justify-center"
+                  style={{
+                    fontFamily: "'DM Sans', sans-serif",
+                    fontSize: "0.8rem",
+                    color: "rgba(45,36,30,0.45)",
+                  }}
+                >
+                  {t("checkout.deliveryPickerLoading")}
+                </div>
+              )}
+              <iframe
+                ref={iframeRef}
+                title={t("checkout.deliveryPickerTitle")}
+                src={WIDGET_URL}
+                allow="geolocation"
+                onLoad={() => setFrameLoaded(true)}
+                className="w-full h-full block border-0"
+                style={{ opacity: frameLoaded ? 1 : 0, transition: "opacity 220ms ease" }}
+              />
+            </div>
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
 
   return (
     <>
-      <style>{`
-        .np-widget-button {
-          display: flex;
-          flex-direction: row;
-          align-items: center;
-          gap: 10px;
-          padding: 11px 40px 11px 16px;
-          border: 1px solid #E2E8F0;
-          border-radius: 12px;
-          font-family: Inter, sans-serif;
-          background-color: #fff;
-          cursor: pointer;
-          max-width: 344px;
-          width: 100%;
-          position: relative;
-          box-sizing: border-box;
-        }
-        .np-widget-button .np-logo {
-          display: flex;
-          align-items: center;
-          flex-shrink: 0;
-        }
-        .np-widget-button .np-angle {
-          position: absolute;
-          top: 50%;
-          transform: translateY(-50%);
-          right: 20px;
-          height: 16px;
-        }
-        .np-widget-button .np-wrapper {
-          display: flex;
-          flex-direction: column;
-          font-family: Inter, sans-serif;
-          font-weight: 500;
-          min-width: 0;
-        }
-        .np-widget-button .np-text {
-          font-size: 16px;
-          line-height: 21px;
-          color: #0F172A;
-          white-space: nowrap;
-          overflow: hidden;
-          text-overflow: ellipsis;
-        }
-        .np-widget-button .np-text-description {
-          font-size: 14px;
-          font-weight: 400;
-          line-height: 18px;
-          color: #475569;
-          white-space: nowrap;
-          overflow: hidden;
-          text-overflow: ellipsis;
-        }
-        .np-modal-overlay {
-          position: fixed;
-          top: 0;
-          left: 0;
-          width: 100%;
-          height: 100%;
-          background-color: rgba(0, 0, 0, 0.6);
-          display: flex;
-          justify-content: center;
-          align-items: center;
-          z-index: 1000;
-        }
-        .np-modal {
-          position: relative;
-          width: 80%;
-          height: 80%;
-          background-color: white;
-          overflow: hidden;
-          box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
-        }
-        .np-modal-header {
-          position: relative;
-          height: 80px;
-          padding: 0 20px;
-          border-bottom: 1px solid #E2E8F0;
-          line-height: 80px;
-        }
-        .np-modal-header h2 {
-          margin: 0;
-          font-family: Inter, sans-serif;
-          font-size: 20px;
-          line-height: 80px;
-          font-weight: 600;
-          color: #0F172A;
-        }
-        .np-modal-close {
-          cursor: pointer;
-          font-size: 32px;
-          color: #333;
-          position: absolute;
-          right: 0;
-          top: 0;
-          width: 40px;
-          height: 100%;
-          background: none;
-          border: none;
-          line-height: 1;
-          padding: 0;
-        }
-        .np-modal-iframe {
-          width: 100%;
-          height: calc(100% - 81px);
-          border: none;
-          display: block;
-        }
-        @media screen and (max-width: 767px) {
-          .np-modal {
-            width: 100vw;
-            height: 100vh;
-          }
-          .np-modal-header {
-            display: none;
-          }
-          .np-modal-iframe {
-            height: 100%;
-          }
-        }
-      `}</style>
-
-      {tone === "dark" ? (
-        <button
-          type="button"
-          onClick={openFrame}
-          className="w-full flex items-center justify-between gap-3 rounded-[14px] px-4 py-3.5 cursor-pointer text-left"
-          style={{ backgroundColor: "rgba(245,242,237,0.14)", color: "#F5F2ED", fontFamily: "'DM Sans', sans-serif", fontSize: "0.85rem" }}
-        >
-          <span className="truncate">
-            {value ? `${value.warehouseName}, ${value.cityName}` : "Обрати відділення"}
-          </span>
-          <ChevronRight size={15} strokeWidth={1.5} className="shrink-0" />
-        </button>
-      ) : (
-        <div
-          className="np-widget-button"
-          onClick={openFrame}
-          role="button"
-          tabIndex={0}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" || e.key === " ") openFrame();
-          }}
-        >
-          <div className="np-logo">
-            <svg width="28" height="28" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path
-                d="M11.9401 16.4237H16.0596V21.271H19.2101L15.39 25.0911C14.6227 25.8585 13.3791 25.8585 12.6118 25.0911L8.79166 21.271H11.9401V16.4237ZM21.2688 19.2102V8.78972L25.091 12.6098C25.8583 13.3772 25.8583 14.6207 25.091 15.3881L21.2688 19.2102ZM16.0596 6.73099V11.5763H11.9401V6.73099H8.78958L12.6097 2.90882C13.377 2.14148 14.6206 2.14148 15.3879 2.90882L19.2101 6.73099H16.0596ZM2.90868 12.6098L6.72877 8.78972V19.2102L2.90868 15.3901C2.14133 14.6228 2.14133 13.3772 2.90868 12.6098Z"
-                fill="#DA291C"
-              />
-            </svg>
-          </div>
-          <div className="np-wrapper" style={{ flex: 1, minWidth: 0 }}>
-            <span className="np-text">{value ? value.warehouseName : ""}</span>
-            <span className="np-text-description">{value ? value.cityName : "Обрати відділення або поштомат"}</span>
-          </div>
-          <div className="np-angle">
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path
-                fillRule="evenodd"
-                clipRule="evenodd"
-                d="M5.49399 1.44891L10.0835 5.68541L10.1057 5.70593C10.4185 5.99458 10.6869 6.24237 10.8896 6.4638C11.1026 6.69642 11.293 6.95179 11.4023 7.27063C11.5643 7.74341 11.5643 8.25668 11.4023 8.72946C11.293 9.0483 11.1026 9.30367 10.8896 9.53629C10.6869 9.75771 10.4184 10.0055 10.1057 10.2942L10.0835 10.3147L5.49398 14.5511L4.47657 13.4489L9.06607 9.21246C9.40722 8.89756 9.62836 8.69258 9.78328 8.52338C9.93272 8.36015 9.96962 8.28306 9.98329 8.24318C10.0373 8.08559 10.0373 7.9145 9.98329 7.7569C9.96963 7.71702 9.93272 7.63993 9.78328 7.4767C9.62837 7.3075 9.40722 7.10252 9.06608 6.78761L4.47656 2.55112L5.49399 1.44891Z"
-                fill="#475569"
-              />
-            </svg>
-          </div>
-        </div>
-      )}
-
-      {open && (
-        <div className="np-modal-overlay" onClick={closeFrame}>
-          <div className="np-modal" onClick={(e) => e.stopPropagation()}>
-            <header className="np-modal-header">
-              <h2>Вибрати відділення</h2>
-              <button type="button" className="np-modal-close" onClick={closeFrame} aria-label="Закрити">
-                &times;
-              </button>
-            </header>
-            <iframe ref={iframeRef} className="np-modal-iframe" title="Nova Poshta" src={WIDGET_URL} allow="geolocation" />
-          </div>
-        </div>
-      )}
+      {trigger}
+      {/* Portalled to <body>: the checkout summary is a transformed, overflow-clipped card,
+          and either of those would otherwise trap a position:fixed overlay inside it. */}
+      {typeof document !== "undefined" && createPortal(dialog, document.body)}
     </>
   );
 }

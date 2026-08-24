@@ -202,6 +202,11 @@ const en = {
     recipientRequired: "Enter the recipient's first name, last name, and phone.",
     delivery: "Delivery",
     deliveryRequired: "Choose a Nova Poshta branch or postomat.",
+    deliveryChoose: "Choose a branch",
+    deliveryChooseHint: "Branch or postomat",
+    deliveryPickerTitle: "Nova Poshta branch",
+    deliveryPickerClose: "Close branch picker",
+    deliveryPickerLoading: "Loading branches…",
     errors: {
       unableToPlaceOrder: "Unable to place order right now.",
     },

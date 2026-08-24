@@ -206,6 +206,11 @@ const uk: Translations = {
     recipientRequired: "Вкажіть ім'я, прізвище та телефон отримувача.",
     delivery: "Доставка",
     deliveryRequired: "Оберіть відділення або поштомат Нової пошти.",
+    deliveryChoose: "Обрати відділення",
+    deliveryChooseHint: "Відділення або поштомат",
+    deliveryPickerTitle: "Відділення Нової пошти",
+    deliveryPickerClose: "Закрити вибір відділення",
+    deliveryPickerLoading: "Завантаження відділень…",
     errors: {
       unableToPlaceOrder: "Наразі не вдалося оформити замовлення.",
     },
