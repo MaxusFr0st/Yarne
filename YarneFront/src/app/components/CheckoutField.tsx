@@ -11,6 +11,8 @@ type CheckoutFieldProps = {
   error?: string | null;
   /** Background the notch paints over — must match the surface behind the field. */
   notchColor?: string;
+  /** Fixed, non-editable text pinned inside the field's left edge (e.g. a country code). */
+  prefix?: string;
   children?: ReactNode;
 } & Omit<InputHTMLAttributes<HTMLInputElement>, "id">;
 
@@ -29,6 +31,7 @@ export function CheckoutField({
   label,
   error,
   notchColor = "#2D241E",
+  prefix,
   children,
   ...inputProps
 }: CheckoutFieldProps) {
@@ -68,20 +71,41 @@ export function CheckoutField({
         )}
       </AnimatePresence>
 
-      <input
-        id={id}
-        aria-invalid={invalid || undefined}
-        aria-errormessage={invalid ? `${id}-error` : undefined}
-        className="w-full rounded-[14px] px-4 py-3.5 outline-none transition-colors duration-200"
-        style={{
-          backgroundColor: "rgba(245,242,237,0.14)",
-          border: `1px solid ${invalid ? ERROR_LINE : "rgba(245,242,237,0.10)"}`,
-          color: invalid ? ERROR_INK : "#F5F2ED",
-          fontFamily: "'DM Sans', sans-serif",
-          fontSize: "0.9rem",
-        }}
-        {...inputProps}
-      />
+      {/* text-base (16px) on phones is load-bearing, not a style choice: iOS Safari zooms the
+          page in on focus for any input under 16px, and it does not zoom back out afterwards —
+          so the rest of checkout stays magnified. Shrinks to 0.9rem from md up, where no
+          mobile browser is applying that rule. Kept as classes, not inline fontSize, so the
+          breakpoint can actually vary. */}
+      <div className="relative">
+        {prefix && (
+          <span
+            className="absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none select-none text-base md:text-[0.9rem]"
+            style={{
+              fontFamily: "'DM Sans', sans-serif",
+              color: invalid ? ERROR_INK : "rgba(245,242,237,0.55)",
+            }}
+            aria-hidden
+          >
+            {prefix}
+          </span>
+        )}
+        <input
+          id={id}
+          aria-invalid={invalid || undefined}
+          aria-errormessage={invalid ? `${id}-error` : undefined}
+          className="w-full rounded-[14px] py-3.5 outline-none transition-colors duration-200 text-base md:text-[0.9rem]"
+          style={{
+            backgroundColor: "rgba(245,242,237,0.14)",
+            border: `1px solid ${invalid ? ERROR_LINE : "rgba(245,242,237,0.10)"}`,
+            color: invalid ? ERROR_INK : "#F5F2ED",
+            fontFamily: "'DM Sans', sans-serif",
+            // Text starts clear of the prefix; ch units track the font so it stays aligned.
+            paddingLeft: prefix ? `calc(1rem + ${prefix.length + 0.6}ch)` : "1rem",
+            paddingRight: "1rem",
+          }}
+          {...inputProps}
+        />
+      </div>
 
       {/* Same text for assistive tech, which should hear the problem rather than infer it
           from a decorative notch. */}

@@ -8,6 +8,7 @@ import { useBodyScrollLock } from "../hooks/useBodyScrollLock";
 const WIDGET_ORIGIN = "https://widget.novapost.com";
 const WIDGET_URL = "https://widget.novapost.com/division/index.html";
 const EASE_OUT = [0.16, 1, 0.3, 1] as const;
+const EASE_IN = [0.4, 0, 1, 1] as const;
 /** How long to wait on the location prompt before opening the widget uncentred. */
 const GEO_WAIT_MS = 5_000;
 
@@ -70,6 +71,8 @@ export function NovaPoshtaPicker({
   const compact = useCompactViewport();
   const [open, setOpen] = useState(false);
   const [frameLoaded, setFrameLoaded] = useState(false);
+  /** True once the sheet has finished animating in — gates the iframe mount. */
+  const [entered, setEntered] = useState(false);
   const [geoSettled, setGeoSettled] = useState(false);
   const [coords, setCoords] = useState<{ latitude: number | ""; longitude: number | "" }>({
     latitude: "",
@@ -142,6 +145,7 @@ export function NovaPoshtaPicker({
   const openFrame = useCallback(() => {
     postedRef.current = false;
     setFrameLoaded(false);
+    setEntered(false);
     setGeoSettled(false);
     setCoords({ latitude: "", longitude: "" });
     setOpen(true);
@@ -228,22 +232,41 @@ export function NovaPoshtaPicker({
     </button>
   );
 
+  // Exit is deliberately quicker than entrance: an arrival wants to feel considered, a
+  // dismissal wants to get out of the way. Both ride the same exponential ease-out so the
+  // sheet decelerates into place rather than easing symmetrically, which reads as hesitation.
   const panelMotion = reduceMotion
-    ? { initial: false as const, animate: {}, exit: {} }
+    ? { initial: false as const, animate: {}, exit: {}, transition: { duration: 0 } }
     : compact
-      ? { initial: { y: "100%" }, animate: { y: 0 }, exit: { y: "100%" } }
-      : { initial: { opacity: 0, scale: 0.97, y: 12 }, animate: { opacity: 1, scale: 1, y: 0 }, exit: { opacity: 0, scale: 0.97, y: 12 } };
+      ? {
+          initial: { y: "100%" },
+          animate: { y: 0, transition: { duration: 0.44, ease: EASE_OUT } },
+          exit: { y: "100%", transition: { duration: 0.26, ease: EASE_IN } },
+        }
+      : {
+          initial: { opacity: 0, scale: 0.96, y: 10 },
+          animate: { opacity: 1, scale: 1, y: 0, transition: { duration: 0.38, ease: EASE_OUT } },
+          exit: { opacity: 0, scale: 0.98, y: 6, transition: { duration: 0.22, ease: EASE_IN } },
+        };
 
+  // Overlay height is pinned to 100svh rather than left to `inset-0`. For a fixed element,
+  // `bottom: 0` resolves against the layout viewport, which on mobile spans the LARGE viewport
+  // — the area extending behind the browser's collapsible toolbar. Combined with items-end,
+  // that put the sheet's bottom edge underneath iOS Safari's URL bar, cropping it. svh is the
+  // SMALL viewport (all browser UI showing), so the bottom edge is always on screen.
   const dialog = (
     <AnimatePresence>
       {open && (
         <motion.div
-          className="fixed inset-0 z-[1000] flex justify-center items-end sm:items-center sm:p-6"
+          className="fixed inset-x-0 top-0 z-[1000] flex justify-center items-end sm:items-center sm:p-6"
           initial={reduceMotion ? false : { opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={reduceMotion ? undefined : { opacity: 0 }}
-          transition={{ duration: 0.2, ease: EASE_OUT }}
-          style={{ backgroundColor: "rgba(45,36,30,0.55)", backdropFilter: "blur(3px)" }}
+          animate={{ opacity: 1, transition: { duration: reduceMotion ? 0 : 0.26, ease: EASE_OUT } }}
+          exit={reduceMotion ? undefined : { opacity: 0, transition: { duration: 0.24, ease: EASE_IN } }}
+          style={{
+            height: "100svh",
+            backgroundColor: "rgba(45,36,30,0.55)",
+            backdropFilter: "blur(3px)",
+          }}
           onClick={() => setOpen(false)}
         >
           <motion.div
@@ -254,10 +277,13 @@ export function NovaPoshtaPicker({
             style={{
               backgroundColor: "#F3EFE8",
               height: compact ? "86svh" : "min(78svh, 700px)",
+              // Keeps the widget's last row clear of the home indicator on gesture-nav phones;
+              // resolves to 0 everywhere else, so it costs nothing on devices without one.
+              paddingBottom: compact ? "env(safe-area-inset-bottom, 0px)" : undefined,
               boxShadow: "0 -12px 48px rgba(45,36,30,0.28)",
             }}
             {...panelMotion}
-            transition={{ duration: reduceMotion ? 0 : 0.36, ease: EASE_OUT }}
+            onAnimationComplete={() => setEntered(true)}
             onClick={(e) => e.stopPropagation()}
           >
             {/* Grab affordance — the sheet reads as draggable-adjacent on phones even though
@@ -308,15 +334,21 @@ export function NovaPoshtaPicker({
                   {t("checkout.deliveryPickerLoading")}
                 </div>
               )}
-              <iframe
-                ref={iframeRef}
-                title={t("checkout.deliveryPickerTitle")}
-                src={WIDGET_URL}
-                allow="geolocation"
-                onLoad={() => setFrameLoaded(true)}
-                className="w-full h-full block border-0"
-                style={{ opacity: frameLoaded ? 1 : 0, transition: "opacity 220ms ease" }}
-              />
+              {/* Mounted only once the sheet has finished travelling. Fetching, parsing and
+                  laying out a third-party document is a long main-thread frame, and starting
+                  it on the same tick as the slide was what made the opening stutter. The
+                  loading label above covers the extra beat. */}
+              {entered && (
+                <iframe
+                  ref={iframeRef}
+                  title={t("checkout.deliveryPickerTitle")}
+                  src={WIDGET_URL}
+                  allow="geolocation"
+                  onLoad={() => setFrameLoaded(true)}
+                  className="w-full h-full block border-0"
+                  style={{ opacity: frameLoaded ? 1 : 0, transition: "opacity 220ms ease" }}
+                />
+              )}
             </div>
           </motion.div>
         </motion.div>

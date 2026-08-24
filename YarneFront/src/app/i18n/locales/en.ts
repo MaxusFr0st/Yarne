@@ -194,7 +194,7 @@ const en = {
     emailPlaceholder: "you@example.com",
     emailRequired: "Please enter your email.",
     emailInvalid: "Enter a valid email address.",
-    phonePlaceholder: "+380 XX XXX XX XX",
+    phonePlaceholder: "XX XXX XX XX",
     recipient: "Recipient",
     recipientFirstName: "Recipient first name",
     recipientLastName: "Recipient last name",

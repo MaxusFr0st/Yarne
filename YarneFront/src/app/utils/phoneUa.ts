@@ -23,12 +23,23 @@ export function toSubscriberDigits(raw: string): string {
   return digits;
 }
 
-/** `067 1234567` → `+380 67 123 45 67`, formatting only as far as the user has typed. */
-export function formatUaPhone(raw: string): string {
+/**
+ * `0671234567` → `67 123 45 67`, grouped only as far as the user has typed.
+ *
+ * Returns the subscriber part WITHOUT the country code, because the field renders "+380" as a
+ * fixed prefix beside the input rather than as editable text. Keeping the code out of the
+ * value is what stops the caret ever landing inside it or a backspace eating it.
+ */
+export function formatUaSubscriber(raw: string): string {
   const d = toSubscriberDigits(raw).slice(0, UA_SUBSCRIBER_DIGITS);
   if (!d) return "";
-  const parts = [d.slice(0, 2), d.slice(2, 5), d.slice(5, 7), d.slice(7, 9)].filter(Boolean);
-  return `+380 ${parts.join(" ")}`;
+  return [d.slice(0, 2), d.slice(2, 5), d.slice(5, 7), d.slice(7, 9)].filter(Boolean).join(" ");
+}
+
+/** Same grouping, with the country code — for display outside the input. */
+export function formatUaPhone(raw: string): string {
+  const sub = formatUaSubscriber(raw);
+  return sub ? `+380 ${sub}` : "";
 }
 
 /** Digits only, for sending to the API. Empty until the number is complete. */

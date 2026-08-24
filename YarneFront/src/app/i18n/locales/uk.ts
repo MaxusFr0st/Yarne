@@ -198,7 +198,7 @@ const uk: Translations = {
     emailPlaceholder: "you@example.com",
     emailRequired: "Введіть електронну пошту.",
     emailInvalid: "Введіть коректну електронну пошту.",
-    phonePlaceholder: "+380 XX XXX XX XX",
+    phonePlaceholder: "XX XXX XX XX",
     recipient: "Отримувач",
     recipientFirstName: "Ім'я отримувача",
     recipientLastName: "Прізвище отримувача",

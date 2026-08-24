@@ -15,13 +15,15 @@ import { NovaPoshtaPicker, type NovaPoshtaSelection } from "../components/NovaPo
 import { orderStatusKey } from "../utils/orderStatusKey";
 import { CheckoutField } from "../components/CheckoutField";
 import { useSessionState, clearSessionState } from "../hooks/useSessionState";
-import { formatUaPhone, inspectUaPhone, isCompleteUaPhone, toE164Ua } from "../utils/phoneUa";
+import { formatUaPhone, formatUaSubscriber, inspectUaPhone, isCompleteUaPhone, toE164Ua } from "../utils/phoneUa";
 
 const easing = [0.25, 0.1, 0.25, 1] as const;
 /** Order lines shown before the list becomes a scroll region. */
 const VISIBLE_ORDER_ITEMS = 3;
 /** Generous enough for any real Ukrainian name, short enough to stop paste-bombing a field. */
 const NAME_MAX = 40;
+/** Quiet period after the last keystroke before the phone field reports a problem. */
+const PHONE_SETTLE_MS = 500;
 /** sessionStorage keys — a reload keeps checkout progress, closing the tab drops it. */
 const S = {
   email: "yarne.checkout.email",
@@ -118,13 +120,30 @@ export function CheckoutPage() {
 
   // The API gets a clean +380XXXXXXXXX regardless of how the field was typed or pasted.
   const normalizedRecipientPhone = toE164Ua(recipientPhone);
-  const phoneProblem = inspectUaPhone(phoneRaw || recipientPhone);
+
+  // Validation waits for a pause. Judging a number mid-keystroke means flashing "incomplete"
+  // at someone who is simply still typing it, so nothing is reported until PHONE_SETTLE_MS
+  // after the last input — and each further keystroke restarts that clock. Leaving the field
+  // counts as finishing, so blur reports straight away.
+  const phoneLive = phoneRaw || recipientPhone;
+  const [phoneSettled, setPhoneSettled] = useState<string | null>(null);
+  useEffect(() => {
+    if (!phoneLive) {
+      setPhoneSettled(null);
+      return;
+    }
+    setPhoneSettled(null);
+    const id = window.setTimeout(() => setPhoneSettled(phoneLive), PHONE_SETTLE_MS);
+    return () => window.clearTimeout(id);
+  }, [phoneLive]);
+
+  const phoneProblem = phoneSettled !== null ? inspectUaPhone(phoneSettled) : null;
   const phoneError =
     phoneProblem === "letters"
       ? t("checkout.errorPhoneLetters")
       : phoneProblem === "tooLong"
         ? t("checkout.errorPhoneTooLong")
-        : touched.phone && phoneProblem === "tooShort"
+        : phoneProblem === "tooShort"
           ? t("checkout.errorPhoneTooShort")
           : null;
 
@@ -142,7 +161,7 @@ export function CheckoutPage() {
         if (cancelled || !profile.phoneNumber) return;
         // Stored numbers arrive in whatever shape they were saved — normalise so the field
         // shows the same +380 XX XXX XX XX as one typed by hand.
-        setRecipientPhone((current) => (current.trim().length > 0 ? current : formatUaPhone(profile.phoneNumber ?? "")));
+        setRecipientPhone((current) => (current.trim().length > 0 ? current : formatUaSubscriber(profile.phoneNumber ?? "")));
       })
       .catch(() => {
         // profile optional for checkout
@@ -444,13 +463,21 @@ export function CheckoutPage() {
                   type="tel"
                   inputMode="tel"
                   autoComplete="tel"
+                  prefix="+380"
                   value={recipientPhone}
                   error={phoneError}
-                  onBlur={() => setTouched((s) => ({ ...s, phone: true }))}
+                  onBlur={() => {
+                    setTouched((s) => ({ ...s, phone: true }));
+                    // Leaving the field is the user saying they are done — no need to wait out
+                    // the settle timer before telling them what is wrong.
+                    if (phoneLive) setPhoneSettled(phoneLive);
+                  }}
                   onChange={(e) => {
                     const next = e.target.value;
                     setPhoneRaw(next);
-                    setRecipientPhone(inspectUaPhone(next) === "letters" ? next : formatUaPhone(next));
+                    setRecipientPhone(
+                      inspectUaPhone(next) === "letters" ? next : formatUaSubscriber(next)
+                    );
                     if (error) setError(null);
                   }}
                   placeholder={t("checkout.phonePlaceholder")}
