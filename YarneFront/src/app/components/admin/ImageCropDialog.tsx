@@ -114,11 +114,19 @@ export function ImageCropDialog({
         </div>
 
         <div className="relative w-full h-[min(52vh,420px)] bg-[#2D241E]/8 shrink-0">
+          {/* minZoom/maxZoom must be passed explicitly. Without them react-easy-crop uses its
+              own default minZoom of 1, which clamps the slider's 0.5 floor back up and makes
+              the "zoom out to show more" promise below a lie — every wide photo silently lost
+              its sides to fill a 3:4 frame. restrictPosition={false} is the other half: it
+              permits an image smaller than the crop area, which is what zooming out produces. */}
           <Cropper
             image={imageSrc}
             crop={crop}
             zoom={zoom}
             aspect={aspect}
+            minZoom={MIN_CROP_ZOOM}
+            maxZoom={MAX_CROP_ZOOM}
+            restrictPosition={false}
             onCropChange={setCrop}
             onZoomChange={setZoom}
             onCropComplete={onCropComplete}

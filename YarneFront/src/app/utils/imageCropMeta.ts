@@ -18,7 +18,7 @@ export type CropResultSettings = {
 export const MIN_CROP_ZOOM = 0.5;
 export const MAX_CROP_ZOOM = 3;
 export const DEFAULT_PRODUCT_CARD_CROP_HINT =
-  "Crop ratio matches the storefront product card (3:4). Re-crop opens the original photo so you can zoom out and show more of the image.";
+  "Frame is 3:4 to match the product card. Zoom out below 1× to fit the whole photo — the margins fill with the site's background, so nothing is cut off.";
 
 export function clampCropZoom(value: number | undefined): number {
   if (value == null || !Number.isFinite(value)) return 1;

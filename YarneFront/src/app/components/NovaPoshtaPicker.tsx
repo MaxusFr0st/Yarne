@@ -276,7 +276,11 @@ export function NovaPoshtaPicker({
             className="relative w-full sm:max-w-[560px] flex flex-col overflow-hidden rounded-t-[26px] sm:rounded-[24px]"
             style={{
               backgroundColor: "#F3EFE8",
-              height: compact ? "86svh" : "min(78svh, 700px)",
+              // 92svh, not 86: Nova Poshta's widget is built for a full-height container and
+              // its branch list is the tallest thing in the flow, so every point we take off
+              // the sheet comes straight out of visible addresses. Still short of the top so
+              // it reads as a sheet with the page behind it.
+              height: compact ? "92svh" : "min(78svh, 700px)",
               boxShadow: "0 -12px 48px rgba(45,36,30,0.28)",
             }}
             {...panelMotion}
@@ -285,12 +289,12 @@ export function NovaPoshtaPicker({
           >
             {/* Grab affordance — the sheet reads as draggable-adjacent on phones even though
                 dismissal is via the backdrop or the close control. */}
-            <div className="sm:hidden pt-2.5 pb-1 flex justify-center shrink-0">
+            <div className="sm:hidden pt-2 pb-0.5 flex justify-center shrink-0">
               <span className="block rounded-full" style={{ width: 40, height: 4, backgroundColor: "rgba(45,36,30,0.18)" }} />
             </div>
 
             <header
-              className="shrink-0 flex items-center justify-between gap-3 px-4 sm:px-5 py-3"
+              className="shrink-0 flex items-center justify-between gap-3 px-4 sm:px-5 py-2 sm:py-3"
               style={{ borderBottom: "1px solid rgba(45,36,30,0.10)" }}
             >
               <span className="flex items-center gap-2.5 min-w-0">
@@ -318,18 +322,11 @@ export function NovaPoshtaPicker({
               </button>
             </header>
 
-            {/* Safe-area padding lives HERE, not on the panel. On the panel it painted in the
-                sheet's cream, so a phone with a home indicator showed an empty band under a
-                white widget — reading as a rendering gap with the branch list clipped above
-                it. Inside this container the reserved strip is the same white as the widget,
-                so the surface stays continuous down to the screen edge. */}
-            <div
-              className="relative flex-1 min-h-0"
-              style={{
-                backgroundColor: "#fff",
-                paddingBottom: compact ? "env(safe-area-inset-bottom, 0px)" : undefined,
-              }}
-            >
+            {/* No safe-area padding here. Reserving that strip shortened the branch list and
+                left a dead band beneath it — the "cropped at the bottom" complaint. The list
+                scrolls, so nothing is permanently hidden by the home indicator resting over
+                its last few pixels, and the widget gets the full height instead. */}
+            <div className="relative flex-1 min-h-0" style={{ backgroundColor: "#fff" }}>
               {!frameLoaded && (
                 <div
                   className="absolute inset-0 flex items-center justify-center"

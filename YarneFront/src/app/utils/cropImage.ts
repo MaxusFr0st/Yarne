@@ -105,11 +105,19 @@ async function toCanvasSafeSrc(imageSrc: string): Promise<{ src: string; revoke?
   };
 }
 
+/**
+ * The ground a fitted product sits on. Matches the image-container colour used across the
+ * storefront (gallery, cards, admin tiles), so a photo that does not fill the frame reads as
+ * deliberately floated on the brand surface rather than as a mistake.
+ */
+export const CROP_BACKGROUND = "#EDE9E2";
+
 export async function getCroppedImageBlob(
   imageSrc: string,
   pixelCrop: Area,
   mimeType: string = "image/jpeg",
   quality = 0.92,
+  background: string = CROP_BACKGROUND,
 ): Promise<Blob> {
   const { src, revoke } = await toCanvasSafeSrc(imageSrc);
   try {
@@ -122,6 +130,11 @@ export async function getCroppedImageBlob(
     const height = Math.max(1, Math.round(pixelCrop.height));
     canvas.width = width;
     canvas.height = height;
+
+    // Fill first. Zooming out makes the crop area larger than the image, and JPEG has no
+    // alpha — without this those margins export as solid black.
+    ctx.fillStyle = background;
+    ctx.fillRect(0, 0, width, height);
 
     ctx.drawImage(
       image,
