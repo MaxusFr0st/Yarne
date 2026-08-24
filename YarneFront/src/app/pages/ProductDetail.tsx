@@ -265,7 +265,10 @@ export function ProductDetail() {
   const displayPrice = product ? resolveDisplayPrice(selectedColor, activeLace, product.price) : 0;
 
   return (
-    <main className="overflow-x-hidden min-h-[100vh]" style={{ backgroundColor: "#F3EFE8" }}>
+    // overflow-x-clip, not -hidden: `hidden` promotes overflow-y to `auto`, making this a
+    // scroll container and leaving the mobile gallery's `position: sticky` inert — the info
+    // sheet then scrolled the image away instead of riding over it.
+    <main className="overflow-x-clip min-h-[100vh]" style={{ backgroundColor: "#F3EFE8" }}>
       {!showContent ? (
         <div className="min-h-[50vh]" aria-busy="true" />
       ) : (

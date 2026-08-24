@@ -15,7 +15,7 @@ import { useTouchMobileLayout } from "../hooks/useTouchMobileLayout";
 import { localizedCatalogName } from "../utils/localizedName";
 
 /** Duration of the sheet's glide back down off the image. */
-const SHEET_SLIDE_MS = 600;
+const SHEET_SLIDE_MS = 700;
 
 /**
  * Intended height of the image box for the current device, in plain pixels.
