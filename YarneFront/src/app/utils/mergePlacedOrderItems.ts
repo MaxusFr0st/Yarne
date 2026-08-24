@@ -22,6 +22,12 @@ export function mergePlacedOrderDisplay(
       furnitureColor: apiItem.furnitureColorName ?? snap?.furnitureColor,
       furnitureColorHex: snap?.furnitureColorHex,
       size: apiItem.sizeName ?? snap?.size ?? "",
+      // The API has no Ukrainian catalogue names, so carry the cart's through — this keeps the
+      // confirmation screen localised. Revisiting the order later (account history) falls back
+      // to English until the order DTO carries *NameUk.
+      colorUk: snap?.colorUk,
+      furnitureColorUk: snap?.furnitureColorUk,
+      sizeUk: snap?.sizeUk,
       withLace: apiItem.withLace ?? snap?.withLace ?? null,
       quantity: apiItem.quantity,
       image: snap?.image ?? apiItem.productImageUrl ?? "",

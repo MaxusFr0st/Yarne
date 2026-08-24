@@ -29,6 +29,12 @@ export interface CartItem {
   furnitureColor?: string;
   furnitureColorHex?: string;
   size: string;
+  // Ukrainian catalogue names, captured at add-to-bag time from the product the shopper was
+  // actually looking at. The order API only returns the English name, so carrying these on the
+  // line is what lets checkout read "Брауні" instead of "Brownie" without a backend round trip.
+  colorUk?: string | null;
+  furnitureColorUk?: string | null;
+  sizeUk?: string | null;
   withLace?: boolean | null;
   quantity: number;
   image: string;
@@ -77,8 +83,39 @@ const OverlayContext = createContext<OverlayContextType | null>(null);
 const AuthContext = createContext<AuthContextType | null>(null);
 const AppContext = createContext<AppContextType | null>(null);
 
+const CART_STORAGE_KEY = "yarne.cart.v1";
+
+/**
+ * The cart lived in memory only, so any reload — or following a link out and back — silently
+ * emptied it. Restored from localStorage (not sessionStorage) so it survives closing the
+ * browser, which is what shoppers expect of a bag. Reads defensively: a stale or hand-edited
+ * entry must never take the storefront down on boot.
+ */
+function readStoredCart(): CartItem[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const raw = window.localStorage.getItem(CART_STORAGE_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter(
+      (i): i is CartItem =>
+        Boolean(i) &&
+        typeof i.cartId === "string" &&
+        typeof i.productId === "string" &&
+        typeof i.name === "string" &&
+        typeof i.price === "number" &&
+        Number.isFinite(i.price) &&
+        typeof i.quantity === "number" &&
+        i.quantity > 0
+    );
+  } catch {
+    return [];
+  }
+}
+
 export function AppProvider({ children }: { children: React.ReactNode }) {
-  const [cartItems, setCartItems] = useState<CartItem[]>([]);
+  const [cartItems, setCartItems] = useState<CartItem[]>(readStoredCart);
   const [cartOpen, setCartOpen] = useState(false);
   const [loginOpen, setLoginOpen] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -204,6 +241,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     const id = setInterval(checkExpiry, 60_000);
     return () => clearInterval(id);
   }, [sessionExpiresAt, logout]);
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(cartItems));
+    } catch {
+      /* private mode or quota — the in-memory cart still works for this session */
+    }
+  }, [cartItems]);
 
   const cartTotal = cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
   const cartCount = cartItems.reduce((sum, item) => sum + item.quantity, 0);

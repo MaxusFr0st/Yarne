@@ -8,6 +8,8 @@ import { useBodyScrollLock } from "../hooks/useBodyScrollLock";
 const WIDGET_ORIGIN = "https://widget.novapost.com";
 const WIDGET_URL = "https://widget.novapost.com/division/index.html";
 const EASE_OUT = [0.16, 1, 0.3, 1] as const;
+/** How long to wait on the location prompt before opening the widget uncentred. */
+const GEO_WAIT_MS = 5_000;
 
 export interface NovaPoshtaSelection {
   cityRef: string;
@@ -68,11 +70,14 @@ export function NovaPoshtaPicker({
   const compact = useCompactViewport();
   const [open, setOpen] = useState(false);
   const [frameLoaded, setFrameLoaded] = useState(false);
+  const [geoSettled, setGeoSettled] = useState(false);
   const [coords, setCoords] = useState<{ latitude: number | ""; longitude: number | "" }>({
     latitude: "",
     longitude: "",
   });
   const iframeRef = useRef<HTMLIFrameElement>(null);
+  const postedRef = useRef(false);
+  const geoTimerRef = useRef<number | undefined>(undefined);
   useBodyScrollLock(open);
 
   const handleMessage = useCallback(
@@ -109,14 +114,18 @@ export function NovaPoshtaPicker({
     return () => window.removeEventListener("keydown", onKey);
   }, [open]);
 
-  // Hand the widget its config whenever we have something new to tell it. This has to be an
-  // effect keyed on both readiness and coordinates: the previous version assigned
-  // iframe.onload inside the geolocation callback, but by the time the user answers the
-  // browser's permission prompt the frame has already fired load — so the handler never ran
-  // again and approving "Share location" did nothing at all. Re-posting on every change also
-  // means the initial (empty) config still lands if permission is denied or never answered.
+  // Config goes to the widget EXACTLY ONCE per open, and only once both the frame has
+  // loaded and geolocation has settled (granted, refused, or timed out).
+  //
+  // Nova Poshta's own integration posts a single config on load and nothing after. Posting a
+  // second one into an already-initialised widget leaves it stuck on its loading state — which
+  // is what happened when an earlier version here sent empty coordinates on load and then
+  // re-sent real ones the moment the user approved the prompt. So we wait for the answer
+  // instead of correcting ourselves afterwards, and postedRef makes a late grant a no-op
+  // rather than a second message.
   useEffect(() => {
-    if (!open || !frameLoaded) return;
+    if (!open || !frameLoaded || !geoSettled || postedRef.current) return;
+    postedRef.current = true;
     iframeRef.current?.contentWindow?.postMessage(
       {
         placeName: value?.cityName ?? "",
@@ -126,20 +135,37 @@ export function NovaPoshtaPicker({
       },
       WIDGET_ORIGIN
     );
-  }, [open, frameLoaded, coords, value?.cityName]);
+  }, [open, frameLoaded, geoSettled, coords, value?.cityName]);
+
+  useEffect(() => () => clearTimeout(geoTimerRef.current), []);
 
   const openFrame = useCallback(() => {
+    postedRef.current = false;
     setFrameLoaded(false);
+    setGeoSettled(false);
     setCoords({ latitude: "", longitude: "" });
     setOpen(true);
-    // Geolocation only resolves on a secure origin, and the prompt is answered long after
-    // this returns — the effect above is what actually delivers the result.
-    navigator.geolocation?.getCurrentPosition(
-      (position) => setCoords({ latitude: position.coords.latitude, longitude: position.coords.longitude }),
-      () => {
-        /* denied or unavailable — the widget simply opens without centring on the user */
+
+    if (!navigator.geolocation) {
+      setGeoSettled(true);
+      return;
+    }
+    // An unanswered prompt must not hold the picker hostage: settle anyway after the cap and
+    // open uncentred. ponytail: a grant that lands after the cap is ignored rather than
+    // re-posted — remount the iframe on late coords if that ever proves worth the reload.
+    clearTimeout(geoTimerRef.current);
+    geoTimerRef.current = window.setTimeout(() => setGeoSettled(true), GEO_WAIT_MS);
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        clearTimeout(geoTimerRef.current);
+        setCoords({ latitude: position.coords.latitude, longitude: position.coords.longitude });
+        setGeoSettled(true);
       },
-      { enableHighAccuracy: false, timeout: 10_000, maximumAge: 300_000 }
+      () => {
+        clearTimeout(geoTimerRef.current);
+        setGeoSettled(true);
+      },
+      { enableHighAccuracy: false, timeout: GEO_WAIT_MS, maximumAge: 300_000 }
     );
   }, []);
 

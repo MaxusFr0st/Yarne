@@ -13,10 +13,23 @@ import { OrderLineDetails, cartItemToLineDetails } from "../components/OrderLine
 import { cartItemsTotal, mergePlacedOrderDisplay } from "../utils/mergePlacedOrderItems";
 import { NovaPoshtaPicker, type NovaPoshtaSelection } from "../components/NovaPoshtaPicker";
 import { orderStatusKey } from "../utils/orderStatusKey";
+import { CheckoutField } from "../components/CheckoutField";
+import { useSessionState, clearSessionState } from "../hooks/useSessionState";
+import { formatUaPhone, inspectUaPhone, isCompleteUaPhone, toE164Ua } from "../utils/phoneUa";
 
 const easing = [0.25, 0.1, 0.25, 1] as const;
 /** Order lines shown before the list becomes a scroll region. */
 const VISIBLE_ORDER_ITEMS = 3;
+/** Generous enough for any real Ukrainian name, short enough to stop paste-bombing a field. */
+const NAME_MAX = 40;
+/** sessionStorage keys — a reload keeps checkout progress, closing the tab drops it. */
+const S = {
+  email: "yarne.checkout.email",
+  firstName: "yarne.checkout.firstName",
+  lastName: "yarne.checkout.lastName",
+  phone: "yarne.checkout.phone",
+  delivery: "yarne.checkout.delivery",
+} as const;
 const ORDER_ITEM_PLACEHOLDER =
   "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='400' viewBox='0 0 400 400'%3E%3Crect fill='%23EDE9E2' width='400' height='400'/%3E%3Cpath d='M120 220l50-60 50 60 30-40 40 60H110z' fill='%232D241E' fill-opacity='0.18'/%3E%3Ccircle cx='150' cy='150' r='18' fill='%232D241E' fill-opacity='0.18'/%3E%3C/svg%3E";
 
@@ -37,11 +50,18 @@ export function CheckoutPage() {
   const { t } = useTranslation();
   const locale = useLocale();
   const { cartItems, cartTotal, isLoggedIn, user, clearCart } = useApp();
-  const [email, setEmail] = useState("");
-  const [recipientFirstName, setRecipientFirstName] = useState("");
-  const [recipientLastName, setRecipientLastName] = useState("");
-  const [recipientPhone, setRecipientPhone] = useState("");
-  const [delivery, setDelivery] = useState<NovaPoshtaSelection | null>(null);
+  // Session-scoped so an accidental reload no longer wipes a half-filled checkout.
+  const [email, setEmail] = useSessionState(S.email, "");
+  const [recipientFirstName, setRecipientFirstName] = useSessionState(S.firstName, "");
+  const [recipientLastName, setRecipientLastName] = useSessionState(S.lastName, "");
+  const [recipientPhone, setRecipientPhone] = useSessionState(S.phone, "");
+  const [delivery, setDelivery] = useSessionState<NovaPoshtaSelection | null>(S.delivery, null);
+  // Raw keystrokes, kept only so "letters typed" can be reported before we reformat away
+  // the evidence.
+  const [phoneRaw, setPhoneRaw] = useState("");
+  // Errors appear on blur, not on the first keystroke — flagging a field the user has not
+  // finished filling reads as nagging.
+  const [touched, setTouched] = useState({ email: false, firstName: false, lastName: false, phone: false });
   const [placingOrder, setPlacingOrder] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [placedOrder, setPlacedOrder] = useState<OrderDto | null>(null);
@@ -96,12 +116,22 @@ export function CheckoutPage() {
   const normalizedEmail = email.trim();
   const isEmailValid = isLoggedIn || /^\S+@\S+\.\S+$/.test(normalizedEmail);
 
-  const normalizedRecipientPhone = recipientPhone.trim();
+  // The API gets a clean +380XXXXXXXXX regardless of how the field was typed or pasted.
+  const normalizedRecipientPhone = toE164Ua(recipientPhone);
+  const phoneProblem = inspectUaPhone(phoneRaw || recipientPhone);
+  const phoneError =
+    phoneProblem === "letters"
+      ? t("checkout.errorPhoneLetters")
+      : phoneProblem === "tooLong"
+        ? t("checkout.errorPhoneTooLong")
+        : touched.phone && phoneProblem === "tooShort"
+          ? t("checkout.errorPhoneTooShort")
+          : null;
+
   const isRecipientValid =
     recipientFirstName.trim().length > 0 &&
     recipientLastName.trim().length > 0 &&
-    normalizedRecipientPhone.length >= 8 &&
-    normalizedRecipientPhone.length <= 32;
+    isCompleteUaPhone(recipientPhone);
   const isDeliveryValid = delivery !== null;
 
   useEffect(() => {
@@ -110,7 +140,9 @@ export function CheckoutPage() {
     void fetchCustomerProfile()
       .then((profile) => {
         if (cancelled || !profile.phoneNumber) return;
-        setRecipientPhone((current) => (current.trim().length > 0 ? current : profile.phoneNumber ?? ""));
+        // Stored numbers arrive in whatever shape they were saved — normalise so the field
+        // shows the same +380 XX XXX XX XX as one typed by hand.
+        setRecipientPhone((current) => (current.trim().length > 0 ? current : formatUaPhone(profile.phoneNumber ?? "")));
       })
       .catch(() => {
         // profile optional for checkout
@@ -171,6 +203,9 @@ export function CheckoutPage() {
       });
       setPlacedOrder(order);
       clearCart();
+      // The order exists server-side now — keeping the recipient's details in storage would
+      // only pre-fill someone else's next visit on a shared device.
+      clearSessionState(...Object.values(S));
     } catch (e) {
       setError(e instanceof Error ? e.message : t("checkout.errors.unableToPlaceOrder"));
     } finally {
@@ -279,7 +314,10 @@ export function CheckoutPage() {
                   className="flex items-center gap-3 md:gap-4 rounded-[16px] px-2 py-2.5 md:px-2.5 md:py-3 transition-colors duration-200 hover:bg-[#F3EEE5]"
                   aria-label={t("checkout.openProduct", { name: item.name })}
                 >
-                  <div className="w-[52px] h-[64px] md:w-[60px] md:h-[74px] rounded-[12px] overflow-hidden bg-[#F8F5F0] flex-shrink-0">
+                  {/* 4:5 box to match the product photography's own ratio, so object-contain
+                      neither crops nor leaves letterbox bars. Bumped ~23% for legibility
+                      without letting the thumbnail dominate the line. */}
+                  <div className="w-[64px] h-[80px] md:w-[72px] md:h-[90px] rounded-[12px] overflow-hidden bg-[#F8F5F0] flex-shrink-0">
                     <ImageWithFallback src={imageSrc} alt={item.name} className="w-full h-full object-contain" />
                   </div>
                   <div className="flex-1 min-w-0">
@@ -330,25 +368,27 @@ export function CheckoutPage() {
             <>
               {!isLoggedIn && (
                 <div className="mt-5">
-                  <label
-                    htmlFor="checkout-email"
-                    className="block uppercase mb-2"
+                  <p
+                    className="uppercase mb-2"
                     style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "0.68rem", letterSpacing: "0.1em", color: "rgba(245,242,237,0.55)" }}
                   >
                     {t("checkout.email")}
-                  </label>
-                  <input
+                  </p>
+                  <CheckoutField
                     id="checkout-email"
+                    label={t("checkout.email")}
                     type="email"
+                    inputMode="email"
                     autoComplete="email"
+                    maxLength={254}
                     value={email}
+                    error={touched.email && email.trim() && !isEmailValid ? t("checkout.errorEmail") : null}
+                    onBlur={() => setTouched((s) => ({ ...s, email: true }))}
                     onChange={(e) => {
                       setEmail(e.target.value);
                       if (error) setError(null);
                     }}
                     placeholder={t("checkout.emailPlaceholder")}
-                    className="w-full rounded-[14px] border-0 px-4 py-3 text-base md:text-[0.88rem] focus:outline-none placeholder-[#F5F2ED]/40"
-                    style={{ backgroundColor: "rgba(245,242,237,0.14)", color: "#F5F2ED", fontFamily: "'DM Sans', sans-serif" }}
                   />
                 </div>
               )}
@@ -364,61 +404,57 @@ export function CheckoutPage() {
                     placeholders (the <label>s are sr-only), and at phone widths a half-width
                     field clipped "Прізвище отримувача" by ~59px, leaving the field unnamed. */}
                 <div className="grid grid-cols-1 min-[420px]:grid-cols-2 gap-2.5">
-                  <div>
-                    <label htmlFor="checkout-recipient-first-name" className="sr-only">
-                      {t("checkout.recipientFirstName")}
-                    </label>
-                    <input
-                      id="checkout-recipient-first-name"
-                      type="text"
-                      autoComplete="given-name"
-                      value={recipientFirstName}
-                      onChange={(e) => {
-                        setRecipientFirstName(e.target.value);
-                        if (error) setError(null);
-                      }}
-                      placeholder={t("checkout.recipientFirstName")}
-                      className="w-full rounded-[14px] border-0 px-4 py-3 text-base md:text-[0.88rem] focus:outline-none placeholder-[#F5F2ED]/40"
-                      style={{ backgroundColor: "rgba(245,242,237,0.14)", color: "#F5F2ED", fontFamily: "'DM Sans', sans-serif" }}
-                    />
-                  </div>
-                  <div>
-                    <label htmlFor="checkout-recipient-last-name" className="sr-only">
-                      {t("checkout.recipientLastName")}
-                    </label>
-                    <input
-                      id="checkout-recipient-last-name"
-                      type="text"
-                      autoComplete="family-name"
-                      value={recipientLastName}
-                      onChange={(e) => {
-                        setRecipientLastName(e.target.value);
-                        if (error) setError(null);
-                      }}
-                      placeholder={t("checkout.recipientLastName")}
-                      className="w-full rounded-[14px] border-0 px-4 py-3 text-base md:text-[0.88rem] focus:outline-none placeholder-[#F5F2ED]/40"
-                      style={{ backgroundColor: "rgba(245,242,237,0.14)", color: "#F5F2ED", fontFamily: "'DM Sans', sans-serif" }}
-                    />
-                  </div>
-                </div>
-                <div>
-                  <label htmlFor="checkout-recipient-phone" className="sr-only">
-                    {t("checkout.recipientPhone")}
-                  </label>
-                  <input
-                    id="checkout-recipient-phone"
-                    type="tel"
-                    autoComplete="tel"
-                    value={recipientPhone}
+                  <CheckoutField
+                    id="checkout-recipient-first-name"
+                    label={t("checkout.recipientFirstName")}
+                    type="text"
+                    autoComplete="given-name"
+                    maxLength={NAME_MAX}
+                    value={recipientFirstName}
+                    error={touched.firstName && recipientFirstName.length >= NAME_MAX ? t("checkout.errorNameTooLong") : null}
+                    onBlur={() => setTouched((s) => ({ ...s, firstName: true }))}
                     onChange={(e) => {
-                      setRecipientPhone(e.target.value);
+                      setRecipientFirstName(e.target.value.slice(0, NAME_MAX));
                       if (error) setError(null);
                     }}
-                    placeholder={t("checkout.phonePlaceholder")}
-                    className="w-full rounded-[14px] border-0 px-4 py-3 text-base md:text-[0.88rem] focus:outline-none placeholder-[#F5F2ED]/40"
-                    style={{ backgroundColor: "rgba(245,242,237,0.14)", color: "#F5F2ED", fontFamily: "'DM Sans', sans-serif" }}
+                    placeholder={t("checkout.recipientFirstName")}
+                  />
+                  <CheckoutField
+                    id="checkout-recipient-last-name"
+                    label={t("checkout.recipientLastName")}
+                    type="text"
+                    autoComplete="family-name"
+                    maxLength={NAME_MAX}
+                    value={recipientLastName}
+                    error={touched.lastName && recipientLastName.length >= NAME_MAX ? t("checkout.errorNameTooLong") : null}
+                    onBlur={() => setTouched((s) => ({ ...s, lastName: true }))}
+                    onChange={(e) => {
+                      setRecipientLastName(e.target.value.slice(0, NAME_MAX));
+                      if (error) setError(null);
+                    }}
+                    placeholder={t("checkout.recipientLastName")}
                   />
                 </div>
+                {/* inputMode="tel" keeps the phone keypad on mobile; the value is reformatted
+                    on every keystroke so the field always reads +380 XX XXX XX XX. Letters are
+                    reported rather than silently dropped, so a wrong keyboard is obvious. */}
+                <CheckoutField
+                  id="checkout-recipient-phone"
+                  label={t("checkout.recipientPhone")}
+                  type="tel"
+                  inputMode="tel"
+                  autoComplete="tel"
+                  value={recipientPhone}
+                  error={phoneError}
+                  onBlur={() => setTouched((s) => ({ ...s, phone: true }))}
+                  onChange={(e) => {
+                    const next = e.target.value;
+                    setPhoneRaw(next);
+                    setRecipientPhone(inspectUaPhone(next) === "letters" ? next : formatUaPhone(next));
+                    if (error) setError(null);
+                  }}
+                  placeholder={t("checkout.phonePlaceholder")}
+                />
               </div>
 
               <div className="mt-5">

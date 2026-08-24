@@ -5275,7 +5275,7 @@ export function AdminPage() {
                                   style={{ borderBottom: "1px solid rgba(45,36,30,0.06)", paddingBottom: 12, marginBottom: 12 }}
                                 >
                                   <div className="w-[58px] h-[58px] rounded-[14px] overflow-hidden shrink-0" style={{ backgroundColor: "rgba(45,36,30,0.06)" }}>
-                                    {img ? <img src={img} alt="" className="w-full h-full object-cover" /> : null}
+                                    {img ? <img src={img} alt="" className="w-full h-full object-contain" /> : null}
                                   </div>
                                   <div className="flex-1 min-w-0">
                                     <OrderLineDetails line={orderItemDtoToLineDetails(item)} locale="uk" />
@@ -5504,7 +5504,7 @@ export function AdminPage() {
                                       return (
                                         <div key={`order-${order.id}-item-${item.id}`} className="flex gap-4">
                                           <div className="w-[72px] h-[72px] rounded-[18px] overflow-hidden shrink-0" style={{ backgroundColor: "rgba(45,36,30,0.06)" }}>
-                                            {img ? <img src={img} alt="" className="w-full h-full object-cover" /> : null}
+                                            {img ? <img src={img} alt="" className="w-full h-full object-contain" /> : null}
                                           </div>
                                           <div className="flex-1 min-w-0">
                                             <OrderLineDetails line={orderItemDtoToLineDetails(item)} locale="uk" />

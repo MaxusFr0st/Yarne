@@ -315,9 +315,13 @@ function ProductCardInner({
               />
               );
             })}
+            {/* Was shrink-0, which meant a long colour name ("Вершковий" beside five swatches)
+                refused to shrink and simply ran out of the card into the one next to it on a
+                two-up mobile grid. It now yields and ellipsises; the swatches keep their size. */}
             <span
-              className="text-[#2D241E]/40 text-xs ml-1 shrink-0"
+              className="text-[#2D241E]/40 text-xs ml-1 min-w-0 truncate"
               style={{ fontFamily: "'DM Sans', sans-serif" }}
+              title={activeColorLabel}
             >
               {activeColorLabel}
             </span>

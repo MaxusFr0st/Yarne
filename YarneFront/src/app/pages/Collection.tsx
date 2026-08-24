@@ -301,17 +301,17 @@ export function Collection() {
       </div>
 
       <div
-        className="max-w-[1400px] mx-auto px-6 md:px-10 pt-5 pb-24 md:pt-8 md:pb-24"
+        className="max-w-[1400px] mx-auto px-4 md:px-10 pt-5 pb-24 md:pt-8 md:pb-24"
         aria-busy={loading}
       >
         {loading ? (
           <>
-            <div className="hidden md:grid md:grid-cols-2 lg:grid-cols-3 gap-5 lg:gap-8">
+            <div className="hidden md:grid md:grid-cols-2 lg:grid-cols-3 gap-5 lg:gap-7">
               {Array.from({ length: SKELETON_COUNT }).map((_, i) => (
                 <CollectionCardSkeleton key={i} />
               ))}
             </div>
-            <div className="md:hidden grid grid-cols-2 gap-x-3 gap-y-8 w-full">
+            <div className="md:hidden grid grid-cols-2 gap-x-2.5 gap-y-7 w-full">
               {Array.from({ length: SKELETON_COUNT }).map((_, i) => (
                 <CollectionCardSkeleton key={i} />
               ))}
@@ -332,12 +332,12 @@ export function Collection() {
           </motion.div>
         ) : (
           <>
-            <div className="hidden md:grid md:grid-cols-2 lg:grid-cols-3 gap-5 lg:gap-8">
+            <div className="hidden md:grid md:grid-cols-2 lg:grid-cols-3 gap-5 lg:gap-7">
               {filtered.map((product, i) => (
                 <ProductCard key={product.id} product={product} index={i} size="collection" subtleEntrance />
               ))}
             </div>
-            <div className="md:hidden grid grid-cols-2 gap-x-3 gap-y-8 w-full">
+            <div className="md:hidden grid grid-cols-2 gap-x-2.5 gap-y-7 w-full">
               {filtered.map((product, i) => (
                 <ProductCard key={product.id} product={product} index={i} size="collection" subtleEntrance />
               ))}
