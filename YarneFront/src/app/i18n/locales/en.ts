@@ -123,6 +123,7 @@ const en = {
       title: "Quality Guarantee",
       description:
         "We guarantee the quality of our products — if anything breaks, we'll fix it for free.",
+      readMore: "Read more",
     },
     relatedEyebrow: "You may also like",
     relatedTitle: "Complete the wardrobe",

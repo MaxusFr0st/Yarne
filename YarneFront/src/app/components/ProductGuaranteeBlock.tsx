@@ -4,6 +4,7 @@ import { useRef } from "react";
 import { useTranslation } from "react-i18next";
 import type { Locale } from "../i18n/config";
 import { useTouchMobileLayout } from "../hooks/useTouchMobileLayout";
+import { LangLink } from "../i18n/LangLink";
 import {
   resolveProductGuaranteeText,
   type ProductGuaranteeContent,
@@ -62,11 +63,19 @@ export function ProductGuaranteeBlock({
         >
           {description}
         </p>
+        <LangLink
+          to="/pages/care"
+          className="inline-block mt-2 text-[#2D241E]/70 underline underline-offset-2 text-[0.76rem]"
+          style={{ fontFamily: "'DM Sans', sans-serif" }}
+        >
+          {t("product.guarantee.readMore")}
+        </LangLink>
       </div>
     </div>
   );
 
-  if (reduced) {
+  // Touch mobile: show immediately, no scroll-triggered fade.
+  if (reduced || touch) {
     return (
       <div
         ref={ref}
@@ -78,16 +87,15 @@ export function ProductGuaranteeBlock({
     );
   }
 
-  const shiftY = touch ? 12 : 8;
-
+  // Desktop only past this point — touch mobile already returned above.
   return (
     <motion.div
       ref={ref}
       className={`rounded-[20px] p-5 ${className}`}
       style={{ backgroundColor: "#EDE9E2" }}
-      initial={{ opacity: 0, y: shiftY }}
-      animate={inView ? { opacity: 1, y: 0 } : { opacity: 0, y: shiftY }}
-      transition={{ duration: touch ? 0.65 : 0.3, ease: EASE_OUT }}
+      initial={{ opacity: 0, y: 8 }}
+      animate={inView ? { opacity: 1, y: 0 } : { opacity: 0, y: 8 }}
+      transition={{ duration: 0.3, ease: EASE_OUT }}
     >
       {card}
     </motion.div>

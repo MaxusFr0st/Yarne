@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useEmblaCarouselWithGestures } from "../hooks/useEmblaCarouselWithGestures";
 import { motion, AnimatePresence, LayoutGroup, useReducedMotion } from "motion/react";
 import { ArrowLeft, Heart, ShoppingBag, Check, ChevronDown } from "lucide-react";
@@ -64,7 +64,9 @@ export function MobileProductDetailView({
   const { t } = useTranslation();
   const reduceMotion = useReducedMotion();
   const touchMobile = useTouchMobileLayout();
-  const motionEnabled = !touchMobile && !reduceMotion;
+  // touchMobile also matches every <768px viewport (this whole view's own breakpoint), so gating
+  // motion on it disabled every transition below for real phone users — only reduced-motion should.
+  const motionEnabled = !reduceMotion;
   const [galleryIndex, setGalleryIndex] = useState(0);
   const [descriptionOpen, setDescriptionOpen] = useState(false);
   const [detailsOpen, setDetailsOpen] = useState(false);
@@ -102,6 +104,18 @@ export function MobileProductDetailView({
     setGalleryIndex(0);
   }, [emblaApi, imageKey, activeColor, activeSize, activeLace, canLoop]);
 
+  // The info sheet scrolls up over the sticky image as the user browses it; picking a
+  // color/strap/hardware/size scrolls back so the image is fully visible again. Not on mount,
+  // and not on "add to bag" — that button doesn't touch any of these four.
+  const skipNextScrollBack = useRef(true);
+  useEffect(() => {
+    if (skipNextScrollBack.current) {
+      skipNextScrollBack.current = false;
+      return;
+    }
+    window.scrollTo({ top: 0, behavior: motionEnabled ? "smooth" : "auto" });
+  }, [activeColor, activeLace, activeFurniture, activeSize]);
+
   const safeGalleryIndex = images.length ? ((galleryIndex % images.length) + images.length) % images.length : 0;
   const gallerySlides: (ProductImage | null)[] = images.length > 0 ? images : [null];
   const transitionEase = [0.25, 0.1, 0.25, 1] as const;
@@ -130,10 +144,10 @@ export function MobileProductDetailView({
 
   return (
     <div className="md:hidden relative pt-[var(--main-header-h)]">
-      {/* Gallery — tall hero; page scrolls naturally below */}
+      {/* Gallery — sticks under the header while the info sheet below scrolls up over it */}
       <div
-        className="relative w-full bg-[#EDE9E2] overflow-hidden"
-        style={{ height: "58dvh", maxHeight: "420px" }}
+        className="sticky z-0 w-full bg-[#EDE9E2] overflow-hidden"
+        style={{ top: "var(--main-header-h)", height: "62dvh", maxHeight: "460px" }}
       >
         <div ref={emblaRef} className="h-full overflow-hidden">
           <div className="flex h-full [touch-action:pan-y_pinch-zoom]" style={touchMobile ? undefined : { willChange: "transform" }}>
@@ -204,9 +218,10 @@ export function MobileProductDetailView({
         )}
       </div>
 
-      {/* Info sheet */}
+      {/* Info sheet — overlaps further up than its rounded corner radius so the corner never
+          exposes bare image-container background under it */}
       <div
-        className="relative z-10 -mt-[clamp(12px,3vw,16px)] rounded-t-[clamp(20px,5vw,28px)] px-[clamp(14px,3.6vw,22px)] pt-[clamp(14px,3.5vw,18px)] pb-[clamp(14px,3.5vw,20px)]"
+        className="relative z-10 -mt-[clamp(24px,6vw,32px)] rounded-t-[clamp(20px,5vw,28px)] px-[clamp(14px,3.6vw,22px)] pt-[clamp(14px,3.5vw,18px)] pb-[clamp(14px,3.5vw,20px)]"
         style={{
           backgroundColor: "#F3EFE8",
           boxShadow: "0 -8px 32px rgba(45,36,30,0.1)",
@@ -451,9 +466,11 @@ export function MobileProductDetailView({
             {showFurniture && (
             <motion.div
               key="furniture"
-              initial={motionEnabled ? { height: 0, opacity: 0 } : false}
-              animate={{ height: "auto", opacity: 1 }}
-              exit={motionEnabled ? { height: 0, opacity: 0 } : undefined}
+              // marginTop/marginBottom cancel the parent's 13px flex gap while collapsed, so the
+              // panel doesn't pop by a fixed 26px the instant it mounts/unmounts around the animation.
+              initial={motionEnabled ? { height: 0, opacity: 0, marginTop: -13, marginBottom: -13 } : false}
+              animate={{ height: "auto", opacity: 1, marginTop: 0, marginBottom: 0 }}
+              exit={motionEnabled ? { height: 0, opacity: 0, marginTop: -13, marginBottom: -13 } : undefined}
               transition={{ duration: motionEnabled ? 0.3 : 0, ease: transitionEase }}
               className="overflow-hidden"
               style={{ borderTop: "1px solid rgba(45,36,30,0.08)" }}
