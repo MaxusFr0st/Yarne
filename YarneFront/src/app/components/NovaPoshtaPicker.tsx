@@ -4,7 +4,6 @@ import { motion, AnimatePresence, useReducedMotion } from "motion/react";
 import { ChevronRight, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useBodyScrollLock } from "../hooks/useBodyScrollLock";
-import { resetMobileZoom } from "../utils/resetMobileZoom";
 
 const WIDGET_ORIGIN = "https://widget.novapost.com";
 const WIDGET_URL = "https://widget.novapost.com/division/index.html";
@@ -99,10 +98,6 @@ export function NovaPoshtaPicker({
         cityName: data.refCity?.shortName || data.refCity?.name || "",
       });
       setOpen(false);
-      // Filling the form above zooms iOS in (the inputs sit under 16px on purpose) and it
-      // stays that way. Choosing a branch is the end of that stretch of typing, so this is
-      // the natural point to hand the page back at 1×.
-      resetMobileZoom();
     },
     [onSelect]
   );

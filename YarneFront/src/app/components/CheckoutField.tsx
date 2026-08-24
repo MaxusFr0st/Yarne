@@ -71,17 +71,16 @@ export function CheckoutField({
         )}
       </AnimatePresence>
 
-      {/* Font stays below 16px deliberately. That is what makes iOS zoom in on focus, which is
-          wanted here — the field is easier to read while filling it. The page is zoomed back
-          out explicitly once a delivery branch is chosen (see resetMobileZoom), since iOS
-          never restores the scale by itself. */}
+      {/* 16px exactly. iOS Safari zooms the page in on focus for any input below that and
+          never zooms back out — there is no scripted way to undo it, so the only dependable
+          answer is not to trigger it. Do not shrink this for visual balance. */}
       <div className="relative">
         {prefix && (
           <span
             className="absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none select-none"
             style={{
               fontFamily: "'DM Sans', sans-serif",
-              fontSize: "0.9rem",
+              fontSize: "16px",
               color: invalid ? ERROR_INK : "rgba(245,242,237,0.55)",
             }}
             aria-hidden
@@ -99,7 +98,7 @@ export function CheckoutField({
             border: `1px solid ${invalid ? ERROR_LINE : "rgba(245,242,237,0.10)"}`,
             color: invalid ? ERROR_INK : "#F5F2ED",
             fontFamily: "'DM Sans', sans-serif",
-            fontSize: "0.9rem",
+            fontSize: "16px",
             // Text starts clear of the prefix; ch units track the font so it stays aligned.
             paddingLeft: prefix ? `calc(1rem + ${prefix.length + 0.6}ch)` : "1rem",
             paddingRight: "1rem",
