@@ -147,7 +147,9 @@ export function MobileProductDetailView({
       {/* Gallery — sticks under the header while the info sheet below scrolls up over it */}
       <div
         className="sticky z-0 w-full bg-[#EDE9E2] overflow-hidden"
-        style={{ top: "var(--main-header-h)", height: "62dvh", maxHeight: "460px" }}
+        // svh (not dvh) — dvh recalculates live as the mobile browser's address bar
+        // collapses/expands during scroll, which visibly resized this sticky image.
+        style={{ top: "var(--main-header-h)", height: "62svh", maxHeight: "460px" }}
       >
         <div ref={emblaRef} className="h-full overflow-hidden">
           <div className="flex h-full [touch-action:pan-y_pinch-zoom]" style={touchMobile ? undefined : { willChange: "transform" }}>
@@ -198,7 +200,8 @@ export function MobileProductDetailView({
         </button>
 
         {images.length > 1 && (
-          <div className="absolute z-20 bottom-[clamp(10px,3.25vw,15px)] left-1/2 -translate-x-1/2 flex items-center gap-1.5">
+          // Sits above the info sheet's -mt-[clamp(24px,6vw,32px)] overlap so it isn't buried under it at rest.
+          <div className="absolute z-20 bottom-[clamp(34px,8vw,42px)] left-1/2 -translate-x-1/2 flex items-center gap-1.5">
             {images.map((_, i) => (
               <button
                 key={i}
