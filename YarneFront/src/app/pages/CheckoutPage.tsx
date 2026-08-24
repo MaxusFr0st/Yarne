@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { motion } from "motion/react";
 import { ArrowRight, CheckCircle2, Package } from "lucide-react";
 import { useTranslation } from "react-i18next";
@@ -14,6 +14,8 @@ import { cartItemsTotal, mergePlacedOrderDisplay } from "../utils/mergePlacedOrd
 import { NovaPoshtaPicker, type NovaPoshtaSelection } from "../components/NovaPoshtaPicker";
 
 const easing = [0.25, 0.1, 0.25, 1] as const;
+/** Order lines shown before the list becomes a scroll region. */
+const VISIBLE_ORDER_ITEMS = 3;
 const ORDER_ITEM_PLACEHOLDER =
   "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='400' viewBox='0 0 400 400'%3E%3Crect fill='%23EDE9E2' width='400' height='400'/%3E%3Cpath d='M120 220l50-60 50 60 30-40 40 60H110z' fill='%232D241E' fill-opacity='0.18'/%3E%3Ccircle cx='150' cy='150' r='18' fill='%232D241E' fill-opacity='0.18'/%3E%3C/svg%3E";
 
@@ -51,6 +53,44 @@ export function CheckoutPage() {
 
   const displaySubtotal = placedOrder ? Number(placedOrder.total) || snapshotTotal : cartTotal;
   const displayTotal = displaySubtotal;
+
+  // The list holds every line, but only VISIBLE_ORDER_ITEMS of them before it turns into a
+  // scroll region. The cap is measured from the real rows rather than hardcoded in px: row
+  // height varies with locale, font loading and the md: breakpoint, and a guessed pixel
+  // value cuts through the middle of a row, which reads as a rendering bug instead of an
+  // intentional scroll. Taking the 4th row's offset gives an exact edge and picks up the
+  // divide-y borders for free.
+  const itemsListRef = useRef<HTMLDivElement | null>(null);
+  const [itemsMaxHeight, setItemsMaxHeight] = useState<number | undefined>(undefined);
+  const [itemsScrollHint, setItemsScrollHint] = useState(false);
+
+  const syncScrollHint = useCallback(() => {
+    const el = itemsListRef.current;
+    if (!el) return;
+    // Fade the bottom edge only while content remains below — scrollbars are hidden here,
+    // so without it a capped list gives no sign that there is anything more to see.
+    setItemsScrollHint(el.scrollHeight - el.scrollTop - el.clientHeight > 4);
+  }, []);
+
+  useLayoutEffect(() => {
+    const el = itemsListRef.current;
+    if (!el) return;
+    const measure = () => {
+      const rows = Array.from(el.children) as HTMLElement[];
+      setItemsMaxHeight(
+        rows.length > VISIBLE_ORDER_ITEMS
+          ? rows[VISIBLE_ORDER_ITEMS].offsetTop - rows[0].offsetTop
+          : undefined
+      );
+      syncScrollHint();
+    };
+    measure();
+    // Rows resize as product images and webfonts land, so remeasure rather than trust
+    // the first pass.
+    const observer = new ResizeObserver(measure);
+    Array.from(el.children).forEach((row) => observer.observe(row));
+    return () => observer.disconnect();
+  }, [activeItems.length, syncScrollHint]);
 
   const normalizedEmail = email.trim();
   const isEmailValid = isLoggedIn || /^\S+@\S+\.\S+$/.test(normalizedEmail);
@@ -177,17 +217,17 @@ export function CheckoutPage() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, ease: easing }}
           >
-            <p className="text-[#2D241E]/40 uppercase" style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "0.68rem", letterSpacing: "0.18em" }}>
-              {t("checkout.eyebrow")}
-            </p>
-            <h1 className="text-[#2D241E] mt-2" style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "clamp(1.7rem, 5vw, 2.4rem)", fontWeight: 500 }}>
+            <h1 className="text-[#2D241E]" style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "clamp(1.7rem, 5vw, 2.4rem)", fontWeight: 500 }}>
               {t("checkout.title")}
             </h1>
-            <p className="text-[#2D241E]/50 mt-2" style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "0.9rem" }}>
-              {placedOrder
-                ? t("checkout.placedMessage", { id: placedOrder.id })
-                : t("checkout.reviewMessage", { name: user?.name ?? t("checkout.customerFallback") })}
-            </p>
+            {/* Only the placed-order line survives — it carries the order number. The
+                pre-purchase "review your details" line restated the heading, and the
+                eyebrow above it labelled a heading that already names itself. */}
+            {placedOrder && (
+              <p className="text-[#2D241E]/50 mt-2" style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "0.9rem" }}>
+                {t("checkout.placedMessage", { id: placedOrder.id })}
+              </p>
+            )}
           </motion.div>
         </div>
       </section>
@@ -197,7 +237,11 @@ export function CheckoutPage() {
           initial={{ opacity: 0, y: 24 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, ease: easing }}
-          className="rounded-[20px] md:rounded-[28px] p-4 md:p-9"
+          // min-w-0: grid items default to min-width:auto, so they refuse to shrink below
+          // their content's min-content width — and `truncate` sets white-space:nowrap,
+          // which makes that the *full* product name. Without this the card blew ~140px
+          // past the viewport instead of letting the truncation do its job.
+          className="min-w-0 rounded-[20px] md:rounded-[28px] p-4 md:p-9"
           style={{ backgroundColor: "#fff", boxShadow: "0 16px 40px -16px rgba(45,36,30,0.1)" }}
         >
           <p
@@ -208,8 +252,21 @@ export function CheckoutPage() {
           </p>
 
           <div
-            className="divide-y divide-[#2D241E]/8 max-h-[300px] md:max-h-[440px] overflow-y-auto [&::-webkit-scrollbar]:hidden"
-            style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
+            ref={itemsListRef}
+            onScroll={syncScrollHint}
+            className="divide-y divide-[#2D241E]/8 overflow-y-auto overscroll-contain [&::-webkit-scrollbar]:hidden"
+            style={{
+              scrollbarWidth: "none",
+              msOverflowStyle: "none",
+              maxHeight: itemsMaxHeight,
+              // Soft-edge the last visible row while more remains below.
+              maskImage: itemsScrollHint
+                ? "linear-gradient(to bottom, #000 calc(100% - 28px), transparent 100%)"
+                : undefined,
+              WebkitMaskImage: itemsScrollHint
+                ? "linear-gradient(to bottom, #000 calc(100% - 28px), transparent 100%)"
+                : undefined,
+            }}
           >
             {activeItems.map((item) => {
               const productHref = item.productId ? `/product/${item.productId}` : "/collection";
@@ -245,7 +302,7 @@ export function CheckoutPage() {
           initial={{ opacity: 0, y: 24 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.55, delay: 0.05, ease: easing }}
-          className="rounded-[20px] md:rounded-[28px] p-5 md:p-9 h-fit lg:sticky lg:top-28"
+          className="min-w-0 rounded-[20px] md:rounded-[28px] p-5 md:p-9 h-fit lg:sticky lg:top-28"
           style={{ backgroundColor: "#2D241E", color: "#F5F2ED" }}
         >
           <p
@@ -302,7 +359,10 @@ export function CheckoutPage() {
                 >
                   {t("checkout.recipient")}
                 </p>
-                <div className="grid grid-cols-2 gap-2.5">
+                {/* One column until there is room for two: the visible labels here are the
+                    placeholders (the <label>s are sr-only), and at phone widths a half-width
+                    field clipped "Прізвище отримувача" by ~59px, leaving the field unnamed. */}
+                <div className="grid grid-cols-1 min-[420px]:grid-cols-2 gap-2.5">
                   <div>
                     <label htmlFor="checkout-recipient-first-name" className="sr-only">
                       {t("checkout.recipientFirstName")}
