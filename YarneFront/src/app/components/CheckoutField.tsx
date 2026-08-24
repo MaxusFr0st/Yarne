@@ -71,17 +71,17 @@ export function CheckoutField({
         )}
       </AnimatePresence>
 
-      {/* text-base (16px) on phones is load-bearing, not a style choice: iOS Safari zooms the
-          page in on focus for any input under 16px, and it does not zoom back out afterwards —
-          so the rest of checkout stays magnified. Shrinks to 0.9rem from md up, where no
-          mobile browser is applying that rule. Kept as classes, not inline fontSize, so the
-          breakpoint can actually vary. */}
+      {/* Font stays below 16px deliberately. That is what makes iOS zoom in on focus, which is
+          wanted here — the field is easier to read while filling it. The page is zoomed back
+          out explicitly once a delivery branch is chosen (see resetMobileZoom), since iOS
+          never restores the scale by itself. */}
       <div className="relative">
         {prefix && (
           <span
-            className="absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none select-none text-base md:text-[0.9rem]"
+            className="absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none select-none"
             style={{
               fontFamily: "'DM Sans', sans-serif",
+              fontSize: "0.9rem",
               color: invalid ? ERROR_INK : "rgba(245,242,237,0.55)",
             }}
             aria-hidden
@@ -93,12 +93,13 @@ export function CheckoutField({
           id={id}
           aria-invalid={invalid || undefined}
           aria-errormessage={invalid ? `${id}-error` : undefined}
-          className="w-full rounded-[14px] py-3.5 outline-none transition-colors duration-200 text-base md:text-[0.9rem]"
+          className="w-full rounded-[14px] py-3.5 outline-none transition-colors duration-200"
           style={{
             backgroundColor: "rgba(245,242,237,0.14)",
             border: `1px solid ${invalid ? ERROR_LINE : "rgba(245,242,237,0.10)"}`,
             color: invalid ? ERROR_INK : "#F5F2ED",
             fontFamily: "'DM Sans', sans-serif",
+            fontSize: "0.9rem",
             // Text starts clear of the prefix; ch units track the font so it stays aligned.
             paddingLeft: prefix ? `calc(1rem + ${prefix.length + 0.6}ch)` : "1rem",
             paddingRight: "1rem",
