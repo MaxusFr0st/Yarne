@@ -14,6 +14,18 @@ import { getSupplementaryProductDetails, hasSupplementaryProductDetails } from "
 import { useTouchMobileLayout } from "../hooks/useTouchMobileLayout";
 import { localizedCatalogName } from "../utils/localizedName";
 
+/** Duration of the sheet's glide back down off the image. */
+const SHEET_SLIDE_MS = 600;
+
+/**
+ * Intended height of the image box for the current device, in plain pixels.
+ * Read once and frozen — see the call site for why no viewport-height unit works here.
+ */
+function measureImageBoxHeight(): number {
+  if (typeof window === "undefined") return 470;
+  return Math.min(window.innerHeight * 0.62 + 10, 470);
+}
+
 type MobileProductDetailViewProps = {
   product: Product;
   images: ProductImage[];
@@ -89,6 +101,24 @@ export function MobileProductDetailView({
   const imageKey = images.map(i => i.src).join("|");
   const canLoop = images.length > 1;
 
+  // The image box must never change size while the page is open. Every viewport-height
+  // unit still fails that: svh survives address-bar collapse but is recomputed on rotation,
+  // on-screen keyboards, in-app browser chrome transitions and any devtools height drag —
+  // and because the photo is object-cover, every one of those re-crops it mid-view.
+  // So measure the intended height once, freeze it as a plain pixel number, and only ever
+  // remeasure when the *width* changes, which on a phone means a real orientation change.
+  const [imageBoxHeight, setImageBoxHeight] = useState(measureImageBoxHeight);
+  useEffect(() => {
+    let lastWidth = window.innerWidth;
+    const onResize = () => {
+      if (window.innerWidth === lastWidth) return; // height-only change → keep the frozen box
+      lastWidth = window.innerWidth;
+      setImageBoxHeight(measureImageBoxHeight());
+    };
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
+
   const [emblaRef, emblaApi] = useEmblaCarouselWithGestures({
     loop: canLoop,
     align: "center",
@@ -119,24 +149,78 @@ export function MobileProductDetailView({
     };
   }, [emblaApi, onGallerySelect]);
 
+  const slideCountRef = useRef(images.length);
   useEffect(() => {
     if (!emblaApi) return;
-    emblaApi.reInit({ loop: canLoop });
+    // reInit synchronously re-measures the container and every slide — a long frame that
+    // lands on exactly the tick the sheet starts sliding, and stutters it. Only pay for it
+    // when the slide set actually changed shape; otherwise the cheap instant scrollTo is
+    // all that's needed, and the slide-down keeps a clean frame budget.
+    if (slideCountRef.current !== images.length) {
+      slideCountRef.current = images.length;
+      emblaApi.reInit({ loop: canLoop });
+    }
     emblaApi.scrollTo(0, false);
     setGalleryIndex(0);
-  }, [emblaApi, imageKey, activeColor, activeSize, activeLace, canLoop]);
+  }, [emblaApi, imageKey, canLoop, images.length]);
 
-  // The info sheet scrolls up over the sticky image as the user browses it; picking a
-  // color/strap/hardware/size scrolls back so the image is fully visible again. Not on mount,
-  // and not on "add to bag" — that button doesn't touch any of these four.
-  const skipNextScrollBack = useRef(true);
-  useEffect(() => {
-    if (skipNextScrollBack.current) {
-      skipNextScrollBack.current = false;
+  // ── The info sheet ──────────────────────────────────────────────────────────
+  // The sheet rides over the sticky image on ordinary scroll (it simply sits above it in
+  // the stacking order). Choosing a new photo releases it: it glides back down to reveal
+  // the image in full. That travel *is* scroll position, so it has to be animated as a
+  // real scroll — a transform would desync from the scroll offset and snap on release.
+  // window.scrollTo({behavior:"smooth"}) can't do it: its curve and duration are the
+  // browser's, it differs per engine, and on iOS it lands with a visible stutter.
+  const sheetSlideRef = useRef<number | null>(null);
+  const cancelSheetSlide = useCallback(() => {
+    if (sheetSlideRef.current === null) return;
+    cancelAnimationFrame(sheetSlideRef.current);
+    sheetSlideRef.current = null;
+  }, []);
+
+  const slideSheetDown = useCallback(() => {
+    cancelSheetSlide();
+    const from = window.scrollY;
+    if (from <= 0) return; // already revealed — nothing to animate
+    if (!motionEnabled) {
+      window.scrollTo(0, 0);
       return;
     }
-    window.scrollTo({ top: 0, behavior: motionEnabled ? "smooth" : "auto" });
-  }, [activeColor, activeLace, activeFurniture, activeSize]);
+    const start = performance.now();
+    const step = (now: number) => {
+      const t = Math.min((now - start) / SHEET_SLIDE_MS, 1);
+      // Exponential ease-out — a confident arrival that decelerates into place rather
+      // than easing symmetrically in and out, which reads as hesitation on a reveal.
+      const eased = t === 1 ? 1 : 1 - Math.pow(2, -10 * t);
+      window.scrollTo(0, from * (1 - eased));
+      sheetSlideRef.current = t < 1 ? requestAnimationFrame(step) : null;
+    };
+    sheetSlideRef.current = requestAnimationFrame(step);
+  }, [motionEnabled, cancelSheetSlide]);
+
+  // Any deliberate scroll input hands control straight back to the user mid-glide.
+  useEffect(() => {
+    window.addEventListener("touchstart", cancelSheetSlide, { passive: true });
+    window.addEventListener("wheel", cancelSheetSlide, { passive: true });
+    return () => {
+      window.removeEventListener("touchstart", cancelSheetSlide);
+      window.removeEventListener("wheel", cancelSheetSlide);
+      cancelSheetSlide();
+    };
+  }, [cancelSheetSlide]);
+
+  // Keyed on the resolved photo list rather than on the individual controls: that is the
+  // literal condition the motion exists to serve. Hardware colour never reaches the
+  // gallery, so it no longer yanks the user off the controls to show an identical photo —
+  // and two colours that happen to share photos correctly stay put too.
+  const skipNextSheetSlide = useRef(true);
+  useEffect(() => {
+    if (skipNextSheetSlide.current) {
+      skipNextSheetSlide.current = false;
+      return;
+    }
+    slideSheetDown();
+  }, [imageKey]);
 
   const safeGalleryIndex = images.length ? ((galleryIndex % images.length) + images.length) % images.length : 0;
   const gallerySlides: (ProductImage | null)[] = images.length > 0 ? images : [null];
@@ -169,11 +253,7 @@ export function MobileProductDetailView({
       {/* Gallery — sticks under the header while the info sheet below scrolls up over it */}
       <div
         className="sticky z-0 w-full bg-[#EDE9E2] overflow-hidden"
-        // svh (not dvh) — dvh recalculates live as the mobile browser's address bar
-        // collapses/expands during scroll, which visibly resized this sticky image.
-        // +10px over the old 62svh/460px so the info sheet's rounded corner always
-        // lands on image, not on the bare container background peeking past it.
-        style={{ top: "var(--main-header-h)", height: "calc(62svh + 10px)", maxHeight: "470px" }}
+        style={{ top: "var(--main-header-h)", height: imageBoxHeight }}
       >
         <div ref={emblaRef} className="h-full overflow-hidden">
           <div className="flex h-full [touch-action:pan-y_pinch-zoom]" style={touchMobile ? undefined : { willChange: "transform" }}>
