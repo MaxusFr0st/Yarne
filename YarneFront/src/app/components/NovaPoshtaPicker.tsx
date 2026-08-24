@@ -11,6 +11,12 @@ const EASE_OUT = [0.16, 1, 0.3, 1] as const;
 const EASE_IN = [0.4, 0, 1, 1] as const;
 /** How long to wait on the location prompt before opening the widget uncentred. */
 const GEO_WAIT_MS = 5_000;
+/**
+ * Height the widget frame is grown by so its own trailing blank strip is clipped away.
+ * Nova Poshta leaves dead space under the branch list; it is inside a cross-origin document,
+ * so overflowing and clipping is the only lever we have on it.
+ */
+const WIDGET_TRIM_PX = 56;
 
 export interface NovaPoshtaSelection {
   cityRef: string;
@@ -322,11 +328,11 @@ export function NovaPoshtaPicker({
               </button>
             </header>
 
-            {/* No safe-area padding here. Reserving that strip shortened the branch list and
-                left a dead band beneath it — the "cropped at the bottom" complaint. The list
-                scrolls, so nothing is permanently hidden by the home indicator resting over
-                its last few pixels, and the widget gets the full height instead. */}
-            <div className="relative flex-1 min-h-0" style={{ backgroundColor: "#fff" }}>
+            {/* overflow-hidden pairs with the iframe's extra height below: the widget renders
+                a strip of empty space under its branch list that we cannot reach or restyle
+                from outside a cross-origin frame, so instead the frame is grown past this
+                container and that strip is clipped off the bottom. */}
+            <div className="relative flex-1 min-h-0 overflow-hidden" style={{ backgroundColor: "#fff" }}>
               {!frameLoaded && (
                 <div
                   className="absolute inset-0 flex items-center justify-center"
@@ -350,8 +356,15 @@ export function NovaPoshtaPicker({
                   src={WIDGET_URL}
                   allow="geolocation"
                   onLoad={() => setFrameLoaded(true)}
-                  className="w-full h-full block border-0"
-                  style={{ opacity: frameLoaded ? 1 : 0, transition: "opacity 220ms ease" }}
+                  className="w-full block border-0 absolute inset-x-0 top-0"
+                  style={{
+                    // Taller than the visible area on purpose — the parent clips the excess,
+                    // taking the widget's own trailing blank strip with it. Tune WIDGET_TRIM_PX
+                    // if their layout changes; too large starts eating the list itself.
+                    height: `calc(100% + ${WIDGET_TRIM_PX}px)`,
+                    opacity: frameLoaded ? 1 : 0,
+                    transition: "opacity 220ms ease",
+                  }}
                 />
               )}
             </div>
