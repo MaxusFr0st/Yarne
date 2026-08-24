@@ -1,30 +1,42 @@
 /**
- * Forces iOS Safari back out to 1× after it has zoomed into a small-font input.
+ * Best-effort attempt to return iOS Safari to 1× after it has zoomed into a small-font input.
  *
- * Safari zooms in on focus for any input under 16px and then simply stays there — blurring
- * the field does not undo it, and there is no scripted zoom API. The one reliable lever is the
- * viewport meta: momentarily clamping `maximum-scale` makes the engine re-evaluate the scale
- * and snap back, after which the original content string is restored so the user keeps
- * pinch-zoom. Restoring it matters — leaving `maximum-scale=1` in place permanently would
- * block zoom for everyone, which is an accessibility failure, not a fix.
+ * There is no scripted zoom API, and since iOS 10 Safari deliberately ignores `user-scalable`
+ * and treats `maximum-scale` as advisory for user pinch-zoom — Apple removed those levers on
+ * accessibility grounds. What Safari does still honour is `maximum-scale` when deciding
+ * whether to auto-zoom a focused field, and it re-evaluates page scale on a layout pass it
+ * considers significant. So the sequence is: drop focus, clamp, force a real reflow to trigger
+ * that re-evaluation, then restore the original content string on the next frames.
  *
- * No-ops on anything that is not a zooming mobile browser, since the clamp/restore is
- * invisible when the page was never scaled.
+ * Restoring is not optional. Leaving the clamp in place would permanently block pinch-zoom,
+ * trading a small annoyance for an accessibility failure.
+ *
+ * Honest ceiling: this works on some iOS versions and not others, and cannot be verified
+ * outside a real device. The only *guaranteed* way to never be stuck zoomed is to stop the
+ * zoom happening at all — inputs at >=16px — which is a deliberate trade-off made elsewhere.
+ * ponytail: if this proves unreliable in the field, move to 16px inputs plus a CSS focus
+ * transform that mimics the zoom under our own control.
  */
 export function resetMobileZoom(): void {
   if (typeof document === "undefined") return;
   const meta = document.querySelector<HTMLMetaElement>('meta[name="viewport"]');
-  if (!meta) return;
+  const original = meta?.getAttribute("content");
+  if (!meta || !original) return;
 
-  const original = meta.getAttribute("content");
-  if (!original) return;
-
-  // Dropping focus first — a still-focused field can pull the zoom straight back.
+  // A still-focused field pulls the zoom straight back.
   const active = document.activeElement;
   if (active instanceof HTMLElement && typeof active.blur === "function") active.blur();
 
   meta.setAttribute("content", `${original}, maximum-scale=1`);
-  // Two frames: one for the clamp to take effect, one to hand pinch-zoom back.
+
+  // Force a synchronous layout pass. Reading offsetHeight after a style write is what makes
+  // the engine flush rather than batch it, which is the whole point of the nudge.
+  const root = document.documentElement;
+  const previousHeight = root.style.height;
+  root.style.height = "100.01%";
+  void root.offsetHeight;
+  root.style.height = previousHeight;
+
   requestAnimationFrame(() => {
     requestAnimationFrame(() => meta.setAttribute("content", original));
   });

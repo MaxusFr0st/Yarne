@@ -245,13 +245,13 @@ export function NovaPoshtaPicker({
     : compact
       ? {
           initial: { y: "100%" },
-          animate: { y: 0, transition: { duration: 0.44, ease: EASE_OUT } },
-          exit: { y: "100%", transition: { duration: 0.26, ease: EASE_IN } },
+          animate: { y: 0, transition: { duration: 0.68, ease: EASE_OUT } },
+          exit: { y: "100%", transition: { duration: 0.44, ease: EASE_IN } },
         }
       : {
           initial: { opacity: 0, scale: 0.96, y: 10 },
-          animate: { opacity: 1, scale: 1, y: 0, transition: { duration: 0.38, ease: EASE_OUT } },
-          exit: { opacity: 0, scale: 0.98, y: 6, transition: { duration: 0.22, ease: EASE_IN } },
+          animate: { opacity: 1, scale: 1, y: 0, transition: { duration: 0.58, ease: EASE_OUT } },
+          exit: { opacity: 0, scale: 0.98, y: 6, transition: { duration: 0.36, ease: EASE_IN } },
         };
 
   // Overlay height is pinned to 100svh rather than left to `inset-0`. For a fixed element,
@@ -265,8 +265,8 @@ export function NovaPoshtaPicker({
         <motion.div
           className="fixed inset-x-0 top-0 z-[1000] flex justify-center items-end sm:items-center sm:p-6"
           initial={reduceMotion ? false : { opacity: 0 }}
-          animate={{ opacity: 1, transition: { duration: reduceMotion ? 0 : 0.26, ease: EASE_OUT } }}
-          exit={reduceMotion ? undefined : { opacity: 0, transition: { duration: 0.24, ease: EASE_IN } }}
+          animate={{ opacity: 1, transition: { duration: reduceMotion ? 0 : 0.4, ease: EASE_OUT } }}
+          exit={reduceMotion ? undefined : { opacity: 0, transition: { duration: 0.36, ease: EASE_IN } }}
           style={{
             height: "100svh",
             backgroundColor: "rgba(45,36,30,0.55)",
