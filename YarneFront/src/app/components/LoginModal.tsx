@@ -245,7 +245,6 @@ export function LoginModal() {
 
               <div className="flex-auto min-h-0 overflow-y-auto">
                 <div className="text-center mb-7">
-                <img src="/logo.png" alt="" className="mx-auto mb-3 h-14 w-14 object-contain" />
                 <p
                   className="text-[#2D241E] mb-2"
                   style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "1.75rem", fontWeight: 500, letterSpacing: "0.02em" }}
