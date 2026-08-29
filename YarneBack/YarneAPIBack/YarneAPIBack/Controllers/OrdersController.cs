@@ -606,19 +606,36 @@ public class OrdersController : ControllerBase
         var order = await _context.Orders.FirstOrDefaultAsync(o => o.Id == id, ct);
         if (order == null)
             return NotFound();
-        if (string.IsNullOrWhiteSpace(order.TtnRef) || string.IsNullOrWhiteSpace(order.TtnSenderProfileId))
+        if (string.IsNullOrWhiteSpace(order.TtnRef))
             return BadRequest(new { message = "This order has no waybill to cancel." });
 
-        try
+        // Waybills created before TtnSenderProfileId was tracked don't know which sender made
+        // them -- fall back to trying every configured sender, since Nova Poshta only lets the
+        // creating account delete its own documents and rejects the wrong one harmlessly.
+        var candidateSenderIds = string.IsNullOrWhiteSpace(order.TtnSenderProfileId)
+            ? _novaPoshta.SenderProfiles.Select(p => p.Id).ToList()
+            : [order.TtnSenderProfileId];
+
+        var deleted = false;
+        Exception? lastError = null;
+        foreach (var senderId in candidateSenderIds)
         {
-            var deleted = await _novaPoshta.DeleteWaybillAsync(order.TtnSenderProfileId, order.TtnRef, ct);
-            if (!deleted)
-                return StatusCode(StatusCodes.Status502BadGateway, new { message = "Nova Poshta did not confirm the cancellation." });
+            try
+            {
+                deleted = await _novaPoshta.DeleteWaybillAsync(senderId, order.TtnRef, ct);
+                if (deleted)
+                    break;
+            }
+            catch (Exception ex)
+            {
+                lastError = ex;
+            }
         }
-        catch (Exception ex)
+
+        if (!deleted)
         {
-            _logger.LogError(ex, "Failed to cancel Nova Poshta waybill for order #{OrderId}.", id);
-            return StatusCode(StatusCodes.Status502BadGateway, new { message = ex.Message });
+            _logger.LogError(lastError, "Failed to cancel Nova Poshta waybill for order #{OrderId}.", id);
+            return StatusCode(StatusCodes.Status502BadGateway, new { message = lastError?.Message ?? "Nova Poshta did not confirm the cancellation." });
         }
 
         order.TtnNumber = null;

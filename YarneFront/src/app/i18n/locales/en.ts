@@ -384,6 +384,7 @@ const en = {
       loading: "Searching…",
       errors: {
         notFound: "No order with this tracking number was found on your account.",
+        invalidFormat: "A TTN is 11 or 14 digits, with no spaces or other characters.",
       },
     },
     errors: {

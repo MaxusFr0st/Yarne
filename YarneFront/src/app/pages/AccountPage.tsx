@@ -313,6 +313,12 @@ export function AccountPage() {
   const handleTrackParcel = async () => {
     const ttn = trackingQuery.trim();
     if (!ttn) return;
+    // Nova Poshta TTNs are always 11 or 14 digits -- catching a mistyped number here reads
+    // as an input hint, not "order not found", which is a more confusing dead end.
+    if (ttn.length !== 11 && ttn.length !== 14) {
+      setTrackingError(t("account.tracking.errors.invalidFormat"));
+      return;
+    }
     setTrackingLoading(true);
     setTrackingError(null);
     setTrackingResult(null);
@@ -524,9 +530,12 @@ export function AccountPage() {
                 <div className="flex gap-2">
                   <input
                     type="text"
+                    inputMode="numeric"
                     value={trackingQuery}
                     onChange={(e) => {
-                      setTrackingQuery(e.target.value);
+                      // TTNs are digits-only by definition -- stripping anything else as it's
+                      // typed means a pasted "20 450 712 345 678" or "TTN: 204..." still works.
+                      setTrackingQuery(e.target.value.replace(/\D/g, "").slice(0, 14));
                       if (trackingError) setTrackingError(null);
                     }}
                     onKeyDown={(e) => {
