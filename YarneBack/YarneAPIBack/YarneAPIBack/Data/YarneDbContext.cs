@@ -319,6 +319,7 @@ public partial class YarneDbContext : DbContext
             entity.Property(e => e.DeliveryWarehouseName).HasMaxLength(500);
             entity.Property(e => e.TtnNumber).HasMaxLength(32);
             entity.Property(e => e.TtnRef).HasMaxLength(64);
+            entity.Property(e => e.TtnSenderProfileId).HasMaxLength(32);
             entity.Property(e => e.TrackingStatus).HasMaxLength(200);
             entity.Property(e => e.TrackingStatusCode).HasMaxLength(16);
             entity.Property(e => e.GuestEmail).HasMaxLength(320);

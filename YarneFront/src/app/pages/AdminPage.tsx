@@ -366,6 +366,7 @@ function NovaPoshtaOrderPanel({
   busy,
   onOpenWaybillDialog,
   onRefreshTracking,
+  onCancelWaybill,
 }: {
   order: {
     id: number;
@@ -382,6 +383,7 @@ function NovaPoshtaOrderPanel({
   busy: boolean;
   onOpenWaybillDialog: (orderId: number) => void;
   onRefreshTracking: (orderId: number) => void;
+  onCancelWaybill: (orderId: number) => void;
 }) {
   if (!order.deliveryWarehouseName && !order.recipientFirstName) return null;
 
@@ -410,15 +412,30 @@ function NovaPoshtaOrderPanel({
             ТТН <span className="font-medium">{order.ttnNumber}</span>
             {order.trackingStatus ? ` — ${order.trackingStatus}` : ""}
           </p>
-          <button
-            type="button"
-            onClick={() => onRefreshTracking(order.id)}
-            disabled={busy}
-            className="px-2.5 py-1.5 rounded-full border text-[#2D241E] transition-all disabled:opacity-50 whitespace-nowrap"
-            style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "0.68rem", borderColor: "rgba(45,36,30,0.2)" }}
-          >
-            {busy ? "…" : "Refresh tracking"}
-          </button>
+          <div className="flex gap-1.5">
+            <button
+              type="button"
+              onClick={() => onRefreshTracking(order.id)}
+              disabled={busy}
+              className="px-2.5 py-1.5 rounded-full border text-[#2D241E] transition-all disabled:opacity-50 whitespace-nowrap"
+              style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "0.68rem", borderColor: "rgba(45,36,30,0.2)" }}
+            >
+              {busy ? "…" : "Refresh tracking"}
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                if (window.confirm("Cancel this Nova Poshta waybill? This can't be undone once the parcel has been scanned at a branch.")) {
+                  onCancelWaybill(order.id);
+                }
+              }}
+              disabled={busy}
+              className="px-2.5 py-1.5 rounded-full border text-[#4A0E0E] transition-all disabled:opacity-50 whitespace-nowrap"
+              style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "0.68rem", borderColor: "rgba(74,14,14,0.25)" }}
+            >
+              {busy ? "…" : "Cancel waybill"}
+            </button>
+          </div>
         </div>
       ) : (
         order.deliveryWarehouseName && (
@@ -3075,6 +3092,7 @@ export function AdminPage() {
     setOrderStatus,
     createWaybill,
     refreshTracking,
+    cancelWaybill,
     addUser,
     refetchOrders,
   } = useAdminData();
@@ -3835,6 +3853,18 @@ export function AdminPage() {
       await refreshTracking(orderId);
     } catch (e) {
       setOrderActionError(e instanceof Error ? e.message : "Failed to refresh tracking status.");
+    } finally {
+      setNovaPoshtaBusyOrderId(null);
+    }
+  };
+
+  const handleCancelWaybill = async (orderId: number) => {
+    setOrderActionError(null);
+    setNovaPoshtaBusyOrderId(orderId);
+    try {
+      await cancelWaybill(orderId);
+    } catch (e) {
+      setOrderActionError(e instanceof Error ? e.message : "Failed to cancel waybill.");
     } finally {
       setNovaPoshtaBusyOrderId(null);
     }
@@ -5291,6 +5321,7 @@ export function AdminPage() {
                           busy={novaPoshtaBusyOrderId === order.id}
                           onOpenWaybillDialog={setWaybillDialogOrderId}
                           onRefreshTracking={handleRefreshTracking}
+                          onCancelWaybill={handleCancelWaybill}
                         />
 
                         <div className="space-y-2">
@@ -5492,6 +5523,7 @@ export function AdminPage() {
                                 busy={novaPoshtaBusyOrderId === order.id}
                                 onOpenWaybillDialog={setWaybillDialogOrderId}
                                 onRefreshTracking={handleRefreshTracking}
+                                onCancelWaybill={handleCancelWaybill}
                               />
                               {order.items.length > 0 && (
                                 <div

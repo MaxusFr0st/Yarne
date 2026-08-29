@@ -595,6 +595,62 @@ public class OrdersController : ControllerBase
         return Ok(MapOrder(updated!));
     }
 
+    [HttpDelete("{id:int}/ttn")]
+    [Authorize(Roles = "Admin")]
+    [ProducesResponseType(typeof(OrderDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status502BadGateway)]
+    public async Task<ActionResult<OrderDto>> CancelWaybill(int id, CancellationToken ct = default)
+    {
+        var order = await _context.Orders.FirstOrDefaultAsync(o => o.Id == id, ct);
+        if (order == null)
+            return NotFound();
+        if (string.IsNullOrWhiteSpace(order.TtnRef) || string.IsNullOrWhiteSpace(order.TtnSenderProfileId))
+            return BadRequest(new { message = "This order has no waybill to cancel." });
+
+        try
+        {
+            var deleted = await _novaPoshta.DeleteWaybillAsync(order.TtnSenderProfileId, order.TtnRef, ct);
+            if (!deleted)
+                return StatusCode(StatusCodes.Status502BadGateway, new { message = "Nova Poshta did not confirm the cancellation." });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to cancel Nova Poshta waybill for order #{OrderId}.", id);
+            return StatusCode(StatusCodes.Status502BadGateway, new { message = ex.Message });
+        }
+
+        order.TtnNumber = null;
+        order.TtnRef = null;
+        order.TtnCreatedAt = null;
+        order.TtnSenderProfileId = null;
+        order.TrackingStatus = null;
+        order.TrackingStatusCode = null;
+        order.TrackingCheckedAt = null;
+        order.UpdatedAt = DateTime.UtcNow;
+        await _context.SaveChangesAsync(ct);
+
+        var updated = await BuildOrderQuery().FirstOrDefaultAsync(o => o.Id == id, ct);
+        return Ok(MapOrder(updated!));
+    }
+
+    [HttpGet("nova-poshta/shipping-price")]
+    [AllowAnonymous]
+    [ProducesResponseType(typeof(decimal), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<ActionResult<decimal>> GetShippingPrice([FromQuery] string cityRef, [FromQuery] decimal cost, CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(cityRef))
+            return BadRequest(new { message = "cityRef is required." });
+
+        var price = await _novaPoshta.GetShippingPriceAsync(cityRef, cost, ct);
+        if (price == null)
+            return BadRequest(new { message = "Could not estimate shipping price." });
+
+        return Ok(price.Value);
+    }
+
     private static NovaPoshtaSenderAddress? BuildSenderAddressOverride(CreateWaybillRequest? request)
     {
         if (request == null
@@ -685,6 +741,7 @@ public class OrdersController : ControllerBase
             order.TtnNumber = waybill.TtnNumber;
             order.TtnRef = waybill.TtnRef;
             order.TtnCreatedAt = DateTime.UtcNow;
+            order.TtnSenderProfileId = senderProfileId;
             order.UpdatedAt = DateTime.UtcNow;
             await _context.SaveChangesAsync(ct);
             return (true, null);

@@ -161,6 +161,48 @@ public class NovaPoshtaService : INovaPoshtaService
             data["StatusCode"]?.GetValue<string>() ?? string.Empty);
     }
 
+    public async Task<decimal?> GetShippingPriceAsync(string recipientCityRef, decimal declaredCost, CancellationToken ct = default)
+    {
+        var senderCityRef = DefaultSenderProfile?.DefaultCityRef;
+        if (senderCityRef == null)
+            return null;
+
+        // Keyless endpoint -- no apiKey needed, works before checkout has an order or account.
+        var result = await CallAsync(
+            apiKey: string.Empty,
+            "InternetDocument",
+            "getDocumentPrice",
+            new
+            {
+                CitySender = senderCityRef,
+                CityRecipient = recipientCityRef,
+                Weight = DefaultWeightKg.ToString("0.##"),
+                ServiceType = "WarehouseWarehouse",
+                Cost = declaredCost.ToString("0.##"),
+                CargoType = "Parcel",
+                SeatsAmount = "1",
+            },
+            ct);
+
+        var data = result["data"]?.AsArray().FirstOrDefault();
+        return data?["Cost"]?.GetValue<decimal>();
+    }
+
+    public async Task<bool> DeleteWaybillAsync(string senderProfileId, string ttnRef, CancellationToken ct = default)
+    {
+        var profile = SenderProfiles.FirstOrDefault(p => p.Id == senderProfileId)
+            ?? throw new InvalidOperationException($"Unknown Nova Poshta sender '{senderProfileId}'.");
+
+        var result = await CallAsync(
+            profile.ApiKey,
+            "InternetDocument",
+            "delete",
+            new { DocumentRefs = ttnRef },
+            ct);
+
+        return result["data"]?.AsArray().Count > 0;
+    }
+
     private async Task<JsonObject> CallAsync(string apiKey, string modelName, string calledMethod, object methodProperties, CancellationToken ct)
     {
         var client = _httpClientFactory.CreateClient();

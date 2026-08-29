@@ -34,7 +34,7 @@ import {
   type UserDto,
 } from "../api/admin";
 import { register } from "../api/auth";
-import { fetchAdminOrders, fetchAdminOrdersSummary, updateOrderStatus, createOrderWaybill, refreshOrderTracking, type OrderDto, type AdminOrdersSummaryDto, type OrderItemDto, type OrderStatus, type CreateWaybillRequest } from "../api/orders";
+import { fetchAdminOrders, fetchAdminOrdersSummary, updateOrderStatus, createOrderWaybill, refreshOrderTracking, cancelOrderWaybill, type OrderDto, type AdminOrdersSummaryDto, type OrderItemDto, type OrderStatus, type CreateWaybillRequest } from "../api/orders";
 import { ApiRequestError } from "../api/errors";
 import type { Product } from "../types/product";
 import { normalizeLaceVariants } from "../utils/variantStock";
@@ -456,6 +456,13 @@ export function useAdminData() {
     return updated;
   }, []);
 
+  const cancelWaybill = useCallback(async (id: number) => {
+    const updated = await cancelOrderWaybill(id);
+    const mapped = mapOrderDtoToAdminOrder(updated);
+    setOrders((prev) => prev.map((o) => (o.id === id ? mapped : o)));
+    return updated;
+  }, []);
+
   return {
     products,
     users,
@@ -467,6 +474,7 @@ export function useAdminData() {
     refetchOrders,
     createWaybill,
     refreshTracking,
+    cancelWaybill,
     addProduct,
     editProduct,
     removeProduct,

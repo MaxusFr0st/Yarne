@@ -46,4 +46,13 @@ public interface INovaPoshtaService
         CancellationToken ct = default);
 
     Task<NovaPoshtaTrackingStatus?> GetTrackingStatusAsync(string ttnNumber, CancellationToken ct = default);
+
+    /// <summary>Estimated shipping cost, in UAH. Uses Nova Poshta's keyless pricing endpoint, so it works pre-checkout with no account/order yet.</summary>
+    Task<decimal?> GetShippingPriceAsync(string recipientCityRef, decimal declaredCost, CancellationToken ct = default);
+
+    /// <summary>
+    /// Cancels a waybill. Must use the same sender profile that created it -- Nova Poshta
+    /// refuses to delete a document from any account other than the one that made it.
+    /// </summary>
+    Task<bool> DeleteWaybillAsync(string senderProfileId, string ttnRef, CancellationToken ct = default);
 }

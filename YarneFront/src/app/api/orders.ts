@@ -154,3 +154,13 @@ export async function createOrderWaybill(orderId: number, payload?: CreateWaybil
 export async function refreshOrderTracking(orderId: number): Promise<OrderDto> {
   return apiRequest<OrderDto>(`/api/orders/${orderId}/tracking`, { method: "POST" });
 }
+
+export async function cancelOrderWaybill(orderId: number): Promise<OrderDto> {
+  return apiRequest<OrderDto>(`/api/orders/${orderId}/ttn`, { method: "DELETE" });
+}
+
+export async function fetchNovaPoshtaShippingPrice(cityRef: string, cost: number): Promise<number> {
+  return apiRequest<number>(
+    `/api/orders/nova-poshta/shipping-price?cityRef=${encodeURIComponent(cityRef)}&cost=${encodeURIComponent(cost)}`,
+  );
+}

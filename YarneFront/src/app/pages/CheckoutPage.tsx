@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from
 import { motion } from "motion/react";
 import { ArrowRight, CheckCircle2, Package } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { createOrder, type OrderDto } from "../api/orders";
+import { createOrder, fetchNovaPoshtaShippingPrice, type OrderDto } from "../api/orders";
 import { fetchCustomerProfile } from "../api/auth";
 import { useApp, type CartItem } from "../context/AppContext";
 import { ImageWithFallback } from "../components/figma/ImageWithFallback";
@@ -58,6 +58,8 @@ export function CheckoutPage() {
   const [recipientLastName, setRecipientLastName] = useSessionState(S.lastName, "");
   const [recipientPhone, setRecipientPhone] = useSessionState(S.phone, "");
   const [delivery, setDelivery] = useSessionState<NovaPoshtaSelection | null>(S.delivery, null);
+  const [shippingEstimate, setShippingEstimate] = useState<number | null>(null);
+  const [shippingEstimateLoading, setShippingEstimateLoading] = useState(false);
   // Raw keystrokes, kept only so "letters typed" can be reported before we reformat away
   // the evidence.
   const [phoneRaw, setPhoneRaw] = useState("");
@@ -152,6 +154,30 @@ export function CheckoutPage() {
     recipientLastName.trim().length > 0 &&
     isCompleteUaPhone(recipientPhone);
   const isDeliveryValid = delivery !== null;
+
+  // Informational only — Nova Poshta collects this from the recipient in cash on pickup, it
+  // is never added to what we charge, so a failed estimate just means the row stays hidden.
+  useEffect(() => {
+    if (!delivery || cartTotal <= 0) {
+      setShippingEstimate(null);
+      return;
+    }
+    let cancelled = false;
+    setShippingEstimateLoading(true);
+    fetchNovaPoshtaShippingPrice(delivery.cityRef, cartTotal)
+      .then((price) => {
+        if (!cancelled) setShippingEstimate(price);
+      })
+      .catch(() => {
+        if (!cancelled) setShippingEstimate(null);
+      })
+      .finally(() => {
+        if (!cancelled) setShippingEstimateLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [delivery, cartTotal]);
 
   useEffect(() => {
     if (!isLoggedIn) return;
@@ -500,6 +526,21 @@ export function CheckoutPage() {
                   }}
                   tone="dark"
                 />
+                {delivery && (shippingEstimateLoading || shippingEstimate !== null) && (
+                  <div className="flex items-baseline justify-between mt-3 text-sm" style={{ fontFamily: "'DM Sans', sans-serif" }}>
+                    <span style={{ color: "rgba(245,242,237,0.5)" }}>{t("checkout.shippingEstimateLabel")}</span>
+                    {shippingEstimateLoading ? (
+                      <span style={{ color: "rgba(245,242,237,0.5)" }}>{t("checkout.shippingEstimateCalculating")}</span>
+                    ) : (
+                      <span className="flex items-baseline gap-1.5">
+                        <PriceTag amount={shippingEstimate!} locale={locale} variant="line" tone="light" withUnit />
+                        <span style={{ fontSize: "0.68rem", color: "rgba(245,242,237,0.4)" }}>
+                          {t("checkout.shippingEstimateNote")}
+                        </span>
+                      </span>
+                    )}
+                  </div>
+                )}
               </div>
             </>
           )}

@@ -63,6 +63,9 @@ public partial class Order
 
     public DateTime? TtnCreatedAt { get; set; }
 
+    /// <summary>Which Nova Poshta sender profile created the waybill -- needed to cancel it later, since Nova Poshta only lets the creating account delete its own documents.</summary>
+    public string? TtnSenderProfileId { get; set; }
+
     public string? TrackingStatus { get; set; }
 
     public string? TrackingStatusCode { get; set; }
