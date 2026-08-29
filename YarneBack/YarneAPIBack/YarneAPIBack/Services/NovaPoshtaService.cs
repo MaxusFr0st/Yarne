@@ -10,23 +10,15 @@ namespace YarneAPIBack.Services;
 public class NovaPoshtaService : INovaPoshtaService
 {
     private const decimal DefaultWeightKg = 1m;
-    private const string DefaultBaseUrl = "https://api.novaposhta.ua/v2.0/json/";
+    private static readonly Uri Endpoint = new("https://api.novaposhta.ua/v2.0/json/");
 
-    private readonly Uri _endpoint;
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly ILogger<NovaPoshtaService> _logger;
 
-    // ponytail: Nova Poshta appears to reject write calls (Counterparty.save) from
-    // non-Ukrainian IPs with a misleading "field missing" error — identical payloads succeed
-    // from a Ukrainian residential IP and fail 100% of the time from our (Netherlands-hosted)
-    // Railway backend. NOVA_POSHTA_BASE_URL lets ops point the client at a plain reverse proxy
-    // (e.g. bare nginx) running on a Ukraine-based host instead of calling NP directly, once
-    // that's confirmed to be the actual cause.
     public NovaPoshtaService(IConfiguration configuration, IHttpClientFactory httpClientFactory, ILogger<NovaPoshtaService> logger)
     {
         _httpClientFactory = httpClientFactory;
         _logger = logger;
-        _endpoint = new Uri(Read(configuration, "NOVA_POSHTA_BASE_URL") ?? DefaultBaseUrl);
         SenderProfiles = LoadSenderProfiles(configuration);
     }
 
@@ -180,7 +172,11 @@ public class NovaPoshtaService : INovaPoshtaService
             methodProperties,
         };
 
-        using var response = await client.PostAsJsonAsync(_endpoint, payload, ct);
+        // PostAsJsonAsync defaults to camelCase property names unless told otherwise, but Nova
+        // Poshta's API is case-sensitive and only recognizes exact PascalCase (e.g.
+        // "CounterpartyType", not "counterpartyType") -- JsonSerializerOptions.Default preserves
+        // the property names exactly as declared below.
+        using var response = await client.PostAsJsonAsync(Endpoint, payload, JsonSerializerOptions.Default, ct);
         var body = await response.Content.ReadAsStringAsync(ct);
         var json = JsonNode.Parse(body)?.AsObject()
             ?? throw new InvalidOperationException("Nova Poshta returned an unparseable response.");
