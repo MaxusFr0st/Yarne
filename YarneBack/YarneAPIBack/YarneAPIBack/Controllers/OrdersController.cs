@@ -390,6 +390,7 @@ public class OrdersController : ControllerBase
             IsChannelFeeOverridden = false,
             CurrencyCode = "UAH",
             ExchangeRateToBase = 1m,
+            Locale = NormalizeLocale(request.Locale),
             Status = "Pending",
             TotalCents = orderTotalCents,
             OrderDate = now,
@@ -963,6 +964,12 @@ public class OrdersController : ControllerBase
         return trimmed;
     }
 
+    private static string? NormalizeLocale(string? value)
+    {
+        var lower = value?.Trim().ToLowerInvariant();
+        return lower is "en" or "uk" ? lower : null;
+    }
+
     private OrderConfirmationEmailMessage BuildOrderStatusMessage(Order order, OrderEmailEvent emailEvent)
     {
         var customer = order.Customer;
@@ -1001,6 +1008,12 @@ public class OrdersController : ControllerBase
             AccountUrl = accountUrl,
             OrderDateUtc = order.OrderDate,
             Total = order.TotalCents / 100m,
+            Locale = order.Locale,
+            // Only show a EUR total when every line has a EUR snapshot — a partial total would
+            // silently understate the order (same convention as the storefront's order history).
+            EurTotal = order.OrderItems.Any(i => !i.EurUnitPrice.HasValue)
+                ? null
+                : order.OrderItems.Sum(i => i.EurUnitPrice!.Value * i.Quantity),
             Items = order.OrderItems
                 .OrderBy(i => i.Id)
                 .Select(i => new OrderConfirmationEmailItem
@@ -1014,6 +1027,7 @@ public class OrdersController : ControllerBase
                     WithLace = i.WithLace,
                     Quantity = i.Quantity,
                     UnitPrice = i.UnitPrice,
+                    EurUnitPrice = i.EurUnitPrice,
                 })
                 .ToList(),
         };

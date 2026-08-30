@@ -8,6 +8,9 @@ public class CreateOrderRequest
     [MinLength(1)]
     public List<CreateOrderItemRequest> Items { get; set; } = [];
 
+    /// <summary>Storefront UI language at checkout ("en"/"uk"). Anything else is ignored — the order just falls back to hryvnia-only emails.</summary>
+    public string? Locale { get; set; }
+
     public int? PaymentMethodId { get; set; }
 
     public int? ShippingAddrId { get; set; }

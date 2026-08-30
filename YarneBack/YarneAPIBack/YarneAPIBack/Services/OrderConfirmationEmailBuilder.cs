@@ -24,7 +24,8 @@ public static class OrderConfirmationEmailBuilder
         var safeName = WebUtility.HtmlEncode(message.CustomerName);
         var safeCustomerEmail = WebUtility.HtmlEncode(message.CustomerEmail);
         var orderDate = message.OrderDateUtc.ToLocalTime().ToString("dd.MM.yyyy HH:mm", UkrainianCulture);
-        var total = FormatPrice(message.Total);
+        var showEur = message.Locale == "en";
+        var total = FormatPrice(message.Total, showEur ? message.EurTotal : null);
         var accountUrl = string.IsNullOrWhiteSpace(message.AccountUrl) ? null : message.AccountUrl.Trim();
         var isInternalNotification = message.Event == OrderEmailEvent.InternalPlacedNotification;
 
@@ -48,8 +49,9 @@ public static class OrderConfirmationEmailBuilder
             var safeColor = WebUtility.HtmlEncode(item.ColorName ?? "—");
             var safeSize = WebUtility.HtmlEncode(item.SizeName ?? "—");
             var laceLabel = FormatLaceLabel(item.WithLace);
-            var lineTotal = FormatPrice(item.UnitPrice * item.Quantity);
-            var unitPrice = FormatPrice(item.UnitPrice);
+            var eurLineTotal = showEur && item.EurUnitPrice.HasValue ? item.EurUnitPrice.Value * item.Quantity : (decimal?)null;
+            var lineTotal = FormatPrice(item.UnitPrice * item.Quantity, eurLineTotal);
+            var unitPrice = FormatPrice(item.UnitPrice, showEur ? item.EurUnitPrice : null);
 
             rowsBuilder.AppendLine($"""
                     <tr>
@@ -146,6 +148,11 @@ public static class OrderConfirmationEmailBuilder
             _ => "—",
         };
 
-    private static string FormatPrice(decimal price)
-        => HryvniaPriceFormatter.Format(price);
+    /// <summary>Hryvnia is always the primary figure (that's what the card is charged) — a EUR
+    /// amount, when given, is appended in parentheses for reference only.</summary>
+    private static string FormatPrice(decimal price, decimal? eurPrice = null)
+    {
+        var uah = HryvniaPriceFormatter.Format(price);
+        return eurPrice is not { } eur ? uah : $"{uah} (€{eur.ToString("N2", CultureInfo.InvariantCulture)})";
+    }
 }

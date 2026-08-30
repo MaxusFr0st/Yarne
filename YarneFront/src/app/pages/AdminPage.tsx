@@ -2,6 +2,7 @@ import React, { useState, useMemo, useRef, useEffect, useCallback } from "react"
 import { motion, AnimatePresence } from "motion/react";
 import { useAdminData } from "../hooks/useAdminData";
 import { useBodyScrollLock } from "../hooks/useBodyScrollLock";
+import { useDebouncedError } from "../hooks/useDebouncedError";
 import { CropCancelledError, useCropDialog } from "../hooks/useCropDialog";
 import { useApp } from "../context/AppContext";
 import { uploadImage } from "../api/images";
@@ -1229,6 +1230,8 @@ function ProductModal({
     suggestions?: string;
   }>({});
 
+  const nameError = useDebouncedError(form.name, (v) => (!v.trim() ? "This field must not be empty." : undefined));
+
   const addImageUrl = () => setForm((p) => ({ ...p, imageUrls: [...p.imageUrls, ""] }));
   const removeImageUrl = (i: number) => {
     setForm((p) => {
@@ -1612,13 +1615,16 @@ function ProductModal({
                     borderColor: "rgba(45,36,30,0.15)",
                   }}
                   onFocus={(e) => (e.target.style.borderColor = "#4A0E0E")}
-                  onBlur={(e) => (e.target.style.borderColor = "rgba(45,36,30,0.15)")}
+                  onBlur={(e) => {
+                    e.target.style.borderColor = "rgba(45,36,30,0.15)";
+                    if (field.key === "name") nameError.reportNow();
+                  }}
                 />
               </div>
             ))}
           </div>
-          {formErrors.name && (
-            <p className="text-xs text-[#B42318] -mt-2" style={{ fontFamily: "'DM Sans', sans-serif" }}>{formErrors.name}</p>
+          {(formErrors.name || nameError.error) && (
+            <p className="text-xs text-[#B42318] -mt-2" style={{ fontFamily: "'DM Sans', sans-serif" }}>{formErrors.name || nameError.error}</p>
           )}
 
           <ShareImageEditor productId={product?.idNum ?? null} initialUrl={product?.shareImageUrl} />
@@ -2641,6 +2647,27 @@ function UserModal({
     fontSize: "0.9rem",
     borderColor: "rgba(45,36,30,0.15)",
   };
+  const fieldErrorClass = "text-xs text-[#B42318] mt-1.5";
+  const fieldErrorStyle: React.CSSProperties = { fontFamily: "'DM Sans', sans-serif" };
+
+  const firstNameError = useDebouncedError(form.firstName, (v) => (!v.trim() ? "First name is required." : undefined));
+  const lastNameError = useDebouncedError(form.lastName, (v) => (!v.trim() ? "Last name is required." : undefined));
+  const userNameError = useDebouncedError(form.userName, (v) => (!v.trim() ? "Username is required." : undefined));
+  const emailError = useDebouncedError(form.email, (v) => {
+    if (!v.trim()) return "Email is required.";
+    return /^\S+@\S+\.\S+$/.test(v.trim()) ? undefined : "Enter a valid email address.";
+  });
+  const passwordError = useDebouncedError(form.password, (v) => {
+    if (!v) return "Password is required.";
+    return v.length >= 8 ? undefined : "Must be at least 8 characters.";
+  });
+
+  const isFormValid =
+    form.firstName.trim() &&
+    form.lastName.trim() &&
+    form.userName.trim() &&
+    /^\S+@\S+\.\S+$/.test(form.email.trim()) &&
+    form.password.length >= 8;
 
   return (
     <AdminModalShell
@@ -2652,7 +2679,7 @@ function UserModal({
       footer={
         <>
           <AdminModalCancelButton onClick={onClose} />
-          <AdminModalPrimaryButton onClick={() => onSave(form)}>
+          <AdminModalPrimaryButton onClick={() => onSave(form)} disabled={!isFormValid}>
             {isEditing ? "Save Changes" : "Add User"}
           </AdminModalPrimaryButton>
         </>
@@ -2661,24 +2688,29 @@ function UserModal({
       <div className="grid grid-cols-2 gap-4">
         <div>
           <label className={fieldLabel} style={fieldLabelStyle}>First Name</label>
-          <input type="text" value={form.firstName} onChange={(e) => setForm((p) => ({ ...p, firstName: e.target.value }))} placeholder="Sophie" className={fieldInput} style={fieldInputStyle} />
+          <input type="text" value={form.firstName} onChange={(e) => setForm((p) => ({ ...p, firstName: e.target.value }))} onBlur={firstNameError.reportNow} placeholder="Sophie" className={fieldInput} style={fieldInputStyle} />
+          {firstNameError.error && <p className={fieldErrorClass} style={fieldErrorStyle}>{firstNameError.error}</p>}
         </div>
         <div>
           <label className={fieldLabel} style={fieldLabelStyle}>Last Name</label>
-          <input type="text" value={form.lastName} onChange={(e) => setForm((p) => ({ ...p, lastName: e.target.value }))} placeholder="Laurent" className={fieldInput} style={fieldInputStyle} />
+          <input type="text" value={form.lastName} onChange={(e) => setForm((p) => ({ ...p, lastName: e.target.value }))} onBlur={lastNameError.reportNow} placeholder="Laurent" className={fieldInput} style={fieldInputStyle} />
+          {lastNameError.error && <p className={fieldErrorClass} style={fieldErrorStyle}>{lastNameError.error}</p>}
         </div>
       </div>
       <div>
         <label className={fieldLabel} style={fieldLabelStyle}>Username</label>
-        <input type="text" value={form.userName} onChange={(e) => setForm((p) => ({ ...p, userName: e.target.value }))} placeholder="sophie.laurent" className={fieldInput} style={fieldInputStyle} />
+        <input type="text" value={form.userName} onChange={(e) => setForm((p) => ({ ...p, userName: e.target.value }))} onBlur={userNameError.reportNow} placeholder="sophie.laurent" className={fieldInput} style={fieldInputStyle} />
+        {userNameError.error && <p className={fieldErrorClass} style={fieldErrorStyle}>{userNameError.error}</p>}
       </div>
       <div>
         <label className={fieldLabel} style={fieldLabelStyle}>Email</label>
-        <input type="email" value={form.email} onChange={(e) => setForm((p) => ({ ...p, email: e.target.value }))} placeholder="sophie@example.com" className={fieldInput} style={fieldInputStyle} />
+        <input type="email" value={form.email} onChange={(e) => setForm((p) => ({ ...p, email: e.target.value }))} onBlur={emailError.reportNow} placeholder="sophie@example.com" className={fieldInput} style={fieldInputStyle} />
+        {emailError.error && <p className={fieldErrorClass} style={fieldErrorStyle}>{emailError.error}</p>}
       </div>
       <div>
         <label className={fieldLabel} style={fieldLabelStyle}>Password</label>
-        <input type="password" value={form.password} onChange={(e) => setForm((p) => ({ ...p, password: e.target.value }))} placeholder="Min 8 characters" className={fieldInput} style={fieldInputStyle} />
+        <input type="password" value={form.password} onChange={(e) => setForm((p) => ({ ...p, password: e.target.value }))} onBlur={passwordError.reportNow} placeholder="Min 8 characters" className={fieldInput} style={fieldInputStyle} />
+        {passwordError.error && <p className={fieldErrorClass} style={fieldErrorStyle}>{passwordError.error}</p>}
       </div>
     </AdminModalShell>
   );
@@ -2699,6 +2731,7 @@ function CategoryModal({
   const [name, setName] = useState(editing?.name ?? "");
   useEffect(() => { setName(editing?.name ?? ""); }, [editing?.id, editing?.name]);
   const isEditing = !!editing;
+  const nameError = useDebouncedError(name, (v) => (!v.trim() ? "Category name is required." : undefined));
   return (
     <AdminModalShell
       eyebrow={isEditing ? "Edit Category" : "New Category"}
@@ -2707,12 +2740,23 @@ function CategoryModal({
       footer={
         <>
           <AdminModalCancelButton onClick={onClose} />
-          <AdminModalPrimaryButton onClick={() => onSave(name)}>{isEditing ? "Save" : "Add"}</AdminModalPrimaryButton>
+          <AdminModalPrimaryButton onClick={() => onSave(name)} disabled={!name.trim()}>{isEditing ? "Save" : "Add"}</AdminModalPrimaryButton>
         </>
       }
     >
       <label className="block text-xs mb-2 tracking-widest uppercase" style={{ fontFamily: "'DM Sans', sans-serif", color: "rgba(45,36,30,0.4)", letterSpacing: "0.14em" }}>Category Name</label>
-      <input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Sweaters" className="w-full bg-transparent border rounded-[14px] px-4 py-3 text-[#2D241E] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#2D241E]/20 placeholder:text-[#2D241E]/20" style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "0.9rem", borderColor: "rgba(45,36,30,0.15)" }} />
+      <input
+        type="text"
+        value={name}
+        onChange={(e) => setName(e.target.value)}
+        onBlur={nameError.reportNow}
+        placeholder="e.g. Sweaters"
+        className="w-full bg-transparent border rounded-[14px] px-4 py-3 text-[#2D241E] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#2D241E]/20 placeholder:text-[#2D241E]/20"
+        style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "0.9rem", borderColor: "rgba(45,36,30,0.15)" }}
+      />
+      {nameError.error && (
+        <p className="text-xs text-[#B42318] mt-1.5" style={{ fontFamily: "'DM Sans', sans-serif" }}>{nameError.error}</p>
+      )}
     </AdminModalShell>
   );
 }
@@ -2748,6 +2792,8 @@ function ColorModal({
   const eyebrowNew = labels?.eyebrowNew ?? "New Color";
   const eyebrowEdit = labels?.eyebrowEdit ?? "Edit Color";
   const titleNew = labels?.titleNew ?? "Add Color";
+  // English name is the canonical one stored on the catalog color — Ukrainian is optional.
+  const nameError = useDebouncedError(name, (v) => (!v.trim() ? "English name is required." : undefined));
   const fieldLabelStyle: React.CSSProperties = {
     fontFamily: "'DM Sans', sans-serif",
     color: "rgba(45,36,30,0.4)",
@@ -2769,7 +2815,10 @@ function ColorModal({
       footer={
         <>
           <AdminModalCancelButton onClick={onClose} />
-          <AdminModalPrimaryButton onClick={() => onSave(name, sanitizeColorHex(hexCode), nameUk.trim() || undefined)}>
+          <AdminModalPrimaryButton
+            onClick={() => onSave(name, sanitizeColorHex(hexCode), nameUk.trim() || undefined)}
+            disabled={!name.trim()}
+          >
             {isEditing ? "Save" : "Add"}
           </AdminModalPrimaryButton>
         </>
@@ -2793,10 +2842,14 @@ function ColorModal({
           type="text"
           value={activeLocale === "en" ? name : nameUk}
           onChange={(e) => activeLocale === "en" ? setName(e.target.value) : setNameUk(e.target.value)}
+          onBlur={nameError.reportNow}
           placeholder={activeLocale === "en" ? "e.g. Black" : "напр. Чорний"}
           className={fieldInput}
           style={fieldInputStyle}
         />
+        {activeLocale === "en" && nameError.error && (
+          <p className="text-xs text-[#B42318] mt-1.5" style={{ fontFamily: "'DM Sans', sans-serif" }}>{nameError.error}</p>
+        )}
       </div>
       <div>
         <label className="block text-xs mb-2 tracking-widest uppercase" style={fieldLabelStyle}>Color</label>
@@ -2823,6 +2876,7 @@ function SizeModal({
     setNameUk(editing?.nameUk ?? "");
   }, [editing?.id, editing?.name, editing?.nameUk]);
   const isEditing = !!editing;
+  const nameError = useDebouncedError(name, (v) => (!v.trim() ? "English name is required." : undefined));
   const fieldLabelStyle: React.CSSProperties = {
     fontFamily: "'DM Sans', sans-serif",
     color: "rgba(45,36,30,0.4)",
@@ -2844,7 +2898,7 @@ function SizeModal({
       footer={
         <>
           <AdminModalCancelButton onClick={onClose} />
-          <AdminModalPrimaryButton onClick={() => onSave(name, nameUk.trim() || undefined)}>
+          <AdminModalPrimaryButton onClick={() => onSave(name, nameUk.trim() || undefined)} disabled={!name.trim()}>
             {isEditing ? "Save" : "Add"}
           </AdminModalPrimaryButton>
         </>
@@ -2868,10 +2922,14 @@ function SizeModal({
           type="text"
           value={activeLocale === "en" ? name : nameUk}
           onChange={(e) => activeLocale === "en" ? setName(e.target.value) : setNameUk(e.target.value)}
+          onBlur={nameError.reportNow}
           placeholder={activeLocale === "en" ? "e.g. M" : "напр. М"}
           className={fieldInput}
           style={fieldInputStyle}
         />
+        {activeLocale === "en" && nameError.error && (
+          <p className="text-xs text-[#B42318] mt-1.5" style={{ fontFamily: "'DM Sans', sans-serif" }}>{nameError.error}</p>
+        )}
       </div>
     </AdminModalShell>
   );

@@ -29,6 +29,12 @@ public class OrderConfirmationEmailMessage
 
     public decimal Total { get; set; }
 
+    /// <summary>Storefront UI language at checkout ("en"/"uk"). Only "en" shows EUR alongside hryvnia.</summary>
+    public string? Locale { get; set; }
+
+    /// <summary>Null unless every line item has a EUR snapshot — a partial total would understate the order.</summary>
+    public decimal? EurTotal { get; set; }
+
     public List<OrderConfirmationEmailItem> Items { get; set; } = [];
 }
 
@@ -51,4 +57,6 @@ public class OrderConfirmationEmailItem
     public int Quantity { get; set; }
 
     public decimal UnitPrice { get; set; }
+
+    public decimal? EurUnitPrice { get; set; }
 }

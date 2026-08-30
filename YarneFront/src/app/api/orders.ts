@@ -76,6 +76,8 @@ export interface CreateOrderItemRequest {
 
 export interface CreateOrderRequest {
   items: CreateOrderItemRequest[];
+  /** Storefront UI language at checkout ("en"/"uk") — lets order emails show EUR alongside hryvnia. */
+  locale?: string;
   phoneNumber: string;
   /** Required for guest checkout (no logged-in customer). */
   email?: string;

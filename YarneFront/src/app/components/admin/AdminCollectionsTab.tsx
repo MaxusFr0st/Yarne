@@ -11,6 +11,7 @@ import {
   type CollectionDto,
 } from "../../api/collections";
 import { invalidateProductsCache } from "../../utils/productsCache";
+import { useDebouncedError } from "../../hooks/useDebouncedError";
 import {
   AdminModalShell,
   AdminModalCancelButton,
@@ -46,6 +47,11 @@ export function AdminCollectionsTab({ products, onError }: Props) {
   const [productsModal, setProductsModal] = useState<ProductsModalState>({ open: false });
   const [deleteTarget, setDeleteTarget] = useState<CollectionDto | null>(null);
   const [saving, setSaving] = useState(false);
+
+  const collectionNameError = useDebouncedError(
+    collectionModal.open ? collectionModal.name : "",
+    (v) => (!v.trim() ? "Collection name is required." : undefined)
+  );
 
   const loadCollections = useCallback(async () => {
     setLoading(true);
@@ -298,7 +304,7 @@ export function AdminCollectionsTab({ products, onError }: Props) {
           footer={
             <>
               <AdminModalCancelButton onClick={() => setCollectionModal({ open: false })} />
-              <AdminModalPrimaryButton onClick={() => void saveCollection()} disabled={saving}>
+              <AdminModalPrimaryButton onClick={() => void saveCollection()} disabled={saving || !collectionModal.name.trim()}>
                 {saving ? "Saving…" : "Save"}
               </AdminModalPrimaryButton>
             </>
@@ -309,10 +315,14 @@ export function AdminCollectionsTab({ products, onError }: Props) {
             <input
               value={collectionModal.name}
               onChange={(e) => setCollectionModal((prev) => (prev.open ? { ...prev, name: e.target.value } : prev))}
+              onBlur={collectionNameError.reportNow}
               className={fieldInput}
               style={fieldInputStyle}
               placeholder="e.g. Summer Collection"
             />
+            {collectionNameError.error && (
+              <p className="text-xs text-[#B42318] mt-1.5" style={{ fontFamily: "'DM Sans', sans-serif" }}>{collectionNameError.error}</p>
+            )}
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>

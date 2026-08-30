@@ -15,15 +15,21 @@ import { NovaPoshtaPicker, type NovaPoshtaSelection } from "../components/NovaPo
 import { orderStatusKey } from "../utils/orderStatusKey";
 import { CheckoutField } from "../components/CheckoutField";
 import { useSessionState, clearSessionState } from "../hooks/useSessionState";
+import { useDebouncedError } from "../hooks/useDebouncedError";
 import { formatUaPhone, formatUaSubscriber, inspectUaPhone, isCompleteUaPhone, toE164Ua } from "../utils/phoneUa";
 
 const easing = [0.25, 0.1, 0.25, 1] as const;
+/** Nova Poshta delivers within Ukraine — the recipient name a courier reads must be Cyrillic. */
+const CYRILLIC_NAME_PATTERN = /^[Ѐ-ӿ'ʼ’\- ]*$/;
+function isCyrillicName(value: string): boolean {
+  return CYRILLIC_NAME_PATTERN.test(value);
+}
 /** Order lines shown before the list becomes a scroll region. */
 const VISIBLE_ORDER_ITEMS = 3;
 /** Generous enough for any real Ukrainian name, short enough to stop paste-bombing a field. */
 const NAME_MAX = 40;
 /** Quiet period after the last keystroke before the phone field reports a problem. */
-const PHONE_SETTLE_MS = 500;
+const PHONE_SETTLE_MS = 600;
 /** sessionStorage keys — a reload keeps checkout progress, closing the tab drops it. */
 const S = {
   email: "yarne.checkout.email",
@@ -151,9 +157,20 @@ export function CheckoutPage() {
           ? t("checkout.errorPhoneTooShort")
           : null;
 
+  const firstNameCyrillic = useDebouncedError(
+    recipientFirstName,
+    (v) => (v.trim() && !isCyrillicName(v) ? "invalid" : null)
+  );
+  const lastNameCyrillic = useDebouncedError(
+    recipientLastName,
+    (v) => (v.trim() && !isCyrillicName(v) ? "invalid" : null)
+  );
+
   const isRecipientValid =
     recipientFirstName.trim().length > 0 &&
+    isCyrillicName(recipientFirstName) &&
     recipientLastName.trim().length > 0 &&
+    isCyrillicName(recipientLastName) &&
     isCompleteUaPhone(recipientPhone);
   const isDeliveryValid = delivery !== null;
 
@@ -228,6 +245,7 @@ export function CheckoutPage() {
 
     try {
       const order = await createOrder({
+        locale,
         phoneNumber: normalizedRecipientPhone,
         email: isLoggedIn ? undefined : normalizedEmail,
         recipientFirstName: recipientFirstName.trim(),
@@ -411,6 +429,14 @@ export function CheckoutPage() {
             </span>
             <PriceTag amount={displayTotal} eurAmount={displayTotalEur} locale={locale} variant="emphasis" tone="light" withUnit />
           </div>
+          {locale === "en" && displayTotalEur != null && (
+            <p
+              className="mt-1.5 text-right"
+              style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "0.68rem", color: "rgba(245,242,237,0.4)" }}
+            >
+              {t("checkout.eurReferenceNote")}
+            </p>
+          )}
 
           {!placedOrder && (
             <>
@@ -459,8 +485,17 @@ export function CheckoutPage() {
                     autoComplete="given-name"
                     maxLength={NAME_MAX}
                     value={recipientFirstName}
-                    error={touched.firstName && recipientFirstName.length >= NAME_MAX ? t("checkout.errorNameTooLong") : null}
-                    onBlur={() => setTouched((s) => ({ ...s, firstName: true }))}
+                    error={
+                      touched.firstName && recipientFirstName.length >= NAME_MAX
+                        ? t("checkout.errorNameTooLong")
+                        : firstNameCyrillic.error
+                          ? t("checkout.errorNameCyrillicOnly")
+                          : null
+                    }
+                    onBlur={() => {
+                      setTouched((s) => ({ ...s, firstName: true }));
+                      firstNameCyrillic.reportNow();
+                    }}
                     onChange={(e) => {
                       setRecipientFirstName(e.target.value.slice(0, NAME_MAX));
                       if (error) setError(null);
@@ -474,8 +509,17 @@ export function CheckoutPage() {
                     autoComplete="family-name"
                     maxLength={NAME_MAX}
                     value={recipientLastName}
-                    error={touched.lastName && recipientLastName.length >= NAME_MAX ? t("checkout.errorNameTooLong") : null}
-                    onBlur={() => setTouched((s) => ({ ...s, lastName: true }))}
+                    error={
+                      touched.lastName && recipientLastName.length >= NAME_MAX
+                        ? t("checkout.errorNameTooLong")
+                        : lastNameCyrillic.error
+                          ? t("checkout.errorNameCyrillicOnly")
+                          : null
+                    }
+                    onBlur={() => {
+                      setTouched((s) => ({ ...s, lastName: true }));
+                      lastNameCyrillic.reportNow();
+                    }}
                     onChange={(e) => {
                       setRecipientLastName(e.target.value.slice(0, NAME_MAX));
                       if (error) setError(null);

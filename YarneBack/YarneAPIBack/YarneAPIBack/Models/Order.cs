@@ -27,6 +27,9 @@ public partial class Order
 
     public string CurrencyCode { get; set; } = "UAH";
 
+    /// <summary>Storefront UI language at checkout ("en"/"uk") — decides whether order emails show EUR alongside UAH. Null for orders placed before this was tracked.</summary>
+    public string? Locale { get; set; }
+
     public decimal ExchangeRateToBase { get; set; } = 1m;
 
     public string Status { get; set; } = null!;

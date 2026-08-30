@@ -75,17 +75,31 @@ export function Collection() {
     [collections, validCollectionId],
   );
 
+  // English shoppers filter/sort by EUR, not hryvnia — a product with no EUR price set
+  // can't honestly sit on a €-labeled range, so it's left out of the bounds calculation
+  // and (once the slider is touched) out of the filtered results below.
+  const priceValue = (product: { price: number; eurPrice?: number }) =>
+    locale === "en" ? product.eurPrice ?? null : product.price;
+
   const priceBounds = useMemo(() => {
-    if (products.length === 0) return { min: 0, max: 500 };
-    const prices = products.map((product) => product.price);
-    const max = Math.ceil(Math.max(...prices));
+    const values = products
+      .map(priceValue)
+      .filter((v): v is number => v != null);
+    if (values.length === 0) return { min: 0, max: 500 };
+    const max = Math.ceil(Math.max(...values));
     return { min: 0, max: Math.max(max, 100) };
-  }, [products]);
+  }, [products, locale]);
 
   useEffect(() => {
     if (priceFilterTouched) return;
     setPriceRange([priceBounds.min, priceBounds.max]);
   }, [priceBounds.min, priceBounds.max, activeTab, priceFilterTouched]);
+
+  // Switching language mid-filter would otherwise reinterpret a UAH range as EUR (or vice
+  // versa) — reset so the slider re-syncs to the new currency's bounds instead.
+  useEffect(() => {
+    setPriceFilterTouched(false);
+  }, [locale]);
 
   const tabs = useMemo(
     () => [
@@ -112,13 +126,23 @@ export function Collection() {
   if (activeAvailability === "newOnly") filtered = filtered.filter((p) => p.isNew);
   if (activeAvailability === "bestsellers") filtered = filtered.filter((p) => p.isBestseller);
   if (priceFilterTouched) {
-    filtered = filtered.filter((p) => p.price >= priceRange[0] && p.price <= priceRange[1]);
+    filtered = filtered.filter((p) => {
+      const value = priceValue(p);
+      return value != null && value >= priceRange[0] && value <= priceRange[1];
+    });
   }
 
-  if (activeSort === "priceLowToHigh") {
-    filtered = [...filtered].sort((a, b) => a.price - b.price);
-  } else if (activeSort === "priceHighToLow") {
-    filtered = [...filtered].sort((a, b) => b.price - a.price);
+  if (activeSort === "priceLowToHigh" || activeSort === "priceHighToLow") {
+    const direction = activeSort === "priceLowToHigh" ? 1 : -1;
+    filtered = [...filtered].sort((a, b) => {
+      const av = priceValue(a);
+      const bv = priceValue(b);
+      // No EUR price to rank by — always sinks to the end, whichever direction is active.
+      if (av == null && bv == null) return 0;
+      if (av == null) return 1;
+      if (bv == null) return -1;
+      return (av - bv) * direction;
+    });
   } else if (activeSort === "newest") {
     filtered = [...filtered].sort((a, b) => {
       const aTime = a.createdAt ? Date.parse(a.createdAt) : 0;
@@ -239,7 +263,7 @@ export function Collection() {
                   </p>
                   <div className="flex items-center gap-3">
                     <span className="text-[#2D241E] text-sm">
-                      <PriceTag amount={priceRange[0]} locale={locale} variant="card" />
+                      <PriceTag amount={priceRange[0]} eurAmount={locale === "en" ? priceRange[0] : null} locale={locale} variant="card" />
                     </span>
                     <input
                       type="range"
@@ -253,7 +277,7 @@ export function Collection() {
                       className="w-32 accent-[#4A0E0E]"
                     />
                     <span className="text-[#2D241E] text-sm">
-                      <PriceTag amount={priceRange[1]} locale={locale} variant="card" />
+                      <PriceTag amount={priceRange[1]} eurAmount={locale === "en" ? priceRange[1] : null} locale={locale} variant="card" />
                     </span>
                   </div>
                 </div>
