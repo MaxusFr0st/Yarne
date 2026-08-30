@@ -26,6 +26,13 @@ is the differentiator — no other student project has it. Do not present this a
 
 ### 1. Full-offline PWA with a durable outbox
 
+**Status: attempted, built, verified, then reverted by the owner on
+2026-08-30** — see the Implementation Plan's Steps 4/5 entries for the full
+account. No longer part of the active build; kept here as the original
+pitch, since the reasoning behind it (and why it turned out not worth
+carrying forward independent of the picker work) may be worth revisiting
+later with a different scope.
+
 **Why it is wow:** open the site on a phone, switch to airplane mode, browse the
 catalogue, add to cart, submit an order — then reconnect and watch it sync. That
 demo lands in 30 seconds in a defense room.
@@ -182,19 +189,18 @@ than silence.
 | 2 | ~~Fix PWA login~~ | — | **RESOLVED 2026-08-30**, confirmed on real device — no longer blocks anything below |
 | 3 | Traceability view (#5) | 3 days | Early demo win, low risk |
 | 4 | BOM accuracy (A0.1) | 2 days | Honest consumption data for the forecast backtest |
-| 5 | Nova Poshta offline body (online untouched) | 5-6 days | Prerequisite for offline orders; shell/body split is a real design discussion |
-| 6 | Full-offline PWA + offline orders | 2 weeks | Offline architecture chapter + Lighthouse numbers |
-| 6.5 | Push notifications for synced orders | 3-4 days | PWA-only capability chapter; reuses existing email path |
+| 5 | ~~Nova Poshta offline body~~ | — | **BUILT THEN REVERTED 2026-08-30** — owner decided against it, online picker untouched |
+| 6 | ~~Full-offline PWA + offline orders~~ | — | **BUILT THEN REVERTED 2026-08-30**, alongside #5 |
+| 6.5 | ~~Push notifications for synced orders~~ | — | Never built — depended on #6, moot once #6 was reverted |
 | 7 | MRP forecasting (#2) | 2-3 weeks | The headline chapter, with MAPE table |
 | 8 | Recommender (#4) | 2 weeks | Second evaluation chapter, only if time |
 
-**Hard dependency:** 5 → 6 (no cacheable branch picker, no offline order).
-6 → 6.5 (nothing to notify about until orders can sync). 7 is independent of
-the whole PWA chain and can run in parallel or first if the rubric favours it.
+Items 5, 6, and 6.5 are no longer part of the active plan — see their entries
+above for what was built, verified, and why it was reverted. 7 is independent
+of that whole chain and remains the differentiator; it did not depend on any
+of the reverted work and can proceed on its own.
 
-If time gets short: drop 8, then 3, then 6.5 last of the PWA chain (a synced
-order without a push is still a completed order — just less delightful). Do
-not drop 7 — it is the differentiator.
+If time gets short: drop 8. Do not drop 7.
 
 ## Before starting
 
@@ -408,9 +414,22 @@ gaining a code→token exchange step in front.
 iPhone and an Android phone and log in via both password and Google.
 Desktop "Add to Home Screen" does not reproduce iOS's cookie jar behaviour.
 
-### Step 4 — Nova Poshta picker: online untouched, first-party offline body added (DONE, shipped 2026-08-30)
+### Step 4 — Nova Poshta picker: online untouched, first-party offline body added (BUILT THEN REVERTED, 2026-08-30)
 
-**Shipped and verified** (via a temporary isolated test harness, removed after
+**Status: built, verified, then explicitly reverted by the owner the same day.**
+Every file this step added is deleted; `NovaPoshtaPicker.tsx` and
+`components/ui/command.tsx` are restored to their exact pre-session content
+(diffed to confirm zero drift before restoring). Nothing about the online
+Nova Poshta experience was ever left different from before this step started.
+Kept below as a record of what was built and why it was undone — not a live
+plan.
+
+**Owner's reasoning for reverting:** wanted the online picker guaranteed
+never at risk, and decided the offline picker wasn't worth carrying forward
+independent of the broader offline-ordering feature it existed to serve —
+see Step 5's revert note for the fuller context (both were reverted together).
+
+**Shipped and verified** (before the revert) (via a temporary isolated test harness, removed after
 use — the sandboxed dev environment has no live DB, so checkout couldn't be
 reached normally): backend `ShippingController` +
 `NovaPoshtaService.GetCitiesAsync`/`GetWarehousesAsync`
@@ -523,9 +542,40 @@ widget* — the size-versus-availability trade-off in point 2, and the
 shell/body extraction discipline, are both real design discussions on their
 own.
 
-### Step 5 — Full-offline PWA incl. offline ordering (CORE DONE, shipped 2026-08-30)
+### Step 5 — Full-offline PWA incl. offline ordering (BUILT THEN REVERTED, 2026-08-30)
 
-**Shipped:** `offline/outbox.ts` (generic, `expenseQueue.ts` now a thin
+**Status: built, tested (idempotency test passing, 32/32), then explicitly
+reverted by the owner the same day** — reverted together with Step 4, since
+the order outbox's only real consumer was the offline checkout flow that
+depended on Step 4's offline picker. `ClientOrderId` removed from `Order` via
+a new forward migration (`RemoveClientOrderIdFromOrder`) rather than editing
+the original `AddClientOrderIdToOrder`/`AddEurPricing` migration files —
+both of those already existed in shared, pushed history by the time the
+revert happened (see the note on committed state below), so the schema
+change is undone honestly, not erased from the record. `outbox.ts` deleted
+entirely rather than kept as shared infrastructure for a single remaining
+consumer (`expenseQueue.ts`, restored to its original self-contained form) —
+correct per this project's own YAGNI convention once its second consumer was
+gone.
+
+**Real complication worth recording:** by the time this revert happened, the
+built code was no longer sitting as this session's uncommitted work — a
+separate session/action had already committed it, bundled together with
+unrelated real work (EUR pricing, a language-switcher fix, an OAuth
+stuck-loading fix, wishlist removal), and pushed it to `origin/main`. The
+revert was done as a new forward commit removing only the offline-picker and
+order-queue files, verified file-by-file against that commit's diff to leave
+the EUR/language-switcher/OAuth/wishlist changes completely untouched — never
+rewriting the already-pushed commit.
+
+**Kept from this step, deliberately, per explicit instruction:** the
+pre-existing operating-expense offline queue (`expenseQueue.ts` /
+`AdminOperatingExpensesView.tsx`) — untouched throughout, still works exactly
+as it did before this session. Also kept: the Step 2.5 update-available
+toast, which is unrelated to offline *data* features and was never in scope
+for this revert.
+
+**Original shipped scope, for the record:** `offline/outbox.ts` (generic, `expenseQueue.ts` now a thin
 wrapper over it — verified via the pre-existing test suite still passing
 unchanged); `offline/orderOutbox.ts`; `ClientOrderId` on `Order` (migration
 `AddClientOrderIdToOrder`, filtered unique index) + `CreateOrderCore`'s dedup

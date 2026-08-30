@@ -75,8 +75,6 @@ export interface CreateOrderItemRequest {
 }
 
 export interface CreateOrderRequest {
-  /** Set only when syncing an order that was queued offline — see offline/orderOutbox.ts. */
-  clientOrderId?: string;
   items: CreateOrderItemRequest[];
   phoneNumber: string;
   /** Required for guest checkout (no logged-in customer). */

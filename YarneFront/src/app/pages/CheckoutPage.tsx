@@ -2,10 +2,7 @@ import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from
 import { motion } from "motion/react";
 import { ArrowRight, CheckCircle2, Package } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { toast } from "sonner";
 import { createOrder, fetchNovaPoshtaShippingPrice, orderEurTotal, type OrderDto } from "../api/orders";
-import { queueOrder } from "../offline/orderOutbox";
-import { useOnlineStatus } from "../hooks/useOnlineStatus";
 import { fetchCustomerProfile } from "../api/auth";
 import { useApp, type CartItem } from "../context/AppContext";
 import { ImageWithFallback } from "../components/figma/ImageWithFallback";
@@ -53,7 +50,6 @@ function toDisplayDate(value: string, locale: "uk" | "en"): string {
 
 export function CheckoutPage() {
   const { t } = useTranslation();
-  const online = useOnlineStatus();
   const locale = useLocale();
   const { cartItems, cartTotal, cartEurTotal, isLoggedIn, user, clearCart } = useApp();
   // Session-scoped so an accidental reload no longer wipes a half-filled checkout.
@@ -230,43 +226,28 @@ export function CheckoutPage() {
     setOrderSnapshot(snapshot);
     setSnapshotTotal(cartItemsTotal(snapshot));
 
-    const orderPayload = {
-      phoneNumber: normalizedRecipientPhone,
-      email: isLoggedIn ? undefined : normalizedEmail,
-      recipientFirstName: recipientFirstName.trim(),
-      recipientLastName: recipientLastName.trim(),
-      recipientPhone: normalizedRecipientPhone,
-      deliveryCityRef: delivery.cityRef,
-      deliveryCityName: delivery.cityName,
-      deliveryWarehouseRef: delivery.warehouseRef,
-      deliveryWarehouseName: delivery.warehouseName,
-      items: snapshot.map((item) => ({
-        productIdOrCode: item.productId,
-        quantity: item.quantity,
-        productSubtitle: item.subtitle,
-        colorName: item.color,
-        colorId: item.colorId,
-        furnitureColorName: item.furnitureColor ?? undefined,
-        sizeName: item.size,
-        withLace: item.withLace ?? undefined,
-      })),
-    };
-
     try {
-      if (!online) {
-        // No network to actually create the order — queue it. The outbox's own id becomes
-        // the ClientOrderId at sync time (offline/orderOutbox.ts), so a retried sync can
-        // never create a duplicate. There's no real OrderDto yet (nothing was created
-        // server-side), so this shows a toast rather than the full order-summary view below,
-        // which needs a real id/status neither of us has right now.
-        await queueOrder(orderPayload);
-        toast(t("checkout.deliveryOfflineNotice"), { duration: Infinity });
-        clearCart();
-        clearSessionState(...Object.values(S));
-        return;
-      }
-
-      const order = await createOrder(orderPayload);
+      const order = await createOrder({
+        phoneNumber: normalizedRecipientPhone,
+        email: isLoggedIn ? undefined : normalizedEmail,
+        recipientFirstName: recipientFirstName.trim(),
+        recipientLastName: recipientLastName.trim(),
+        recipientPhone: normalizedRecipientPhone,
+        deliveryCityRef: delivery.cityRef,
+        deliveryCityName: delivery.cityName,
+        deliveryWarehouseRef: delivery.warehouseRef,
+        deliveryWarehouseName: delivery.warehouseName,
+        items: snapshot.map((item) => ({
+          productIdOrCode: item.productId,
+          quantity: item.quantity,
+          productSubtitle: item.subtitle,
+          colorName: item.color,
+          colorId: item.colorId,
+          furnitureColorName: item.furnitureColor ?? undefined,
+          sizeName: item.size,
+          withLace: item.withLace ?? undefined,
+        })),
+      });
       setPlacedOrder(order);
       clearCart();
       // The order exists server-side now — keeping the recipient's details in storage would
@@ -595,19 +576,6 @@ export function CheckoutPage() {
             </div>
           ) : (
             <>
-              {!online && (
-                <p
-                  className="mt-4 text-sm rounded-2xl px-3.5 py-3"
-                  style={{
-                    fontFamily: "'DM Sans', sans-serif",
-                    color: "#F5F2ED",
-                    backgroundColor: "rgba(245,242,237,0.10)",
-                    border: "1px solid rgba(245,242,237,0.18)",
-                  }}
-                >
-                  {t("checkout.deliveryOfflineNotice")}
-                </p>
-              )}
               {error && (
                 <p className="mt-4 text-sm" style={{ fontFamily: "'DM Sans', sans-serif", color: "#F2B8B8" }}>
                   {error}

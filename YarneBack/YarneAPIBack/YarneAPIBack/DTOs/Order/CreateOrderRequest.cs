@@ -4,15 +4,6 @@ namespace YarneAPIBack.DTOs.Order;
 
 public class CreateOrderRequest
 {
-    /// <summary>
-    /// Set by the client when an order is queued offline, before any network attempt —
-    /// generated once (crypto.randomUUID()) and reused across every retry/reconnect. Lets
-    /// CreateOrderCore recognise a retried submission as the same attempt and return the
-    /// existing order instead of creating a duplicate. Null for a normal online checkout,
-    /// which never needs retry-safety in the first place.
-    /// </summary>
-    public Guid? ClientOrderId { get; set; }
-
     [Required]
     [MinLength(1)]
     public List<CreateOrderItemRequest> Items { get; set; } = [];

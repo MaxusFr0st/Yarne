@@ -306,10 +306,6 @@ public partial class YarneDbContext : DbContext
 
             entity.ToTable("Order");
 
-            entity.HasIndex(e => e.ClientOrderId)
-                .IsUnique()
-                .HasFilter("\"ClientOrderId\" IS NOT NULL");
-
             entity.Property(e => e.OrderDate).HasDefaultValueSql("CURRENT_TIMESTAMP");
             entity.Property(e => e.EstimatedDelivery).HasColumnType("timestamp without time zone");
             entity.Property(e => e.Status)
