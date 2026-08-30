@@ -211,6 +211,7 @@ public class ProductService : IProductService
             Name = request.Name,
             Description = request.Description,
             Price = request.Price,
+            EurPrice = request.EurPrice,
             SellingPriceCents = sellingPriceCents,
             SellingCurrencyCode = "UAH",
             Material = request.Material,
@@ -334,6 +335,7 @@ public class ProductService : IProductService
         product.Name = request.Name;
         product.Description = request.Description;
         product.Price = request.Price;
+        product.EurPrice = request.EurPrice;
         // Keep the stored cents value aligned when the catalog price is UAH-denominated.
         // Never overwrite a non-UAH selling price from the storefront editor.
         if (string.Equals(product.SellingCurrencyCode, "UAH", StringComparison.OrdinalIgnoreCase))
@@ -572,6 +574,8 @@ public class ProductService : IProductService
                     Hex = pc.Color.HexCode,
                     Price = pc.Price,
                     PriceWithLace = pc.PriceWithLace,
+                    EurPrice = pc.EurPrice,
+                    EurPriceWithLace = pc.EurPriceWithLace,
                     Image = colorImages.Count > 0 ? colorImages[0] : fallback,
                     Images = colorImages.Count > 0 ? colorImages : new List<ProductImageDto> { fallback },
                     SizeImages = sizeImages,
@@ -626,6 +630,7 @@ public class ProductService : IProductService
             Name = p.Name,
             Description = p.Description,
             Price = p.Price,
+            EurPrice = p.EurPrice,
             Material = p.Material,
             PrimaryImage = images.FirstOrDefault() ?? ToImageDto(p.ImageUrl),
             ShareImageUrl = p.ShareImageUrl,
@@ -675,6 +680,7 @@ public class ProductService : IProductService
             Name = baseDto.Name,
             Description = baseDto.Description,
             Price = baseDto.Price,
+            EurPrice = baseDto.EurPrice,
             Material = baseDto.Material,
             PrimaryImage = baseDto.PrimaryImage,
             ShareImageUrl = baseDto.ShareImageUrl,
@@ -710,6 +716,7 @@ public class ProductService : IProductService
             ProductCode = p.ProductCode,
             Name = p.Name,
             Price = p.Price,
+            EurPrice = p.EurPrice,
             PrimaryImage = images.FirstOrDefault() ?? ToImageDto(p.ImageUrl),
             CategoryName = p.Category?.Name ?? string.Empty,
             IsNew = p.IsNew,
@@ -1040,7 +1047,7 @@ public class ProductService : IProductService
     private async Task ReplaceProductColorsAsync(
         int productId,
         List<int> colorIds,
-        Dictionary<int, (decimal? Price, decimal? PriceWithLace)> colorPrices,
+        Dictionary<int, (decimal? Price, decimal? PriceWithLace, decimal? EurPrice, decimal? EurPriceWithLace)> colorPrices,
         CancellationToken ct)
     {
         // Update in place when the (ProductId, ColorId) key already exists. Delete+re-add of the
@@ -1056,12 +1063,16 @@ public class ProductService : IProductService
         for (var i = 0; i < colorIds.Count; i++)
         {
             var colorId = colorIds[i];
-            var (price, priceWithLace) = colorPrices.TryGetValue(colorId, out var p) ? p : (null, null);
+            var (price, priceWithLace, eurPrice, eurPriceWithLace) = colorPrices.TryGetValue(colorId, out var p)
+                ? p
+                : (null, null, null, null);
             if (existingByColorId.TryGetValue(colorId, out var row))
             {
                 row.SortOrder = i;
                 row.Price = price;
                 row.PriceWithLace = priceWithLace;
+                row.EurPrice = eurPrice;
+                row.EurPriceWithLace = eurPriceWithLace;
             }
             else
             {
@@ -1072,30 +1083,32 @@ public class ProductService : IProductService
                     SortOrder = i,
                     Price = price,
                     PriceWithLace = priceWithLace,
+                    EurPrice = eurPrice,
+                    EurPriceWithLace = eurPriceWithLace,
                 });
             }
         }
     }
 
     /// <summary>
-    /// Resolves per-color price/priceWithLace to persist.
+    /// Resolves per-color price/priceWithLace (UAH and EUR) to persist.
     /// Null or empty ColorPrices = keep whatever prices the existing rows already had
     /// (so an unrelated update can't wipe pricing). A non-empty list is authoritative for
     /// the colors it lists; other colors fall back to existing row prices when present.
     /// </summary>
-    private static Dictionary<int, (decimal? Price, decimal? PriceWithLace)> BuildColorPriceLookup(
+    private static Dictionary<int, (decimal? Price, decimal? PriceWithLace, decimal? EurPrice, decimal? EurPriceWithLace)> BuildColorPriceLookup(
         List<ColorPriceInput>? colorPrices,
         IEnumerable<Models.ProductColor>? fallback = null)
     {
-        var fromFallback = fallback?.ToDictionary(pc => pc.ColorId, pc => (pc.Price, pc.PriceWithLace))
-            ?? new Dictionary<int, (decimal?, decimal?)>();
+        var fromFallback = fallback?.ToDictionary(pc => pc.ColorId, pc => (pc.Price, pc.PriceWithLace, pc.EurPrice, pc.EurPriceWithLace))
+            ?? new Dictionary<int, (decimal?, decimal?, decimal?, decimal?)>();
 
         if (colorPrices is null || colorPrices.Count == 0)
             return fromFallback;
 
         var fromRequest = colorPrices
             .GroupBy(c => c.ColorId)
-            .ToDictionary(g => g.Key, g => (g.Last().Price, g.Last().PriceWithLace));
+            .ToDictionary(g => g.Key, g => (g.Last().Price, g.Last().PriceWithLace, g.Last().EurPrice, g.Last().EurPriceWithLace));
 
         // Start from existing prices so a partial ColorPrices payload doesn't null out
         // colors the client omitted, then overlay explicit values from the request.

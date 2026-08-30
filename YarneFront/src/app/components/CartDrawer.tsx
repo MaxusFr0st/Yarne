@@ -15,7 +15,7 @@ export function CartDrawer() {
   const navigate = useLangNavigate();
   const touchMobile = useTouchMobileLayout();
   const { cartOpen, closeCart } = useOverlay();
-  const { cartItems, removeFromCart, updateQuantity, cartTotal } = useCart();
+  const { cartItems, removeFromCart, updateQuantity, cartTotal, cartEurTotal } = useCart();
   useBodyScrollLock(cartOpen);
 
   return (
@@ -176,7 +176,12 @@ export function CartDrawer() {
                           </div>
 
                           <div className="flex items-center gap-2 md:gap-3">
-                            <PriceTag amount={item.price * item.quantity} locale={locale} variant="line" />
+                            <PriceTag
+                              amount={item.price * item.quantity}
+                              eurAmount={item.eurPrice != null ? item.eurPrice * item.quantity : null}
+                              locale={locale}
+                              variant="line"
+                            />
                             <button
                               onClick={() => removeFromCart(item.cartId)}
                               aria-label={t("cart.removeItem")}
@@ -203,7 +208,7 @@ export function CartDrawer() {
                   >
                     {t("cart.subtotal")}
                   </span>
-                  <PriceTag amount={cartTotal} locale={locale} variant="emphasis" withUnit />
+                  <PriceTag amount={cartTotal} eurAmount={cartEurTotal} locale={locale} variant="emphasis" withUnit />
                 </div>
                 <p
                   className="text-[#2D241E]/40 text-xs text-center"

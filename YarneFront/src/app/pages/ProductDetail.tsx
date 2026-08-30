@@ -1,12 +1,12 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useParams, useNavigate, useLocation } from "react-router";
 import { motion, AnimatePresence, LayoutGroup, useReducedMotion } from "motion/react";
-import { ArrowLeft, Heart, ChevronDown, ShoppingBag, Check } from "lucide-react";
+import { ArrowLeft, ChevronDown, ShoppingBag, Check } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useLocale } from "../i18n/useLocale";
 import { PriceTag } from "../components/PriceTag";
 import { useProduct, useProducts } from "../hooks/useProducts";
-import { useCart, useWishlist } from "../context/AppContext";
+import { useCart } from "../context/AppContext";
 import { getDefaultColorIndex, getDefaultFurnitureColorIndex } from "../utils/productColorIndex";
 import { ImageWithFallback } from "../components/figma/ImageWithFallback";
 import { CrossfadeImage } from "../components/figma/CrossfadeImage";
@@ -17,7 +17,7 @@ import { getSupplementaryProductDetails, hasSupplementaryProductDetails } from "
 import { MobileRelatedProducts } from "../components/MobileRelatedProducts";
 import { ProductGuaranteeBlock } from "../components/ProductGuaranteeBlock";
 import { resolveDisplayImages } from "../utils/variantImages";
-import { resolveDisplayPrice } from "../utils/variantStock";
+import { resolveDisplayPrice, resolveDisplayEurPrice } from "../utils/variantStock";
 import { resolveMediaUrl } from "../utils/storefrontMedia";
 import { scrollToPageTop } from "../utils/scrollToTop";
 import { clearScrollForRoute } from "../utils/scrollRestoration";
@@ -38,7 +38,6 @@ export function ProductDetail() {
   const navigate = useNavigate();
   const location = useLocation();
   const { addToCart } = useCart();
-  const { wishlist, toggleWishlist } = useWishlist();
   const { product, loading } = useProduct(id);
   const { products } = useProducts();
   const related = useMemo(() => {
@@ -205,7 +204,6 @@ export function ProductDetail() {
 
   const showContent = Boolean(product);
 
-  const isWishlisted = product ? wishlist.includes(product.id) : false;
   const selectedColor = product?.colors[activeColor];
   const selectedColorLabel = selectedColor
     ? localizedCatalogName(selectedColor.name, selectedColor.nameUk, locale)
@@ -248,6 +246,7 @@ export function ProductDetail() {
       name: product.name,
       subtitle: product.subtitle,
       price: resolveDisplayPrice(selectedColor, activeLace, product.price),
+      eurPrice: resolveDisplayEurPrice(selectedColor, activeLace, product.eurPrice) ?? undefined,
       color: selectedColor.name,
       colorId: selectedColor.colorId,
       colorHex: selectedColor.hex,
@@ -266,6 +265,7 @@ export function ProductDetail() {
   };
 
   const displayPrice = product ? resolveDisplayPrice(selectedColor, activeLace, product.price) : 0;
+  const displayEurPrice = product ? resolveDisplayEurPrice(selectedColor, activeLace, product.eurPrice) : null;
 
   return (
     // No overflow-x here at all: the viewport already clips sideways (see html in theme.css),
@@ -281,18 +281,17 @@ export function ProductDetail() {
         images={images}
         locale={locale}
         displayPrice={displayPrice}
+        displayEurPrice={displayEurPrice}
         activeColor={activeColor}
         activeFurniture={activeFurniture}
         activeSize={activeSize}
         displaySizes={displaySizes}
-        isWishlisted={isWishlisted}
         addedToBag={addedToBag}
         sizeError={sizeError}
         laceEnabled={product!.lace === true}
         activeLace={activeLace}
         onLaceChange={handleLaceChange}
         onBack={() => navigate(-1)}
-        onToggleWishlist={() => toggleWishlist(product.id)}
         onColorChange={handleColorChange}
         onFurnitureChange={handleFurnitureChange}
         onSizeChange={(size) => { setActiveSize(size); setSizeError(false); }}
@@ -441,7 +440,7 @@ export function ProductDetail() {
               className="rounded-[24px] p-5 flex flex-col gap-[14px]"
               style={{ backgroundColor: "#fff", boxShadow: "0 16px 36px -18px rgba(45,36,30,0.14)" }}
             >
-              <PriceTag amount={displayPrice} locale={locale} variant="display" />
+              <PriceTag amount={displayPrice} eurAmount={displayEurPrice} locale={locale} variant="display" />
 
               {/* Colour */}
               <div>
@@ -714,23 +713,6 @@ export function ProductDetail() {
                     </>
                   )}
                 </motion.button>
-
-                <button
-                  type="button"
-                  onClick={() => toggleWishlist(product.id)}
-                  className="shrink-0 w-[54px] h-[54px] rounded-[27px] flex items-center justify-center touch-manipulation cursor-pointer transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2D241E]/35 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
-                  aria-label={isWishlisted ? t("product.wishlistRemove") : t("product.wishlistAdd")}
-                  aria-pressed={isWishlisted}
-                  style={{ backgroundColor: isWishlisted ? "#4A0E0E" : "#F3EFE8" }}
-                >
-                  <Heart
-                    size={17}
-                    strokeWidth={1.5}
-                    aria-hidden="true"
-                    fill={isWishlisted ? "white" : "none"}
-                    stroke={isWishlisted ? "white" : "#2D241E"}
-                  />
-                </button>
               </div>
             </div>
 

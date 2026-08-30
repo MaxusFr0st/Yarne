@@ -16,6 +16,9 @@ public partial class Product
 
     public decimal Price { get; set; }
 
+    /// <summary>Manually-entered EUR price, shown on the storefront when the shopper is browsing in English. Null = no EUR price set yet.</summary>
+    public decimal? EurPrice { get; set; }
+
     public long SellingPriceCents { get; set; }
 
     public string SellingCurrencyCode { get; set; } = "UAH";

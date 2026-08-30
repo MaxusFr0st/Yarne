@@ -2030,6 +2030,9 @@ namespace YarneAPIBack.Data.Migrations
                     b.Property<int?>("ChannelId")
                         .HasColumnType("integer");
 
+                    b.Property<Guid?>("ClientOrderId")
+                        .HasColumnType("uuid");
+
                     b.Property<DateTime>("CreatedAt")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("timestamp with time zone")
@@ -2154,6 +2157,10 @@ namespace YarneAPIBack.Data.Migrations
 
                     b.HasIndex("ChannelId");
 
+                    b.HasIndex("ClientOrderId")
+                        .IsUnique()
+                        .HasFilter("\"ClientOrderId\" IS NOT NULL");
+
                     b.HasIndex("CurrencyCode");
 
                     b.HasIndex("CustomerId");
@@ -2187,6 +2194,9 @@ namespace YarneAPIBack.Data.Migrations
 
                     b.Property<int?>("CreatedBy")
                         .HasColumnType("integer");
+
+                    b.Property<decimal?>("EurUnitPrice")
+                        .HasColumnType("decimal(18, 2)");
 
                     b.Property<string>("FurnitureColorName")
                         .HasMaxLength(100)
@@ -2326,6 +2336,9 @@ namespace YarneAPIBack.Data.Migrations
                     b.Property<string>("Description")
                         .HasColumnType("text");
 
+                    b.Property<decimal?>("EurPrice")
+                        .HasColumnType("decimal(18, 2)");
+
                     b.Property<string>("ImageUrl")
                         .HasMaxLength(500)
                         .HasColumnType("character varying(500)");
@@ -2439,6 +2452,12 @@ namespace YarneAPIBack.Data.Migrations
 
                     b.Property<int>("ColorId")
                         .HasColumnType("integer");
+
+                    b.Property<decimal?>("EurPrice")
+                        .HasColumnType("decimal(18, 2)");
+
+                    b.Property<decimal?>("EurPriceWithLace")
+                        .HasColumnType("decimal(18, 2)");
 
                     b.Property<decimal?>("Price")
                         .HasColumnType("decimal(18, 2)");

@@ -9,6 +9,7 @@ declare global {
             client_id: string;
             scope: string;
             callback: (response: { access_token?: string; error?: string }) => void;
+            error_callback?: (error: { type: string }) => void;
           }) => { requestAccessToken: () => void };
         };
       };
@@ -43,6 +44,13 @@ function loadGoogleScript(): Promise<void> {
   return scriptLoadPromise;
 }
 
+/**
+ * Google's popup token flow doesn't always fire `callback` — closing the popup manually (or
+ * navigating back in the opener tab before finishing) can leave it silent, which used to leave
+ * the login button stuck in a permanent loading state with no error and no recovery short of a
+ * page reload. Every path below funnels into a single `settle` so the promise always resolves
+ * or rejects, whatever happened to the popup.
+ */
 export function requestGoogleAccessToken(): Promise<string> {
   if (!googleClientId) {
     return Promise.reject(new Error("Google Sign In is not configured."));
@@ -57,6 +65,34 @@ export function requestGoogleAccessToken(): Promise<string> {
           return;
         }
 
+        let settled = false;
+        const cleanup = () => {
+          window.clearTimeout(hardTimeoutId);
+          window.clearTimeout(focusGraceId);
+          window.removeEventListener("focus", onWindowFocus);
+        };
+        const settle = (fn: () => void) => {
+          if (settled) return;
+          settled = true;
+          cleanup();
+          fn();
+        };
+
+        // If the main window regains focus (popup closed one way or another) and no callback
+        // follows shortly after, treat it as a cancellation instead of hanging forever.
+        let focusGraceId: number;
+        const onWindowFocus = () => {
+          focusGraceId = window.setTimeout(() => {
+            settle(() => reject(new Error("Google sign-in was cancelled or failed.")));
+          }, 1000);
+        };
+        window.addEventListener("focus", onWindowFocus);
+
+        // Ultimate safety net regardless of focus/error_callback support.
+        const hardTimeoutId = window.setTimeout(() => {
+          settle(() => reject(new Error("Google sign-in timed out.")));
+        }, 120_000);
+
         const client = oauth2.initTokenClient({
           client_id: googleClientId,
           scope: "openid email profile",
@@ -64,17 +100,18 @@ export function requestGoogleAccessToken(): Promise<string> {
             if (response.error || !response.access_token) {
               const code = response.error ?? "unknown";
               if (code.includes("origin_mismatch")) {
-                reject(
-                  new Error(
-                    `origin_mismatch:${window.location.origin}`,
-                  ),
+                settle(() =>
+                  reject(new Error(`origin_mismatch:${window.location.origin}`)),
                 );
                 return;
               }
-              reject(new Error(response.error ?? "Google sign-in was cancelled or failed."));
+              settle(() => reject(new Error(response.error ?? "Google sign-in was cancelled or failed.")));
               return;
             }
-            resolve(response.access_token);
+            settle(() => resolve(response.access_token!));
+          },
+          error_callback: () => {
+            settle(() => reject(new Error("Google sign-in was cancelled or failed.")));
           },
         });
 

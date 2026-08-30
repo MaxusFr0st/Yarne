@@ -217,6 +217,17 @@ public class OrdersController : ControllerBase
         if (request.Items == null || request.Items.Count == 0)
             return BadRequest(new { message = "Order must include at least one item." });
 
+        // A ClientOrderId means this order was queued offline and may be a retried sync
+        // (flaky reconnect, two tabs, etc.) — recognise it as the same attempt and hand back
+        // the order that already exists instead of creating a second one.
+        if (request.ClientOrderId.HasValue)
+        {
+            var existing = await BuildOrderQuery()
+                .FirstOrDefaultAsync(o => o.ClientOrderId == request.ClientOrderId.Value, ct);
+            if (existing != null)
+                return StatusCode(StatusCodes.Status201Created, MapOrder(existing));
+        }
+
         var customerId = GetCurrentCustomerId();
         Customer? customer = null;
         string? guestEmail = null;
@@ -345,11 +356,15 @@ public class OrdersController : ControllerBase
             var unitPrice = wantsLace
                 ? (productColor?.PriceWithLace ?? productColor?.Price ?? product.Price)
                 : (productColor?.Price ?? product.Price);
+            var eurUnitPrice = wantsLace
+                ? (productColor?.EurPriceWithLace ?? productColor?.EurPrice ?? product.EurPrice)
+                : (productColor?.EurPrice ?? product.EurPrice);
 
             var orderItem = new OrderItem
             {
                 Quantity = item.Quantity,
                 UnitPrice = unitPrice,
+                EurUnitPrice = eurUnitPrice,
                 ListedPriceCents = checked((long)decimal.Round(unitPrice * 100m, 0, MidpointRounding.AwayFromZero)),
                 NetPriceCents = checked((long)decimal.Round(unitPrice * 100m, 0, MidpointRounding.AwayFromZero)),
                 UnitCogsCents = 0,
@@ -370,6 +385,7 @@ public class OrdersController : ControllerBase
         var orderTotalCents = orderItems.Sum(i => checked(i.ListedPriceCents * i.Quantity));
         var order = new Order
         {
+            ClientOrderId = request.ClientOrderId,
             CustomerId = customerId,
             GuestEmail = guestEmail,
             PaymentMethodId = paymentMethodId,
@@ -401,7 +417,21 @@ public class OrdersController : ControllerBase
             _context.Entry(customer).Property(c => c.PhoneNumber).IsModified = true;
         }
         _context.Orders.Add(order);
-        await _context.SaveChangesAsync(ct);
+        try
+        {
+            await _context.SaveChangesAsync(ct);
+        }
+        catch (DbUpdateException) when (request.ClientOrderId.HasValue)
+        {
+            // Lost a race against another request carrying the same ClientOrderId (the
+            // pre-check above is best-effort, not a lock) — the unique index caught it, so
+            // the other request's order is now the canonical one. Hand that back instead.
+            var racedOrder = await BuildOrderQuery()
+                .FirstOrDefaultAsync(o => o.ClientOrderId == request.ClientOrderId.Value, ct);
+            if (racedOrder != null)
+                return StatusCode(StatusCodes.Status201Created, MapOrder(racedOrder));
+            throw;
+        }
 
         var createdOrder = await BuildOrderQuery().FirstOrDefaultAsync(o => o.Id == order.Id, ct);
         if (createdOrder == null)
@@ -879,6 +909,8 @@ public class OrdersController : ControllerBase
                     Quantity = i.Quantity,
                     UnitPrice = i.UnitPrice,
                     LineTotal = i.UnitPrice * i.Quantity,
+                    EurUnitPrice = i.EurUnitPrice,
+                    EurLineTotal = i.EurUnitPrice.HasValue ? i.EurUnitPrice * i.Quantity : null,
                 })
                 .ToList(),
         };

@@ -188,6 +188,47 @@ public class NovaPoshtaService : INovaPoshtaService
         return data?["Cost"]?.GetValue<decimal>();
     }
 
+    public async Task<IReadOnlyList<NovaPoshtaCity>> GetCitiesAsync(CancellationToken ct = default)
+    {
+        // ponytail: single Limit=20000 page, no loop over Page — Nova Poshta's whole network is
+        // ~15k settlements as of writing, comfortably under one page. Revisit with real
+        // pagination if their network ever grows past this Limit.
+        var result = await CallAsync(
+            apiKey: string.Empty,
+            "Address",
+            "getCities",
+            new { Limit = "20000" },
+            ct);
+
+        return result["data"]?.AsArray()
+            .Select(item => new NovaPoshtaCity(
+                item!["Ref"]!.GetValue<string>(),
+                item["Description"]?.GetValue<string>() ?? string.Empty))
+            .Where(c => c.Name.Length > 0)
+            .ToList()
+            ?? [];
+    }
+
+    public async Task<IReadOnlyList<NovaPoshtaWarehouse>> GetWarehousesAsync(string cityRef, CancellationToken ct = default)
+    {
+        var result = await CallAsync(
+            apiKey: string.Empty,
+            "Address",
+            "getWarehouses",
+            new { CityRef = cityRef, Limit = "500" },
+            ct);
+
+        return result["data"]?.AsArray()
+            .Select(item => new NovaPoshtaWarehouse(
+                item!["Ref"]!.GetValue<string>(),
+                item["CityRef"]?.GetValue<string>() ?? cityRef,
+                item["Description"]?.GetValue<string>() ?? string.Empty,
+                item["ShortAddress"]?.GetValue<string>() ?? string.Empty,
+                item["Number"]?.GetValue<string>() ?? string.Empty))
+            .ToList()
+            ?? [];
+    }
+
     public async Task<bool> DeleteWaybillAsync(string senderProfileId, string ttnRef, CancellationToken ct = default)
     {
         var profile = SenderProfiles.FirstOrDefault(p => p.Id == senderProfileId)

@@ -15,8 +15,18 @@ export interface OrderItemDto {
   quantity: number;
   unitPrice: number;
   lineTotal: number;
+  /** EUR snapshot at purchase time. Null for orders placed before EUR pricing existed. */
+  eurUnitPrice?: number | null;
+  eurLineTotal?: number | null;
   countryId: number | null;
   countryName: string | null;
+}
+
+/** Sum of eurLineTotal across every item, or null if any item lacks a EUR snapshot (older order). */
+export function orderEurTotal(order: { items: OrderItemDto[] }): number | null {
+  if (order.items.length === 0) return null;
+  if (order.items.some((i) => i.eurUnitPrice == null)) return null;
+  return order.items.reduce((sum, i) => sum + (i.eurLineTotal ?? i.eurUnitPrice! * i.quantity), 0);
 }
 
 export interface OrderDto {
@@ -65,6 +75,8 @@ export interface CreateOrderItemRequest {
 }
 
 export interface CreateOrderRequest {
+  /** Set only when syncing an order that was queued offline — see offline/orderOutbox.ts. */
+  clientOrderId?: string;
   items: CreateOrderItemRequest[];
   phoneNumber: string;
   /** Required for guest checkout (no logged-in customer). */

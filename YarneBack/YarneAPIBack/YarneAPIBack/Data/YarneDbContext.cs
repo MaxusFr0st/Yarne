@@ -145,6 +145,8 @@ public partial class YarneDbContext : DbContext
             entity.ToTable("ProductColor");
             entity.Property(e => e.Price).HasColumnType("decimal(18, 2)");
             entity.Property(e => e.PriceWithLace).HasColumnType("decimal(18, 2)");
+            entity.Property(e => e.EurPrice).HasColumnType("decimal(18, 2)");
+            entity.Property(e => e.EurPriceWithLace).HasColumnType("decimal(18, 2)");
             entity.HasOne(d => d.Product).WithMany(p => p.ProductColors)
                 .HasForeignKey(d => d.ProductId)
                 .OnDelete(DeleteBehavior.Cascade);
@@ -304,6 +306,10 @@ public partial class YarneDbContext : DbContext
 
             entity.ToTable("Order");
 
+            entity.HasIndex(e => e.ClientOrderId)
+                .IsUnique()
+                .HasFilter("\"ClientOrderId\" IS NOT NULL");
+
             entity.Property(e => e.OrderDate).HasDefaultValueSql("CURRENT_TIMESTAMP");
             entity.Property(e => e.EstimatedDelivery).HasColumnType("timestamp without time zone");
             entity.Property(e => e.Status)
@@ -346,6 +352,7 @@ public partial class YarneDbContext : DbContext
             entity.ToTable("OrderItem");
 
             entity.Property(e => e.UnitPrice).HasColumnType("decimal(18, 2)");
+            entity.Property(e => e.EurUnitPrice).HasColumnType("decimal(18, 2)");
             entity.Property(e => e.ProductName).HasMaxLength(200);
             entity.Property(e => e.ProductCode).HasMaxLength(50);
             entity.Property(e => e.ProductImageUrl).HasMaxLength(500);
@@ -409,6 +416,7 @@ public partial class YarneDbContext : DbContext
             entity.Property(e => e.Material).HasMaxLength(100);
             entity.Property(e => e.Name).HasMaxLength(255);
             entity.Property(e => e.Price).HasColumnType("decimal(18, 2)");
+            entity.Property(e => e.EurPrice).HasColumnType("decimal(18, 2)");
             entity.Property(e => e.ProducerName).HasMaxLength(255);
             entity.Property(e => e.ProductCode).HasMaxLength(50);
 

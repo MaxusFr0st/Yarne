@@ -12,6 +12,10 @@ public partial class ProductColor
 
     public decimal? PriceWithLace { get; set; }
 
+    public decimal? EurPrice { get; set; }
+
+    public decimal? EurPriceWithLace { get; set; }
+
     public virtual Product Product { get; set; } = null!;
 
     public virtual Color Color { get; set; } = null!;

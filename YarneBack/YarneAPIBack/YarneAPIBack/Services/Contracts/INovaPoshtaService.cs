@@ -4,6 +4,12 @@ public record NovaPoshtaWaybill(string TtnNumber, string TtnRef);
 
 public record NovaPoshtaTrackingStatus(string Status, string StatusCode);
 
+/// <summary>A settlement (city/town/village) in Nova Poshta's delivery network.</summary>
+public record NovaPoshtaCity(string Ref, string Name);
+
+/// <summary>A branch/warehouse within one city.</summary>
+public record NovaPoshtaWarehouse(string Ref, string CityRef, string Description, string ShortAddress, string Number);
+
 /// <summary>Ship-from address override. Falls back to the sender profile's own default when omitted.</summary>
 public record NovaPoshtaSenderAddress(string CityRef, string WarehouseRef);
 
@@ -49,6 +55,12 @@ public interface INovaPoshtaService
 
     /// <summary>Estimated shipping cost, in UAH. Uses Nova Poshta's keyless pricing endpoint, so it works pre-checkout with no account/order yet.</summary>
     Task<decimal?> GetShippingPriceAsync(string recipientCityRef, decimal declaredCost, CancellationToken ct = default);
+
+    /// <summary>Every city/settlement in Nova Poshta's network. Keyless endpoint. Cache this — it's a large, slow-changing list, not a per-request call.</summary>
+    Task<IReadOnlyList<NovaPoshtaCity>> GetCitiesAsync(CancellationToken ct = default);
+
+    /// <summary>Branches within one city. Keyless endpoint.</summary>
+    Task<IReadOnlyList<NovaPoshtaWarehouse>> GetWarehousesAsync(string cityRef, CancellationToken ct = default);
 
     /// <summary>
     /// Cancels a waybill. Must use the same sender profile that created it -- Nova Poshta

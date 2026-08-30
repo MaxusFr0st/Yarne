@@ -18,6 +18,9 @@ public class UpdateProductRequest
     [Range(0, double.MaxValue)]
     public decimal Price { get; set; }
 
+    [Range(typeof(decimal), "0", "999999999")]
+    public decimal? EurPrice { get; set; }
+
     [StringLength(100)]
     public string? Material { get; set; }
 

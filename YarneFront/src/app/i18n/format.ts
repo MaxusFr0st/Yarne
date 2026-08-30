@@ -8,6 +8,10 @@ const LOCALE_BCP47: Record<Locale, string> = {
 /** Official Ukrainian hryvnia sign (Unicode U+20B4), adopted by NBU in 2004. */
 export const HRYVNIA_SIGN = "\u20B4";
 
+export const EURO_SIGN = "\u20AC";
+
+export type PriceCurrency = "UAH" | "EUR";
+
 export function getHryvniaUnit(amount: number): string {
   const wholeUnits = Math.floor(Math.abs(amount));
   const mod100 = wholeUnits % 100;
@@ -32,10 +36,14 @@ export function formatPriceCompact(amount: number, locale: Locale): string {
   return `${HRYVNIA_SIGN} ${formatAmountNumber(safe, locale)}`;
 }
 
-export function splitPriceCompact(amount: number, locale: Locale): { symbol: string; value: string } {
+export function splitPriceCompact(
+  amount: number,
+  locale: Locale,
+  currency: PriceCurrency = "UAH"
+): { symbol: string; value: string } {
   const safe = Number.isFinite(amount) ? amount : 0;
   return {
-    symbol: HRYVNIA_SIGN,
+    symbol: currency === "EUR" ? EURO_SIGN : HRYVNIA_SIGN,
     value: formatAmountNumber(safe, locale),
   };
 }

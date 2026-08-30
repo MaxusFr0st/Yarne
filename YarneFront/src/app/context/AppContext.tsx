@@ -23,6 +23,8 @@ export interface CartItem {
   name: string;
   subtitle?: string;
   price: number;
+  /** EUR equivalent, shown instead of price when the shopper is browsing in English. */
+  eurPrice?: number | null;
   color: string;
   colorId?: number;
   colorHex: string;
@@ -40,11 +42,6 @@ export interface CartItem {
   image: string;
 }
 
-interface WishlistContextType {
-  wishlist: string[];
-  toggleWishlist: (productId: string) => void;
-}
-
 interface CartContextType {
   cartItems: CartItem[];
   addToCart: (item: Omit<CartItem, "cartId">) => void;
@@ -52,6 +49,8 @@ interface CartContextType {
   updateQuantity: (cartId: string, qty: number) => void;
   clearCart: () => void;
   cartTotal: number;
+  /** Sum of eurPrice*quantity, or null if any cart item has no EUR price set. */
+  cartEurTotal: number | null;
   cartCount: number;
 }
 
@@ -75,9 +74,8 @@ interface AuthContextType {
   logout: () => void;
 }
 
-type AppContextType = CartContextType & OverlayContextType & AuthContextType & WishlistContextType;
+type AppContextType = CartContextType & OverlayContextType & AuthContextType;
 
-const WishlistContext = createContext<WishlistContextType | null>(null);
 const CartContext = createContext<CartContextType | null>(null);
 const OverlayContext = createContext<OverlayContextType | null>(null);
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -121,7 +119,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [authHydrated, setAuthHydrated] = useState(false);
   const [user, setUser] = useState<{ name: string; email: string; role: string } | null>(null);
-  const [wishlist, setWishlist] = useState<string[]>([]);
   const [sessionExpiresAt, setSessionExpiresAt] = useState<string | null>(null);
 
   const clearClientAuth = useCallback(() => {
@@ -251,6 +248,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, [cartItems]);
 
   const cartTotal = cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
+  const cartEurTotal = cartItems.length > 0 && cartItems.every((item) => item.eurPrice != null)
+    ? cartItems.reduce((sum, item) => sum + item.eurPrice! * item.quantity, 0)
+    : null;
   const cartCount = cartItems.reduce((sum, item) => sum + item.quantity, 0);
 
   const openCart = useCallback(() => {
@@ -360,14 +360,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  const toggleWishlist = useCallback((productId: string) => {
-    setWishlist((prev) =>
-      prev.includes(productId) ? prev.filter((id) => id !== productId) : [...prev, productId]
-    );
-  }, []);
-
-  const wishlistValue = useMemo(() => ({ wishlist, toggleWishlist }), [wishlist, toggleWishlist]);
-
   const cartValue = useMemo(
     () => ({
       cartItems,
@@ -376,9 +368,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       updateQuantity,
       clearCart,
       cartTotal,
+      cartEurTotal,
       cartCount,
     }),
-    [cartItems, addToCart, removeFromCart, updateQuantity, clearCart, cartTotal, cartCount]
+    [cartItems, addToCart, removeFromCart, updateQuantity, clearCart, cartTotal, cartEurTotal, cartCount]
   );
 
   const overlayValue = useMemo(
@@ -402,36 +395,27 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const appValue = useMemo<AppContextType>(
     () => ({
-      ...wishlistValue,
       ...cartValue,
       ...overlayValue,
       ...authValue,
     }),
-    [wishlistValue, cartValue, overlayValue, authValue]
+    [cartValue, overlayValue, authValue]
   );
 
   return (
-    <WishlistContext.Provider value={wishlistValue}>
-      <CartContext.Provider value={cartValue}>
-        <OverlayContext.Provider value={overlayValue}>
-          <AuthContext.Provider value={authValue}>
-            <AppContext.Provider value={appValue}>{children}</AppContext.Provider>
-          </AuthContext.Provider>
-        </OverlayContext.Provider>
-      </CartContext.Provider>
-    </WishlistContext.Provider>
+    <CartContext.Provider value={cartValue}>
+      <OverlayContext.Provider value={overlayValue}>
+        <AuthContext.Provider value={authValue}>
+          <AppContext.Provider value={appValue}>{children}</AppContext.Provider>
+        </AuthContext.Provider>
+      </OverlayContext.Provider>
+    </CartContext.Provider>
   );
 }
 
 export function useApp() {
   const ctx = useContext(AppContext);
   if (!ctx) throw new Error("useApp must be used within AppProvider");
-  return ctx;
-}
-
-export function useWishlist() {
-  const ctx = useContext(WishlistContext);
-  if (!ctx) throw new Error("useWishlist must be used within AppProvider");
   return ctx;
 }
 

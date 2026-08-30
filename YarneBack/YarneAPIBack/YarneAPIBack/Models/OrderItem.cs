@@ -22,6 +22,9 @@ public partial class OrderItem
 
     public decimal UnitPrice { get; set; }
 
+    /// <summary>EUR unit price snapshot at time of purchase. Null for orders placed before EUR pricing existed.</summary>
+    public decimal? EurUnitPrice { get; set; }
+
     public long ListedPriceCents { get; set; }
 
     public long NetPriceCents { get; set; }

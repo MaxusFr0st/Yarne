@@ -17,6 +17,9 @@ public class CreateProductRequest
     [Range(0, double.MaxValue)]
     public decimal Price { get; set; }
 
+    [Range(typeof(decimal), "0", "999999999")]
+    public decimal? EurPrice { get; set; }
+
     [StringLength(100)]
     public string? Material { get; set; }
 
@@ -87,4 +90,10 @@ public class ColorPriceInput
 
     [Range(typeof(decimal), "0", "999999999")]
     public decimal? PriceWithLace { get; set; }
+
+    [Range(typeof(decimal), "0", "999999999")]
+    public decimal? EurPrice { get; set; }
+
+    [Range(typeof(decimal), "0", "999999999")]
+    public decimal? EurPriceWithLace { get; set; }
 }

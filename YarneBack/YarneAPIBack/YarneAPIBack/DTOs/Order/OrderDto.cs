@@ -80,4 +80,9 @@ public class OrderItemDto
     public decimal UnitPrice { get; set; }
 
     public decimal LineTotal { get; set; }
+
+    /// <summary>EUR unit price snapshotted at purchase time. Null for orders placed before EUR pricing existed.</summary>
+    public decimal? EurUnitPrice { get; set; }
+
+    public decimal? EurLineTotal { get; set; }
 }

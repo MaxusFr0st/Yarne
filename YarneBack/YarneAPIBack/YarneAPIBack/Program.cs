@@ -150,6 +150,7 @@ builder.Services.AddRateLimiter(options =>
 
 // Services (SOLID - dependency injection)
 builder.Services.AddHttpClient();
+builder.Services.AddMemoryCache();
 builder.Services.AddScoped<IAccessTokenIssuer, AccessTokenIssuer>();
 builder.Services.AddScoped<IRefreshTokenService, RefreshTokenService>();
 builder.Services.AddScoped<IAuthService, AuthService>();

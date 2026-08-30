@@ -8,6 +8,12 @@ public partial class Order
 {
     public int Id { get; set; }
 
+    /// <summary>
+    /// Client-generated idempotency key for orders queued offline. Null for a normal online
+    /// order. Unique among non-null values — see CreateOrderCore's dedup check.
+    /// </summary>
+    public Guid? ClientOrderId { get; set; }
+
     public int? CustomerId { get; set; }
 
     /// <summary>Contact email for guest checkout (no Customer account). Null for logged-in orders.</summary>

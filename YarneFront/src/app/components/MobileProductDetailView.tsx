@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useEmblaCarouselWithGestures } from "../hooks/useEmblaCarouselWithGestures";
 import { motion, AnimatePresence, LayoutGroup, useReducedMotion } from "motion/react";
-import { ArrowLeft, Heart, ShoppingBag, Check, ChevronDown } from "lucide-react";
+import { ArrowLeft, ShoppingBag, Check, ChevronDown } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import type { Product, ProductImage } from "../types/product";
 import type { Locale } from "../i18n/config";
@@ -31,18 +31,17 @@ type MobileProductDetailViewProps = {
   images: ProductImage[];
   locale: Locale;
   displayPrice: number;
+  displayEurPrice?: number | null;
   activeColor: number;
   activeFurniture: number;
   activeSize: string | null;
   displaySizes: string[];
-  isWishlisted: boolean;
   addedToBag: boolean;
   sizeError: boolean;
   laceEnabled: boolean;
   activeLace: boolean;
   onLaceChange: (next: boolean) => void;
   onBack: () => void;
-  onToggleWishlist: () => void;
   onColorChange: (index: number) => void;
   onFurnitureChange: (index: number) => void;
   onSizeChange: (size: string) => void;
@@ -55,18 +54,17 @@ export function MobileProductDetailView({
   images,
   locale,
   displayPrice,
+  displayEurPrice,
   activeColor,
   activeFurniture,
   activeSize,
   displaySizes,
-  isWishlisted,
   addedToBag,
   sizeError,
   laceEnabled,
   activeLace,
   onLaceChange,
   onBack,
-  onToggleWishlist,
   onColorChange,
   onFurnitureChange,
   onSizeChange,
@@ -288,21 +286,6 @@ export function MobileProductDetailView({
           <ArrowLeft size={18} strokeWidth={1.5} className="text-[#2D241E]" />
         </button>
 
-        <button
-          type="button"
-          onClick={onToggleWishlist}
-          className="absolute z-20 top-[clamp(10px,2.5vw,16px)] right-[clamp(10px,2.5vw,16px)] flex items-center justify-center rounded-full bg-white/92 shadow-sm cursor-pointer"
-          style={{ width: "clamp(36px, 9vw, 42px)", height: "clamp(36px, 9vw, 42px)" }}
-          aria-label={isWishlisted ? t("product.wishlistRemove") : t("product.wishlistAdd")}
-        >
-          <Heart
-            size={17}
-            strokeWidth={1.5}
-            fill={isWishlisted ? "#4A0E0E" : "none"}
-            stroke={isWishlisted ? "#4A0E0E" : "#2D241E"}
-          />
-        </button>
-
         {images.length > 1 && (
           // Sits above the info sheet's -mt-[clamp(24px,6vw,32px)] overlap so it isn't buried under it at rest.
           <div className="absolute z-20 bottom-[clamp(34px,8vw,42px)] left-1/2 -translate-x-1/2 flex items-center gap-1.5">
@@ -437,7 +420,7 @@ export function MobileProductDetailView({
             className="shrink-0 rounded-[22px] p-4 flex flex-col gap-[13px]"
             style={{ backgroundColor: "#fff", boxShadow: "0 14px 30px -18px rgba(45,36,30,0.16)" }}
           >
-          <PriceTag amount={displayPrice} locale={locale} variant="display" />
+          <PriceTag amount={displayPrice} eurAmount={displayEurPrice} locale={locale} variant="display" />
 
           <div className="pt-[12px]" style={{ borderTop: "1px solid rgba(45,36,30,0.08)" }}>
             <div className="flex items-center justify-between mb-[clamp(4px,1vw,6px)]">

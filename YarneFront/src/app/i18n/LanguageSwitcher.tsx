@@ -35,10 +35,6 @@ export function LanguageSwitcher({
     ? (i18n.language as Locale)
     : "en";
 
-  // Scope the shared-layout id by variant so the desktop (compact) and the
-  // mobile-drawer (full) switchers never try to animate against each other.
-  const indicatorLayoutId = `language-switcher-indicator-${variant}`;
-
   const change = (next: Locale) => {
     if (next === active) return;
     if (typeof window !== "undefined") {
@@ -90,24 +86,24 @@ export function LanguageSwitcher({
             >
               {variant === "full" ? display.native : display.short}
             </motion.span>
-            {isActive && (
-              <motion.span
-                layoutId={indicatorLayoutId}
-                aria-hidden="true"
-                className="absolute left-1 right-1 -bottom-[1px] block"
-                style={{
-                  height: "1.5px",
-                  backgroundColor: "#2D241E",
-                  borderRadius: "1px",
-                }}
-                transition={{
-                  type: "spring",
-                  stiffness: 380,
-                  damping: 32,
-                  mass: 0.6,
-                }}
-              />
-            )}
+            {/*
+              Always mounted (no layoutId): a shared layoutId re-measures against ANY
+              layout change on the page via Framer's global projection system, so a plain
+              route change with a differently-sized page caused this to FLIP-animate from a
+              stale position — a visible jump on every navigation, not just a language
+              switch. Animating a local scaleX/opacity instead makes it fully self-contained.
+            */}
+            <motion.span
+              aria-hidden="true"
+              className="absolute left-1 right-1 -bottom-[1px] block origin-center"
+              style={{
+                height: "1.5px",
+                backgroundColor: "#2D241E",
+                borderRadius: "1px",
+              }}
+              animate={{ scaleX: isActive ? 1 : 0, opacity: isActive ? 1 : 0 }}
+              transition={{ duration: 0.25, ease: TEXT_EASING }}
+            />
           </button>
         );
       })}

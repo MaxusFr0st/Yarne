@@ -31,6 +31,12 @@ public class ColorVariantDto
     /// <summary>Per-color price when the lace option is selected. Null = falls back to Price.</summary>
     public decimal? PriceWithLace { get; set; }
 
+    /// <summary>Per-color EUR price. Null = falls back to the product's base EurPrice.</summary>
+    public decimal? EurPrice { get; set; }
+
+    /// <summary>Per-color EUR price when the lace option is selected. Null = falls back to EurPrice.</summary>
+    public decimal? EurPriceWithLace { get; set; }
+
     /// <summary>Primary/thumbnail image for product cards</summary>
     public ProductImageDto Image { get; set; } = new();
 

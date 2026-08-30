@@ -2,7 +2,10 @@ import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from
 import { motion } from "motion/react";
 import { ArrowRight, CheckCircle2, Package } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { createOrder, fetchNovaPoshtaShippingPrice, type OrderDto } from "../api/orders";
+import { toast } from "sonner";
+import { createOrder, fetchNovaPoshtaShippingPrice, orderEurTotal, type OrderDto } from "../api/orders";
+import { queueOrder } from "../offline/orderOutbox";
+import { useOnlineStatus } from "../hooks/useOnlineStatus";
 import { fetchCustomerProfile } from "../api/auth";
 import { useApp, type CartItem } from "../context/AppContext";
 import { ImageWithFallback } from "../components/figma/ImageWithFallback";
@@ -50,8 +53,9 @@ function toDisplayDate(value: string, locale: "uk" | "en"): string {
 
 export function CheckoutPage() {
   const { t } = useTranslation();
+  const online = useOnlineStatus();
   const locale = useLocale();
-  const { cartItems, cartTotal, isLoggedIn, user, clearCart } = useApp();
+  const { cartItems, cartTotal, cartEurTotal, isLoggedIn, user, clearCart } = useApp();
   // Session-scoped so an accidental reload no longer wipes a half-filled checkout.
   const [email, setEmail] = useSessionState(S.email, "");
   const [recipientFirstName, setRecipientFirstName] = useSessionState(S.firstName, "");
@@ -78,6 +82,8 @@ export function CheckoutPage() {
 
   const displaySubtotal = placedOrder ? Number(placedOrder.total) || snapshotTotal : cartTotal;
   const displayTotal = displaySubtotal;
+  const displaySubtotalEur = placedOrder ? orderEurTotal(placedOrder) : cartEurTotal;
+  const displayTotalEur = displaySubtotalEur;
 
   // The list holds every line, but only VISIBLE_ORDER_ITEMS of them before it turns into a
   // scroll region. The cap is measured from the real rows rather than hardcoded in px: row
@@ -224,28 +230,43 @@ export function CheckoutPage() {
     setOrderSnapshot(snapshot);
     setSnapshotTotal(cartItemsTotal(snapshot));
 
+    const orderPayload = {
+      phoneNumber: normalizedRecipientPhone,
+      email: isLoggedIn ? undefined : normalizedEmail,
+      recipientFirstName: recipientFirstName.trim(),
+      recipientLastName: recipientLastName.trim(),
+      recipientPhone: normalizedRecipientPhone,
+      deliveryCityRef: delivery.cityRef,
+      deliveryCityName: delivery.cityName,
+      deliveryWarehouseRef: delivery.warehouseRef,
+      deliveryWarehouseName: delivery.warehouseName,
+      items: snapshot.map((item) => ({
+        productIdOrCode: item.productId,
+        quantity: item.quantity,
+        productSubtitle: item.subtitle,
+        colorName: item.color,
+        colorId: item.colorId,
+        furnitureColorName: item.furnitureColor ?? undefined,
+        sizeName: item.size,
+        withLace: item.withLace ?? undefined,
+      })),
+    };
+
     try {
-      const order = await createOrder({
-        phoneNumber: normalizedRecipientPhone,
-        email: isLoggedIn ? undefined : normalizedEmail,
-        recipientFirstName: recipientFirstName.trim(),
-        recipientLastName: recipientLastName.trim(),
-        recipientPhone: normalizedRecipientPhone,
-        deliveryCityRef: delivery.cityRef,
-        deliveryCityName: delivery.cityName,
-        deliveryWarehouseRef: delivery.warehouseRef,
-        deliveryWarehouseName: delivery.warehouseName,
-        items: snapshot.map((item) => ({
-          productIdOrCode: item.productId,
-          quantity: item.quantity,
-          productSubtitle: item.subtitle,
-          colorName: item.color,
-          colorId: item.colorId,
-          furnitureColorName: item.furnitureColor ?? undefined,
-          sizeName: item.size,
-          withLace: item.withLace ?? undefined,
-        })),
-      });
+      if (!online) {
+        // No network to actually create the order — queue it. The outbox's own id becomes
+        // the ClientOrderId at sync time (offline/orderOutbox.ts), so a retried sync can
+        // never create a duplicate. There's no real OrderDto yet (nothing was created
+        // server-side), so this shows a toast rather than the full order-summary view below,
+        // which needs a real id/status neither of us has right now.
+        await queueOrder(orderPayload);
+        toast(t("checkout.deliveryOfflineNotice"), { duration: Infinity });
+        clearCart();
+        clearSessionState(...Object.values(S));
+        return;
+      }
+
+      const order = await createOrder(orderPayload);
       setPlacedOrder(order);
       clearCart();
       // The order exists server-side now — keeping the recipient's details in storage would
@@ -400,14 +421,14 @@ export function CheckoutPage() {
           <div className="space-y-3 pb-4 border-b" style={{ borderColor: "rgba(245,242,237,0.15)" }}>
             <div className="flex items-center justify-between text-sm" style={{ fontFamily: "'DM Sans', sans-serif" }}>
               <span style={{ color: "rgba(245,242,237,0.65)" }}>{t("checkout.subtotal")}</span>
-              <PriceTag amount={displaySubtotal} locale={locale} variant="line" tone="light" withUnit />
+              <PriceTag amount={displaySubtotal} eurAmount={displaySubtotalEur} locale={locale} variant="line" tone="light" withUnit />
             </div>
           </div>
           <div className="flex items-center justify-between mt-4">
             <span className="uppercase" style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "0.68rem", letterSpacing: "0.1em", color: "rgba(245,242,237,0.65)" }}>
               {t("checkout.total")}
             </span>
-            <PriceTag amount={displayTotal} locale={locale} variant="emphasis" tone="light" withUnit />
+            <PriceTag amount={displayTotal} eurAmount={displayTotalEur} locale={locale} variant="emphasis" tone="light" withUnit />
           </div>
 
           {!placedOrder && (
@@ -574,6 +595,19 @@ export function CheckoutPage() {
             </div>
           ) : (
             <>
+              {!online && (
+                <p
+                  className="mt-4 text-sm rounded-2xl px-3.5 py-3"
+                  style={{
+                    fontFamily: "'DM Sans', sans-serif",
+                    color: "#F5F2ED",
+                    backgroundColor: "rgba(245,242,237,0.10)",
+                    border: "1px solid rgba(245,242,237,0.18)",
+                  }}
+                >
+                  {t("checkout.deliveryOfflineNotice")}
+                </p>
+              )}
               {error && (
                 <p className="mt-4 text-sm" style={{ fontFamily: "'DM Sans', sans-serif", color: "#F2B8B8" }}>
                   {error}

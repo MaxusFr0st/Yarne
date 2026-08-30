@@ -48,6 +48,27 @@ export function resolveDisplayPrice(
 }
 
 /**
+ * EUR price for selected color + lace, mirroring resolveDisplayPrice. Returns null (not 0)
+ * when neither the color nor the product has a EUR price set, so callers can fall back to
+ * showing the UAH price instead of a bogus €0.
+ */
+export function resolveDisplayEurPrice(
+  color: ColorVariant | undefined,
+  activeLace: boolean,
+  baseEurPrice: number | null | undefined
+): number | null {
+  const fallback = baseEurPrice ?? null;
+  if (!color) return fallback;
+  if (activeLace) {
+    if (color.eurPriceWithLace != null) return color.eurPriceWithLace;
+    if (color.eurPrice != null) return color.eurPrice;
+    return fallback;
+  }
+  if (color.eurPrice != null) return color.eurPrice;
+  return fallback;
+}
+
+/**
  * The admin form has no standalone base-price field — every color sets its own price.
  * This derives the product's fallback Price (used when a color has none set): the
  * default color's price, the first selected color that has one, or `existingPrice`
@@ -66,4 +87,18 @@ export function deriveBasePrice(
     colorIds.map((id) => colorPrices[id]).find((v) => v && v.trim());
   const parsed = raw ? parseFloat(raw) : NaN;
   return Number.isFinite(parsed) && parsed > 0 ? parsed : existingPrice;
+}
+
+/** EUR counterpart of deriveBasePrice. Optional — returns undefined when nothing was entered. */
+export function deriveBaseEurPrice(
+  colorIds: number[],
+  defaultColorId: number | null,
+  colorEurPrices: Record<number, string>,
+  existingEurPrice?: number
+): number | undefined {
+  const raw =
+    (defaultColorId != null ? colorEurPrices[defaultColorId] : undefined) ??
+    colorIds.map((id) => colorEurPrices[id]).find((v) => v && v.trim());
+  const parsed = raw ? parseFloat(raw) : NaN;
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : existingEurPrice;
 }

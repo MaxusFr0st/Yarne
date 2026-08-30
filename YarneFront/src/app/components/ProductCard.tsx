@@ -1,9 +1,8 @@
 import React, { memo, useEffect, useState, type MouseEvent } from "react";
 import { motion } from "motion/react";
-import { Heart, ShoppingBag } from "lucide-react";
+import { ShoppingBag } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import type { Product } from "../types/product";
-import { useWishlist } from "../context/AppContext";
 import { useCart } from "../context/AppContext";
 import { ImageWithFallback } from "./figma/ImageWithFallback";
 import { LangLink } from "../i18n/LangLink";
@@ -13,7 +12,7 @@ import { useMotionEntrance } from "../hooks/useMotionEntrance";
 import { useTouchMobileLayout } from "../hooks/useTouchMobileLayout";
 import { getDefaultColorIndex } from "../utils/productColorIndex";
 import { localizedCatalogName } from "../utils/localizedName";
-import { resolveDisplayPrice } from "../utils/variantStock";
+import { resolveDisplayPrice, resolveDisplayEurPrice } from "../utils/variantStock";
 
 interface ProductCardProps {
   product: Product;
@@ -55,7 +54,6 @@ function ProductCardInner({
     onActiveColorChange?.(index);
   };
   const { addToCart } = useCart();
-  const { wishlist, toggleWishlist } = useWishlist();
   const { disabled: motionDisabled } = useMotionEntrance();
   const touchMobile = useTouchMobileLayout();
   const [mobilePeek, setMobilePeek] = useState(false);
@@ -65,7 +63,6 @@ function ProductCardInner({
     setInternalColor(getDefaultColorIndex(product));
   }, [product.defaultColor, product.colors, isControlledColor]);
 
-  const isWishlisted = wishlist.includes(product.id);
   const isCarouselCard = inCarousel || size === "carousel";
 
   const aspectClass = previewBreakpoint
@@ -103,13 +100,6 @@ function ProductCardInner({
       quantity: 1,
       image: product.colors[activeColor].image.src,
     });
-  };
-
-  const handleWishlist = (e: MouseEvent<HTMLButtonElement>) => {
-    if (previewMode) return;
-    e.preventDefault();
-    e.stopPropagation();
-    toggleWishlist(product.id);
   };
 
   const activeColorVariant = product.colors[activeColor];
@@ -226,26 +216,6 @@ function ProductCardInner({
 
           {!previewMode && (
             <button
-              onClick={handleWishlist}
-              className="absolute top-4 right-4 w-9 h-9 rounded-full flex items-center justify-center transition-colors duration-300 cursor-pointer"
-              style={{
-                backgroundColor: isWishlisted ? "#4A0E0E" : "rgba(245,242,237,0.85)",
-                backdropFilter: "blur(8px)",
-              }}
-              aria-pressed={isWishlisted}
-              aria-label={isWishlisted ? t("product.removeFromWishlist", { defaultValue: "Remove from wishlist" }) : t("product.addToWishlist", { defaultValue: "Add to wishlist" })}
-            >
-              <Heart
-                size={15}
-                strokeWidth={1.5}
-                fill={isWishlisted ? "white" : "none"}
-                stroke={isWishlisted ? "white" : "#2D241E"}
-              />
-            </button>
-          )}
-
-          {!previewMode && (
-            <button
               onClick={handleQuickAdd}
               className={`absolute bottom-4 left-1/2 -translate-x-1/2 whitespace-nowrap px-6 py-2.5 rounded-full text-white flex items-center gap-2 cursor-pointer transition-[opacity,transform] duration-[380ms] ease-[cubic-bezier(0.25,0.1,0.25,1)] ${quickAddVisibleClass} motion-reduce:transition-none motion-reduce:opacity-100 motion-reduce:translate-y-0 motion-reduce:scale-100`}
               style={{
@@ -283,7 +253,13 @@ function ProductCardInner({
                 {product.subtitle}
               </p>
             </div>
-            <PriceTag amount={resolveDisplayPrice(activeColorVariant, false, product.price)} locale={locale} variant="card" className="flex-shrink-0" />
+            <PriceTag
+              amount={resolveDisplayPrice(activeColorVariant, false, product.price)}
+              eurAmount={resolveDisplayEurPrice(activeColorVariant, false, product.eurPrice)}
+              locale={locale}
+              variant="card"
+              className="flex-shrink-0"
+            />
           </div>
 
           {(product.colors.length > 1 || activeColorLabel) && (

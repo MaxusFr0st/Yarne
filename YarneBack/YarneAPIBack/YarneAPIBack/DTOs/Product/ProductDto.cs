@@ -12,6 +12,9 @@ public class ProductDto
 
     public decimal Price { get; set; }
 
+    /// <summary>EUR price shown when the shopper is browsing in English. Null = no EUR price set.</summary>
+    public decimal? EurPrice { get; set; }
+
     public string? Material { get; set; }
 
     public ProductImageDto? PrimaryImage { get; set; }

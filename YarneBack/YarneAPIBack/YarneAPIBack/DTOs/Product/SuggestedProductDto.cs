@@ -8,6 +8,8 @@ public class SuggestedProductDto
 
     public decimal Price { get; set; }
 
+    public decimal? EurPrice { get; set; }
+
     public ProductImageDto? PrimaryImage { get; set; }
 
     public string CategoryName { get; set; } = null!;

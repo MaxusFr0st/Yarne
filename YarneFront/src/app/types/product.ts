@@ -16,6 +16,8 @@ export interface ColorVariant {
   hex: string;
   price?: number;
   priceWithLace?: number;
+  eurPrice?: number;
+  eurPriceWithLace?: number;
   image: ProductImage;
   images: ProductImage[];
   sizeImages?: Record<string, ProductImage[]>;
@@ -38,6 +40,7 @@ export interface Product {
   name: string;
   subtitle: string;
   price: number;
+  eurPrice?: number;
   category: string;
   isNew?: boolean;
   isBestseller?: boolean;

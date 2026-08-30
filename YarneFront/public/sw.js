@@ -11,7 +11,13 @@ self.addEventListener("install", (event) => {
   event.waitUntil(
     caches.open(CACHE_VERSION).then((cache) => cache.addAll(APP_SHELL)),
   );
-  self.skipWaiting();
+  // No self.skipWaiting() here — a new version now waits until the page asks
+  // it to take over (see the "message" handler below), so a running session
+  // never gets swapped out from under a bundle it already has loaded in memory.
+});
+
+self.addEventListener("message", (event) => {
+  if (event.data?.type === "SKIP_WAITING") self.skipWaiting();
 });
 
 self.addEventListener("activate", (event) => {
@@ -42,8 +48,18 @@ self.addEventListener("fetch", (event) => {
 
   // Only handle same-origin app-shell assets. Never touch cross-origin (fonts, CDN,
   // Apple/Google SDKs, Cloudflare beacons) — those were causing CSP + RUM console noise.
+  //
+  // NOTE: the API currently lives on a different origin than the storefront
+  // (VITE_API_URL points at a separate Railway host), so the origin check above
+  // already skips every /api/ request today — this /api/orders exclusion is
+  // inert until that changes to a same-origin reverse proxy. Left narrowed now
+  // so GET /api/products, /api/collections, and /api/shipping/* become
+  // cacheable the moment that proxy ships, with no second edit needed here.
   if (url.origin !== self.location.origin) return;
-  if (url.pathname.startsWith("/api/") || url.pathname.startsWith("/cdn-cgi/")) return;
+  if (url.pathname.startsWith("/cdn-cgi/")) return;
+  // request.method is already GET-only here (checked above) — orders are the one API
+  // resource never worth serving stale (price/stock must always be current).
+  if (url.pathname.startsWith("/api/orders")) return;
 
   if (request.mode === "navigate") {
     event.respondWith(

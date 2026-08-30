@@ -10,6 +10,8 @@ const en = {
     shopAll: "Shop All",
     readStory: "Read our story",
     arrow: "→",
+    updateAvailable: "A new version of Yarné is available.",
+    refresh: "Refresh",
   },
   header: {
     home: "Home",
@@ -129,8 +131,6 @@ const en = {
     relatedTitle: "Complete the wardrobe",
     relatedSlide: "Related product",
     galleryImage: "Image {{index}}",
-    wishlistAdd: "Add to wishlist",
-    wishlistRemove: "Remove from wishlist",
     lace: {
       label: "Strap",
       withLace: "With strap",
@@ -184,6 +184,7 @@ const en = {
     shippingFree: "Free",
     total: "Total",
     orderPlaced: "Order placed",
+    orderSyncedNotice: "You're back online — your order was accepted.",
     status: "Status",
     payment: "Payment",
     itemsInOrder: "Items in order",
@@ -215,6 +216,13 @@ const en = {
     deliveryPickerTitle: "Nova Poshta branch",
     deliveryPickerClose: "Close branch picker",
     deliveryPickerLoading: "Loading branches…",
+    deliverySearchCity: "Search for your city…",
+    deliveryNoCityMatch: "No cities found.",
+    deliverySelectCityFirst: "Choose a city",
+    deliverySearchBranch: "Search branches…",
+    deliveryNoBranchesCached: "You're offline, and this city hasn't been loaded yet.",
+    deliveryUseLastBranch: "Deliver to your usual branch instead",
+    deliveryOfflineNotice: "Order placed — you're offline, so it'll sync to us automatically the moment you're back online.",
     errors: {
       unableToPlaceOrder: "Unable to place order right now.",
     },
@@ -292,7 +300,7 @@ const en = {
   account: {
     guest: {
       title: "Welcome back",
-      subtitle: "Sign in to view your orders, update your profile, and manage your wishlist.",
+      subtitle: "Sign in to view your orders and update your profile.",
       signIn: "Sign In",
       continueBrowsing: "Continue browsing",
     },
@@ -302,7 +310,6 @@ const en = {
     },
     stats: {
       orders: "Orders",
-      wishlisted: "Wishlisted",
       totalSpent: "Total Spent",
     },
     tabs: {
@@ -314,7 +321,6 @@ const en = {
       cards: {
         totalOrders: "Total Orders",
         received: "Received",
-        wishlisted: "Wishlisted",
       },
       recentOrdersTitle: "Recent Orders",
       viewAll: "View all",

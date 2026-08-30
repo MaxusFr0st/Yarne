@@ -8,7 +8,6 @@ import {
   ChevronDown,
   ChevronRight,
   Clock,
-  Heart,
   LogOut,
   Mail,
   MapPin,
@@ -17,7 +16,7 @@ import {
   ShoppingBag,
   User,
 } from "lucide-react";
-import { fetchMyOrders, trackOrderByTtn, type OrderDto } from "../api/orders";
+import { fetchMyOrders, trackOrderByTtn, orderEurTotal, type OrderDto } from "../api/orders";
 import { ImageWithFallback } from "../components/figma/ImageWithFallback";
 import { useApp } from "../context/AppContext";
 import { LangLink } from "../i18n/LangLink";
@@ -50,9 +49,13 @@ interface Order {
     quantity: number;
     unitPrice: number;
     lineTotal: number;
+    eurUnitPrice?: number | null;
+    eurLineTotal?: number | null;
     image: string;
   }[];
   total: number;
+  /** Sum of eurLineTotal across items, or null if any item lacks a EUR snapshot (older order). */
+  eurTotal: number | null;
   estimatedDelivery?: string;
   ttnNumber?: string | null;
   trackingStatus?: string | null;
@@ -88,6 +91,7 @@ function mapOrderDto(order: OrderDto): Order {
     ttnNumber: order.ttnNumber,
     trackingStatus: order.trackingStatus,
     total: Number(order.total),
+    eurTotal: orderEurTotal(order),
     items: order.items.map((item) => ({
       id: item.id,
       productCode: item.productCode,
@@ -100,6 +104,8 @@ function mapOrderDto(order: OrderDto): Order {
       quantity: item.quantity,
       unitPrice: Number(item.unitPrice),
       lineTotal: Number(item.lineTotal),
+      eurUnitPrice: item.eurUnitPrice,
+      eurLineTotal: item.eurLineTotal,
       image: item.productImageUrl || IMAGE_PLACEHOLDER,
     })),
   };
@@ -184,7 +190,7 @@ function OrderRow({ order, productImageByCode }: { order: Order; productImageByC
               <StatusBadge status={order.status} />
             </div>
             <p className="text-[#2D241E]/50 text-xs mt-1" style={{ fontFamily: "'DM Sans', sans-serif" }}>
-              {toDisplayDate(order.date, locale)} · {t("account.orderRow.itemCount", { count: order.items.length })} · <PriceTag amount={order.total} locale={locale} variant="line" withUnit />
+              {toDisplayDate(order.date, locale)} · {t("account.orderRow.itemCount", { count: order.items.length })} · <PriceTag amount={order.total} eurAmount={order.eurTotal} locale={locale} variant="line" withUnit />
             </p>
             <DeliveryProgressPreview status={order.status} />
           </div>
@@ -258,7 +264,7 @@ function OrderRow({ order, productImageByCode }: { order: Order; productImageByC
                     {t("account.orderRow.total")}
                   </span>
                   <span className="text-[#2D241E]" style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "1.15rem", fontWeight: 500 }}>
-                    <PriceTag amount={order.total} locale={locale} variant="emphasis" withUnit />
+                    <PriceTag amount={order.total} eurAmount={order.eurTotal} locale={locale} variant="emphasis" withUnit />
                   </span>
                 </div>
               </div>
@@ -273,7 +279,7 @@ function OrderRow({ order, productImageByCode }: { order: Order; productImageByC
 export function AccountPage() {
   const { t } = useTranslation();
   const locale = useLocale();
-  const { user, isLoggedIn, openLogin, logout, wishlist } = useApp();
+  const { user, isLoggedIn, openLogin, logout } = useApp();
   const { products } = useProducts();
 
   const [activeTab, setActiveTab] = useState<Tab>("overview");
@@ -344,18 +350,22 @@ export function AccountPage() {
   );
 
   const totalSpent = useMemo(() => orders.reduce((sum, order) => sum + order.total, 0), [orders]);
+  const totalSpentEur = useMemo(
+    () => (orders.length > 0 && orders.every((o) => o.eurTotal != null)
+      ? orders.reduce((sum, order) => sum + order.eurTotal!, 0)
+      : null),
+    [orders]
+  );
   const receivedCount = useMemo(() => orders.filter((order) => order.status === "received").length, [orders]);
 
-  const stats: { key: "orders" | "wishlisted" | "totalSpent"; value: ReactNode }[] = [
+  const stats: { key: "orders" | "totalSpent"; value: ReactNode }[] = [
     { key: "orders", value: orders.length.toLocaleString() },
-    { key: "wishlisted", value: wishlist.length.toLocaleString() },
-    { key: "totalSpent", value: <PriceTag amount={totalSpent} locale={locale} variant="emphasis" withUnit /> },
+    { key: "totalSpent", value: <PriceTag amount={totalSpent} eurAmount={totalSpentEur} locale={locale} variant="emphasis" withUnit /> },
   ];
 
   const overviewCards = [
     { icon: <ShoppingBag size={20} />, label: t("account.overview.cards.totalOrders"), value: orders.length.toLocaleString() },
     { icon: <CheckCircle2 size={20} />, label: t("account.overview.cards.received"), value: receivedCount.toLocaleString() },
-    { icon: <Heart size={20} />, label: t("account.overview.cards.wishlisted"), value: wishlist.length.toLocaleString() },
   ];
 
   const handleSaveProfile = () => {
@@ -417,7 +427,7 @@ export function AccountPage() {
               </p>
             </div>
 
-            <div className="grid grid-cols-3 gap-4 md:gap-8 min-w-full md:min-w-[360px]">
+            <div className="grid grid-cols-2 gap-4 md:gap-8 min-w-full md:min-w-[360px]">
               {stats.map((stat) => (
                 <div key={stat.key} className="text-center">
                   {typeof stat.value === "string" ? (
@@ -466,7 +476,7 @@ export function AccountPage() {
         <AnimatePresence mode="wait">
           {activeTab === "overview" && (
             <motion.div key="overview" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.4, ease: easing }}>
-              <div className="grid md:grid-cols-3 gap-4 mb-12">
+              <div className="grid md:grid-cols-2 gap-4 mb-12">
                 {overviewCards.map((card, idx) => (
                   <motion.div
                     key={card.label}

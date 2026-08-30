@@ -31,7 +31,7 @@ import {
 } from "../utils/imageCropMeta";
 import { normalizeStoredMediaUrl, resolveMediaUrl } from "../utils/storefrontMedia";
 import { getProductPreviewUrl } from "../utils/productPreview";
-import { deriveBasePrice } from "../utils/variantStock";
+import { deriveBasePrice, deriveBaseEurPrice } from "../utils/variantStock";
 import type { Product } from "../types/product";
 import {
   loadCarouselSelectionForAdmin,
@@ -691,6 +691,10 @@ interface ProductFormData {
   colorPrices: Record<number, string>;
   /** Per-color price with lace: colorId -> price string */
   colorPricesWithLace: Record<number, string>;
+  /** Per-color EUR price (optional, shown on the storefront in English): colorId -> price string */
+  colorEurPrices: Record<number, string>;
+  /** Per-color EUR price with lace: colorId -> price string */
+  colorEurPricesWithLace: Record<number, string>;
   suggestedProductCodes: string[];
   suggestionsHydrated: boolean;
   suggestionsTouched: boolean;
@@ -1038,7 +1042,10 @@ function ProductModal({
     const colorSizeVariants: Record<string, string[]> = {};
     const colorPrices: Record<number, string> = {};
     const colorPricesWithLace: Record<number, string> = {};
+    const colorEurPrices: Record<number, string> = {};
+    const colorEurPricesWithLace: Record<number, string> = {};
     const legacyBasePrice = product && product.price > 0 ? String(product.price) : "";
+    const legacyBaseEurPrice = product?.eurPrice != null ? String(product.eurPrice) : "";
     product?.colors?.forEach((c) => {
       const colorId = colors.find((col) => col.name === c.name)?.id;
       if (colorId == null) return;
@@ -1048,6 +1055,9 @@ function ProductModal({
       if (c.price != null) colorPrices[colorId] = String(c.price);
       else if (legacyBasePrice) colorPrices[colorId] = legacyBasePrice;
       if (c.priceWithLace != null) colorPricesWithLace[colorId] = String(c.priceWithLace);
+      if (c.eurPrice != null) colorEurPrices[colorId] = String(c.eurPrice);
+      else if (legacyBaseEurPrice) colorEurPrices[colorId] = legacyBaseEurPrice;
+      if (c.eurPriceWithLace != null) colorEurPricesWithLace[colorId] = String(c.eurPriceWithLace);
       const laceVariants = c.laceVariants ?? {};
       const sizeImages = c.sizeImages ?? {};
       const collectedSizeIds: number[] = [];
@@ -1093,6 +1103,8 @@ function ProductModal({
       colorSizeVariants,
       colorPrices,
       colorPricesWithLace,
+      colorEurPrices,
+      colorEurPricesWithLace,
       defaultColorId: base.defaultColorId ?? colorIds[0] ?? null,
       defaultFurnitureColorId: base.defaultFurnitureColorId ?? furnitureColorIds[0] ?? null,
       suggestedProductCodes: [],
@@ -1185,12 +1197,16 @@ function ProductModal({
     if (key === "lace" && value === true) {
       setForm((prev) => {
         const nextLacePrices = { ...prev.colorPricesWithLace };
+        const nextEurLacePrices = { ...prev.colorEurPricesWithLace };
         for (const colorId of prev.colorIds) {
           if (!nextLacePrices[colorId]?.trim() && prev.colorPrices[colorId]?.trim()) {
             nextLacePrices[colorId] = prev.colorPrices[colorId];
           }
+          if (!nextEurLacePrices[colorId]?.trim() && prev.colorEurPrices[colorId]?.trim()) {
+            nextEurLacePrices[colorId] = prev.colorEurPrices[colorId];
+          }
         }
-        return { ...prev, lace: true, colorPricesWithLace: nextLacePrices };
+        return { ...prev, lace: true, colorPricesWithLace: nextLacePrices, colorEurPricesWithLace: nextEurLacePrices };
       });
       setFormErrors((prev) => ({ ...prev, price: undefined }));
       return;
@@ -1810,11 +1826,15 @@ function ProductModal({
                             const nextVariants = { ...p.colorSizeVariants };
                             const nextColorPrices = { ...p.colorPrices };
                             const nextColorPricesWithLace = { ...p.colorPricesWithLace };
+                            const nextColorEurPrices = { ...p.colorEurPrices };
+                            const nextColorEurPricesWithLace = { ...p.colorEurPricesWithLace };
                             const preferredSizeId = sizes.find((s) => s.name === "M")?.id ?? sizes[0]?.id ?? null;
                             if (isSelected) {
                               delete nextColorSizeIds[c.id];
                               delete nextColorPrices[c.id];
                               delete nextColorPricesWithLace[c.id];
+                              delete nextColorEurPrices[c.id];
+                              delete nextColorEurPricesWithLace[c.id];
                               Object.keys(nextVariants).forEach((key) => {
                                 if (key.startsWith(`${c.id}:`)) delete nextVariants[key];
                               });
@@ -1828,6 +1848,13 @@ function ProductModal({
                               if (seedPrice && !nextColorPrices[c.id]?.trim()) {
                                 nextColorPrices[c.id] = seedPrice;
                               }
+                              const seedEurPrice =
+                                (p.defaultColorId != null ? p.colorEurPrices[p.defaultColorId] : undefined)?.trim()
+                                || Object.values(p.colorEurPrices).find((v) => v?.trim())
+                                || "";
+                              if (seedEurPrice && !nextColorEurPrices[c.id]?.trim()) {
+                                nextColorEurPrices[c.id] = seedEurPrice;
+                              }
                             }
                             return {
                               ...p,
@@ -1836,6 +1863,8 @@ function ProductModal({
                               colorSizeVariants: nextVariants,
                               colorPrices: nextColorPrices,
                               colorPricesWithLace: nextColorPricesWithLace,
+                              colorEurPrices: nextColorEurPrices,
+                              colorEurPricesWithLace: nextColorEurPricesWithLace,
                             };
                           });
                           setFormErrors((prev) => ({ ...prev, colors: undefined, sizes: undefined, price: undefined }));
@@ -1954,6 +1983,68 @@ function ProductModal({
                   {formErrors.price && (
                     <p className="text-xs text-[#B42318] mt-2" style={{ fontFamily: "'DM Sans', sans-serif" }}>{formErrors.price}</p>
                   )}
+                </div>
+              )}
+
+              {form.colorIds.length > 0 && (
+                <div>
+                  <label className="block text-xs mb-2 tracking-widest uppercase" style={{ fontFamily: "'DM Sans', sans-serif", color: "rgba(45,36,30,0.4)", letterSpacing: "0.14em" }}>
+                    Color prices (EUR)
+                  </label>
+                  <p className="text-xs text-[#2D241E]/45 mb-2" style={{ fontFamily: "'DM Sans', sans-serif" }}>
+                    Optional — shown on the storefront when a shopper views the site in English. Leave blank to keep showing hryvnia.
+                  </p>
+                  <div className="flex flex-col gap-2">
+                    {form.colorIds.map((colorId) => {
+                      const color = colors.find((c) => c.id === colorId);
+                      return (
+                        <div key={`color-eur-price-${colorId}`} className="flex items-center gap-3 flex-wrap">
+                          <span className="flex items-center gap-2 min-w-[110px]" style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "0.85rem", color: "#2D241E" }}>
+                            <span className="w-4 h-4 rounded-full border border-[#2D241E]/30 shrink-0" style={{ backgroundColor: color?.hexCode ?? "#2D241E" }} />
+                            {color?.name ?? colorId}
+                          </span>
+                          <input
+                            type="number"
+                            min={0}
+                            placeholder="Price (EUR)"
+                            value={form.colorEurPrices[colorId] ?? ""}
+                            onChange={(e) => {
+                              const raw = e.target.value;
+                              const trimmed = raw.trim();
+                              let value = raw;
+                              if (trimmed !== "") {
+                                const n = Number(trimmed);
+                                if (Number.isFinite(n) && n < 0) value = "0";
+                              }
+                              setForm((p) => ({ ...p, colorEurPrices: { ...p.colorEurPrices, [colorId]: value } }));
+                            }}
+                            className="w-24 bg-white/60 border rounded-[10px] px-2.5 py-1.5 text-xs text-[#2D241E] focus:outline-none"
+                            style={{ fontFamily: "'DM Sans', sans-serif", borderColor: "rgba(45,36,30,0.15)" }}
+                          />
+                          {form.lace && (
+                            <input
+                              type="number"
+                              min={0}
+                              placeholder="Price with strap (EUR)"
+                              value={form.colorEurPricesWithLace[colorId] ?? ""}
+                              onChange={(e) => {
+                                const raw = e.target.value;
+                                const trimmed = raw.trim();
+                                let value = raw;
+                                if (trimmed !== "") {
+                                  const n = Number(trimmed);
+                                  if (Number.isFinite(n) && n < 0) value = "0";
+                                }
+                                setForm((p) => ({ ...p, colorEurPricesWithLace: { ...p.colorEurPricesWithLace, [colorId]: value } }));
+                              }}
+                              className="w-32 bg-white/60 border rounded-[10px] px-2.5 py-1.5 text-xs text-[#2D241E] focus:outline-none"
+                              style={{ fontFamily: "'DM Sans', sans-serif", borderColor: "rgba(45,36,30,0.15)" }}
+                            />
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
               )}
 
@@ -3586,13 +3677,19 @@ export function AdminPage() {
         .map((colorId) => {
           const priceRaw = data.colorPrices?.[colorId]?.trim();
           const priceWithLaceRaw = data.lace ? data.colorPricesWithLace?.[colorId]?.trim() : undefined;
+          const eurPriceRaw = data.colorEurPrices?.[colorId]?.trim();
+          const eurPriceWithLaceRaw = data.lace ? data.colorEurPricesWithLace?.[colorId]?.trim() : undefined;
           const priceParsed = priceRaw ? parseFloat(priceRaw) : NaN;
           const laceParsed = priceWithLaceRaw ? parseFloat(priceWithLaceRaw) : NaN;
+          const eurPriceParsed = eurPriceRaw ? parseFloat(eurPriceRaw) : NaN;
+          const eurLaceParsed = eurPriceWithLaceRaw ? parseFloat(eurPriceWithLaceRaw) : NaN;
           const price = Number.isFinite(priceParsed) && priceParsed >= 0 ? priceParsed : undefined;
           const priceWithLace = Number.isFinite(laceParsed) && laceParsed >= 0 ? laceParsed : undefined;
-          return { colorId, price, priceWithLace };
+          const eurPrice = Number.isFinite(eurPriceParsed) && eurPriceParsed >= 0 ? eurPriceParsed : undefined;
+          const eurPriceWithLace = Number.isFinite(eurLaceParsed) && eurLaceParsed >= 0 ? eurLaceParsed : undefined;
+          return { colorId, price, priceWithLace, eurPrice, eurPriceWithLace };
         })
-        .filter((c) => c.price != null || c.priceWithLace != null);
+        .filter((c) => c.price != null || c.priceWithLace != null || c.eurPrice != null || c.eurPriceWithLace != null);
 
       const variantPrimaryUrls = unique(
         colorSizeVariants
@@ -3613,6 +3710,7 @@ export function AdminPage() {
         name: data.name,
         description: data.description,
         price: deriveBasePrice(colorIds, resolvedDefaultColorId, data.colorPrices ?? {}, Number(data.price) || 0),
+        eurPrice: deriveBaseEurPrice(colorIds, resolvedDefaultColorId, data.colorEurPrices ?? {}),
         material: data.subtitle,
         categoryId: data.categoryId,
         defaultSizeId: normalizedDefaultSizeId ?? undefined,

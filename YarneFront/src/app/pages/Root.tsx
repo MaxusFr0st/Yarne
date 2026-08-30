@@ -6,6 +6,7 @@ import { CartDrawer } from "../components/CartDrawer";
 import { LoginModal } from "../components/LoginModal";
 import { Footer } from "../components/Footer";
 import { PageTransition } from "../components/PageTransition";
+import { Toaster } from "../components/ui/sonner";
 import { getLocaleFromPath, stripLocaleFromPath } from "../i18n/useLocale";
 import { consumePreservedScroll } from "../i18n/localeNavigation";
 import {
@@ -202,6 +203,7 @@ export function Root() {
       <Footer />
       <CartDrawer />
       <LoginModal />
+      <Toaster />
     </div>
   );
 }

@@ -17,6 +17,7 @@ export function mergePlacedOrderDisplay(
       name: apiItem.productName,
       subtitle: apiItem.productSubtitle ?? snap?.subtitle,
       price: Number(apiItem.unitPrice),
+      eurPrice: apiItem.eurUnitPrice ?? undefined,
       color: apiItem.colorName ?? snap?.color ?? "",
       colorHex: snap?.colorHex ?? "#2D241E",
       furnitureColor: apiItem.furnitureColorName ?? snap?.furnitureColor,

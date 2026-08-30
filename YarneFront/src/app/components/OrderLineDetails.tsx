@@ -18,6 +18,8 @@ export type OrderLineDetailsData = {
   withLace?: boolean | null;
   quantity: number;
   unitPrice: number;
+  /** EUR snapshot at purchase time (or live EUR price pre-order). Null/undefined falls back to UAH. */
+  eurUnitPrice?: number | null;
 };
 
 function DetailRow({ label, value }: { label: string; value: string }) {
@@ -42,6 +44,7 @@ export function cartItemToLineDetails(item: CartItem): OrderLineDetailsData {
     withLace: item.withLace,
     quantity: item.quantity,
     unitPrice: item.price,
+    eurUnitPrice: item.eurPrice,
   };
 }
 
@@ -54,6 +57,7 @@ export function accountOrderItemToLineDetails(item: {
   withLace?: boolean | null;
   quantity: number;
   unitPrice: number;
+  eurUnitPrice?: number | null;
 }): OrderLineDetailsData {
   return {
     productCode: item.productCode,
@@ -64,6 +68,7 @@ export function accountOrderItemToLineDetails(item: {
     withLace: item.withLace,
     quantity: item.quantity,
     unitPrice: item.unitPrice,
+    eurUnitPrice: item.eurUnitPrice,
   };
 }
 
@@ -77,6 +82,7 @@ export function orderItemDtoToLineDetails(item: OrderItemDto): OrderLineDetailsD
     withLace: item.withLace,
     quantity: item.quantity,
     unitPrice: item.unitPrice,
+    eurUnitPrice: item.eurUnitPrice,
   });
 }
 
@@ -142,12 +148,13 @@ export function OrderLineDetails({ line, locale, className = "", variant = "stac
             ×{line.quantity}
           </span>
         </div>
-        <PriceTag amount={line.unitPrice} locale={locale} variant="line" className="shrink-0" />
+        <PriceTag amount={line.unitPrice} eurAmount={line.eurUnitPrice} locale={locale} variant="line" className="shrink-0" />
       </div>
     );
   }
 
   const lineTotal = line.unitPrice * line.quantity;
+  const eurLineTotal = line.eurUnitPrice != null ? line.eurUnitPrice * line.quantity : null;
 
   return (
     <div className={`space-y-1.5 ${className}`}>
@@ -160,11 +167,11 @@ export function OrderLineDetails({ line, locale, className = "", variant = "stac
       <DetailRow label={t("checkout.quantity")} value={String(line.quantity)} />
       <div className="flex items-start justify-between gap-4 text-xs pt-1" style={{ fontFamily: "'DM Sans', sans-serif" }}>
         <span className="text-[#2D241E]/50 shrink-0">{t("checkout.unitPrice")}</span>
-        <PriceTag amount={line.unitPrice} locale={locale} variant="line" />
+        <PriceTag amount={line.unitPrice} eurAmount={line.eurUnitPrice} locale={locale} variant="line" />
       </div>
       <div className="flex items-start justify-between gap-4 text-xs" style={{ fontFamily: "'DM Sans', sans-serif" }}>
         <span className="text-[#2D241E]/70 shrink-0">{t("checkout.lineTotal")}</span>
-        <PriceTag amount={lineTotal} locale={locale} variant="line" />
+        <PriceTag amount={lineTotal} eurAmount={eurLineTotal} locale={locale} variant="line" />
       </div>
     </div>
   );

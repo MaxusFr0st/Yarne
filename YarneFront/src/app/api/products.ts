@@ -18,6 +18,8 @@ export interface ColorVariantDto {
   hex: string;
   price?: number | null;
   priceWithLace?: number | null;
+  eurPrice?: number | null;
+  eurPriceWithLace?: number | null;
   image: ProductImageDto;
   images: ProductImageDto[];
   sizeImages?: Record<string, ProductImageDto[]>;
@@ -41,6 +43,7 @@ export interface ProductDto {
   name: string;
   description: string | null;
   price: number;
+  eurPrice?: number | null;
   material: string | null;
   primaryImage: ProductImageDto | null;
   /** Dedicated photo for link-share previews and order emails. Null = falls back to primaryImage. */
@@ -78,6 +81,7 @@ export interface SuggestedProductDto {
   productCode: string;
   name: string;
   price: number;
+  eurPrice?: number | null;
   primaryImage: ProductImageDto | null;
   categoryName: string;
   isNew: boolean;
@@ -123,6 +127,8 @@ export interface ColorPriceInput {
   colorId: number;
   price?: number;
   priceWithLace?: number;
+  eurPrice?: number;
+  eurPriceWithLace?: number;
 }
 
 export interface CreateProductRequest {
@@ -130,6 +136,7 @@ export interface CreateProductRequest {
   name: string;
   description?: string;
   price: number;
+  eurPrice?: number;
   material?: string;
   categoryId: number;
   collectionId?: number;

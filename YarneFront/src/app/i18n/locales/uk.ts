@@ -10,6 +10,8 @@ const uk: Translations = {
     shopAll: "Дивитись усе",
     readStory: "Читати нашу історію",
     arrow: "→",
+    updateAvailable: "Доступна нова версія Yarné.",
+    refresh: "Оновити",
   },
   header: {
     home: "Головна",
@@ -129,8 +131,6 @@ const uk: Translations = {
     relatedTitle: "Завершіть гардероб",
     relatedSlide: "Схожий товар",
     galleryImage: "Зображення {{index}}",
-    wishlistAdd: "Додати до списку бажань",
-    wishlistRemove: "Видалити зі списку бажань",
     lace: {
       label: "Ремінець",
       withLace: "З ремінцем",
@@ -188,6 +188,7 @@ const uk: Translations = {
     shippingFree: "Безкоштовно",
     total: "Разом",
     orderPlaced: "Замовлення оформлено",
+    orderSyncedNotice: "Ви знову онлайн — ваше замовлення прийнято.",
     status: "Статус",
     payment: "Оплата",
     itemsInOrder: "Товарів у замовленні",
@@ -219,6 +220,13 @@ const uk: Translations = {
     deliveryPickerTitle: "Відділення Нової пошти",
     deliveryPickerClose: "Закрити вибір відділення",
     deliveryPickerLoading: "Завантаження відділень…",
+    deliverySearchCity: "Пошук міста…",
+    deliveryNoCityMatch: "Міст не знайдено.",
+    deliverySelectCityFirst: "Оберіть місто",
+    deliverySearchBranch: "Пошук відділень…",
+    deliveryNoBranchesCached: "Ви офлайн, і це місто ще не завантажено.",
+    deliveryUseLastBranch: "Доставити у ваше звичайне відділення",
+    deliveryOfflineNotice: "Замовлення оформлено — ви офлайн, тож воно автоматично синхронізується із системою, щойно з'явиться інтернет.",
     errors: {
       unableToPlaceOrder: "Наразі не вдалося оформити замовлення.",
     },
@@ -298,7 +306,7 @@ const uk: Translations = {
   account: {
     guest: {
       title: "З поверненням",
-      subtitle: "Увійдіть, щоб переглядати замовлення, керувати профілем і списком бажань.",
+      subtitle: "Увійдіть, щоб переглядати замовлення і керувати профілем.",
       signIn: "Увійти",
       continueBrowsing: "Продовжити перегляд",
     },
@@ -308,7 +316,6 @@ const uk: Translations = {
     },
     stats: {
       orders: "Замовлення",
-      wishlisted: "У бажаному",
       totalSpent: "Витрачено всього",
     },
     tabs: {
@@ -320,7 +327,6 @@ const uk: Translations = {
       cards: {
         totalOrders: "Усього замовлень",
         received: "Отримано",
-        wishlisted: "У бажаному",
       },
       recentOrdersTitle: "Останні замовлення",
       viewAll: "Переглянути всі",

@@ -1,10 +1,9 @@
-import React, { useEffect, useMemo, useState, type MouseEvent } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { motion } from "motion/react";
-import { ArrowRight, ArrowUpRight, Heart } from "lucide-react";
+import { ArrowRight, ArrowUpRight } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import type { Product } from "../types/product";
 import { useProducts } from "../hooks/useProducts";
-import { useApp } from "../context/AppContext";
 import { ImageWithFallback as Img } from "./figma/ImageWithFallback";
 import { LangLink } from "../i18n/LangLink";
 import { useLocale } from "../i18n/useLocale";
@@ -34,17 +33,16 @@ type ProductTileProps = {
   product: Product | null;
   fallbackTitle: string;
   variant: "large" | "medium" | "wide";
-  showWishlist?: boolean;
   priority?: boolean;
 };
 
-function ProductTile({ slot, product, fallbackTitle, variant, showWishlist = false, priority = false }: ProductTileProps) {
+function ProductTile({ slot, product, fallbackTitle, variant, priority = false }: ProductTileProps) {
   const { t } = useTranslation();
   const locale = useLocale();
-  const { wishlist, toggleWishlist } = useApp();
   const touch = useTouchMobileLayout();
   const title = product?.name ?? fallbackTitle;
   const price = product?.price;
+  const eurPrice = product?.eurPrice;
   const targetImageSrc = useMemo(
     () =>
       resolveMediaUrl(slot.imageUrl) ||
@@ -108,15 +106,8 @@ function ProductTile({ slot, product, fallbackTitle, variant, showWishlist = fal
           ? "object-[center_40%] max-md:object-[center_34%]"
           : "object-[center_38%] max-md:object-[center_30%]";
 
-  const isWishlisted = product ? wishlist.includes(product.id) : false;
   const eyebrow = slot.eyebrow.trim();
   const ctaLabel = slot.ctaLabel.trim();
-
-  const handleWishlist = (e: MouseEvent<HTMLButtonElement>) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (product) toggleWishlist(product.id);
-  };
 
   return (
     <LangLink
@@ -199,7 +190,7 @@ function ProductTile({ slot, product, fallbackTitle, variant, showWishlist = fal
 
           {typeof price === "number" && (
             <p className="mt-0.5">
-              <PriceTag amount={price} locale={locale} variant={isLarge ? "display" : "card"} tone="light" />
+              <PriceTag amount={price} eurAmount={eurPrice} locale={locale} variant={isLarge ? "display" : "card"} tone="light" />
             </p>
           )}
         </div>
@@ -227,25 +218,6 @@ function ProductTile({ slot, product, fallbackTitle, variant, showWishlist = fal
         )}
       </div>
 
-      {showWishlist && product && (
-        <button
-          onClick={handleWishlist}
-          className="absolute z-20 bottom-[clamp(10px,2.5vw,16px)] right-[clamp(10px,2.5vw,16px)] flex items-center justify-center rounded-full md:hidden"
-          style={{
-            width: "clamp(28px, 7vw, 34px)",
-            height: "clamp(28px, 7vw, 34px)",
-            backgroundColor: isWishlisted ? "#4A0E0E" : "rgba(245,242,237,0.9)",
-          }}
-          aria-label={isWishlisted ? "Remove from wishlist" : "Add to wishlist"}
-        >
-          <Heart
-            size={13}
-            strokeWidth={1.5}
-            fill={isWishlisted ? "white" : "none"}
-            stroke={isWishlisted ? "white" : "#2D241E"}
-          />
-        </button>
-      )}
     </LangLink>
   );
 }
@@ -587,7 +559,6 @@ export function FeaturedShowcase() {
                 product={slot2Product}
                 fallbackTitle="Femmora"
                 variant="medium"
-                showWishlist
                 priority
               />
             </div>
