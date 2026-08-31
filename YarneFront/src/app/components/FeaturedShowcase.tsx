@@ -480,13 +480,22 @@ export function FeaturedShowcase() {
   );
 
   const lockBentoViewport = useBentoLayout && touchLayout;
-  // svh, not dvh: dvh is the *dynamic* viewport height, so it changes every time the mobile
-  // browser toolbar collapses or reappears. That resized this section mid-scroll, and because
-  // the snap system centres a section using the height it measured, the offset was then stale —
-  // leaving dead space above and pushing the bottom of the grid off screen. svh is the fixed
-  // chrome-visible height, identical on every device regardless of toolbar state.
-  const bentoSectionHeight = lockBentoViewport
-    ? "calc(100svh - var(--main-header-h))"
+  /**
+   * A full `100svh` tall, with the fixed header's height added as top padding — the same
+   * arrangement the Why section uses, and the one the snap system assumes.
+   *
+   * This was `calc(100svh - var(--main-header-h))`, i.e. a section sized to sit *below* the
+   * header. But snap stops centre a section inside the whole viewport, not inside the area
+   * under the header, so a 796px section in an 852px viewport was offset by only 28px — which
+   * left its first 28px (the section heading) hidden behind the 57px fixed header and 28px of
+   * dead space at the bottom. Owning the full height and pushing content down with padding
+   * puts the heading back on screen and removes the gap, on any viewport.
+   *
+   * svh rather than dvh so the height does not change as the mobile toolbar collapses.
+   */
+  const bentoSectionHeight = lockBentoViewport ? "100svh" : undefined;
+  const bentoSectionPaddingTop = lockBentoViewport
+    ? "calc(var(--main-header-h) + clamp(6px, 1.6vw, 12px))"
     : undefined;
   const bentoSectionMinHeight = undefined;
 
@@ -499,7 +508,11 @@ export function FeaturedShowcase() {
             ? "overflow-hidden box-border py-[clamp(6px,1.6vw,12px)]"
             : "py-[clamp(10px,2.5vw,40px)] lg:py-12"
       }`}
-      style={{ height: bentoSectionHeight, minHeight: bentoSectionMinHeight }}
+      style={{
+        height: bentoSectionHeight,
+        minHeight: bentoSectionMinHeight,
+        paddingTop: bentoSectionPaddingTop,
+      }}
     >
       <div
         className={`max-w-[1400px] mx-auto px-[clamp(12px,3.5vw,40px)] ${
