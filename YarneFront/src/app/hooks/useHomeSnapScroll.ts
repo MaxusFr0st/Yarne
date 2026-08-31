@@ -5,8 +5,14 @@ import type { WhyBagHandle } from "../components/WhyYarneSection";
 
 // ---- snap-stop geometry (× viewport height, except *_PX which are px) ----
 const SLIVER_RATIO = 0.3;
-const TALL_RATIO = 1.25;
 const DEDUPE_RATIO = 0.4;
+/**
+ * A section may overflow the viewport by up to this much and still get a single stop.
+ * Sections carry at least 64px of bottom padding, so an overflow this small is padding
+ * rather than content — cropping it costs nothing visible, whereas a second stop only
+ * ~40px away would spend a full snap animation going nowhere.
+ */
+const MIN_PAGE_OVERFLOW_PX = 48;
 const WHY_PARK_TOL_PX = 120;
 const DIR_TOL_PX = 24;
 
@@ -28,7 +34,7 @@ const TOUCH_TRIGGER_PX = 40; // past this (once committed vertical), the swipe f
 /** Soft in, long glide out — no bounce, no snap. */
 const easeInOutCubic = (x: number) => (x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2);
 
-type Stop = { y: number; why: boolean };
+type Stop = { y: number; why: boolean; group?: number };
 
 /** True if `node` sits inside a genuinely scrollable-Y ancestor (cart drawer
  *  list, search overlay, etc.) — those must keep their own native scroll. */
@@ -79,12 +85,33 @@ export function useHomeSnapScroll({ mainRef, whyRef, enabled }: Params) {
     const main = mainRef.current;
     if (!main) return;
 
+    /**
+     * Viewport height for the snap maths, held steady while mobile browser chrome shows and
+     * hides. `window.innerHeight` changes by ~60-120px as the URL bar collapses during a
+     * scroll, and reading it live meant every stop moved mid-gesture — the page appeared to
+     * jump and re-measure constantly. Chrome only ever changes the height, so the cached value
+     * is refreshed on a width change (rotation) or on a height change far larger than any
+     * toolbar (keyboard, desktop window resize).
+     */
+    let cachedVh = window.innerHeight;
+    let cachedVw = window.innerWidth;
+    const CHROME_MAX_PX = 200;
+    const stableVh = () => cachedVh;
+    const refreshViewport = () => {
+      const w = window.innerWidth;
+      const h = window.innerHeight;
+      if (w !== cachedVw || Math.abs(h - cachedVh) > CHROME_MAX_PX) {
+        cachedVw = w;
+        cachedVh = h;
+      }
+    };
+
     const buildStops = (): Stop[] => {
-      const vh = window.innerHeight;
+      const vh = stableVh();
       const maxY = Math.max(0, document.documentElement.scrollHeight - vh);
       const stops: Stop[] = [];
 
-      Array.from(main.children).forEach((child) => {
+      Array.from(main.children).forEach((child, groupIndex) => {
         const el = child as HTMLElement;
         const h = el.offsetHeight;
         if (h < vh * SLIVER_RATIO) return; // slivers (dividers) would snap to a blank screen
@@ -92,29 +119,40 @@ export function useHomeSnapScroll({ mainRef, whyRef, enabled }: Params) {
         const isWhy = el.hasAttribute("data-snap-why") || el.querySelector("[data-snap-why]") !== null;
         const top = docTop(el);
         if (isWhy) {
-          stops.push({ y: top, why: true });
+          stops.push({ y: top, why: true, group: groupIndex });
           return;
         }
-        if (h <= vh * TALL_RATIO) {
-          stops.push({ y: top - Math.max(0, (vh - h) / 2), why: false });
+        // Fits the viewport (or spills only into its own bottom padding) — one centred stop.
+        if (h - vh <= MIN_PAGE_OVERFLOW_PX) {
+          stops.push({ y: top - Math.max(0, (vh - h) / 2), why: false, group: groupIndex });
           return;
         }
-        // Meaningfully taller than the viewport — page it into evenly-spanning stops.
+        // Taller than the viewport — page it so the bottom is actually reachable. This used to
+        // be gated on `h <= vh * 1.25`, which sent every section in the 1.0–1.25x band down the
+        // single-stop path above; there `Math.max(0, …)` clamps to 0, pinning the stop to the
+        // section top and leaving the overflow unreachable by any gesture (148px of the
+        // philosophy section was cut off mid-sentence at 393x852).
         const pages = Math.ceil(h / vh);
-        const span = pages > 1 ? (h - vh) / (pages - 1) : 0;
-        for (let i = 0; i < pages; i++) stops.push({ y: top + i * span, why: false });
+        const span = (h - vh) / (pages - 1); // pages >= 2 here, so never divides by zero
+        for (let i = 0; i < pages; i++) {
+          stops.push({ y: top + i * span, why: false, group: groupIndex });
+        }
       });
 
       const clamped = stops.map((s) => ({
         why: s.why,
+        group: s.group,
         y: Math.round(Math.max(0, Math.min(maxY, s.y))),
       }));
 
-      // Drop near-duplicate stops; a Why stop always wins over its neighbour.
+      // Drop near-duplicate stops; a Why stop always wins over its neighbour. Pages of one
+      // section are deliberate, so only stops from *different* sections get merged — otherwise
+      // the second page of a barely-too-tall section is discarded as a near-duplicate and the
+      // crop this paging exists to fix comes straight back.
       const out: Stop[] = [];
       clamped.forEach((s) => {
         const prev = out[out.length - 1];
-        if (prev && Math.abs(s.y - prev.y) < vh * DEDUPE_RATIO) {
+        if (prev && prev.group !== s.group && Math.abs(s.y - prev.y) < vh * DEDUPE_RATIO) {
           if (s.why) out[out.length - 1] = s;
           return;
         }
@@ -129,8 +167,7 @@ export function useHomeSnapScroll({ mainRef, whyRef, enabled }: Params) {
     const animateTo = (y: number) => {
       animRef.current?.stop();
       const from = window.scrollY;
-      const vh = window.innerHeight;
-      const dist = Math.abs(y - from) / Math.max(1, vh);
+      const dist = Math.abs(y - from) / Math.max(1, stableVh());
       const durationMs = Math.min(PAGE_MAX_MS, PAGE_MIN_MS + dist * PAGE_PER_VH_MS);
       busyUntilRef.current = performance.now() + durationMs + PAGE_BUSY_PAD_MS;
       animRef.current = animate(from, y, {
@@ -269,10 +306,10 @@ export function useHomeSnapScroll({ mainRef, whyRef, enabled }: Params) {
       touch.triggered = false;
     };
 
-    // No-op: buildStops() re-measures fresh on every snapStep call already, so a
-    // resize doesn't need to invalidate anything — kept only so mount/unmount
-    // stays symmetric with the wheel listener below.
-    const onResize = () => {};
+    // buildStops() re-measures the DOM on every snapStep, so only the cached viewport height
+    // needs refreshing here — and deliberately not for the toolbar-sized changes that fire
+    // constantly while scrolling on mobile (see refreshViewport).
+    const onResize = () => refreshViewport();
 
     window.addEventListener("wheel", onWheel, { passive: false });
     window.addEventListener("touchstart", onTouchStart, { passive: true });

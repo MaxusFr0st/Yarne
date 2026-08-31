@@ -50,7 +50,9 @@ export function AdminCollectionsTab({ products, onError }: Props) {
 
   const collectionNameError = useDebouncedError(
     collectionModal.open ? collectionModal.name : "",
-    (v) => (!v.trim() ? "Collection name is required." : undefined)
+    (v) => (!v.trim() ? "Collection name is required." : undefined),
+    600,
+    "admin-collection-name"
   );
 
   const loadCollections = useCallback(async () => {
@@ -311,17 +313,19 @@ export function AdminCollectionsTab({ products, onError }: Props) {
           }
         >
           <div>
-            <label className="block text-xs uppercase mb-1.5" style={fieldLabelStyle}>Name</label>
+            <label htmlFor="admin-collection-name" className="block text-xs uppercase mb-1.5" style={fieldLabelStyle}>Name</label>
             <input
+              id="admin-collection-name"
               value={collectionModal.name}
               onChange={(e) => setCollectionModal((prev) => (prev.open ? { ...prev, name: e.target.value } : prev))}
               onBlur={collectionNameError.reportNow}
+              {...collectionNameError.fieldProps}
               className={fieldInput}
-              style={fieldInputStyle}
+              style={{ ...fieldInputStyle, borderColor: collectionNameError.error ? "#B42318" : fieldInputStyle.borderColor }}
               placeholder="e.g. Summer Collection"
             />
             {collectionNameError.error && (
-              <p className="text-xs text-[#B42318] mt-1.5" style={{ fontFamily: "'DM Sans', sans-serif" }}>{collectionNameError.error}</p>
+              <p {...collectionNameError.errorProps} className="text-xs text-[#B42318] mt-1.5" style={{ fontFamily: "'DM Sans', sans-serif" }}>{collectionNameError.error}</p>
             )}
           </div>
           <div className="grid grid-cols-2 gap-3">

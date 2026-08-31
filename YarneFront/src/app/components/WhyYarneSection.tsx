@@ -225,8 +225,11 @@ export const WhyYarneSection = forwardRef<WhyBagHandle>(function WhyYarneSection
               className="md:hidden relative z-[4] w-full px-[18px] pb-2.5 text-center shadow-[0_16px_20px_10px_#2D241E]"
               style={{ opacity: factFade, y: factY }}
             >
+              {/* /55 not /40: on #2D241E the lighter tint measured 3.4:1, under the 4.5:1
+                  WCAG AA floor for text this size. /55 measures 5.1:1 and still reads as the
+                  quietest thing in the block. */}
               <span
-                className="mb-2 block text-[15px] italic text-[#F5F2ED]/40"
+                className="mb-2 block text-[15px] italic text-[#F5F2ED]/55"
                 style={{ fontFamily: "'Cormorant Garamond', serif" }}
               >
                 {fact.n}
@@ -234,6 +237,17 @@ export const WhyYarneSection = forwardRef<WhyBagHandle>(function WhyYarneSection
               <p className="m-0 text-[17px] font-medium leading-[1.3] text-[#F5F2ED]">{fact.title}</p>
               <p className="mx-auto mt-2 max-w-[300px] text-[13px] leading-[1.6] text-[#F5F2ED]/62">
                 {fact.body}
+              </p>
+              {/* The bag's name lives with the copy, not over the artwork. Every bag is clipped
+                  to the stage below, so a caption outside it cannot collide at any viewport
+                  size — which the old `absolute top-[188px]` could not promise: that pinned it
+                  to a fixed viewport band the neighbouring bag slid through on taller phones.
+                  It also inherits this block's fade, so the whole text unit crossfades as one. */}
+              <p
+                className="mx-auto mt-3.5 max-w-[300px] text-[13px] italic leading-[1.5] text-[#F5F2ED]/55"
+                style={{ fontFamily: "'Cormorant Garamond', serif" }}
+              >
+                {caption}
               </p>
             </motion.div>
 
@@ -265,8 +279,9 @@ export const WhyYarneSection = forwardRef<WhyBagHandle>(function WhyYarneSection
               </div>
             </div>
 
+            {/* Desktop keeps the caption in flow beneath the stage — no room to collide there. */}
             <motion.p
-              className="absolute md:static top-[188px] md:top-auto right-[18px] md:right-auto z-[5] m-0 max-w-[52%] md:max-w-none text-right md:text-center text-[17px] md:text-[13px] italic leading-[1.45] md:leading-normal text-[#F5F2ED]/90 md:text-[#F5F2ED]/50 [text-shadow:0_2px_14px_rgba(45,36,30,0.9)] md:[text-shadow:none]"
+              className="hidden md:block m-0 text-center text-[13px] italic leading-normal text-[#F5F2ED]/50"
               style={{ fontFamily: "'Cormorant Garamond', serif", opacity: factFade, x: captionX }}
             >
               {caption}
@@ -277,7 +292,7 @@ export const WhyYarneSection = forwardRef<WhyBagHandle>(function WhyYarneSection
           <div className="hidden md:flex flex-col justify-center gap-[clamp(12px,2.6vh,32px)] min-h-0 pl-[60px]">
             <ScrollReveal>
               <p
-                className="mb-3.5 text-[11px] uppercase tracking-[0.24em] text-[#F5F2ED]/40"
+                className="mb-3.5 text-[11px] uppercase tracking-[0.24em] text-[#F5F2ED]/55"
                 style={{ fontFamily: "'DM Sans', sans-serif" }}
               >
                 {localeCopy.eyebrow}
