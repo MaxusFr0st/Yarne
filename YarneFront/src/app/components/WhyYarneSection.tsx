@@ -215,14 +215,16 @@ export const WhyYarneSection = forwardRef<WhyBagHandle>(function WhyYarneSection
     <section
       data-snap-why
       className="relative isolate overflow-hidden bg-[#2D241E] text-[#F5F2ED] pt-[66px] pb-0 md:pt-7 md:pb-7"
-      style={{ height: "100dvh" }}
+      // svh keeps this a fixed height per device; dvh rebuilt the whole bag stage every time
+      // the mobile toolbar collapsed, which moved the bags against the caption above them.
+      style={{ height: "100svh" }}
     >
       <div className="max-w-[1400px] mx-auto px-3.5 md:px-6 h-full">
         <div className="grid grid-cols-1 md:grid-cols-2 md:gap-12 h-full items-stretch">
           {/* Bag column — has its own entrance via the arc animation, not ScrollReveal */}
           <div className="relative flex flex-col items-center justify-start md:justify-center gap-0 md:gap-3.5 h-full min-h-0">
             <motion.div
-              className="md:hidden relative z-[4] w-full px-[18px] pb-2.5 text-center shadow-[0_16px_20px_10px_#2D241E]"
+              className="md:hidden relative z-[4] w-full px-[18px] pb-5 text-center shadow-[0_16px_20px_10px_#2D241E]"
               style={{ opacity: factFade, y: factY }}
             >
               {/* /55 not /40: on #2D241E the lighter tint measured 3.4:1, under the 4.5:1

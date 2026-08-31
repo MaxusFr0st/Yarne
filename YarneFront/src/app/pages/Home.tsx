@@ -85,7 +85,9 @@ export function Home() {
       <section
         ref={heroRef}
         className="relative flex items-end overflow-hidden min-h-[600px]"
-        style={{ height: "100dvh" }}
+        // svh, not dvh — a fixed height per device, so the hero does not resize (and the snap
+        // stops below it do not shift) when the mobile browser toolbar collapses on scroll.
+        style={{ height: "100svh" }}
       >
         {animateHero ? (
           <motion.div className="absolute inset-0 overflow-hidden" style={{ y: heroY }}>

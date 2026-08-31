@@ -480,8 +480,13 @@ export function FeaturedShowcase() {
   );
 
   const lockBentoViewport = useBentoLayout && touchLayout;
+  // svh, not dvh: dvh is the *dynamic* viewport height, so it changes every time the mobile
+  // browser toolbar collapses or reappears. That resized this section mid-scroll, and because
+  // the snap system centres a section using the height it measured, the offset was then stale —
+  // leaving dead space above and pushing the bottom of the grid off screen. svh is the fixed
+  // chrome-visible height, identical on every device regardless of toolbar state.
   const bentoSectionHeight = lockBentoViewport
-    ? "calc(100dvh - var(--main-header-h))"
+    ? "calc(100svh - var(--main-header-h))"
     : undefined;
   const bentoSectionMinHeight = undefined;
 
