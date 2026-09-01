@@ -142,6 +142,10 @@
 
   body {
     @apply bg-background text-foreground;
+    /* Cream, not the white --background token (kept for shadcn surfaces). iPhone Safari fills the
+       area past the document end under its translucent bar from the body background, so the
+       white token showed as a sliver under the bar below the footer and the cart drawer. */
+    background-color: #f5f2ed;
   }
 
   /**

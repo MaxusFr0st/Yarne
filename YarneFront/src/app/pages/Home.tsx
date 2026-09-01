@@ -38,7 +38,7 @@ function ViewportDebug() {
       const vv = window.visualViewport;
       setTxt(
         [
-          `build b7 html-bg ${getComputedStyle(document.documentElement).backgroundColor} body-bg ${getComputedStyle(document.body).backgroundColor}`,
+          `build b8 html-bg ${getComputedStyle(document.documentElement).backgroundColor} body-bg ${getComputedStyle(document.body).backgroundColor}`,
           `inner ${window.innerHeight} outer ${window.outerHeight} screen ${screen.height}`,
           `svh ${px("100svh")} lvh ${px("100lvh")} dvh ${px("100dvh")} vh ${px("100vh")}`,
           `inset-b ${px("env(safe-area-inset-bottom,0px)")} bar-var ${px("var(--browser-bar-b)")}`,
