@@ -3,8 +3,15 @@ import { motion, useReducedMotion } from "motion/react";
 import { resolveMediaUrl } from "../../utils/storefrontMedia";
 import { ImageWithFallback, type FocalPoint } from "./ImageWithFallback";
 
-const EASE_OUT = [0.22, 1, 0.36, 1] as const;
-const FADE_MS = 360;
+/**
+ * Symmetric, near-even easing — a dissolve, not an arrival. The previous curve here was
+ * [0.22, 1, 0.36, 1], a hard ease-out meant for things travelling into place: it spent ~90% of
+ * the fade in the first 100ms and the remaining 240ms creeping from 0.02 to 0, so a nominal
+ * 360ms crossfade read as an instant swap. Opacity carries no sense of momentum, so it wants a
+ * curve that actually spends its time on screen.
+ */
+const EASE_DISSOLVE = [0.37, 0, 0.63, 1] as const;
+const FADE_MS = 420;
 
 type CrossfadeImageProps = {
   src: string;
@@ -100,9 +107,12 @@ export function CrossfadeImage({
         <motion.div
           key={`prev-${previousSrc}`}
           className="absolute inset-0"
-          initial={{ opacity: 1 }}
-          animate={{ opacity: 0 }}
-          transition={{ duration, ease: EASE_OUT }}
+          // The outgoing photo also drifts back by a breath as it dissolves. Barely a
+          // percent — enough to read as the old bag receding rather than a flat pixel
+          // blend, and it scales up so no edge is ever uncovered inside the clipped frame.
+          initial={{ opacity: 1, scale: 1 }}
+          animate={{ opacity: 0, scale: 1.02 }}
+          transition={{ duration, ease: EASE_DISSOLVE }}
         >
           <ImageWithFallback
             src={previousSrc}

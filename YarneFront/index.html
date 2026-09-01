@@ -18,6 +18,50 @@
     <body>
       <div id="root"></div>
       <script src="/config.js"></script>
+      <script>
+        /*
+         * The hero photo's URL is an admin setting, not markup, so the browser's preload scanner
+         * never sees it: on a cold load nothing could request the hero until the bundle had
+         * parsed, React had mounted and the setting had come back. Measured on production, the
+         * document finished at 163ms and the hero request did not start until 292ms — the whole
+         * gap is the browser waiting to be told what to fetch.
+         *
+         * The URL of the hero last shown is already cached in localStorage, so a returning
+         * visitor can start that download here, before the bundle is even parsed. A first-time
+         * visitor has nothing cached, but still gets the connection to the media host opened
+         * early, which is the expensive half on mobile.
+         */
+        (function () {
+          try {
+            var api = ((window.__YARNE_CONFIG__ || {}).apiUrl || "").trim().replace(/\/+$/, "");
+            // Without a runtime base this cannot rebuild the same URL the app will (the app can
+            // also fall back to a build-time env var, which is not readable from here), and a
+            // guessed origin would just fire a 404 for a photo the page still has to fetch
+            // properly afterwards. Deployed builds set this in config.js.
+            if (!api) return;
+            // No crossorigin: images are fetched in no-CORS mode and a CORS-mode preconnect
+            // would warm a connection they cannot reuse.
+            var warm = document.createElement("link");
+            warm.rel = "preconnect";
+            warm.href = api;
+            document.head.appendChild(warm);
+            // Only the home page paints a hero; anywhere else this would fetch a photo that is
+            // never shown.
+            if (!/^\/(uk|en)?\/?$/.test(location.pathname)) return;
+            var media = JSON.parse(localStorage.getItem("yarne.home.media.v1") || "{}");
+            var url = typeof media.heroImageUrl === "string" ? media.heroImageUrl.trim() : "";
+            if (!url) return;
+            var link = document.createElement("link");
+            link.rel = "preload";
+            link.as = "image";
+            link.href = url.charAt(0) === "/" ? api + url : url;
+            link.setAttribute("fetchpriority", "high");
+            document.head.appendChild(link);
+          } catch (e) {
+            /* A hero that arrives a little later is not worth breaking the page for. */
+          }
+        })();
+      </script>
       <script type="module" src="/src/main.tsx"></script>
     </body>
   </html>

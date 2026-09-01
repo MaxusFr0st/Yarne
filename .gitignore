@@ -28,3 +28,6 @@ Thumbs.db
 YarneBack/YarneAPIBack/.env
 
 YarneBack/YarneAPIBack/.env.example
+
+# Playwright MCP scratch output
+.playwright-mcp/
