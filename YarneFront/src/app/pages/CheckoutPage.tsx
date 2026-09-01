@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
-import { motion } from "motion/react";
-import { ArrowRight, CheckCircle2, Package } from "lucide-react";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
+import { ArrowRight, Package } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { createOrder, fetchNovaPoshtaShippingPrice, orderEurTotal, type OrderDto } from "../api/orders";
 import { fetchCustomerProfile } from "../api/auth";

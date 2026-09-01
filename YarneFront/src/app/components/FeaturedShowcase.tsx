@@ -491,11 +491,11 @@ export function FeaturedShowcase() {
    * dead space at the bottom. Owning the full height and pushing content down with padding
    * puts the heading back on screen and removes the gap, on any viewport.
    *
-   * lvh rather than svh/dvh: fixed per device, and it fills the strip under Safari's translucent
-   * bar so the next section cannot show through it; that strip is padding (--browser-bar-b) so
+   * svh plus the bar strip (--browser-bar-b): fixed per device, and it fills the strip under
+   * Safari's translucent bar so the next section cannot show through it; the strip is padding so
    * the grid's last row stays above the glass.
    */
-  const bentoSectionHeight = lockBentoViewport ? "100lvh" : undefined;
+  const bentoSectionHeight = lockBentoViewport ? "calc(100svh + var(--browser-bar-b))" : undefined;
   const bentoSectionPaddingTop = lockBentoViewport
     ? "calc(var(--main-header-h) + clamp(6px, 1.6vw, 12px))"
     : undefined;

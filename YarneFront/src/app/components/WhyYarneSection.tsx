@@ -215,12 +215,12 @@ export const WhyYarneSection = forwardRef<WhyBagHandle>(function WhyYarneSection
     <section
       data-snap-why
       className="relative isolate overflow-hidden bg-[#2D241E] text-[#F5F2ED] pt-[66px] pb-[var(--browser-bar-b)] md:pt-7 md:pb-7"
-      // lvh, not dvh or svh. dvh rebuilt the whole bag stage every time the mobile toolbar
-      // collapsed, which moved the bags against the caption above them. svh left the cream
-      // section below showing through Safari's translucent bar. lvh fills the screen edge to
-      // edge and is just as fixed per device; the bar strip is padding (--browser-bar-b) so the
-      // stage, and the next bag peeking at its bottom, stay above the glass.
-      style={{ height: "100lvh" }}
+      // svh + the bar strip, not dvh or lvh. dvh rebuilt the whole bag stage every time the mobile
+      // toolbar collapsed, which moved the bags against the caption above them. Plain svh (and
+      // even lvh) left the cream section below showing through Safari's translucent bar. The
+      // strip (--browser-bar-b) is padding, so the stage, and the next bag peeking at its
+      // bottom, stay above the glass while the section itself fills the screen edge to edge.
+      style={{ height: "calc(100svh + var(--browser-bar-b))" }}
     >
       <div className="max-w-[1400px] mx-auto px-3.5 md:px-6 h-full">
         <div className="grid grid-cols-1 md:grid-cols-2 md:gap-12 h-full items-stretch">

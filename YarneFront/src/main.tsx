@@ -4,6 +4,9 @@ import App from "./app/App.tsx";
 import { watchForServiceWorkerUpdate } from "./app/offline/swUpdate";
 import "./styles/index.css";
 import "./app/i18n";
+import { installBrowserBarInset } from "./app/utils/browserBarInset";
+
+installBrowserBarInset();
 
 if (import.meta.env.PROD && "serviceWorker" in navigator) {
   window.addEventListener("load", () => {

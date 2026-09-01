@@ -143,9 +143,9 @@ export function Home() {
       <section
         ref={heroRef}
         className="relative flex items-end overflow-hidden min-h-[600px] pb-[var(--browser-bar-b)]"
-        // lvh + bar padding, not svh: see --browser-bar-b. At 100svh the hero ended under Safari's
-        // translucent bar and the Why section's "01" showed through it.
-        style={{ height: "100lvh" }}
+        // svh + the bar strip (see --browser-bar-b): at 100svh the hero ended under Safari's
+        // translucent bar and the Why section's "01" showed through it; 100lvh still fell short.
+        style={{ height: "calc(100svh + var(--browser-bar-b))" }}
       >
         {animateHero ? (
           <motion.div className="absolute inset-0 overflow-hidden" style={{ y: heroY }}>

@@ -22,10 +22,14 @@ export function CartDrawer() {
     <AnimatePresence>
       {cartOpen && (
         <>
-          {/* Blurred backdrop */}
+          {/* Blurred backdrop. Sized from the top rather than `inset-0`: a fixed element's
+              `bottom: 0` resolves against the large viewport, which on iPhone still stops short of
+              the screen bottom Safari's translucent bar renders through. svh + the bar strip
+              (--browser-bar-b) reaches it, so the glass shows the dimmed backdrop, not the page. */}
           <motion.div
-            className="fixed inset-0 z-50"
+            className="fixed inset-x-0 top-0 z-50"
             style={{
+              height: "calc(100svh + var(--browser-bar-b))",
               backgroundColor: touchMobile ? "rgba(45,36,30,0.45)" : "rgba(45,36,30,0.3)",
               backdropFilter: touchMobile ? "none" : "blur(8px)",
             }}
@@ -36,10 +40,16 @@ export function CartDrawer() {
             onClick={closeCart}
           />
 
-          {/* Drawer */}
+          {/* Drawer: same sizing as the backdrop; the strip is bottom padding so the checkout
+              actions sit above the bar instead of under its glass. */}
           <motion.div
-            className="fixed top-0 right-0 bottom-0 z-50 w-full max-w-[480px] flex flex-col"
-            style={{ backgroundColor: "#F5F2ED", boxShadow: "-24px 0 80px rgba(45,36,30,0.12)" }}
+            className="fixed top-0 right-0 z-50 w-full max-w-[480px] flex flex-col"
+            style={{
+              height: "calc(100svh + var(--browser-bar-b))",
+              paddingBottom: "var(--browser-bar-b)",
+              backgroundColor: "#F5F2ED",
+              boxShadow: "-24px 0 80px rgba(45,36,30,0.12)",
+            }}
             initial={{ x: "100%" }}
             animate={{ x: 0 }}
             exit={{ x: "100%" }}

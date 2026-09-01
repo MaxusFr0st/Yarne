@@ -7,8 +7,10 @@
   /* Strip at the bottom of a 100lvh section that a mobile browser bar can cover. On iOS Safari
      the page is scrolled programmatically (see useHomeSnapScroll), so the bar never retracts and
      the visible viewport stays at svh; the bar's glass shows whatever sits between svh and lvh.
-     Full-height sections fill 100lvh so the glass always shows *their* background, and pad by
-     this so their content stays above the bar. 0 on desktop, where lvh = svh. */
+     Full-height sections are 100svh + this strip so the glass always shows *their* background,
+     and pad their bottom by it so content stays above the bar. 0 on desktop, where lvh = svh.
+     This CSS value is the fallback; on iPhone the strip runs past lvh to the screen bottom, so
+     browserBarInset.ts overrides it with a measured value. */
   --browser-bar-b: calc(100lvh - 100svh + env(safe-area-inset-bottom, 0px));
   --background: #ffffff;
   --foreground: oklch(0.145 0 0);
