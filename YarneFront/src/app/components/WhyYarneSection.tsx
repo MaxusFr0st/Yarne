@@ -228,7 +228,7 @@ export const WhyYarneSection = forwardRef<WhyBagHandle>(function WhyYarneSection
           {/* Bag column — has its own entrance via the arc animation, not ScrollReveal */}
           <div className="relative flex flex-col items-center justify-start md:justify-center gap-0 md:gap-3.5 h-full min-h-0">
             <motion.div
-              className="md:hidden relative z-[4] w-full px-[18px] pb-5 text-center shadow-[0_16px_20px_10px_#2D241E]"
+              className="md:hidden relative z-[4] w-full px-[18px] pb-5 text-center"
               style={{ opacity: factFade, y: factY }}
             >
               {/* /55 not /40: on #2D241E the lighter tint measured 3.4:1, under the 4.5:1
@@ -275,6 +275,15 @@ export const WhyYarneSection = forwardRef<WhyBagHandle>(function WhyYarneSection
                   ))}
                   <div style={{ height: "12.5%" }} className="shrink-0" />
                 </motion.div>
+                {/* Mobile top fade. The outgoing bag parks with its underside just inside the stage
+                    top, an unreadable smear sitting under the caption. The next bag's handles at the
+                    bottom are a real "more below" cue, so only the top is faded. This used to be a
+                    box-shadow on the caption block, which faded out with the caption mid-step and
+                    let the clipped bag show for a few frames. */}
+                <div
+                  aria-hidden
+                  className="md:hidden pointer-events-none absolute inset-x-0 top-0 z-[1] h-[26%] bg-gradient-to-b from-[#2D241E] from-30% to-transparent"
+                />
               </div>
 
               <div className="pointer-events-none hidden md:block absolute md:left-auto md:right-[-26px] md:top-[12%] md:bottom-[12%] w-[2px] bg-white/15">
