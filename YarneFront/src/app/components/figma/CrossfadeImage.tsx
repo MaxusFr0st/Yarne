@@ -13,12 +13,22 @@ import { ImageWithFallback, type FocalPoint } from "./ImageWithFallback";
 const EASE_DISSOLVE = [0.37, 0, 0.63, 1] as const;
 const FADE_MS = 420;
 
+/** A photo and the point it is framed on. They are only ever correct together. */
+type Frame = { src: string; focal?: FocalPoint };
+
 type CrossfadeImageProps = {
   src: string;
   alt: string;
   className?: string;
   priority?: boolean;
   focal?: FocalPoint;
+  /**
+   * False for a frame nobody is looking at — an off-screen carousel slide swaps instantly
+   * instead of paying for a fade no one can see. The mobile gallery holds one of these per
+   * photo, so without this a colour change ran every slide's crossfade at once and iOS had to
+   * decode and composite two full-size photos per slide in the same frames.
+   */
+  animate?: boolean;
 };
 
 /**
@@ -31,6 +41,7 @@ export function CrossfadeImage({
   className = "",
   priority = false,
   focal,
+  animate = true,
 }: CrossfadeImageProps) {
   const reduceMotion = useReducedMotion();
   // Only a stated preference for less motion swaps hard. This used to include every touch
@@ -38,50 +49,54 @@ export function CrossfadeImage({
   // where changing colour, size or strap is the whole interaction. The fade is opacity on two
   // stacked layers, which the compositor handles without touching the main thread, so there is
   // no phone-shaped reason to drop it.
-  const instantSwap = reduceMotion;
+  const instantSwap = reduceMotion || !animate;
   const resolved = src ? resolveMediaUrl(src) : "";
-  const [currentSrc, setCurrentSrc] = useState(resolved);
-  const [previousSrc, setPreviousSrc] = useState<string | null>(null);
-  const [previousFocal, setPreviousFocal] = useState<FocalPoint | undefined>(undefined);
+  // A photo and the point it is framed on are one thing, so they are stored as one thing. Held
+  // apart — src in state, focal read straight from the prop — the visible photo was re-framed to
+  // the *incoming* colour's focal point the moment the swatch was tapped, while still showing the
+  // outgoing photo and before the new one had downloaded. That is a hard, unanimated jump of the
+  // bag, and it happened every single time, ahead of the dissolve that was supposed to hide it.
+  const [current, setCurrent] = useState<Frame>(() => ({ src: resolved, focal }));
+  const [previous, setPrevious] = useState<Frame | null>(null);
   const pendingRef = useRef<string | null>(null);
-  const currentFocalRef = useRef(focal);
-  currentFocalRef.current = focal;
 
   useEffect(() => {
-    if (!resolved || resolved === currentSrc) return;
+    if (!resolved) return;
+    const next: Frame = { src: resolved, focal };
+
+    if (resolved === current.src) {
+      // Same photo, re-framed (two variants can share a photo and differ only in focal point).
+      // Nothing to dissolve between, so just adopt the new framing.
+      if (current.focal?.x !== focal?.x || current.focal?.y !== focal?.y) setCurrent(next);
+      return;
+    }
 
     if (instantSwap) {
       pendingRef.current = null;
-      setPreviousSrc(null);
-      setCurrentSrc(resolved);
+      setPrevious(null);
+      setCurrent(next);
       return;
     }
 
     pendingRef.current = resolved;
+    const settle = () => {
+      if (pendingRef.current !== resolved) return;
+      setPrevious(current);
+      setCurrent(next);
+      pendingRef.current = null;
+    };
     const img = new Image();
     img.decoding = "async";
-    img.onload = () => {
-      if (pendingRef.current !== resolved) return;
-      setPreviousFocal(currentFocalRef.current);
-      setPreviousSrc(currentSrc || null);
-      setCurrentSrc(resolved);
-      pendingRef.current = null;
-    };
-    img.onerror = () => {
-      if (pendingRef.current !== resolved) return;
-      setPreviousFocal(currentFocalRef.current);
-      setPreviousSrc(currentSrc || null);
-      setCurrentSrc(resolved);
-      pendingRef.current = null;
-    };
+    img.onload = settle;
+    img.onerror = settle;
     img.src = resolved;
-  }, [resolved, currentSrc, instantSwap]);
+  }, [resolved, focal?.x, focal?.y, current, instantSwap]);
 
   useEffect(() => {
-    if (!previousSrc) return;
-    const timer = window.setTimeout(() => setPreviousSrc(null), FADE_MS + 40);
+    if (!previous) return;
+    const timer = window.setTimeout(() => setPrevious(null), FADE_MS + 40);
     return () => window.clearTimeout(timer);
-  }, [previousSrc, currentSrc]);
+  }, [previous]);
 
   const duration = instantSwap ? 0 : FADE_MS / 1000;
 
@@ -94,31 +109,31 @@ export function CrossfadeImage({
     // previous photo lingering for one fade, and the timer above drops it whether the animation
     // ran or not, so a photo is on screen at every point in the swap.
     <div className="absolute inset-0 overflow-hidden bg-[#EDE9E2]">
-      <div key={`cur-${currentSrc}`} className="absolute inset-0">
+      <div key={`cur-${current.src}`} className="absolute inset-0">
         <ImageWithFallback
-          src={currentSrc}
+          src={current.src}
           alt={alt}
           priority={priority}
-          focal={focal}
+          focal={current.focal}
           className={`h-full w-full object-cover ${className}`}
         />
       </div>
-      {previousSrc && !instantSwap && (
+      {previous && !instantSwap && (
         <motion.div
-          key={`prev-${previousSrc}`}
+          key={`prev-${previous.src}`}
           className="absolute inset-0"
-          // The outgoing photo also drifts back by a breath as it dissolves. Barely a
-          // percent — enough to read as the old bag receding rather than a flat pixel
-          // blend, and it scales up so no edge is ever uncovered inside the clipped frame.
-          initial={{ opacity: 1, scale: 1 }}
-          animate={{ opacity: 0, scale: 1.02 }}
+          // Opacity only. A 2% scale drift on the outgoing photo read nicely on a desktop
+          // but made iOS re-rasterize a full-bleed image every frame of the fade, and a
+          // dissolve that stutters is worse than one without the flourish.
+          initial={{ opacity: 1 }}
+          animate={{ opacity: 0 }}
           transition={{ duration, ease: EASE_DISSOLVE }}
         >
           <ImageWithFallback
-            src={previousSrc}
+            src={previous.src}
             alt=""
             aria-hidden
-            focal={previousFocal}
+            focal={previous.focal}
             className={`h-full w-full object-cover ${className}`}
           />
         </motion.div>

@@ -187,9 +187,13 @@ export function MobileProductDetailView({
     const start = performance.now();
     const step = (now: number) => {
       const t = Math.min((now - start) / SHEET_SLIDE_MS, 1);
-      // Exponential ease-out — a confident arrival that decelerates into place rather
-      // than easing symmetrically in and out, which reads as hesitation on a reveal.
-      const eased = t === 1 ? 1 : 1 - Math.pow(2, -10 * t);
+      // Cubic in-out, the same curve useHomeSnapScroll travels the page with. This was an
+      // exponential ease-out, which is not a glide at all: 2^-10t is already at 0.5 by a tenth
+      // of the duration, so from 260px the sheet covered 122px before the eye registered it
+      // starting and then crawled the last few pixels for half a second. Read as a jump
+      // followed by a drift — which is exactly what it was. Distance the eye can follow has to
+      // be spent across the whole duration, not front-loaded.
+      const eased = t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
       window.scrollTo(0, from * (1 - eased));
       sheetSlideRef.current = t < 1 ? requestAnimationFrame(step) : null;
     };
@@ -267,6 +271,13 @@ export function MobileProductDetailView({
                     focal={{ x: src.focalX, y: src.focalY }}
                     alt={`${product.name} – ${activeColorLabel} – ${i + 1}`}
                     priority={i === 0}
+                    // Only the slide on screen dissolves. Every slide holds its own photo, so a
+                    // colour change swapped all of them at once and iOS had to decode and
+                    // composite two full-size photos per slide in the same frames — while this
+                    // view was also animating the sheet's scroll. The off-screen ones swap
+                    // instantly; nobody can see the difference, and the visible one gets the
+                    // frame budget it needs.
+                    animate={i === safeGalleryIndex}
                   />
                 ) : (
                   <div className="absolute inset-0 bg-[#EDE9E2]" />
