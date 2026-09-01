@@ -7,15 +7,16 @@ export function useBodyScrollLock(locked: boolean) {
   useEffect(() => {
     if (!locked) return;
 
-    const html = document.documentElement;
     const body = document.body;
-    const prevHtmlOverflow = html.style.overflow;
     const prevBodyOverflow = body.style.overflow;
     const scrollY = window.scrollY;
     const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
     const prevBodyPaddingRight = body.style.paddingRight;
 
-    html.style.overflow = "hidden";
+    // Deliberately no `overflow: hidden` on <html>. A non-visible overflow on the root
+    // propagates to the viewport, and iPhone Safari then clips painting at the layout viewport,
+    // which stops short of the screen bottom its translucent bar renders through: with the cart
+    // open, everything below that line went white. The fixed body already prevents scrolling.
     body.style.overflow = "hidden";
     body.style.position = "fixed";
     body.style.top = `-${scrollY}px`;
@@ -27,7 +28,6 @@ export function useBodyScrollLock(locked: boolean) {
     }
 
     return () => {
-      html.style.overflow = prevHtmlOverflow;
       body.style.overflow = prevBodyOverflow;
       body.style.position = "";
       body.style.top = "";
