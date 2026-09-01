@@ -38,7 +38,16 @@ export function CartDrawer() {
             exit={{ opacity: 0 }}
             transition={{ duration: 0.3 }}
             onClick={closeCart}
-          />
+          >
+            {/* Safari clips the transformed drawer below at lvh, short of the screen bottom its
+                bar renders through, but this untransformed backdrop paints all the way down. So
+                the strip under the viewport wears the drawer's colour here; 0px tall off iPhone. */}
+            <div
+              aria-hidden
+              className="absolute inset-x-0"
+              style={{ top: "100svh", height: "var(--browser-bar-b)", backgroundColor: "#F5F2ED" }}
+            />
+          </motion.div>
 
           {/* Drawer: same sizing as the backdrop; the strip is bottom padding so the checkout
               actions sit above the bar instead of under its glass. */}

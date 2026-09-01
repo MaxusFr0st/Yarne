@@ -75,7 +75,10 @@ export function Footer() {
   return (
     <footer
       className="mt-32 border-t border-[#2D241E]/10"
-      style={{ backgroundColor: "#F5F2ED" }}
+      // The document ends here, and iPhone Safari paints its own grey past the document end under
+      // its translucent bar. Padding by the bar strip (--browser-bar-b, 0 elsewhere) keeps the
+      // footer's own background under the glass at the bottom of every page.
+      style={{ backgroundColor: "#F5F2ED", paddingBottom: "var(--browser-bar-b)" }}
     >
       <div className="max-w-[1400px] mx-auto px-6 md:px-10 py-16 md:py-20">
         <div className="flex flex-col items-center text-center mb-16">
