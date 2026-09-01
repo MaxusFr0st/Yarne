@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from "react";
 import { motion, useReducedMotion } from "motion/react";
-import { useTouchMobileLayout } from "../../hooks/useTouchMobileLayout";
 import { resolveMediaUrl } from "../../utils/storefrontMedia";
 import { ImageWithFallback, type FocalPoint } from "./ImageWithFallback";
 
@@ -27,8 +26,12 @@ export function CrossfadeImage({
   focal,
 }: CrossfadeImageProps) {
   const reduceMotion = useReducedMotion();
-  const touchMobile = useTouchMobileLayout();
-  const instantSwap = touchMobile || reduceMotion;
+  // Only a stated preference for less motion swaps hard. This used to include every touch
+  // device, which meant the crossfade this component exists for never once ran on a phone —
+  // where changing colour, size or strap is the whole interaction. The fade is opacity on two
+  // stacked layers, which the compositor handles without touching the main thread, so there is
+  // no phone-shaped reason to drop it.
+  const instantSwap = reduceMotion;
   const resolved = src ? resolveMediaUrl(src) : "";
   const [currentSrc, setCurrentSrc] = useState(resolved);
   const [previousSrc, setPreviousSrc] = useState<string | null>(null);
@@ -76,7 +79,23 @@ export function CrossfadeImage({
   const duration = instantSwap ? 0 : FADE_MS / 1000;
 
   return (
+    // The incoming photo sits underneath at full opacity from its first frame, and the outgoing
+    // one fades away on top of it. Fading the *new* photo in instead leaves the frame blank
+    // whenever the animation cannot run — a throttled background tab, a stalled main thread —
+    // because the `initial` opacity stays on the element until something animates it off, and
+    // every product card on the site now renders through here. This way the worst case is the
+    // previous photo lingering for one fade, and the timer above drops it whether the animation
+    // ran or not, so a photo is on screen at every point in the swap.
     <div className="absolute inset-0 overflow-hidden bg-[#EDE9E2]">
+      <div key={`cur-${currentSrc}`} className="absolute inset-0">
+        <ImageWithFallback
+          src={currentSrc}
+          alt={alt}
+          priority={priority}
+          focal={focal}
+          className={`h-full w-full object-cover ${className}`}
+        />
+      </div>
       {previousSrc && !instantSwap && (
         <motion.div
           key={`prev-${previousSrc}`}
@@ -94,21 +113,6 @@ export function CrossfadeImage({
           />
         </motion.div>
       )}
-      <motion.div
-        key={`cur-${currentSrc}`}
-        className="absolute inset-0"
-        initial={previousSrc && !instantSwap ? { opacity: 0 } : false}
-        animate={{ opacity: 1 }}
-        transition={{ duration, ease: EASE_OUT }}
-      >
-        <ImageWithFallback
-          src={currentSrc}
-          alt={alt}
-          priority={priority}
-          focal={focal}
-          className={`h-full w-full object-cover ${className}`}
-        />
-      </motion.div>
     </div>
   );
 }

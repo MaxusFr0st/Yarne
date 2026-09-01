@@ -307,6 +307,12 @@ app.UseStaticFiles(new StaticFileOptions
     {
         ctx.Context.Response.Headers.Append("Access-Control-Allow-Origin", "*");
         ctx.Context.Response.Headers.Append("Access-Control-Allow-Methods", "GET");
+        // Uploads were served with an ETag and nothing else, so every navigation still paid a
+        // round trip to this origin per photo just to be told "not modified". The names are
+        // fresh GUIDs written with FileMode.CreateNew (see ImagesController), so a stored file
+        // is never rewritten — editing a product mints a new name instead. That makes these
+        // genuinely immutable and cacheable for as long as the browser or a CDN will hold them.
+        ctx.Context.Response.Headers.CacheControl = "public, max-age=31536000, immutable";
     },
 });
 app.Use(async (context, next) =>

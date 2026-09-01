@@ -4,7 +4,7 @@ import { ShoppingBag } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import type { Product } from "../types/product";
 import { useCart } from "../context/AppContext";
-import { ImageWithFallback } from "./figma/ImageWithFallback";
+import { CrossfadeImage } from "./figma/CrossfadeImage";
 import { LangLink } from "../i18n/LangLink";
 import { useLocale } from "../i18n/useLocale";
 import { PriceTag } from "./PriceTag";
@@ -106,6 +106,8 @@ function ProductCardInner({
   const activeColorLabel = activeColorVariant
     ? localizedCatalogName(activeColorVariant.name, activeColorVariant.nameUk, locale)
     : "";
+  /** Admin variant-photo preview replaces the active colour's photo, focal point included. */
+  const usePreviewOverride = previewMode && !!previewImageOverride;
 
   const handleCardClick = (e: MouseEvent<HTMLAnchorElement>) => {
     if (previewMode) {
@@ -154,27 +156,24 @@ function ProductCardInner({
         <div
           className={`relative ${aspectClass} overflow-hidden ${imageRadiusClass} bg-[#EDE9E2] ${previewMode ? "" : "cursor-pointer"}`}
         >
+          {/* One photo, not one per colour. Every variant used to be mounted here and all but
+              the active one hidden with opacity-0 — which hides nothing from the network: a
+              five-colour product downloaded five full photos to show one, and the home page
+              pulled 38 images to display 14. CrossfadeImage loads only what is on screen and
+              holds the outgoing photo until the incoming one has decoded, so switching swatch
+              fades rather than flashing the empty card while the new file arrives.
+              Focal points still come from color.image.focalX/focalY as objectPosition. */}
           <div className={`absolute inset-0 overflow-hidden ${imageRadiusClass}`}>
-            {/* Verified: Focal points from color.image.focalX/focalY are correctly passed to ImageWithFallback
-                and applied as CSS objectPosition. In carousel context (BestSellersCarousel), previewMode is
-                not set, so focal points are always used. */}
-            {product.colors.map((color, i) => (
-              <ImageWithFallback
-                key={color.name}
-                src={
-                  previewMode && i === activeColor && previewImageOverride
-                    ? previewImageOverride
-                    : color.image.src
-                }
-                focal={previewImageOverride && previewMode && i === activeColor
+            <CrossfadeImage
+              src={usePreviewOverride ? previewImageOverride! : activeColorVariant?.image.src ?? ""}
+              focal={
+                usePreviewOverride || !activeColorVariant
                   ? undefined
-                  : { x: color.image.focalX, y: color.image.focalY }}
-                alt={`${product.name} in ${localizedCatalogName(color.name, color.nameUk, locale)}`}
-                className={`product-card-image absolute inset-0 h-full w-full object-cover ${
-                  i === activeColor ? "opacity-100" : "opacity-0"
-                }`}
-              />
-            ))}
+                  : { x: activeColorVariant.image.focalX, y: activeColorVariant.image.focalY }
+              }
+              alt={`${product.name} in ${activeColorLabel}`}
+              className="product-card-image"
+            />
           </div>
 
           <div
