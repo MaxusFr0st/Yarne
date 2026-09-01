@@ -97,12 +97,27 @@ export function useHomeSnapScroll({ mainRef, whyRef, enabled }: Params) {
     let cachedVw = window.innerWidth;
     const CHROME_MAX_PX = 200;
     const stableVh = () => cachedVh;
+    /**
+     * Full-height sections are 100lvh with the bar strip (lvh − svh) as bottom padding, so with
+     * the bar extended they overflow innerHeight by exactly that strip. Measured off a probe so
+     * the fit check below can use the retracted height and not page that padding as a second stop.
+     */
+    const measureLvh = () => {
+      const probe = document.createElement("div");
+      probe.style.cssText = "position:fixed;top:0;left:0;width:0;height:100lvh;visibility:hidden;pointer-events:none";
+      document.body.appendChild(probe);
+      const px = probe.offsetHeight;
+      probe.remove();
+      return px;
+    };
+    let cachedLvh = measureLvh();
     const refreshViewport = () => {
       const w = window.innerWidth;
       const h = window.innerHeight;
       if (w !== cachedVw || Math.abs(h - cachedVh) > CHROME_MAX_PX) {
         cachedVw = w;
         cachedVh = h;
+        cachedLvh = measureLvh();
       }
     };
 
@@ -123,7 +138,9 @@ export function useHomeSnapScroll({ mainRef, whyRef, enabled }: Params) {
           return;
         }
         // Fits the viewport (or spills only into its own bottom padding) — one centred stop.
-        if (h - vh <= MIN_PAGE_OVERFLOW_PX) {
+        // Fit is judged against the retracted height: a 100lvh section's overflow past an
+        // extended-bar innerHeight is its --browser-bar-b padding, not reachable content.
+        if (h - Math.max(vh, cachedLvh) <= MIN_PAGE_OVERFLOW_PX) {
           stops.push({ y: top - Math.max(0, (vh - h) / 2), why: false, group: groupIndex });
           return;
         }

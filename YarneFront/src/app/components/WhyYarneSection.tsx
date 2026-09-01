@@ -214,13 +214,12 @@ export const WhyYarneSection = forwardRef<WhyBagHandle>(function WhyYarneSection
   return (
     <section
       data-snap-why
-      className="relative isolate overflow-hidden bg-[#2D241E] text-[#F5F2ED] pt-[66px] pb-0 md:pt-7 md:pb-7"
+      className="relative isolate overflow-hidden bg-[#2D241E] text-[#F5F2ED] pt-[66px] pb-[var(--browser-bar-b)] md:pt-7 md:pb-7"
       // lvh, not dvh or svh. dvh rebuilt the whole bag stage every time the mobile toolbar
-      // collapsed, which moved the bags against the caption above them. svh is stable but sizes
-      // to the *extended*-toolbar viewport, so once Safari retracts its bar (which it has by the
-      // time you reach this section) the section fell ~90px short and the next, cream-coloured
-      // section showed through under the translucent footer. lvh is the retracted height: just
-      // as fixed per device as svh — nothing re-measures — and it fills the screen edge to edge.
+      // collapsed, which moved the bags against the caption above them. svh left the cream
+      // section below showing through Safari's translucent bar. lvh fills the screen edge to
+      // edge and is just as fixed per device; the bar strip is padding (--browser-bar-b) so the
+      // stage, and the next bag peeking at its bottom, stay above the glass.
       style={{ height: "100lvh" }}
     >
       <div className="max-w-[1400px] mx-auto px-3.5 md:px-6 h-full">

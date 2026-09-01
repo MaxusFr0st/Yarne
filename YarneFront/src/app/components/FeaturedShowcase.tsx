@@ -491,11 +491,16 @@ export function FeaturedShowcase() {
    * dead space at the bottom. Owning the full height and pushing content down with padding
    * puts the heading back on screen and removes the gap, on any viewport.
    *
-   * svh rather than dvh so the height does not change as the mobile toolbar collapses.
+   * lvh rather than svh/dvh: fixed per device, and it fills the strip under Safari's translucent
+   * bar so the next section cannot show through it; that strip is padding (--browser-bar-b) so
+   * the grid's last row stays above the glass.
    */
-  const bentoSectionHeight = lockBentoViewport ? "100svh" : undefined;
+  const bentoSectionHeight = lockBentoViewport ? "100lvh" : undefined;
   const bentoSectionPaddingTop = lockBentoViewport
     ? "calc(var(--main-header-h) + clamp(6px, 1.6vw, 12px))"
+    : undefined;
+  const bentoSectionPaddingBottom = lockBentoViewport
+    ? "calc(var(--browser-bar-b) + clamp(6px, 1.6vw, 12px))"
     : undefined;
   const bentoSectionMinHeight = undefined;
 
@@ -512,6 +517,7 @@ export function FeaturedShowcase() {
         height: bentoSectionHeight,
         minHeight: bentoSectionMinHeight,
         paddingTop: bentoSectionPaddingTop,
+        paddingBottom: bentoSectionPaddingBottom,
       }}
     >
       <div

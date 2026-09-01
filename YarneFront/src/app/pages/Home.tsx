@@ -84,10 +84,10 @@ export function Home() {
       {/* ─── HERO ─── */}
       <section
         ref={heroRef}
-        className="relative flex items-end overflow-hidden min-h-[600px]"
-        // svh, not dvh — a fixed height per device, so the hero does not resize (and the snap
-        // stops below it do not shift) when the mobile browser toolbar collapses on scroll.
-        style={{ height: "100svh" }}
+        className="relative flex items-end overflow-hidden min-h-[600px] pb-[var(--browser-bar-b)]"
+        // lvh + bar padding, not svh: see --browser-bar-b. At 100svh the hero ended under Safari's
+        // translucent bar and the Why section's "01" showed through it.
+        style={{ height: "100lvh" }}
       >
         {animateHero ? (
           <motion.div className="absolute inset-0 overflow-hidden" style={{ y: heroY }}>

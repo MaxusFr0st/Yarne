@@ -4,6 +4,12 @@
   --font-size: 16px;
   /* Height of the fixed main header. Used for layout offsets and sticky tops. */
   --main-header-h: 56px;
+  /* Strip at the bottom of a 100lvh section that a mobile browser bar can cover. On iOS Safari
+     the page is scrolled programmatically (see useHomeSnapScroll), so the bar never retracts and
+     the visible viewport stays at svh; the bar's glass shows whatever sits between svh and lvh.
+     Full-height sections fill 100lvh so the glass always shows *their* background, and pad by
+     this so their content stays above the bar. 0 on desktop, where lvh = svh. */
+  --browser-bar-b: calc(100lvh - 100svh + env(safe-area-inset-bottom, 0px));
   --background: #ffffff;
   --foreground: oklch(0.145 0 0);
   --card: #ffffff;
