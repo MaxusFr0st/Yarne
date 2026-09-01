@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
-import { AnimatePresence, motion, useReducedMotion } from "motion/react";
+import { AnimatePresence, animate, motion, useReducedMotion } from "motion/react";
 import { ArrowRight, Package } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { createOrder, fetchNovaPoshtaShippingPrice, orderEurTotal, type OrderDto } from "../api/orders";
@@ -155,12 +155,49 @@ export function CheckoutPage() {
   // The receipt replaces a form that stood taller than the screen, so the panel closes out from
   // under the reader and strands them beside whatever now sits at their old offset — the order
   // was accepted somewhere above them and nothing said so. Carry them back up to it.
-  // Deliberately `top: 0` rather than the panel's own offset: the page is still collapsing while
-  // this scroll runs, and 0 is the only target that cannot be invalidated mid-flight. Native
-  // smooth scroll, so a user who starts scrolling themselves takes over instead of fighting it.
+  //
+  // Driven frame by frame rather than handed to `scrollTo({ behavior: "smooth" })`: that scroll
+  // is started into the exact frames where the panel is collapsing and the document is being
+  // re-laid-out around it, and the browser is free to drop it there — it is a request, not a
+  // guarantee, and nothing reports back when it is ignored. `useHomeSnapScroll` already moves
+  // the page this way for the same reason. Target 0 specifically, since the layout settling
+  // underneath can invalidate any element-relative offset mid-flight.
   useEffect(() => {
     if (!placedOrder) return;
-    window.scrollTo({ top: 0, behavior: reduceMotion ? "auto" : "smooth" });
+    const from = window.scrollY;
+    if (from < 8) return;
+    if (reduceMotion) {
+      window.scrollTo(0, 0);
+      return;
+    }
+
+    let released = false;
+    const controls = animate(from, 0, {
+      duration: Math.min(0.85, 0.34 + from / 3000),
+      ease: glide,
+      onUpdate: (v) => window.scrollTo(0, v),
+    });
+    // A reader who starts scrolling for themselves has taken over; stop pulling against them.
+    // touchmove, not touchstart — a stray tap is not a decision to go somewhere else.
+    const release = () => {
+      released = true;
+      controls.stop();
+    };
+    // The landing is guaranteed, not merely animated: a backgrounded tab freezes rAF and the
+    // animation above never runs a single frame, which must not leave the reader parked at the
+    // button they pressed with the confirmation off-screen above them.
+    const settle = window.setTimeout(() => {
+      if (!released && window.scrollY > 8) window.scrollTo(0, 0);
+    }, 1100);
+
+    window.addEventListener("wheel", release, { passive: true, once: true });
+    window.addEventListener("touchmove", release, { passive: true, once: true });
+    return () => {
+      controls.stop();
+      window.clearTimeout(settle);
+      window.removeEventListener("wheel", release);
+      window.removeEventListener("touchmove", release);
+    };
   }, [placedOrder, reduceMotion]);
 
   const activeItems = placedOrder
