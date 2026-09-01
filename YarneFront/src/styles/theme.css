@@ -151,6 +151,12 @@
 
   html {
     font-size: var(--font-size);
+    /* The canvas colour. iPhone Safari paints everything past the document with it: the
+       rubber-band overscroll and the strip its translucent bottom bar renders through at the
+       end of every page and behind fixed overlays (the body scroll lock shrinks the document
+       to one viewport). Without it the canvas took body's white token and showed as a grey
+       sliver under the bar below the footer and the cart drawer. */
+    background-color: #f5f2ed;
     /* Horizontal overflow is contained HERE and nowhere else, and with `hidden` rather
        than `clip`.
        Per the overflow spec, a non-visible overflow on the root element is propagated to
