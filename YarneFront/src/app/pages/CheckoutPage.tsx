@@ -54,6 +54,76 @@ function toDisplayDate(value: string, locale: "uk" | "en"): string {
   });
 }
 
+/**
+ * The one authored moment on this surface: the summary panel stops being a form and becomes a
+ * receipt. The form's content clears before the gap it leaves closes (fading and squashing at
+ * once reads as a glitch), then the receipt rises through the space and the mark is struck.
+ * Seconds, keyed here so the sequence can be read in one place.
+ */
+const SEAL = {
+  // These two are tuned against each other, not chosen separately: whatever time the collapse
+  // runs past the fade is time the panel stands open and empty. At 0.16/0.42 that gap was 260ms
+  // and read as a blank dark box rather than a closing one.
+  fade: 0.2,
+  collapse: 0.34,
+  receiptIn: 0.5,
+  receiptDelay: 0.14,
+  ring: 0.3,
+  tick: 0.5,
+  line: 0.42,
+} as const;
+/** Confident arrival: decelerates hard, settles without overshoot. */
+const glide = [0.16, 1, 0.3, 1] as const;
+
+/**
+ * Drawn, not stamped — the ring closes, then the tick is struck through it, the way a hand
+ * marks an order as taken. lucide's CheckCircle2 is a single static path, and this is the one
+ * beat of the whole storefront that earns its own geometry.
+ */
+function OrderSealMark({ still }: { still: boolean }) {
+  const draw = still ? { pathLength: 1 } : { pathLength: 0 };
+  return (
+    <span className="relative inline-flex h-[18px] w-[18px] shrink-0 items-center justify-center">
+      {!still && (
+        <motion.span
+          aria-hidden
+          className="absolute inset-0 rounded-full border"
+          style={{ borderColor: "currentColor" }}
+          initial={{ scale: 0.55, opacity: 0.5 }}
+          animate={{ scale: 1.9, opacity: 0 }}
+          transition={{ duration: 0.7, delay: SEAL.tick, ease: glide }}
+        />
+      )}
+      <svg
+        viewBox="0 0 24 24"
+        width={18}
+        height={18}
+        fill="none"
+        stroke="currentColor"
+        strokeWidth={2}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        aria-hidden
+      >
+        <motion.circle
+          cx="12"
+          cy="12"
+          r="9.75"
+          initial={draw}
+          animate={{ pathLength: 1 }}
+          transition={{ duration: 0.44, delay: SEAL.ring, ease: glide }}
+        />
+        <motion.path
+          d="M7.6 12.3l2.9 2.9 5.9-6.4"
+          initial={draw}
+          animate={{ pathLength: 1 }}
+          transition={{ duration: 0.3, delay: SEAL.tick, ease: glide }}
+        />
+      </svg>
+    </span>
+  );
+}
+
 export function CheckoutPage() {
   const { t } = useTranslation();
   const locale = useLocale();
@@ -77,6 +147,21 @@ export function CheckoutPage() {
   const [placedOrder, setPlacedOrder] = useState<OrderDto | null>(null);
   const [orderSnapshot, setOrderSnapshot] = useState<CartItem[]>([]);
   const [snapshotTotal, setSnapshotTotal] = useState(0);
+  const reduceMotion = useReducedMotion();
+  // Reduced motion keeps the sequence's meaning and drops its waiting: the panel still closes
+  // and the receipt still arrives, but nothing is staged in time or travels across the screen.
+  const beat = (seconds: number) => (reduceMotion ? 0 : seconds);
+
+  // The receipt replaces a form that stood taller than the screen, so the panel closes out from
+  // under the reader and strands them beside whatever now sits at their old offset — the order
+  // was accepted somewhere above them and nothing said so. Carry them back up to it.
+  // Deliberately `top: 0` rather than the panel's own offset: the page is still collapsing while
+  // this scroll runs, and 0 is the only target that cannot be invalidated mid-flight. Native
+  // smooth scroll, so a user who starts scrolling themselves takes over instead of fighting it.
+  useEffect(() => {
+    if (!placedOrder) return;
+    window.scrollTo({ top: 0, behavior: reduceMotion ? "auto" : "smooth" });
+  }, [placedOrder, reduceMotion]);
 
   const activeItems = placedOrder
     ? mergePlacedOrderDisplay(placedOrder, orderSnapshot)
@@ -325,9 +410,15 @@ export function CheckoutPage() {
                 pre-purchase "review your details" line restated the heading, and the
                 eyebrow above it labelled a heading that already names itself. */}
             {placedOrder && (
-              <p className="text-[#2D241E]/50 mt-2" style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "0.9rem" }}>
+              <motion.p
+                className="text-[#2D241E]/50 mt-2"
+                style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "0.9rem" }}
+                initial={reduceMotion ? { opacity: 0 } : { opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: SEAL.line, delay: beat(SEAL.receiptDelay), ease: glide }}
+              >
                 {t("checkout.placedMessage", { id: placedOrder.id })}
-              </p>
+              </motion.p>
             )}
           </motion.div>
         </div>
@@ -407,7 +498,13 @@ export function CheckoutPage() {
           initial={{ opacity: 0, y: 24 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.55, delay: 0.05, ease: easing }}
-          className="min-w-0 rounded-[20px] md:rounded-[28px] p-5 md:p-9 h-fit lg:sticky lg:top-28"
+          // Single-column, the receipt leads: before checkout the panel is the thing you act on
+          // after reviewing the items, but once the order exists it is the thing you came back
+          // for, and the items are the supporting detail. Two columns already show both, so the
+          // reorder resets at lg.
+          className={`min-w-0 rounded-[20px] md:rounded-[28px] p-5 md:p-9 h-fit lg:sticky lg:top-28 ${
+            placedOrder ? "order-first lg:order-none" : ""
+          }`}
           style={{ backgroundColor: "#2D241E", color: "#F5F2ED" }}
         >
           <p
@@ -438,8 +535,22 @@ export function CheckoutPage() {
             </p>
           )}
 
-          {!placedOrder && (
-            <>
+          <AnimatePresence initial={false}>
+            {!placedOrder && (
+              <motion.div
+                key="checkout-form"
+                // flex-col so the children's own top margins stay inside the box being measured —
+                // through a plain block they collapse out of it and the closing panel keeps a
+                // 20px ghost of the form. `-m-1 p-1` nets to zero layout while giving the clip
+                // 4px of bleed, so overflow-hidden can stay on permanently (it has to be on
+                // before the exit starts) without shaving a focus ring off the edge inputs.
+                className="flex flex-col overflow-hidden -m-1 p-1"
+                exit={{ height: 0, opacity: 0 }}
+                transition={{
+                  height: { duration: beat(SEAL.collapse), ease: glide },
+                  opacity: { duration: reduceMotion ? 0.12 : SEAL.fade, ease: "easeOut" },
+                }}
+              >
               {!isLoggedIn && (
                 <div className="mt-5">
                   <p
@@ -588,27 +699,64 @@ export function CheckoutPage() {
                   </div>
                 )}
               </div>
-            </>
-          )}
 
-          {placedOrder ? (
-            <div className="mt-6">
+              {/* The button leaves with the fields it submits — left in its own branch it
+                  vanished on the first frame while everything above it was still closing. */}
+              {error && (
+                <p className="mt-4 text-sm" style={{ fontFamily: "'DM Sans', sans-serif", color: "#F2B8B8" }}>
+                  {error}
+                </p>
+              )}
+              <button
+                onClick={placeOrder}
+                disabled={placingOrder || cartItems.length === 0 || !isEmailValid || !isRecipientValid || !isDeliveryValid}
+                className="mt-6 w-full h-[52px] rounded-[26px] uppercase transition-opacity duration-300 disabled:opacity-60 cursor-pointer"
+                style={{ backgroundColor: "#F5F2ED", color: "#4A0E0E", fontFamily: "'DM Sans', sans-serif", fontSize: "0.75rem", letterSpacing: "0.14em" }}
+              >
+                {placingOrder ? t("checkout.placingOrder") : t("checkout.placeOrder")}
+              </button>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {placedOrder && (
+            <motion.div
+              className="mt-6"
+              // The receipt is the only confirmation on screen once the panel has closed, so it
+              // announces itself rather than relying on the sequence being watched.
+              role="status"
+              initial={reduceMotion ? { opacity: 0 } : { opacity: 0, y: 14 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: SEAL.receiptIn, delay: beat(SEAL.receiptDelay), ease: glide }}
+            >
               <div className="rounded-[16px] p-4 mb-4" style={{ backgroundColor: "rgba(245,242,237,0.08)" }}>
                 <div className="flex items-center gap-2 mb-1" style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "0.85rem", color: "#9FDCAE" }}>
-                  <CheckCircle2 size={15} />
+                  <OrderSealMark still={!!reduceMotion} />
                   {t("checkout.orderPlaced")}
                 </div>
-                <p className="text-sm" style={{ fontFamily: "'DM Sans', sans-serif", color: "rgba(245,242,237,0.65)" }}>
+                <motion.p
+                  className="text-sm"
+                  style={{ fontFamily: "'DM Sans', sans-serif", color: "rgba(245,242,237,0.65)" }}
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ duration: SEAL.line, delay: beat(SEAL.tick), ease: glide }}
+                >
                   #{placedOrder.id} · {toDisplayDate(placedOrder.orderDate, locale)}
-                </p>
+                </motion.p>
               </div>
               {/* Payment method line removed — the store bills one way, so naming it here
                   was noise. Status now goes through the same account.status.* keys the
                   account page uses, instead of printing the API's raw English enum. */}
-              <div className="space-y-2 text-sm" style={{ fontFamily: "'DM Sans', sans-serif" }}>
+              <motion.div
+                className="space-y-2 text-sm"
+                style={{ fontFamily: "'DM Sans', sans-serif" }}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ duration: SEAL.line, delay: beat(SEAL.tick + 0.08), ease: glide }}
+              >
                 <p style={{ color: "rgba(245,242,237,0.65)" }}>{t("checkout.status")}: <span style={{ color: "#F5F2ED" }}>{t(`account.status.${orderStatusKey(placedOrder.status)}`)}</span></p>
                 <p style={{ color: "rgba(245,242,237,0.65)" }}>{t("checkout.itemsInOrder")}: <span style={{ color: "#F5F2ED" }}>{placedOrder.items.length}</span></p>
-              </div>
+              </motion.div>
               <LangLink
                 to="/account"
                 className="mt-6 inline-flex items-center gap-2 hover:opacity-80 transition-opacity text-sm"
@@ -617,23 +765,7 @@ export function CheckoutPage() {
                 {t("checkout.viewInAccount")}
                 <ArrowRight size={14} />
               </LangLink>
-            </div>
-          ) : (
-            <>
-              {error && (
-                <p className="mt-4 text-sm" style={{ fontFamily: "'DM Sans', sans-serif", color: "#F2B8B8" }}>
-                  {error}
-                </p>
-              )}
-            <button
-              onClick={placeOrder}
-              disabled={placingOrder || cartItems.length === 0 || !isEmailValid || !isRecipientValid || !isDeliveryValid}
-              className="mt-6 w-full h-[52px] rounded-[26px] uppercase transition-opacity duration-300 disabled:opacity-60 cursor-pointer"
-              style={{ backgroundColor: "#F5F2ED", color: "#4A0E0E", fontFamily: "'DM Sans', sans-serif", fontSize: "0.75rem", letterSpacing: "0.14em" }}
-            >
-              {placingOrder ? t("checkout.placingOrder") : t("checkout.placeOrder")}
-            </button>
-            </>
+            </motion.div>
           )}
         </motion.aside>
       </div>
