@@ -140,12 +140,20 @@ export function ProductDetail() {
       ? colorScopedSizes
       : (product?.sizes ?? []).map((s) => s.name);
 
-  useEffect(() => {
+  // A shopper who picked a color on the card arrives expecting that color, not the product's
+  // default — cards link here with ?color=<name>. Read per render rather than stored in state so
+  // browser back/forward between two colors of the same product lands on the right one.
+  const requestedColor = new URLSearchParams(location.search).get("color");
+  // Layout, not plain effect: a plain effect runs after the browser has painted, so the page
+  // showed one frame of the product's default colour before correcting to the chosen one — a
+  // visible flash of the wrong bag, and with the crossfade in place it was a wrong-photo fade
+  // rather than a blink. Running before paint means the first frame is already correct.
+  useLayoutEffect(() => {
     if (!product) return;
-    setActiveColor(getDefaultColorIndex(product));
+    setActiveColor(getDefaultColorIndex(product, requestedColor));
     setActiveFurniture(getDefaultFurnitureColorIndex(product));
     setActiveImage(0);
-  }, [product?.id]);
+  }, [product?.id, requestedColor]);
 
   useEffect(() => {
     if (!product) return;

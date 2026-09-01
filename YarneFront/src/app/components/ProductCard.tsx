@@ -108,6 +108,13 @@ function ProductCardInner({
     : "";
   /** Admin variant-photo preview replaces the active colour's photo, focal point included. */
   const usePreviewOverride = previewMode && !!previewImageOverride;
+  // Carry the swatch the shopper chose through to the product page, so the bag they tapped is
+  // the bag they land on. Only when it differs from the default the page would pick anyway —
+  // no reason to hang a parameter off every card link.
+  const productHref =
+    activeColorVariant && activeColor !== getDefaultColorIndex(product)
+      ? `/product/${product.id}?color=${encodeURIComponent(activeColorVariant.name)}`
+      : `/product/${product.id}`;
 
   const handleCardClick = (e: MouseEvent<HTMLAnchorElement>) => {
     if (previewMode) {
@@ -323,7 +330,7 @@ function ProductCardInner({
         <div className={`block ${isCarouselCard ? "overflow-visible" : ""}`}>{cardBody}</div>
       ) : (
         <LangLink
-          to={`/product/${product.id}`}
+          to={productHref}
           className={`block ${isCarouselCard ? "overflow-visible" : ""}`}
           onClick={handleCardClick}
         >
