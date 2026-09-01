@@ -1,0 +1,40 @@
+{
+  // Type-checking only. Vite (esbuild) strips types without ever reading them, which is why the
+  // build stayed green while a ReferenceError shipped — nothing in the pipeline was checking.
+  // `npm run typecheck` is the check; the build still compiles through Vite.
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "jsx": "react-jsx",
+    "types": ["vite/client"],
+
+    "noEmit": true,
+    "skipLibCheck": true,
+    "allowJs": false,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "allowImportingTsExtensions": true,
+    "verbatimModuleSyntax": false,
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+
+    // Strict is on: it is what catches a value used before it exists, a prop that does not
+    // exist on a component, and a possibly-undefined array index — the class of mistake that
+    // reached production here. Unused locals/params are deliberately not errors; they are
+    // tidiness, and failing a check on them trains people to ignore the check.
+    "strict": true,
+    "noUnusedLocals": false,
+    "noUnusedParameters": false,
+    "noFallthroughCasesInSwitch": true,
+
+    // No baseUrl: TypeScript 6 deprecates it, and paths resolve relative to this file anyway.
+    // Mirrors the "@" alias in vite.config.ts.
+    "paths": {
+      "@/*": ["./src/*"]
+    }
+  },
+  "include": ["src", "vite.config.ts"],
+  "exclude": ["node_modules", "dist"]
+}

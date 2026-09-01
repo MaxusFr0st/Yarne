@@ -156,11 +156,16 @@ function ProductCardInner({
         img.src = src;
       }
     };
-    const idle = window.requestIdleCallback;
-    const handle = idle ? idle(warm, { timeout: 2500 }) : window.setTimeout(warm, 1200);
+    // typeof, not truthiness: the DOM lib declares requestIdleCallback as always present, so a
+    // plain `if (idle)` is a check TypeScript knows can never fail — while Safari only shipped
+    // it in 2022 and this still has to fall back there.
+    const hasIdle = typeof window.requestIdleCallback === "function";
+    const handle = hasIdle
+      ? window.requestIdleCallback(warm, { timeout: 2500 })
+      : window.setTimeout(warm, 1200);
     return () => {
       cancelled = true;
-      if (idle) window.cancelIdleCallback(handle as number);
+      if (hasIdle) window.cancelIdleCallback(handle as number);
       else window.clearTimeout(handle as number);
     };
   }, [product.id, previewMode]);

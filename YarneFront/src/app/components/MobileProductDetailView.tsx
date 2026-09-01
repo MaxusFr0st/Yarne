@@ -216,11 +216,19 @@ export function MobileProductDetailView({
   // gallery, so it no longer yanks the user off the controls to show an identical photo —
   // and two colours that happen to share photos correctly stay put too.
   const skipNextSheetSlide = useRef(true);
+  // Two motions want the same moment: the sheet travelling down to reveal the photo, and the
+  // photo dissolving into the new one. Run together and the dissolve plays on a frame that is
+  // sliding across the screen behind a half-covering sheet — which is why the *first* colour
+  // change looked like it had no animation at all, while every later one (page already at the
+  // top, so the slide returns early) looked fine. Hold the dissolve until the reveal is most of
+  // the way done, and it plays on a photo that is still and visible.
+  const [revealHoldMs, setRevealHoldMs] = useState(0);
   useEffect(() => {
     if (skipNextSheetSlide.current) {
       skipNextSheetSlide.current = false;
       return;
     }
+    setRevealHoldMs(window.scrollY > 24 ? Math.round(SHEET_SLIDE_MS * 0.55) : 0);
     slideSheetDown();
   }, [imageKey]);
 
@@ -278,6 +286,7 @@ export function MobileProductDetailView({
                     // instantly; nobody can see the difference, and the visible one gets the
                     // frame budget it needs.
                     animate={i === safeGalleryIndex}
+                    delayMs={i === safeGalleryIndex ? revealHoldMs : 0}
                   />
                 ) : (
                   <div className="absolute inset-0 bg-[#EDE9E2]" />
