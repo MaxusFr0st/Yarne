@@ -11,7 +11,18 @@ import { ImageWithFallback, type FocalPoint } from "./ImageWithFallback";
  * curve that actually spends its time on screen.
  */
 const EASE_DISSOLVE = [0.37, 0, 0.63, 1] as const;
-const FADE_MS = 420;
+
+/**
+ * The two photos never blend into each other. Cross-dissolving them looked like a double
+ * exposure — two bags, two different backgrounds, ghosted together at the halfway point — which
+ * is a real artefact of product photography shot on varied surfaces, not something a nicer
+ * easing curve can fix. Instead the frame's own surface passes over: it covers the outgoing
+ * photo, the outgoing photo is removed underneath it unseen, and it clears to reveal the
+ * incoming one. Every pixel shows one photo or the surface, never a mixture of two.
+ */
+const VEIL_IN_MS = 170;
+const VEIL_OUT_MS = 260;
+const FADE_MS = VEIL_IN_MS + VEIL_OUT_MS;
 
 /** A photo and the point it is framed on. They are only ever correct together. */
 type Frame = { src: string; focal?: FocalPoint };
@@ -58,6 +69,7 @@ export function CrossfadeImage({
   // bag, and it happened every single time, ahead of the dissolve that was supposed to hide it.
   const [current, setCurrent] = useState<Frame>(() => ({ src: resolved, focal }));
   const [previous, setPrevious] = useState<Frame | null>(null);
+  const [veiling, setVeiling] = useState(false);
   const pendingRef = useRef<string | null>(null);
 
   useEffect(() => {
@@ -83,6 +95,7 @@ export function CrossfadeImage({
       if (pendingRef.current !== resolved) return;
       setPrevious(current);
       setCurrent(next);
+      setVeiling(true);
       pendingRef.current = null;
     };
     const img = new Image();
@@ -92,11 +105,21 @@ export function CrossfadeImage({
     img.src = resolved;
   }, [resolved, focal?.x, focal?.y, current, instantSwap]);
 
+  // The outgoing photo is dropped the moment the surface has fully covered it, so it is never
+  // seen leaving; the surface then clears on its own clock. Driven by timers rather than by the
+  // animation's completion, so a frame that cannot animate still lands on the new photo instead
+  // of holding the old one forever.
   useEffect(() => {
     if (!previous) return;
-    const timer = window.setTimeout(() => setPrevious(null), FADE_MS + 40);
+    const timer = window.setTimeout(() => setPrevious(null), VEIL_IN_MS);
     return () => window.clearTimeout(timer);
   }, [previous]);
+
+  useEffect(() => {
+    if (!veiling) return;
+    const timer = window.setTimeout(() => setVeiling(false), FADE_MS + 60);
+    return () => window.clearTimeout(timer);
+  }, [veiling]);
 
   const duration = instantSwap ? 0 : FADE_MS / 1000;
 
@@ -118,17 +141,10 @@ export function CrossfadeImage({
           className={`h-full w-full object-cover ${className}`}
         />
       </div>
+      {/* The outgoing photo holds at full opacity — it is hidden by the surface passing over it,
+          never faded through. Fading it would mean blending it with the photo underneath. */}
       {previous && !instantSwap && (
-        <motion.div
-          key={`prev-${previous.src}`}
-          className="absolute inset-0"
-          // Opacity only. A 2% scale drift on the outgoing photo read nicely on a desktop
-          // but made iOS re-rasterize a full-bleed image every frame of the fade, and a
-          // dissolve that stutters is worse than one without the flourish.
-          initial={{ opacity: 1 }}
-          animate={{ opacity: 0 }}
-          transition={{ duration, ease: EASE_DISSOLVE }}
-        >
+        <div key={`prev-${previous.src}`} className="absolute inset-0">
           <ImageWithFallback
             src={previous.src}
             alt=""
@@ -136,7 +152,22 @@ export function CrossfadeImage({
             focal={previous.focal}
             className={`h-full w-full object-cover ${className}`}
           />
-        </motion.div>
+        </div>
+      )}
+      {/* Opacity on a solid colour: no transform, no filter, nothing for iOS to re-rasterize. */}
+      {veiling && !instantSwap && (
+        <motion.div
+          key={`veil-${current.src}`}
+          aria-hidden
+          className="absolute inset-0 bg-[#EDE9E2]"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: [0, 1, 0] }}
+          transition={{
+            duration,
+            times: [0, VEIL_IN_MS / FADE_MS, 1],
+            ease: EASE_DISSOLVE,
+          }}
+        />
       )}
     </div>
   );
