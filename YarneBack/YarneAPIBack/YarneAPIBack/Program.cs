@@ -298,7 +298,11 @@ var webRootPath = app.Environment.WebRootPath
 var uploadsPath = Path.Combine(webRootPath, "uploads");
 Directory.CreateDirectory(uploadsPath);
 
-app.UseStaticFiles();
+// The /uploads handler must come first. uploadsPath is wwwroot/uploads, so a bare
+// UseStaticFiles() serving wwwroot resolves /uploads/x.webp itself and short-circuits the
+// pipeline — which is why the immutable Cache-Control below was written, deployed, and never
+// once sent: production answered every photo request with an ETag and no caching directive,
+// so every navigation re-fetched the whole gallery.
 app.UseStaticFiles(new StaticFileOptions
 {
     FileProvider = new Microsoft.Extensions.FileProviders.PhysicalFileProvider(uploadsPath),
@@ -315,6 +319,7 @@ app.UseStaticFiles(new StaticFileOptions
         ctx.Context.Response.Headers.CacheControl = "public, max-age=31536000, immutable";
     },
 });
+app.UseStaticFiles();
 app.Use(async (context, next) =>
 {
     context.Response.Headers["X-Content-Type-Options"] = "nosniff";
