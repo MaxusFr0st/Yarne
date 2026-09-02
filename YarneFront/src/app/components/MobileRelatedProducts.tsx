@@ -14,7 +14,9 @@ export function MobileRelatedProducts({ products }: MobileRelatedProductsProps) 
   const { t } = useTranslation();
   const touchMobile = useTouchMobileLayout();
   const reduceMotion = useReducedMotion();
-  const viewportRef = useRef<HTMLDivElement>(null);
+  // `| null` in the parameter, not just the initial value: useRef<T>(null) returns a RefObject
+  // whose `current` is readonly, and this ref is assigned by hand in the callback ref below.
+  const viewportRef = useRef<HTMLDivElement | null>(null);
   const [emblaRef, emblaApi] = useEmblaCarouselWithGestures({
     align: "start",
     containScroll: "trimSnaps",

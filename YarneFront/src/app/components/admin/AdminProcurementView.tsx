@@ -257,7 +257,10 @@ export function AdminProcurementView({ view }: { view: ProcurementView }) {
     currencyCode: "UAH",
     exchangeRate: "1",
     receiptUrl: "",
-    lines: [{ materialId: 0, quantity: "1", unitPrice: "", vat: "0", itemCount: "", lengthPerItem: "" }],
+    // rollPrice was missing here — the only place a purchase line is created — so a fresh
+    // procurement form started with it undefined rather than "", which is what every other
+    // field starts as and what the inputs bound to it expect.
+    lines: [{ materialId: 0, quantity: "1", unitPrice: "", rollPrice: "", vat: "0", itemCount: "", lengthPerItem: "" }],
   });
 
   const load = useCallback(async () => {

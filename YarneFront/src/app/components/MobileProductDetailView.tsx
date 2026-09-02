@@ -8,6 +8,7 @@ import type { Locale } from "../i18n/config";
 import { PriceTag } from "./PriceTag";
 import { ImageWithFallback } from "./figma/ImageWithFallback";
 import { CrossfadeImage } from "./figma/CrossfadeImage";
+import { resolveMediaUrl } from "../utils/storefrontMedia";
 import { ProductGuaranteeBlock } from "./ProductGuaranteeBlock";
 import type { ProductGuaranteeContent } from "../utils/productGuaranteeContent";
 import { getSupplementaryProductDetails, hasSupplementaryProductDetails } from "../utils/productDetails";
@@ -16,6 +17,9 @@ import { localizedCatalogName } from "../utils/localizedName";
 
 /** Duration of the sheet's glide back down off the image. */
 const SHEET_SLIDE_MS = 700;
+
+/** Longest the gallery will wait on new photos before swapping anyway. */
+const GALLERY_SWAP_CAP_MS = 2500;
 
 /**
  * Intended height of the image box for the current device, in plain pixels.
@@ -96,8 +100,16 @@ export function MobileProductDetailView({
     observer.observe(el);
     furnitureObserverRef.current = observer;
   }, []);
-  const imageKey = images.map(i => i.src).join("|");
-  const canLoop = images.length > 1;
+  // What the gallery is actually showing, which lags the incoming prop on purpose. The carousel
+  // used to re-init the moment a colour changed while each photo waited on its own preload, so
+  // for a few hundred milliseconds the slide count was the new colour's and the photos in those
+  // slides were still the old one's — slides unmounting under photos that had not swapped yet.
+  // That is the "two images jump and collapse" before the new colour appears. Everything the
+  // gallery is built from now changes in a single commit, once the photos are decoded.
+  const incomingKey = images.map(i => i.src).join("|");
+  const [galleryImages, setGalleryImages] = useState<ProductImage[]>(images);
+  const imageKey = galleryImages.map(i => i.src).join("|");
+  const canLoop = galleryImages.length > 1;
 
   // The image box must never change size while the page is open. Every viewport-height
   // unit still fails that: svh survives address-bar collapse but is recomputed on rotation,
@@ -147,20 +159,20 @@ export function MobileProductDetailView({
     };
   }, [emblaApi, onGallerySelect]);
 
-  const slideCountRef = useRef(images.length);
+  const slideCountRef = useRef(galleryImages.length);
   useEffect(() => {
     if (!emblaApi) return;
     // reInit synchronously re-measures the container and every slide — a long frame that
     // lands on exactly the tick the sheet starts sliding, and stutters it. Only pay for it
     // when the slide set actually changed shape; otherwise the cheap instant scrollTo is
     // all that's needed, and the slide-down keeps a clean frame budget.
-    if (slideCountRef.current !== images.length) {
-      slideCountRef.current = images.length;
+    if (slideCountRef.current !== galleryImages.length) {
+      slideCountRef.current = galleryImages.length;
       emblaApi.reInit({ loop: canLoop });
     }
     emblaApi.scrollTo(0, false);
     setGalleryIndex(0);
-  }, [emblaApi, imageKey, canLoop, images.length]);
+  }, [emblaApi, imageKey, canLoop, galleryImages.length]);
 
   // ── The info sheet ──────────────────────────────────────────────────────────
   // The sheet rides over the sticky image on ordinary scroll (it simply sits above it in
@@ -217,23 +229,53 @@ export function MobileProductDetailView({
   // and two colours that happen to share photos correctly stay put too.
   const skipNextSheetSlide = useRef(true);
   // Two motions want the same moment: the sheet travelling down to reveal the photo, and the
-  // photo dissolving into the new one. Run together and the dissolve plays on a frame that is
-  // sliding across the screen behind a half-covering sheet — which is why the *first* colour
-  // change looked like it had no animation at all, while every later one (page already at the
-  // top, so the slide returns early) looked fine. Hold the dissolve until the reveal is most of
-  // the way done, and it plays on a photo that is still and visible.
-  const [revealHoldMs, setRevealHoldMs] = useState(0);
+  // photo dissolving into the new one. Run together and the dissolve plays on a frame sliding
+  // across the screen behind a half-covering sheet — which is why the *first* colour change
+  // looked like it had no animation at all, while every later one (page already at the top, so
+  // the slide returns early) looked fine.
+  //
+  // So the gallery waits for two things before it changes: the reveal to be most of the way
+  // down, and every new photo to be decoded. Then the swap is one commit with nothing left to
+  // load, the carousel and the photos move together, and the visible slide's dissolve plays on
+  // a cache hit rather than trailing a network request. The cap is there so one slow or broken
+  // photo cannot strand the gallery on the previous colour.
   useEffect(() => {
     if (skipNextSheetSlide.current) {
       skipNextSheetSlide.current = false;
+      setGalleryImages(images);
       return;
     }
-    setRevealHoldMs(window.scrollY > 24 ? Math.round(SHEET_SLIDE_MS * 0.55) : 0);
+    let cancelled = false;
+    const hold = window.scrollY > 24 ? Math.round(SHEET_SLIDE_MS * 0.55) : 0;
     slideSheetDown();
-  }, [imageKey]);
 
-  const safeGalleryIndex = images.length ? ((galleryIndex % images.length) + images.length) % images.length : 0;
-  const gallerySlides: (ProductImage | null)[] = images.length > 0 ? images : [null];
+    const decoded = Promise.all(
+      images.map(
+        (image) =>
+          new Promise<void>((resolve) => {
+            const probe = new Image();
+            probe.decoding = "async";
+            probe.onload = () => resolve();
+            probe.onerror = () => resolve();
+            probe.src = resolveMediaUrl(image.src);
+          }),
+      ),
+    );
+    const revealed = new Promise<void>((resolve) => window.setTimeout(resolve, hold));
+    const capped = new Promise<void>((resolve) => window.setTimeout(resolve, GALLERY_SWAP_CAP_MS));
+
+    void Promise.race([Promise.all([decoded, revealed]), capped]).then(() => {
+      if (!cancelled) setGalleryImages(images);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [incomingKey]);
+
+  const safeGalleryIndex = galleryImages.length
+    ? ((galleryIndex % galleryImages.length) + galleryImages.length) % galleryImages.length
+    : 0;
+  const gallerySlides: (ProductImage | null)[] = galleryImages.length > 0 ? galleryImages : [null];
   const transitionEase = [0.25, 0.1, 0.25, 1] as const;
   const extraDetails = useMemo(
     () => getSupplementaryProductDetails(product),
@@ -286,7 +328,6 @@ export function MobileProductDetailView({
                     // instantly; nobody can see the difference, and the visible one gets the
                     // frame budget it needs.
                     animate={i === safeGalleryIndex}
-                    delayMs={i === safeGalleryIndex ? revealHoldMs : 0}
                   />
                 ) : (
                   <div className="absolute inset-0 bg-[#EDE9E2]" />
@@ -306,10 +347,10 @@ export function MobileProductDetailView({
           <ArrowLeft size={18} strokeWidth={1.5} className="text-[#2D241E]" />
         </button>
 
-        {images.length > 1 && (
+        {galleryImages.length > 1 && (
           // Sits above the info sheet's -mt-[clamp(24px,6vw,32px)] overlap so it isn't buried under it at rest.
           <div className="absolute z-20 bottom-[clamp(34px,8vw,42px)] left-1/2 -translate-x-1/2 flex items-center gap-1.5">
-            {images.map((_, i) => (
+            {galleryImages.map((_, i) => (
               <button
                 key={i}
                 type="button"

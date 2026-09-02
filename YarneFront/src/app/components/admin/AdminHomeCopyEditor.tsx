@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import type { Locale } from "../i18n/config";
+import type { Locale } from "../../i18n/config";
 import {
   DEFAULT_HOME_PAGE_COPY,
   loadHomePageCopyForAdmin,

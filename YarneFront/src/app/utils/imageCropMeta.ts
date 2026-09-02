@@ -98,10 +98,13 @@ export function transferImageCropMeta(
   const existing = prev[oldKey];
   const next = { ...prev };
   delete next[oldKey];
-  next[metaKey(newDisplayUrl)] = {
-    sourceUrl: existing?.sourceUrl ?? metaKey(oldDisplayUrl),
-    ...buildCropMetaEntry(existing?.sourceUrl ?? oldDisplayUrl, settings),
-  };
+  // buildCropMetaEntry sets sourceUrl itself, from the same fallback chain, so the property that
+  // used to sit above this spread was overwritten on every call and never had an effect.
+  // Dropping it keeps the behaviour identical and removes the contradiction.
+  next[metaKey(newDisplayUrl)] = buildCropMetaEntry(
+    existing?.sourceUrl ?? oldDisplayUrl,
+    settings,
+  );
   return next;
 }
 

@@ -29,12 +29,6 @@ type CrossfadeImageProps = {
    * decode and composite two full-size photos per slide in the same frames.
    */
   animate?: boolean;
-  /**
-   * Hold the swap back this long after the new photo has loaded. For when something else is
-   * moving the photo at the moment it would otherwise change — a dissolve that plays while the
-   * frame is sliding across the screen is a dissolve nobody sees.
-   */
-  delayMs?: number;
 };
 
 /**
@@ -48,7 +42,6 @@ export function CrossfadeImage({
   priority = false,
   focal,
   animate = true,
-  delayMs = 0,
 }: CrossfadeImageProps) {
   const reduceMotion = useReducedMotion();
   // Only a stated preference for less motion swaps hard. This used to include every touch
@@ -66,8 +59,6 @@ export function CrossfadeImage({
   const [current, setCurrent] = useState<Frame>(() => ({ src: resolved, focal }));
   const [previous, setPrevious] = useState<Frame | null>(null);
   const pendingRef = useRef<string | null>(null);
-  const delayRef = useRef(delayMs);
-  delayRef.current = delayMs;
 
   useEffect(() => {
     if (!resolved) return;
@@ -88,30 +79,17 @@ export function CrossfadeImage({
     }
 
     pendingRef.current = resolved;
-    let hold: number | undefined;
-    const swap = () => {
+    const settle = () => {
       if (pendingRef.current !== resolved) return;
       setPrevious(current);
       setCurrent(next);
       pendingRef.current = null;
-    };
-    const settle = () => {
-      if (pendingRef.current !== resolved) return;
-      // Read through the ref, not the captured prop: the parent decides how long to hold in its
-      // own effect, which React runs after this child's. By the time the photo has loaded that
-      // decision is in, and this way it lands without restarting the preload.
-      const wait = delayRef.current;
-      if (wait > 0) hold = window.setTimeout(swap, wait);
-      else swap();
     };
     const img = new Image();
     img.decoding = "async";
     img.onload = settle;
     img.onerror = settle;
     img.src = resolved;
-    return () => {
-      if (hold !== undefined) window.clearTimeout(hold);
-    };
   }, [resolved, focal?.x, focal?.y, current, instantSwap]);
 
   useEffect(() => {

@@ -3493,7 +3493,12 @@ export function AdminPage() {
     });
   };
 
-  type HomeMediaField = keyof HomePageMediaSelection;
+  // Only the two image fields. `keyof HomePageMediaSelection` also covers heroFocalX/Y and
+  // editorialFocalX/Y, which are numbers set by the focal-point editor — nothing here ever
+  // handles them, but including them made every homePageMedia[field] a `string | number` and
+  // forced the aspect/hint tables to claim entries for keys that have no crop ratio.
+  // Extract, not a bare union, so renaming a field in HomePageMediaSelection fails here loudly.
+  type HomeMediaField = Extract<keyof HomePageMediaSelection, "heroImageUrl" | "editorialImageUrl">;
 
   const HOME_MEDIA_ASPECT: Record<HomeMediaField, number> = {
     heroImageUrl: 16 / 10,
@@ -3809,7 +3814,15 @@ export function AdminPage() {
             : {}),
       };
       if (productModal.editing && "idNum" in productModal.editing) {
-        await editProduct(productModal.editing.idNum, { ...payload, isActive: true });
+        await editProduct(productModal.editing.idNum, {
+          ...payload,
+          // The update endpoint requires a code (ProductCode is non-nullable on the server),
+          // but the payload sends undefined whenever the SKU field is blank — which on an edit
+          // means "unchanged", not "clear it". Fall back to the product's existing code instead
+          // of sending a value the server will not take.
+          productCode: payload.productCode ?? productModal.editing.sku,
+          isActive: true,
+        });
       } else {
         await addProduct(payload);
       }

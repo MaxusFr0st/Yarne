@@ -49,7 +49,7 @@ export function ProductDetail() {
       if (codes.length > 0) {
         const resolved = codes
           .map((code) => products.find((p) => p.id === code))
-          .filter((p): p is Product => Boolean(p) && p.id !== id);
+          .filter((p): p is Product => p !== undefined && p.id !== id);
         return resolved;
       }
       return [];
@@ -67,7 +67,7 @@ export function ProductDetail() {
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [sizeError, setSizeError] = useState(false);
   // Tracks the sticky info column's real height so the image can animate to match it. A callback
-  // ref (not useEffect+useRef) because the column only mounts once `showContent` flips true —
+  // ref (not useEffect+useRef) because the column only mounts once the product has loaded —
   // an effect with an empty dep array would run before that node exists and never reattach,
   // which is exactly what left the image frozen at its fallback height.
   const [infoColHeight, setInfoColHeight] = useState<number | null>(null);
@@ -210,8 +210,6 @@ export function ProductDetail() {
     );
   }
 
-  const showContent = Boolean(product);
-
   const selectedColor = product?.colors[activeColor];
   const selectedColorLabel = selectedColor
     ? localizedCatalogName(selectedColor.name, selectedColor.nameUk, locale)
@@ -280,7 +278,10 @@ export function ProductDetail() {
     // and any value other than `visible` on this element would make it a scroll container and
     // leave the mobile gallery's `position: sticky` inert.
     <main className="min-h-[100vh]" style={{ backgroundColor: "#F3EFE8" }}>
-      {!showContent ? (
+      {/* Compared against null rather than through a Boolean() flag, so everything below is
+          narrowed to a loaded product. The flag version rendered exactly the same thing but told
+          the type checker nothing, which is why the branch was littered with `product!`. */}
+      {product === null ? (
         <div className="min-h-[50vh]" aria-busy="true" />
       ) : (
         <>
