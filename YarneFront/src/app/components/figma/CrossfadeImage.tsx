@@ -100,7 +100,14 @@ export function CrossfadeImage({
     };
     const img = new Image();
     img.decoding = "async";
-    img.onload = settle;
+    // `onload` only says the bytes arrived; it does not say the frame can be painted. The veil
+    // is timed against the moment the new photo appears, and on iOS the gap between "loaded"
+    // and "decoded" is easily long enough for the veil to clear onto a blank frame. decode()
+    // is the signal that actually matches what the animation promises.
+    img.onload = () => {
+      if (typeof img.decode !== "function") return settle();
+      img.decode().then(settle, settle);
+    };
     img.onerror = settle;
     img.src = resolved;
   }, [resolved, focal?.x, focal?.y, current, instantSwap]);
@@ -132,28 +139,33 @@ export function CrossfadeImage({
     // previous photo lingering for one fade, and the timer above drops it whether the animation
     // ran or not, so a photo is on screen at every point in the swap.
     <div className="absolute inset-0 overflow-hidden bg-[#EDE9E2]">
-      <div key={`cur-${current.src}`} className="absolute inset-0">
-        <ImageWithFallback
-          src={current.src}
-          alt={alt}
-          priority={priority}
-          focal={current.focal}
-          className={`h-full w-full object-cover ${className}`}
-        />
-      </div>
-      {/* The outgoing photo holds at full opacity — it is hidden by the surface passing over it,
-          never faded through. Fading it would mean blending it with the photo underneath. */}
-      {previous && !instantSwap && (
-        <div key={`prev-${previous.src}`} className="absolute inset-0">
-          <ImageWithFallback
-            src={previous.src}
-            alt=""
-            aria-hidden
-            focal={previous.focal}
-            className={`h-full w-full object-cover ${className}`}
-          />
-        </div>
-      )}
+      {/* One keyed list, not two role-prefixed slots. Rendered as `cur-${src}` and `prev-${src}`
+          in fixed positions, the photo already on screen changed key the instant it became the
+          outgoing one, so React destroyed its <img> and built a fresh one — and a freshly built
+          <img> does not paint in the same frame in WebKit, even when the file is cached. The
+          veil is still fully transparent at that moment, so iOS showed bare surface where the
+          bag had been, then popped. Keyed by src alone, React moves the node instead of
+          rebuilding it and the outgoing photo never stops being painted. Later child = on top,
+          so the outgoing photo sits above the incoming one and the veil passes over both. */}
+      {(previous && !instantSwap ? [current, previous] : [current]).map((frame, index) => {
+        const outgoing = index > 0;
+        return (
+          <div key={frame.src} className="absolute inset-0">
+            <ImageWithFallback
+              src={frame.src}
+              alt={outgoing ? "" : alt}
+              {...(outgoing ? { "aria-hidden": true } : {})}
+              priority={priority && !outgoing}
+              // Never lazy. Both of these are on screen during the swap: the outgoing one is
+              // what you are looking at, and the incoming one is what the veil clears onto.
+              // Lazy costs WebKit a paint it does not take, which is the whole artefact.
+              loading="eager"
+              focal={frame.focal}
+              className={`h-full w-full object-cover ${className}`}
+            />
+          </div>
+        );
+      })}
       {/* Opacity on a solid colour: no transform, no filter, nothing for iOS to re-rasterize. */}
       {veiling && !instantSwap && (
         <motion.div

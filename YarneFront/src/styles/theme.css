@@ -268,3 +268,28 @@
     transform: none;
   }
 }
+
+/* Route enter — compositor-only fade, deliberately without a fill mode.
+
+   No fill means the resting state is the base style (opacity 1) and the keyframes only ever
+   travel toward it, so cancelling or interrupting the animation reverts to visible rather than
+   stranding the route at opacity 0. That is the one thing a JS-driven `initial={{opacity:0}}`
+   cannot promise, and it is why this lives in CSS. See PageTransition.tsx.
+
+   The curve is the same symmetric one CrossfadeImage dissolves on, and for the same reason.
+   This was [0.16, 1, 0.3, 1] — a hard ease-out for things travelling into place, which put 58%
+   of the fade into the first 40ms and then spent 160ms creeping from 0.97 to 1.0, so a nominal
+   320ms entrance read as a flash. Opacity carries no sense of momentum; it wants a curve that
+   spends its time on screen. */
+@keyframes yarne-route-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+.route-enter {
+  animation: yarne-route-in 0.32s cubic-bezier(0.37, 0, 0.63, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .route-enter { animation: none; }
+}
