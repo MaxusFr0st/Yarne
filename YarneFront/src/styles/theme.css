@@ -293,3 +293,22 @@
 @media (prefers-reduced-motion: reduce) {
   .route-enter { animation: none; }
 }
+
+/* Colour/photo cross-dissolve — the outgoing photo fades off the top of the incoming one.
+
+   `forwards` so the finished state holds at 0 until React drops the layer; without it the
+   photo would snap back to full opacity for the frames between the animation ending and the
+   removal timer firing. There is deliberately no `backwards`: before the animation starts the
+   element is simply opaque, so a fade that never runs costs the fade, not the photo. */
+@keyframes yarne-crossfade-out {
+  from { opacity: 1; }
+  to   { opacity: 0; }
+}
+
+.crossfade-out {
+  animation: yarne-crossfade-out 0.42s cubic-bezier(0.37, 0, 0.63, 1) forwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .crossfade-out { animation: none; }
+}

@@ -321,6 +321,11 @@ export function MobileProductDetailView({
                     focal={{ x: src.focalX, y: src.focalY }}
                     alt={`${product.name} – ${activeColorLabel} – ${i + 1}`}
                     priority={i === 0}
+                    // Every slide, not just the visible one. Embla lays all slides out in one
+                    // horizontal track, so slides 2 and 3 sit outside the viewport and WebKit's
+                    // lazy threshold is tight enough that it will not fetch them until you have
+                    // already swiped — which is the wait before photo 2 appears.
+                    loading="eager"
                     // Only the slide on screen dissolves. Every slide holds its own photo, so a
                     // colour change swapped all of them at once and iOS had to decode and
                     // composite two full-size photos per slide in the same frames — while this
