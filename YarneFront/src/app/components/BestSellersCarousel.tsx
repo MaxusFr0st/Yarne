@@ -76,19 +76,12 @@ export function BestSellersCarousel() {
   return (
     <section className="relative py-6 sm:py-8 md:py-10 overflow-x-hidden" style={{ backgroundColor: "#EDE9E2" }}>
       <div className="max-w-[1400px] mx-auto px-6 md:px-10">
-        {/* Sticky section header — pins below the main header while the
-            carousel scrolls past, then releases when the section ends. */}
         <motion.div
           initial={motionDisabled ? false : { opacity: 0, y: touchMobile ? 14 : 20 }}
           whileInView={motionDisabled ? undefined : { opacity: 1, y: 0 }}
           viewport={motionDisabled ? undefined : { once: true, margin: touchMobile ? "-24px" : "-80px" }}
           transition={{ duration: touchMobile ? 0.75 : 0.7, ease: easing }}
-          className="md:sticky z-30 mb-3 sm:mb-4 md:mb-6 -mx-6 md:-mx-10 px-6 md:px-10 py-2 md:py-4"
-          style={{
-            top: "var(--main-header-h)",
-            backgroundColor: "rgba(237,233,226,0.85)",
-            backdropFilter: "blur(10px)",
-          }}
+          className="mb-3 sm:mb-4 md:mb-6"
         >
           <p
             className="text-[#2D241E]/40 uppercase mb-1.5"
