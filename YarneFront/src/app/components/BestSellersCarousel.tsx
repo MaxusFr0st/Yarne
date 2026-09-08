@@ -92,13 +92,13 @@ export function BestSellersCarousel() {
         paddingBottom: "calc(var(--browser-bar-b) + clamp(8px, 2vw, 20px))",
       }}
     >
-      <div className="max-w-[1400px] mx-auto px-6 md:px-10 h-full flex flex-col justify-center min-h-0">
+      <div className="h-full flex flex-col justify-center min-h-0">
         <motion.div
           initial={motionDisabled ? false : { opacity: 0, y: touchMobile ? 14 : 20 }}
           whileInView={motionDisabled ? undefined : { opacity: 1, y: 0 }}
           viewport={motionDisabled ? undefined : { once: true, margin: touchMobile ? "-24px" : "-80px" }}
           transition={{ duration: touchMobile ? 0.75 : 0.7, ease: easing }}
-          className="shrink-0 mb-2 sm:mb-3 md:mb-4"
+          className="shrink-0 max-w-[1400px] mx-auto w-full px-6 md:px-10 mb-2 sm:mb-3 md:mb-4"
         >
           <p
             className="text-[#2D241E]/40 uppercase mb-1.5"
@@ -123,11 +123,23 @@ export function BestSellersCarousel() {
           </h2>
         </motion.div>
 
-        {/* Carousel – Embla slide-gap pattern (padding-left per slide, not margin-right) */}
+        {/* Carousel – Embla slide-gap pattern (padding-left per slide, not margin-right).
+            This wrapper is a plain full-width flex item — deliberately NOT inside the
+            max-w-[1400px] column the heading above sits in — so a peeking last card crops at
+            the true screen edge instead of stopping short inside a constrained column. --edge-pad
+            reproduces exactly where that column's content would have started (its own side
+            padding, plus whatever extra margin appears once the viewport exceeds 1400px) so
+            slide 1 still lines up under the heading despite the wrapper itself being unconstrained. */}
         <style>{`
           .bestsellers-carousel {
             --slide-spacing: 0.875rem;
             --slide-size: 78%;
+            --edge-pad: max(1.5rem, calc((100vw - 1400px) / 2 + 1.5rem));
+          }
+          @media (min-width: 768px) {
+            .bestsellers-carousel {
+              --edge-pad: max(2.5rem, calc((100vw - 1400px) / 2 + 2.5rem));
+            }
           }
           @media (min-width: 480px) {
             .bestsellers-carousel {
@@ -168,13 +180,14 @@ export function BestSellersCarousel() {
             }
           }
         `}</style>
-        <div className="shrink-0 relative -mx-3 min-[600px]:-mx-4 md:-mx-6 lg:-mx-8 pt-1 sm:pt-2 md:pt-6 pb-1 min-h-[min(72vw,320px)] min-[600px]:min-h-[min(48vw,360px)] lg:min-h-[420px]">
+        <div className="shrink-0 relative pt-1 sm:pt-2 md:pt-6 pb-1 min-h-[min(72vw,320px)] min-[600px]:min-h-[min(48vw,360px)] lg:min-h-[420px]">
           <motion.div
             ref={(el) => {
               (emblaRef as (el: HTMLDivElement | null) => void)(el);
               (viewportRef as React.MutableRefObject<HTMLDivElement | null>).current = el;
             }}
-            className="bestsellers-carousel relative overflow-x-hidden overflow-y-visible pt-2 pb-3 sm:pt-3 sm:pb-4 md:pt-4 md:pb-4 lg:pt-5 lg:pb-6 px-3 min-[600px]:px-5 md:px-6 lg:px-8"
+            className="bestsellers-carousel relative overflow-x-hidden overflow-y-visible pt-2 pb-3 sm:pt-3 sm:pb-4 md:pt-4 md:pb-4 lg:pt-5 lg:pb-6"
+            style={{ paddingLeft: "var(--edge-pad)", paddingRight: "var(--edge-pad)" }}
             initial={motionDisabled ? false : { opacity: 0, y: touchMobile ? 14 : 20 }}
             whileInView={motionDisabled ? undefined : { opacity: 1, y: 0 }}
             viewport={motionDisabled ? undefined : { once: true, margin: touchMobile ? "-24px" : "-60px" }}
