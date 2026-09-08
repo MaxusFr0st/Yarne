@@ -372,7 +372,12 @@ function ProductCardInner({
       ) : (
         <LangLink
           to={productHref}
-          className={`block ${isCarouselCard ? "overflow-visible" : ""}`}
+          /* Keyboard focus used to fall through to the browser's own `outline: auto`, recoloured
+             grey by the base `* { outline-ring/50 }` rule and drawn with square corners on an
+             anchor whose radius is 0 — a grey box hugging a rounded card, which read as a
+             rendering fault rather than a focus state. Same job, stated in the card's own shape
+             and the brand's oxblood. */
+          className={`block ${imageRadiusClass} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#4A0E0E]/70 ${isCarouselCard ? "overflow-visible" : ""}`}
           onClick={handleCardClick}
         >
           {cardBody}
