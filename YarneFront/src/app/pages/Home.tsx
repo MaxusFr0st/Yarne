@@ -245,14 +245,16 @@ export function Home() {
       <SectionRule />
 
       <ScrollReveal {...SECTION_REVEAL}>
-        <FeaturedShowcase />
+        <BestSellersCarousel />
       </ScrollReveal>
 
       <SectionRule />
 
       <ScrollReveal {...SECTION_REVEAL}>
-        <BestSellersCarousel />
+        <FeaturedShowcase />
       </ScrollReveal>
+
+      <SectionRule />
 
       {/* ─── EDITORIAL ─── */}
       <ScrollReveal {...SECTION_REVEAL}>
