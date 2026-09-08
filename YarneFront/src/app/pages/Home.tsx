@@ -12,7 +12,7 @@ import {
   loadHomePageMediaSelection,
 } from "../utils/homePageMediaSelection";
 import { useTouchMobileLayout } from "../hooks/useTouchMobileLayout";
-import { ScrollReveal, SECTION_REVEAL, SectionEyebrow, SectionRule, SectionTitle } from "../components/ScrollReveal";
+import { ScrollReveal, SECTION_REVEAL, SectionEyebrow, SectionTitle } from "../components/ScrollReveal";
 import { resolveMediaUrl } from "../utils/storefrontMedia";
 import { WhyYarneSection, type WhyBagHandle } from "../components/WhyYarneSection";
 import { useHomeSnapScroll } from "../hooks/useHomeSnapScroll";
@@ -242,19 +242,13 @@ export function Home() {
 
       <WhyYarneSection ref={whyRef} />
 
-      <SectionRule />
-
       <ScrollReveal {...SECTION_REVEAL}>
         <BestSellersCarousel />
       </ScrollReveal>
 
-      <SectionRule />
-
       <ScrollReveal {...SECTION_REVEAL}>
         <FeaturedShowcase />
       </ScrollReveal>
-
-      <SectionRule />
 
       {/* ─── EDITORIAL ─── */}
       <ScrollReveal {...SECTION_REVEAL}>
