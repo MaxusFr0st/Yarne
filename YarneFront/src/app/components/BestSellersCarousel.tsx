@@ -77,8 +77,10 @@ export function BestSellersCarousel() {
    * Full `100svh` plus the browser-chrome strip (--browser-bar-b), same as the hero and bento
    * sections — see FeaturedShowcase's bentoSectionHeight for the identical pattern, which keeps
    * this section's height steady while mobile browser chrome shows/hides instead of resizing on
-   * every scroll tick. Padding clears the fixed header on top and the chrome strip on bottom;
-   * the inner column then distributes header/carousel/dots with flex instead of fixed spacing.
+   * every scroll tick. Padding clears the fixed header on top and the chrome strip on bottom.
+   * Header/carousel/dots keep their own tight spacing and are centered as one group (`justify-
+   * center` on the column) rather than each stretching to fill the screen — that would split
+   * the leftover height into two gaps (above the heading, below the dots) instead of one.
    */
   return (
     <section
@@ -90,13 +92,13 @@ export function BestSellersCarousel() {
         paddingBottom: "calc(var(--browser-bar-b) + clamp(8px, 2vw, 20px))",
       }}
     >
-      <div className="max-w-[1400px] mx-auto px-6 md:px-10 h-full flex flex-col min-h-0">
+      <div className="max-w-[1400px] mx-auto px-6 md:px-10 h-full flex flex-col justify-center min-h-0">
         <motion.div
           initial={motionDisabled ? false : { opacity: 0, y: touchMobile ? 14 : 20 }}
           whileInView={motionDisabled ? undefined : { opacity: 1, y: 0 }}
           viewport={motionDisabled ? undefined : { once: true, margin: touchMobile ? "-24px" : "-80px" }}
           transition={{ duration: touchMobile ? 0.75 : 0.7, ease: easing }}
-          className="shrink-0 mb-3 sm:mb-4 md:mb-6"
+          className="shrink-0 mb-2 sm:mb-3 md:mb-4"
         >
           <p
             className="text-[#2D241E]/40 uppercase mb-1.5"
@@ -166,7 +168,7 @@ export function BestSellersCarousel() {
             }
           }
         `}</style>
-        <div className="flex-1 flex flex-col justify-center relative -mx-3 min-[600px]:-mx-4 md:-mx-6 lg:-mx-8 pt-1 sm:pt-2 md:pt-6 pb-1 min-h-[min(72vw,320px)] min-[600px]:min-h-[min(48vw,360px)] lg:min-h-[420px]">
+        <div className="shrink-0 relative -mx-3 min-[600px]:-mx-4 md:-mx-6 lg:-mx-8 pt-1 sm:pt-2 md:pt-6 pb-1 min-h-[min(72vw,320px)] min-[600px]:min-h-[min(48vw,360px)] lg:min-h-[420px]">
           <motion.div
             ref={(el) => {
               (emblaRef as (el: HTMLDivElement | null) => void)(el);
@@ -204,7 +206,7 @@ export function BestSellersCarousel() {
 
         {/* Dot Indicators */}
         {scrollSnaps.length > 1 && (
-          <div className="shrink-0 flex items-center justify-center gap-2.5 mt-4 sm:mt-5 md:mt-6">
+          <div className="shrink-0 flex items-center justify-center gap-2.5 mt-3 sm:mt-4 md:mt-5">
             {scrollSnaps.map((_, index) => (
               <button
                 key={index}
