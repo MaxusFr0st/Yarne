@@ -22,10 +22,21 @@ const FALLBACK_LIMIT = 8;
  * Embla slide-gap pattern: spacing is padding-left per slide against a negative margin-left on
  * the track, never margin-right, so the row starts flush and every gap stays even.
  *
- * --edge-pad reproduces where the max-w-[1400px] column holding the heading would have started
- * (that column's own side padding, plus the extra margin once the viewport is wider than 1400px),
- * because the track deliberately sits outside that column so a peeking card crops at the true
- * screen edge rather than short of it. Slide 1 still lines up under the heading.
+ * --edge-pad starts from where the max-w-[1400px] column holding the heading begins (that
+ * column's own side padding, plus the extra margin once the viewport is wider than 1400px), so
+ * slide 1 lines up under the heading — but it is capped at twice the slide spacing, and that cap
+ * is load-bearing twice over.
+ *
+ * Visually: uncapped, a wide or zoomed-out viewport pushed the whole row inward by half the
+ * leftover width (~700px at 2800px wide), which read as a dead band before the first card while
+ * the row still bled off the right edge, and squeezed the cards themselves down to the column's
+ * width instead of the screen's.
+ *
+ * Mechanically: Embla parks a looped slide just outside the *content* box while overflow clips at
+ * the *padding* box, so padding past this budget leaves a wrapped slide visible on top of the
+ * live ones. Keeping the padding inside the budget is what lets this carousel loop at every
+ * width; see LOOP_PADDING_BUDGET in useEmblaCarouselWithGestures, which enforces the same
+ * relation as a safety net.
  *
  * The mask fades both edges into the section background. Slide counts rarely divide evenly into
  * the 1–4 cards a screen fits, so some scroll positions leave a thin sliver of a card showing;
@@ -34,8 +45,17 @@ const FALLBACK_LIMIT = 8;
 const CAROUSEL_CSS = `
   .bestsellers-carousel {
     --slide-spacing: 0.875rem;
+    /* The site's content column, which is what card size is derived from below. Cards used to be
+       sized as a share of the *track*, which only matched the column by accident: the old
+       unbounded --edge-pad squeezed the track down to the column's width. Capping that padding
+       removed the accident and four-across silently became four-across-the-whole-screen, so the
+       column is now stated explicitly and the padding cannot change how big a card is. */
+    --column: calc(min(100vw, 1400px) - 3rem);
     --slide-size: 78%;
-    --edge-pad: max(1.5rem, calc((100vw - 1400px) / 2 + 1.5rem));
+    --edge-pad: min(
+      max(1.5rem, calc((100vw - 1400px) / 2 + 1.5rem)),
+      calc(var(--slide-spacing) * 2)
+    );
     --edge-fade: 20px;
     mask-image: linear-gradient(to right, transparent, black var(--edge-fade), black calc(100% - var(--edge-fade)), transparent);
     -webkit-mask-image: linear-gradient(to right, transparent, black var(--edge-fade), black calc(100% - var(--edge-fade)), transparent);
@@ -60,7 +80,11 @@ const CAROUSEL_CSS = `
   }
   @media (min-width: 768px) {
     .bestsellers-carousel {
-      --edge-pad: max(2.5rem, calc((100vw - 1400px) / 2 + 2.5rem));
+      --column: calc(min(100vw, 1400px) - 5rem);
+      --edge-pad: min(
+        max(2.5rem, calc((100vw - 1400px) / 2 + 2.5rem)),
+        calc(var(--slide-spacing) * 2)
+      );
       --edge-fade: 48px;
     }
   }
@@ -74,19 +98,19 @@ const CAROUSEL_CSS = `
   @media (min-width: 1024px) and (max-height: 750px) {
     .bestsellers-carousel {
       --slide-spacing: 1.25rem;
-      --slide-size: 28%;
+      --slide-size: calc(var(--column) * 0.28);
     }
   }
   @media (min-width: 1024px) and (min-height: 751px) {
     .bestsellers-carousel {
       --slide-spacing: 1.75rem;
-      --slide-size: calc((100% - (var(--slide-spacing) * 2)) / 3);
+      --slide-size: calc((var(--column) - (var(--slide-spacing) * 2)) / 3);
     }
   }
   @media (min-width: 1280px) {
     .bestsellers-carousel {
       --slide-spacing: 2rem;
-      --slide-size: calc((100% - (var(--slide-spacing) * 3)) / 4);
+      --slide-size: calc((var(--column) - (var(--slide-spacing) * 3)) / 4);
     }
   }
 `;
