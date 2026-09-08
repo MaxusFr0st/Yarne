@@ -129,16 +129,30 @@ export function BestSellersCarousel() {
             the true screen edge instead of stopping short inside a constrained column. --edge-pad
             reproduces exactly where that column's content would have started (its own side
             padding, plus whatever extra margin appears once the viewport exceeds 1400px) so
-            slide 1 still lines up under the heading despite the wrapper itself being unconstrained. */}
+            slide 1 still lines up under the heading despite the wrapper itself being unconstrained.
+            The mask fades both edges toward the section background — with 8 products not
+            dividing evenly into ~3-4 visible cards, containScroll:"trimSnaps" holds the last
+            snap short of overscrolling, which can leave thin slivers of two different cards
+            peeking in at once; the fade reads that as an intentional "more to see" cue at any
+            width instead of a hard, accidental-looking crop. */}
         <style>{`
           .bestsellers-carousel {
             --slide-spacing: 0.875rem;
             --slide-size: 78%;
             --edge-pad: max(1.5rem, calc((100vw - 1400px) / 2 + 1.5rem));
+            --edge-fade: 20px;
+            mask-image: linear-gradient(to right, transparent, black var(--edge-fade), black calc(100% - var(--edge-fade)), transparent);
+            -webkit-mask-image: linear-gradient(to right, transparent, black var(--edge-fade), black calc(100% - var(--edge-fade)), transparent);
+          }
+          @media (min-width: 600px) {
+            .bestsellers-carousel {
+              --edge-fade: 32px;
+            }
           }
           @media (min-width: 768px) {
             .bestsellers-carousel {
               --edge-pad: max(2.5rem, calc((100vw - 1400px) / 2 + 2.5rem));
+              --edge-fade: 48px;
             }
           }
           @media (min-width: 480px) {
