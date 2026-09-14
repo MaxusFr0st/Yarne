@@ -92,8 +92,8 @@ export function BestSellersCarousel() {
         paddingBottom: "calc(var(--browser-bar-b) + clamp(8px, 2vw, 20px))",
       }}
     >
-      <div className="h-full flex flex-col justify-center min-h-0">
-      <div className="max-w-[1400px] mx-auto px-6 md:px-10 w-full">
+      <div className="h-full flex flex-col min-h-0">
+      <div className="max-w-[1400px] mx-auto px-6 md:px-10 w-full h-full flex flex-col min-h-0">
         <motion.div
           initial={motionDisabled ? false : { opacity: 0, y: touchMobile ? 14 : 20 }}
           whileInView={motionDisabled ? undefined : { opacity: 1, y: 0 }}
@@ -146,7 +146,7 @@ export function BestSellersCarousel() {
           @media (min-width: 768px) and (max-width: 1023px) {
             .bestsellers-carousel {
               --slide-spacing: 1.5rem;
-              --slide-size: 32%;
+              --slide-size: 38%;
             }
           }
           /* Short landscape (Nest Hub 1024×600): slightly narrower slides */
@@ -158,18 +158,18 @@ export function BestSellersCarousel() {
           }
           @media (min-width: 1024px) and (min-height: 751px) {
             .bestsellers-carousel {
-              --slide-spacing: 1.75rem;
-              --slide-size: calc((100% - (var(--slide-spacing) * 2)) / 3);
+              --slide-spacing: 2rem;
+              --slide-size: calc((100% - (var(--slide-spacing) * 1.5)) / 2.5);
             }
           }
           @media (min-width: 1280px) {
             .bestsellers-carousel {
-              --slide-spacing: 2rem;
-              --slide-size: calc((100% - (var(--slide-spacing) * 3)) / 4);
+              --slide-spacing: 2.25rem;
+              --slide-size: calc((100% - (var(--slide-spacing) * 2)) / 3);
             }
           }
         `}</style>
-        <div className="shrink-0 relative -mx-3 min-[600px]:-mx-4 md:-mx-6 lg:-mx-8 pt-1 sm:pt-2 md:pt-6 pb-1 min-h-[min(72vw,320px)] min-[600px]:min-h-[min(48vw,360px)] lg:min-h-[420px]">
+        <div className="flex-1 flex flex-col justify-center relative -mx-3 min-[600px]:-mx-4 md:-mx-6 lg:-mx-8 pt-1 sm:pt-2 md:pt-6 pb-1 min-h-[min(72vw,320px)] min-[600px]:min-h-[min(48vw,360px)] lg:min-h-[480px] xl:min-h-[560px]">
           <motion.div
             ref={(el) => {
               (emblaRef as (el: HTMLDivElement | null) => void)(el);
