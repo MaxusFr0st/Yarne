@@ -73,32 +73,15 @@ export function BestSellersCarousel() {
     };
   }, []);
 
-  /**
-   * Full `100svh` plus the browser-chrome strip (--browser-bar-b), same as the hero and bento
-   * sections — see FeaturedShowcase's bentoSectionHeight for the identical pattern, which keeps
-   * this section's height steady while mobile browser chrome shows/hides instead of resizing on
-   * every scroll tick. Padding clears the fixed header on top and the chrome strip on bottom.
-   * Header/carousel/dots keep their own tight spacing and are centered as one group (`justify-
-   * center` on the column) rather than each stretching to fill the screen — that would split
-   * the leftover height into two gaps (above the heading, below the dots) instead of one.
-   */
   return (
-    <section
-      className="relative overflow-hidden box-border"
-      style={{
-        backgroundColor: "#EDE9E2",
-        height: "calc(100svh + var(--browser-bar-b))",
-        paddingTop: "calc(var(--main-header-h) + clamp(8px, 2vw, 20px))",
-        paddingBottom: "calc(var(--browser-bar-b) + clamp(8px, 2vw, 20px))",
-      }}
-    >
-      <div className="h-full flex flex-col justify-center min-h-0">
+    <section className="relative py-6 sm:py-8 md:py-10 overflow-x-hidden" style={{ backgroundColor: "#EDE9E2" }}>
+      <div className="max-w-[1400px] mx-auto px-6 md:px-10">
         <motion.div
           initial={motionDisabled ? false : { opacity: 0, y: touchMobile ? 14 : 20 }}
           whileInView={motionDisabled ? undefined : { opacity: 1, y: 0 }}
           viewport={motionDisabled ? undefined : { once: true, margin: touchMobile ? "-24px" : "-80px" }}
           transition={{ duration: touchMobile ? 0.75 : 0.7, ease: easing }}
-          className="shrink-0 max-w-[1400px] mx-auto w-full px-6 md:px-10 mb-2 sm:mb-3 md:mb-4"
+          className="mb-3 sm:mb-4 md:mb-6"
         >
           <p
             className="text-[#2D241E]/40 uppercase mb-1.5"
@@ -123,37 +106,11 @@ export function BestSellersCarousel() {
           </h2>
         </motion.div>
 
-        {/* Carousel – Embla slide-gap pattern (padding-left per slide, not margin-right).
-            This wrapper is a plain full-width flex item — deliberately NOT inside the
-            max-w-[1400px] column the heading above sits in — so a peeking last card crops at
-            the true screen edge instead of stopping short inside a constrained column. --edge-pad
-            reproduces exactly where that column's content would have started (its own side
-            padding, plus whatever extra margin appears once the viewport exceeds 1400px) so
-            slide 1 still lines up under the heading despite the wrapper itself being unconstrained.
-            The mask fades both edges toward the section background — with 8 products not
-            dividing evenly into ~3-4 visible cards, containScroll:"trimSnaps" holds the last
-            snap short of overscrolling, which can leave thin slivers of two different cards
-            peeking in at once; the fade reads that as an intentional "more to see" cue at any
-            width instead of a hard, accidental-looking crop. */}
+        {/* Carousel – Embla slide-gap pattern (padding-left per slide, not margin-right) */}
         <style>{`
           .bestsellers-carousel {
             --slide-spacing: 0.875rem;
             --slide-size: 78%;
-            --edge-pad: max(1.5rem, calc((100vw - 1400px) / 2 + 1.5rem));
-            --edge-fade: 20px;
-            mask-image: linear-gradient(to right, transparent, black var(--edge-fade), black calc(100% - var(--edge-fade)), transparent);
-            -webkit-mask-image: linear-gradient(to right, transparent, black var(--edge-fade), black calc(100% - var(--edge-fade)), transparent);
-          }
-          @media (min-width: 600px) {
-            .bestsellers-carousel {
-              --edge-fade: 32px;
-            }
-          }
-          @media (min-width: 768px) {
-            .bestsellers-carousel {
-              --edge-pad: max(2.5rem, calc((100vw - 1400px) / 2 + 2.5rem));
-              --edge-fade: 48px;
-            }
           }
           @media (min-width: 480px) {
             .bestsellers-carousel {
@@ -194,14 +151,13 @@ export function BestSellersCarousel() {
             }
           }
         `}</style>
-        <div className="shrink-0 relative pt-1 sm:pt-2 md:pt-6 pb-1 min-h-[min(72vw,320px)] min-[600px]:min-h-[min(48vw,360px)] lg:min-h-[420px]">
+        <div className="relative -mx-3 min-[600px]:-mx-4 md:-mx-6 lg:-mx-8 pt-1 sm:pt-2 md:pt-6 pb-1 min-h-[min(72vw,320px)] min-[600px]:min-h-[min(48vw,360px)] lg:min-h-[420px]">
           <motion.div
             ref={(el) => {
               (emblaRef as (el: HTMLDivElement | null) => void)(el);
               (viewportRef as React.MutableRefObject<HTMLDivElement | null>).current = el;
             }}
-            className="bestsellers-carousel relative overflow-x-hidden overflow-y-visible pt-2 pb-3 sm:pt-3 sm:pb-4 md:pt-4 md:pb-4 lg:pt-5 lg:pb-6"
-            style={{ paddingLeft: "var(--edge-pad)", paddingRight: "var(--edge-pad)" }}
+            className="bestsellers-carousel relative overflow-x-hidden overflow-y-visible pt-2 pb-3 sm:pt-3 sm:pb-4 md:pt-4 md:pb-4 lg:pt-5 lg:pb-6 px-3 min-[600px]:px-5 md:px-6 lg:px-8"
             initial={motionDisabled ? false : { opacity: 0, y: touchMobile ? 14 : 20 }}
             whileInView={motionDisabled ? undefined : { opacity: 1, y: 0 }}
             viewport={motionDisabled ? undefined : { once: true, margin: touchMobile ? "-24px" : "-60px" }}
@@ -233,7 +189,7 @@ export function BestSellersCarousel() {
 
         {/* Dot Indicators */}
         {scrollSnaps.length > 1 && (
-          <div className="shrink-0 flex items-center justify-center gap-2.5 mt-3 sm:mt-4 md:mt-5">
+          <div className="flex items-center justify-center gap-2.5 mt-4 sm:mt-5 md:mt-6">
             {scrollSnaps.map((_, index) => (
               <button
                 key={index}
