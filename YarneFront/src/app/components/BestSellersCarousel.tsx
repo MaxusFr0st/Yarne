@@ -73,15 +73,33 @@ export function BestSellersCarousel() {
     };
   }, []);
 
+  /**
+   * Full `100svh` plus the browser-chrome strip (--browser-bar-b), same technique as the hero
+   * section (see Home.tsx) — held steady while mobile browser chrome shows/hides instead of
+   * resizing on every scroll tick, and the section owns the full height itself (padding pushes
+   * content below the fixed header / above the chrome strip) rather than being sized by its
+   * content, so the snap-scroll system (useHomeSnapScroll) always gets exactly one screen here
+   * instead of centering a shorter section and leaving neighbouring sections peeking in above
+   * and below it.
+   */
   return (
-    <section className="relative py-6 sm:py-8 md:py-10 overflow-x-hidden" style={{ backgroundColor: "#EDE9E2" }}>
-      <div className="max-w-[1400px] mx-auto px-6 md:px-10">
+    <section
+      className="relative overflow-hidden box-border"
+      style={{
+        backgroundColor: "#EDE9E2",
+        height: "calc(100svh + var(--browser-bar-b))",
+        paddingTop: "calc(var(--main-header-h) + clamp(8px, 2vw, 20px))",
+        paddingBottom: "calc(var(--browser-bar-b) + clamp(8px, 2vw, 20px))",
+      }}
+    >
+      <div className="h-full flex flex-col justify-center min-h-0">
+      <div className="max-w-[1400px] mx-auto px-6 md:px-10 w-full">
         <motion.div
           initial={motionDisabled ? false : { opacity: 0, y: touchMobile ? 14 : 20 }}
           whileInView={motionDisabled ? undefined : { opacity: 1, y: 0 }}
           viewport={motionDisabled ? undefined : { once: true, margin: touchMobile ? "-24px" : "-80px" }}
           transition={{ duration: touchMobile ? 0.75 : 0.7, ease: easing }}
-          className="mb-3 sm:mb-4 md:mb-6"
+          className="shrink-0 mb-3 sm:mb-4 md:mb-6"
         >
           <p
             className="text-[#2D241E]/40 uppercase mb-1.5"
@@ -151,7 +169,7 @@ export function BestSellersCarousel() {
             }
           }
         `}</style>
-        <div className="relative -mx-3 min-[600px]:-mx-4 md:-mx-6 lg:-mx-8 pt-1 sm:pt-2 md:pt-6 pb-1 min-h-[min(72vw,320px)] min-[600px]:min-h-[min(48vw,360px)] lg:min-h-[420px]">
+        <div className="shrink-0 relative -mx-3 min-[600px]:-mx-4 md:-mx-6 lg:-mx-8 pt-1 sm:pt-2 md:pt-6 pb-1 min-h-[min(72vw,320px)] min-[600px]:min-h-[min(48vw,360px)] lg:min-h-[420px]">
           <motion.div
             ref={(el) => {
               (emblaRef as (el: HTMLDivElement | null) => void)(el);
@@ -189,7 +207,7 @@ export function BestSellersCarousel() {
 
         {/* Dot Indicators */}
         {scrollSnaps.length > 1 && (
-          <div className="flex items-center justify-center gap-2.5 mt-4 sm:mt-5 md:mt-6">
+          <div className="shrink-0 flex items-center justify-center gap-2.5 mt-4 sm:mt-5 md:mt-6">
             {scrollSnaps.map((_, index) => (
               <button
                 key={index}
@@ -210,6 +228,7 @@ export function BestSellersCarousel() {
             ))}
           </div>
         )}
+      </div>
       </div>
     </section>
   );
