@@ -479,10 +479,14 @@ export function FeaturedShowcase() {
     </>
   );
 
-  const lockBentoViewport = useBentoLayout && touchLayout;
   /**
    * A full `100svh` tall, with the fixed header's height added as top padding — the same
-   * arrangement the Why section uses, and the one the snap system assumes.
+   * arrangement the Why and Best Sellers sections use, and the one the snap system
+   * (useHomeSnapScroll) assumes: every section in the snap sequence owns exactly one screen, or
+   * a shorter one gets centered with the neighbouring section peeking in above and below it.
+   * Locked on every width now (previously only on touch+bento, i.e. phones only — leaving the
+   * magazine-spread layout on tablet/desktop natural-height and exactly that peeking-neighbour
+   * case).
    *
    * This was `calc(100svh - var(--main-header-h))`, i.e. a section sized to sit *below* the
    * header. But snap stops centre a section inside the whole viewport, not inside the area
@@ -495,35 +499,25 @@ export function FeaturedShowcase() {
    * Safari's translucent bar so the next section cannot show through it; the strip is padding so
    * the grid's last row stays above the glass.
    */
-  const bentoSectionHeight = lockBentoViewport ? "calc(100svh + var(--browser-bar-b))" : undefined;
-  const bentoSectionPaddingTop = lockBentoViewport
-    ? "calc(var(--main-header-h) + clamp(6px, 1.6vw, 12px))"
-    : undefined;
-  const bentoSectionPaddingBottom = lockBentoViewport
-    ? "calc(var(--browser-bar-b) + clamp(6px, 1.6vw, 12px))"
-    : undefined;
-  const bentoSectionMinHeight = undefined;
+  const showcaseSectionHeight = "calc(100svh + var(--browser-bar-b))";
+  const showcaseSectionPaddingTop = "calc(var(--main-header-h) + clamp(6px, 1.6vw, 12px))";
+  const showcaseSectionPaddingBottom = "calc(var(--browser-bar-b) + clamp(6px, 1.6vw, 12px))";
 
   return (
     <section
-      className={`relative bg-[#F5F2ED] ${
-        useSpreadLayout
-          ? "overflow-x-hidden py-8 md:py-10"
-          : useBentoLayout
-            ? "overflow-hidden box-border py-[clamp(6px,1.6vw,12px)]"
-            : "py-[clamp(10px,2.5vw,40px)] lg:py-12"
+      className={`relative bg-[#F5F2ED] overflow-hidden box-border ${
+        useSpreadLayout ? "py-8 md:py-10" : "py-[clamp(6px,1.6vw,12px)]"
       }`}
       style={{
-        height: bentoSectionHeight,
-        minHeight: bentoSectionMinHeight,
-        paddingTop: bentoSectionPaddingTop,
-        paddingBottom: bentoSectionPaddingBottom,
+        height: showcaseSectionHeight,
+        paddingTop: showcaseSectionPaddingTop,
+        paddingBottom: showcaseSectionPaddingBottom,
       }}
     >
       <div
-        className={`max-w-[1400px] mx-auto px-[clamp(12px,3.5vw,40px)] ${
-          useBentoLayout ? "h-full flex flex-col min-h-0" : ""
-        }`}
+        className={`max-w-[1400px] mx-auto px-[clamp(12px,3.5vw,40px)] h-full flex flex-col ${
+          useBentoLayout ? "" : "justify-center"
+        } min-h-0`}
       >
         {/* Compact header — bento + magazine spread */}
         {touchLayout ? (
