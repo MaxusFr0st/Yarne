@@ -146,7 +146,7 @@ export function BestSellersCarousel() {
           @media (min-width: 768px) and (max-width: 1023px) {
             .bestsellers-carousel {
               --slide-spacing: 1.5rem;
-              --slide-size: 38%;
+              --slide-size: 32%;
             }
           }
           /* Short landscape (Nest Hub 1024×600): slightly narrower slides */
@@ -158,18 +158,18 @@ export function BestSellersCarousel() {
           }
           @media (min-width: 1024px) and (min-height: 751px) {
             .bestsellers-carousel {
-              --slide-spacing: 2rem;
-              --slide-size: calc((100% - (var(--slide-spacing) * 1.5)) / 2.5);
+              --slide-spacing: 1.75rem;
+              --slide-size: calc((100% - (var(--slide-spacing) * 2)) / 3);
             }
           }
           @media (min-width: 1280px) {
             .bestsellers-carousel {
-              --slide-spacing: 2.25rem;
-              --slide-size: calc((100% - (var(--slide-spacing) * 2)) / 3);
+              --slide-spacing: 2rem;
+              --slide-size: calc((100% - (var(--slide-spacing) * 3)) / 4);
             }
           }
         `}</style>
-        <div className="flex-1 flex flex-col justify-center relative -mx-3 min-[600px]:-mx-4 md:-mx-6 lg:-mx-8 pt-1 sm:pt-2 md:pt-6 pb-1 min-h-[min(72vw,320px)] min-[600px]:min-h-[min(48vw,360px)] lg:min-h-[480px] xl:min-h-[560px]">
+        <div className="flex-1 flex flex-col justify-center relative -mx-3 min-[600px]:-mx-4 md:-mx-6 lg:-mx-8 pt-1 sm:pt-2 md:pt-6 pb-1 min-h-[min(72vw,320px)] min-[600px]:min-h-[min(48vw,360px)] lg:min-h-[min(420px,48vh)]">
           <motion.div
             ref={(el) => {
               (emblaRef as (el: HTMLDivElement | null) => void)(el);
