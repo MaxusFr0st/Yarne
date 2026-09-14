@@ -154,7 +154,7 @@ function ProductTile({ slot, product, fallbackTitle, variant, priority = false }
             style={{
               fontFamily: "'DM Sans', sans-serif",
               letterSpacing: "0.2em",
-              fontSize: "clamp(0.48rem, 2vw, 0.58rem)",
+              fontSize: "clamp(0.48rem, 2vw, 0.68rem)",
             }}
           >
             {eyebrow}
@@ -169,8 +169,8 @@ function ProductTile({ slot, product, fallbackTitle, variant, priority = false }
               fontStyle: isLarge ? "normal" : "italic",
               fontWeight: isLarge ? 400 : 500,
               fontSize: isLarge
-                ? "clamp(1.15rem, 5vw, 2.2rem)"
-                : "clamp(0.82rem, 3.4vw, 1.3rem)",
+                ? "clamp(1.15rem, 5vw, 2.9rem)"
+                : "clamp(0.82rem, 3.4vw, 1.7rem)",
               lineHeight: 1.08,
             }}
           >
@@ -200,10 +200,10 @@ function ProductTile({ slot, product, fallbackTitle, variant, priority = false }
             className="lg:hidden mt-[clamp(6px,1.6vw,10px)] self-start inline-flex items-center justify-center rounded-full uppercase tracking-widest text-[#2D241E]"
             style={{
               fontFamily: "'DM Sans', sans-serif",
-              fontSize: "clamp(0.54rem, 2.2vw, 0.68rem)",
+              fontSize: "clamp(0.54rem, 2.2vw, 0.78rem)",
               letterSpacing: "0.14em",
               backgroundColor: "rgba(245,242,237,0.94)",
-              padding: "clamp(6px, 1.6vw, 9px) clamp(12px, 3.2vw, 18px)",
+              padding: "clamp(6px, 1.6vw, 11px) clamp(12px, 3.2vw, 22px)",
             }}
           >
             {ctaLabel}
@@ -211,9 +211,9 @@ function ProductTile({ slot, product, fallbackTitle, variant, priority = false }
         )}
 
         {isLarge && ctaLabel.length > 0 && (
-          <span className="hidden lg:inline-flex mt-4 items-center gap-2 text-white" style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "0.78rem", letterSpacing: "0.12em" }}>
+          <span className="hidden lg:inline-flex mt-5 items-center gap-2 text-white" style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "0.92rem", letterSpacing: "0.12em" }}>
             <span className="uppercase tracking-widest">{ctaLabel}</span>
-            <ArrowRight size={14} className="transition-transform duration-300 group-hover:translate-x-1" />
+            <ArrowRight size={16} className="transition-transform duration-300 group-hover:translate-x-1" />
           </span>
         )}
       </div>
@@ -259,7 +259,7 @@ function TextTile({ slot }: TextTileProps) {
               style={{
                 fontFamily: "'DM Sans', sans-serif",
                 letterSpacing: "0.18em",
-                fontSize: "clamp(0.48rem, 2vw, 0.62rem)",
+                fontSize: "clamp(0.48rem, 2vw, 0.72rem)",
               }}
             >
               {eyebrow}
@@ -272,7 +272,7 @@ function TextTile({ slot }: TextTileProps) {
                 fontFamily: "'Cormorant Garamond', serif",
                 fontStyle: "italic",
                 fontWeight: 500,
-                fontSize: "clamp(0.82rem, 3.2vw, 1.7rem)",
+                fontSize: "clamp(0.82rem, 3.2vw, 2.15rem)",
                 lineHeight: 1.2,
               }}
             >
@@ -286,13 +286,13 @@ function TextTile({ slot }: TextTileProps) {
             className="inline-flex items-center gap-1 text-white/85 group-hover:text-white transition-colors duration-300 mt-2 md:mt-6"
             style={{
               fontFamily: "'DM Sans', sans-serif",
-              fontSize: "clamp(0.62rem, 2.4vw, 0.8rem)",
+              fontSize: "clamp(0.62rem, 2.4vw, 0.95rem)",
               letterSpacing: "0.04em",
             }}
           >
             <span className="line-clamp-1">{ctaLabel}</span>
             <ArrowUpRight
-              size={13}
+              size={15}
               className="shrink-0 transition-transform duration-300 ease-out group-hover:translate-x-0.5 group-hover:-translate-y-0.5 motion-reduce:transform-none"
               aria-hidden="true"
             />
@@ -321,7 +321,7 @@ function MagazineSpread({
 }: MagazineSpreadProps) {
   return (
     <div
-      className="grid h-[clamp(380px,min(64vh,560px),600px)] gap-3 md:gap-4"
+      className="grid h-[clamp(420px,min(72vh,760px),820px)] gap-4 md:gap-5"
       style={{
         gridTemplateColumns: "2.15fr 1fr 1fr",
         gridTemplateRows: "minmax(0, 1fr) minmax(0, 1.05fr)",
@@ -456,11 +456,11 @@ export function FeaturedShowcase() {
   const sectionHeader = (
     <>
       <p
-        className="text-[#2D241E]/40 uppercase mb-[clamp(4px,1vw,6px)]"
+        className="text-[#2D241E]/40 uppercase mb-[clamp(4px,1vw,8px)]"
         style={{
           fontFamily: "'DM Sans', sans-serif",
           letterSpacing: "0.2em",
-          fontSize: "clamp(0.52rem, 2.2vw, 0.65rem)",
+          fontSize: "clamp(0.52rem, 2.2vw, 0.75rem)",
         }}
       >
         {eyebrow}
@@ -469,7 +469,7 @@ export function FeaturedShowcase() {
         className="text-[#2D241E]"
         style={{
           fontFamily: "'Cormorant Garamond', serif",
-          fontSize: "clamp(1.05rem, 4.2vw, 2.4rem)",
+          fontSize: "clamp(1.05rem, 4.2vw, 2.9rem)",
           fontWeight: 400,
           lineHeight: 1.1,
         }}
