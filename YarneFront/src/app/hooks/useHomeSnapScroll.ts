@@ -11,8 +11,20 @@ const DEDUPE_RATIO = 0.4;
  * Sections carry at least 64px of bottom padding, so an overflow this small is padding
  * rather than content — cropping it costs nothing visible, whereas a second stop only
  * ~40px away would spend a full snap animation going nowhere.
+ *
+ * The actual tolerance used is `max(MIN_PAGE_OVERFLOW_PX, vh * MIN_PAGE_OVERFLOW_RATIO)`, not
+ * this constant alone. A section just past a *fixed* px tolerance still pages into two stops
+ * with `span = overflow` (pages=2 divides by pages-1=1), so on a taller viewport the same
+ * moderate overflow reads as a barely-there hop — e.g. the philosophy/editorial section at
+ * 1900x900 overflows by 77px, only 8.6% of that 900px viewport, and got a second stop 77px
+ * below the first: a snap gesture that visibly did almost nothing. The 393x852 case the paging
+ * logic below was originally added for overflowed by 148px, 17.4% of its (shorter) viewport —
+ * clearly a real page's worth of hidden content, not a rounding artifact. A ratio floor between
+ * those two (12%) keeps that mobile case paging while folding the desktop case back into a
+ * single, slightly-cropped stop.
  */
 const MIN_PAGE_OVERFLOW_PX = 48;
+const MIN_PAGE_OVERFLOW_RATIO = 0.12;
 const WHY_PARK_TOL_PX = 120;
 const DIR_TOL_PX = 24;
 
@@ -139,8 +151,11 @@ export function useHomeSnapScroll({ mainRef, whyRef, enabled }: Params) {
         }
         // Fits the viewport (or spills only into its own bottom padding) — one centred stop.
         // A section's overflow past innerHeight by the bar strip is its --browser-bar-b
-        // padding, not reachable content, so it is discounted before judging the fit.
-        if (h - (vh + barPx) <= MIN_PAGE_OVERFLOW_PX) {
+        // padding, not reachable content, so it is discounted before judging the fit. The
+        // tolerance floors at MIN_PAGE_OVERFLOW_PX but scales up with the viewport (see
+        // MIN_PAGE_OVERFLOW_RATIO) so a moderate overflow on a tall viewport doesn't page into a
+        // second stop too close to the first to feel like it did anything.
+        if (h - (vh + barPx) <= Math.max(MIN_PAGE_OVERFLOW_PX, vh * MIN_PAGE_OVERFLOW_RATIO)) {
           stops.push({ y: top - Math.max(0, (vh - h) / 2), why: false, group: groupIndex });
           return;
         }
