@@ -18,8 +18,10 @@ namespace YarneAPIBack.Services;
 /// the DB transaction: if the rewrite fails, the re-run reuses the objects already in R2 and
 /// only retries the database work.
 ///
-/// OrderItem.ProductImageUrl is left untouched on purpose - those rows are a snapshot of what
-/// was actually sold, and the /uploads route stays mounted so they keep rendering.
+/// OrderItem.ProductImageUrl is migrated too. It is a snapshot of what was sold, and moving the
+/// host does not change which photo that is - the object in R2 is the same file under the same
+/// name. Leaving those rows on /uploads/ would not preserve order history, it would end it the
+/// day the volume goes away, since nothing else keeps those files alive.
 /// </summary>
 public static partial class UploadsToR2Migration
 {
@@ -36,6 +38,7 @@ public static partial class UploadsToR2Migration
         public int ColorImageRowsUpdated { get; set; }
         public int ColorSizeImageRowsUpdated { get; set; }
         public int AppSettingRowsUpdated { get; set; }
+        public int OrderItemRowsUpdated { get; set; }
         public List<string> Missing { get; } = [];
         public List<string> Failures { get; } = [];
     }
@@ -157,6 +160,7 @@ public static partial class UploadsToR2Migration
         report.ColorImageRowsUpdated = 0;
         report.ColorSizeImageRowsUpdated = 0;
         report.AppSettingRowsUpdated = 0;
+        report.OrderItemRowsUpdated = 0;
 
         await using var tx = await db.Database.BeginTransactionAsync(ct);
 
@@ -197,6 +201,16 @@ public static partial class UploadsToR2Migration
             {
                 row.ImageUrl = url;
                 report.ColorSizeImageRowsUpdated++;
+            }
+        }
+
+        var orderItems = await db.OrderItems.Where(o => o.ProductImageUrl != null).ToListAsync(ct);
+        foreach (var row in orderItems)
+        {
+            if (TryMap(map, row.ProductImageUrl, out var url))
+            {
+                row.ProductImageUrl = url;
+                report.OrderItemRowsUpdated++;
             }
         }
 
@@ -241,6 +255,10 @@ public static partial class UploadsToR2Migration
             Add(url);
         foreach (var url in await db.ProductColorSizeImages.AsNoTracking().Select(p => p.ImageUrl).ToListAsync(ct))
             Add(url);
+        // Included so a photo referenced only by a past order still gets copied to R2. A product
+        // can be deleted while the order that sold it keeps pointing at its picture.
+        foreach (var url in await db.OrderItems.AsNoTracking().Select(o => o.ProductImageUrl).ToListAsync(ct))
+            Add(url);
 
         foreach (var json in await db.AppSettings.AsNoTracking().Select(s => s.ValueJson).ToListAsync(ct))
         {
@@ -267,6 +285,8 @@ public static partial class UploadsToR2Migration
         report.ColorImageRowsUpdated = (await db.ProductColorImages.AsNoTracking().Select(p => p.ImageUrl).ToListAsync(ct))
             .Count(url => TryMap(map, url, out _));
         report.ColorSizeImageRowsUpdated = (await db.ProductColorSizeImages.AsNoTracking().Select(p => p.ImageUrl).ToListAsync(ct))
+            .Count(url => TryMap(map, url, out _));
+        report.OrderItemRowsUpdated = (await db.OrderItems.AsNoTracking().Select(o => o.ProductImageUrl).ToListAsync(ct))
             .Count(url => TryMap(map, url, out _));
 
         foreach (var json in await db.AppSettings.AsNoTracking().Select(s => s.ValueJson).ToListAsync(ct))
