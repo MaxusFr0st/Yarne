@@ -18,6 +18,7 @@ public class ImagesController : ControllerBase
     private readonly IAdminActivityLogService _activityLogs;
     private readonly IImageUploadNormalizer _imageNormalizer;
     private readonly IUploadFileStorageService _uploadStorage;
+    private readonly IR2ImageStorageService _r2Storage;
     private static readonly string[] AllowedExtensions = { ".jpg", ".jpeg", ".png", ".gif", ".webp" };
     private static readonly string[] AllowedMimeTypes = { "image/jpeg", "image/png", "image/gif", "image/webp" };
     private const int MaxFileSizeBytes = 15 * 1024 * 1024; // 15 MB — normalized to WebP on save
@@ -27,13 +28,15 @@ public class ImagesController : ControllerBase
         ILogger<ImagesController> logger,
         IAdminActivityLogService activityLogs,
         IImageUploadNormalizer imageNormalizer,
-        IUploadFileStorageService uploadStorage)
+        IUploadFileStorageService uploadStorage,
+        IR2ImageStorageService r2Storage)
     {
         _env = env;
         _logger = logger;
         _activityLogs = activityLogs;
         _imageNormalizer = imageNormalizer;
         _uploadStorage = uploadStorage;
+        _r2Storage = r2Storage;
     }
 
     [HttpPost("upload")]
@@ -87,26 +90,47 @@ public class ImagesController : ControllerBase
 
         await using (normalized.Output)
         {
-            var webRoot = _env.WebRootPath ?? Path.Combine(_env.ContentRootPath, "wwwroot");
-            var uploadsDir = Path.Combine(webRoot, "uploads");
-            Directory.CreateDirectory(uploadsDir);
-
             var fileName = $"{Guid.NewGuid():N}{normalized.FileExtension}";
-            var filePath = Path.Combine(uploadsDir, fileName);
-
-            try
-            {
-                await using var stream = new FileStream(filePath, FileMode.CreateNew, FileAccess.Write, FileShare.None);
-                await normalized.Output.CopyToAsync(stream, ct);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Failed to save normalized upload");
-                return StatusCode(500, new { message = "Failed to save file" });
-            }
-
-            var url = $"/uploads/{fileName}";
             var outputSize = normalized.Output.Length;
+            string url;
+
+            if (_r2Storage.IsConfigured)
+            {
+                // Photos belong on the CDN, not on this container's disk: Railway's filesystem is
+                // ephemeral without a volume, and serving image bytes from a single region is the
+                // slowest thing the storefront does.
+                try
+                {
+                    url = await _r2Storage.UploadWithKeyAsync(normalized.Output, normalized.ContentType, fileName, ct);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Failed to upload normalized image to R2");
+                    return StatusCode(500, new { message = "Failed to save file" });
+                }
+            }
+            else
+            {
+                // No R2 credentials (local dev, or a misconfigured deploy) — keep writing to disk
+                // rather than stranding the admin UI. /uploads stays mounted either way.
+                var webRoot = _env.WebRootPath ?? Path.Combine(_env.ContentRootPath, "wwwroot");
+                var uploadsDir = Path.Combine(webRoot, "uploads");
+                Directory.CreateDirectory(uploadsDir);
+
+                var filePath = Path.Combine(uploadsDir, fileName);
+                try
+                {
+                    await using var stream = new FileStream(filePath, FileMode.CreateNew, FileAccess.Write, FileShare.None);
+                    await normalized.Output.CopyToAsync(stream, ct);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Failed to save normalized upload");
+                    return StatusCode(500, new { message = "Failed to save file" });
+                }
+
+                url = $"/uploads/{fileName}";
+            }
 
             var (actorUserId, actorEmail) = AdminActivityLogHelper.GetActor(HttpContext);
             await _activityLogs.LogAsync(
@@ -271,6 +295,44 @@ public class ImagesController : ControllerBase
             ct);
 
         return Ok(new { updated, focalX = fx, focalY = fy });
+    }
+
+    /// <summary>
+    /// One-off: copies every /uploads/... photo still on this container's disk into R2 and
+    /// repoints the database at the CDN URLs. Safe to re-run; call with dryRun=true first to see
+    /// what would change without writing anything.
+    /// </summary>
+    [HttpPost("migrate-uploads-to-r2")]
+    [Authorize(Roles = "Admin")]
+    [ProducesResponseType(typeof(UploadsToR2Migration.Report), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<ActionResult<UploadsToR2Migration.Report>> MigrateUploadsToR2(
+        [FromQuery] bool dryRun = true,
+        [FromServices] YarneDbContext db = null!,
+        CancellationToken ct = default)
+    {
+        if (!_r2Storage.IsConfigured)
+            return BadRequest(new { message = "R2 storage is not configured" });
+
+        var report = await UploadsToR2Migration.RunAsync(
+            db, _r2Storage, _uploadStorage, _env, _logger, dryRun, ct);
+
+        if (!dryRun)
+        {
+            var (actorUserId, actorEmail) = AdminActivityLogHelper.GetActor(HttpContext);
+            await _activityLogs.LogAsync(
+                "image",
+                "migrated",
+                $"Migrated {report.Uploaded} uploads to R2",
+                null,
+                null,
+                report,
+                actorUserId,
+                actorEmail,
+                ct);
+        }
+
+        return Ok(report);
     }
 
     private static string? InferMimeTypeFromExtension(string extension) =>
