@@ -1,6 +1,14 @@
 import type { Area } from "react-easy-crop";
 import { buildApiUrl, resolveApiBase } from "../api/base";
 
+/** The API declined to proxy this URL because it is not on our own media host. */
+class NotOwnMediaError extends Error {
+  constructor() {
+    super("Not our media host");
+    this.name = "NotOwnMediaError";
+  }
+}
+
 /** Extract `/uploads/...` from a stored path or absolute URL. */
 export function extractUploadPath(src: string): string | null {
   const trimmed = src.trim();
@@ -14,10 +22,10 @@ export function extractUploadPath(src: string): string | null {
   return null;
 }
 
-async function fetchUploadPathViaApi(uploadPath: string): Promise<string> {
+async function fetchUploadPathViaApi(pathOrUrl: string): Promise<string> {
   const apiUrl = buildApiUrl(
     resolveApiBase(),
-    `/api/images/file?path=${encodeURIComponent(uploadPath)}`,
+    `/api/images/file?path=${encodeURIComponent(pathOrUrl)}`,
   );
 
   let res: Response;
@@ -33,6 +41,11 @@ async function fetchUploadPathViaApi(uploadPath: string): Promise<string> {
 
   if (res.status === 401) {
     throw new Error("You are not signed in. Log in as admin and try again.");
+  }
+
+  // The proxy only serves this site's own media; 400 means "not ours, fetch it yourself".
+  if (res.status === 400) {
+    throw new NotOwnMediaError();
   }
 
   if (!res.ok) {
@@ -74,7 +87,25 @@ export async function resolveImageSrcForCrop(src: string): Promise<string> {
     return fetchUploadPathViaApi(uploadPath);
   }
 
+  // Product photos live on R2 now, so a direct browser fetch depends on that bucket's CORS
+  // policy being right — and a misconfigured bucket silently breaks cropping for every stored
+  // photo. The API proxies our own media instead, where CORS does not apply. It answers 400 for
+  // any host that isn't ours, which is the signal to fall back to a direct fetch for a pasted
+  // third-party URL. The backend owns that judgement so the media host isn't configured twice.
+  const proxied = await tryFetchViaApi(src);
+  if (proxied) return proxied;
+
   return fetchRemoteAsBlobUrl(src);
+}
+
+/** Proxies through the API, returning null when it declines the host as not ours. */
+async function tryFetchViaApi(src: string): Promise<string | null> {
+  try {
+    return await fetchUploadPathViaApi(src);
+  } catch (error) {
+    if (error instanceof NotOwnMediaError) return null;
+    throw error;
+  }
 }
 
 export function revokeCropImageSrc(src: string | undefined) {

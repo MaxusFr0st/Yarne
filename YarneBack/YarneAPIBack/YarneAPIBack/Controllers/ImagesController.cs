@@ -205,12 +205,48 @@ public class ImagesController : ControllerBase
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public ActionResult GetUploadFile([FromQuery] string path)
+    public async Task<ActionResult> GetUploadFile(
+        [FromQuery] string path,
+        [FromServices] IHttpClientFactory httpClientFactory = null!,
+        CancellationToken ct = default)
     {
         if (string.IsNullOrWhiteSpace(path))
             return BadRequest(new { message = "path is required" });
 
         var normalized = path.Trim().Replace('\\', '/');
+
+        // Photos now live on R2, which is a different origin than the admin UI. The browser's
+        // own fetch is at the mercy of the bucket's CORS policy, so the crop tool hands the
+        // media URL here instead and we fetch it server-side, where CORS does not apply.
+        if (Uri.TryCreate(normalized, UriKind.Absolute, out var remote))
+        {
+            if (!IsTrustedMediaHost(remote))
+                return BadRequest(new { message = "Only this site's media host can be proxied" });
+
+            var client = httpClientFactory.CreateClient();
+            client.Timeout = TimeSpan.FromSeconds(30);
+
+            HttpResponseMessage upstream;
+            try
+            {
+                upstream = await client.GetAsync(remote, HttpCompletionOption.ResponseHeadersRead, ct);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to proxy media file {Url}", remote);
+                return StatusCode(502, new { message = "Could not fetch image from media host" });
+            }
+
+            if (!upstream.IsSuccessStatusCode)
+            {
+                upstream.Dispose();
+                return NotFound(new { message = "File not found" });
+            }
+
+            var mediaType = upstream.Content.Headers.ContentType?.MediaType ?? "application/octet-stream";
+            return File(await upstream.Content.ReadAsStreamAsync(ct), mediaType);
+        }
+
         if (!normalized.StartsWith("/uploads/", StringComparison.OrdinalIgnoreCase))
             return BadRequest(new { message = "Only /uploads/ paths are allowed" });
 
@@ -333,6 +369,23 @@ public class ImagesController : ControllerBase
         }
 
         return Ok(report);
+    }
+
+    /// <summary>
+    /// Whether a URL points at this site's own media storage. Without this the proxy would fetch
+    /// any address an authenticated admin supplied, turning an image helper into a request
+    /// forwarder that can reach internal hosts.
+    /// </summary>
+    private bool IsTrustedMediaHost(Uri candidate)
+    {
+        if (candidate.Scheme != Uri.UriSchemeHttps)
+            return false;
+
+        if (candidate.Host.EndsWith(".r2.dev", StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        return Uri.TryCreate(_r2Storage.BuildPublicUrl(string.Empty), UriKind.Absolute, out var configured)
+            && string.Equals(candidate.Host, configured.Host, StringComparison.OrdinalIgnoreCase);
     }
 
     private static string? InferMimeTypeFromExtension(string extension) =>
