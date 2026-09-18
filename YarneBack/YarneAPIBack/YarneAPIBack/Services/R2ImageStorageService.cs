@@ -43,6 +43,11 @@ public sealed class R2ImageStorageService : IR2ImageStorageService
             Key = key,
             InputStream = content,
             ContentType = contentType,
+            // The /uploads route these replaced sent "public, max-age=31536000, immutable" and R2
+            // sends no caching directive at all, so moving to the CDN would otherwise have undone
+            // that and left browsers guessing again. Keys are content-addressed GUIDs that are
+            // never rewritten - editing a photo mints a new name - so they really are immutable.
+            Headers = { CacheControl = "public, max-age=31536000, immutable" },
             // AWSSDK.S3 3.7.5xx turns on flexible checksums by default, which streams the body
             // with a trailing CRC32 and signs it as STREAMING-AWS4-HMAC-SHA256-PAYLOAD-TRAILER.
             // R2 does not implement that and rejects every upload with "not implemented".
