@@ -43,6 +43,13 @@ public sealed class R2ImageStorageService : IR2ImageStorageService
             Key = key,
             InputStream = content,
             ContentType = contentType,
+            // AWSSDK.S3 3.7.5xx turns on flexible checksums by default, which streams the body
+            // with a trailing CRC32 and signs it as STREAMING-AWS4-HMAC-SHA256-PAYLOAD-TRAILER.
+            // R2 does not implement that and rejects every upload with "not implemented".
+            // Both flags are safe here: the request is still authenticated by its signed headers
+            // and the whole exchange runs over TLS.
+            DisableDefaultChecksumValidation = true,
+            DisablePayloadSigning = true,
         }, ct);
 
         return BuildPublicUrl(key);
