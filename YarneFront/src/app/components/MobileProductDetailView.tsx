@@ -384,7 +384,7 @@ export function MobileProductDetailView({
           boxShadow: "0 -8px 32px rgba(45,36,30,0.1)",
         }}
       >
-        <div className="flex flex-col gap-[clamp(6px,1.4vh,9px)]">
+        <div className="flex flex-col gap-[clamp(6px,1.6vw,9px)]">
           <p
             className="text-[#2D241E]/45 uppercase shrink-0"
             style={{
@@ -860,7 +860,7 @@ export function MobileProductDetailView({
           <ProductGuaranteeBlock
             content={guaranteeContent}
             locale={locale}
-            className="mt-[clamp(10px,2vh,14px)]"
+            className="mt-[clamp(10px,3vw,14px)]"
           />
         </div>
       </div>

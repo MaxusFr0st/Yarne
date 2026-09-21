@@ -195,7 +195,7 @@ export function Root() {
   }, [currentEntryKey, currentRouteKey, location.key, location.pathname, location.search]);
 
   return (
-    <div className="relative" style={{ backgroundColor: "#F5F2ED", minHeight: "100vh" }}>
+    <div className="relative" style={{ backgroundColor: "#F5F2ED", minHeight: "100svh" }}>
       <Header />
       <PageTransition>
         <Outlet />

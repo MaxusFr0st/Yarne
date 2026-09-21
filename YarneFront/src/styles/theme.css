@@ -14,13 +14,12 @@
      This CSS value is the fallback; on iPhone the strip runs past lvh to the screen bottom, so
      browserBarInset.ts overrides it with a measured value. */
   --browser-bar-b: calc(100lvh - 100svh + env(safe-area-inset-bottom, 0px));
-  /* Height full-height sections are built from. Plain 100svh everywhere except in-app browsers
-     (Instagram etc.), whose webview resizes as the app's bars slide: stableViewport.ts holds
-     it at a fixed pixel value there so sections stop re-laying out on every scroll. */
+  /* Height of the pinned "Why" frame, the one place the layout has to be exactly one screen
+     tall. Plain 100svh until stableViewport.ts holds it at a fixed pixel value on touch devices,
+     because in-app browsers (Instagram, Google app...) resize svh itself as their bars slide.
+     Do not build other sections from it: size them from width, aspect-ratio or content, and
+     use plain svh only for min-heights and overlays (see .hero-frame). */
   --app-svh: 100svh;
-  /* 1% of --app-svh. Use this instead of vh/dvh/svh anywhere a size must not follow the
-     browser's bars: calc(var(--app-vh) * 72) rather than 72vh. */
-  --app-vh: calc(var(--app-svh) / 100);
   --background: #ffffff;
   --foreground: oklch(0.145 0 0);
   --card: #ffffff;
@@ -275,6 +274,34 @@
 
   .group\/card:hover .product-card-image {
     transform: none;
+  }
+}
+
+/* Home hero size.
+
+   Phones: from the width only. Every viewport-height unit follows in-app browsers' bars (their
+   webview is resized as the bars slide), so a hero built from svh re-lays out and re-crops its
+   photo on every scroll there. Width never changes while scrolling. 175vw is a little under the
+   visible height of current phones in Safari, Chrome and in-app browsers (their visible area is
+   ~1.72-1.93x the width), so the buttons are on screen at load; the apron below them runs the
+   photo past the bottom of the screen, under Safari's glass bar and into whatever room the
+   bars give back, so the next section never shows through.
+   Short 16:9 phones (iPhone SE, old Androids) are ~1.46x: they get a shorter hero. This keys
+   off the device's screen, not the viewport, so it can never flip mid-scroll.
+   Tablets and desktop: exactly one screen, from svh, which real browsers keep fixed. */
+.hero-frame {
+  --hero-h: clamp(560px, 175vw, 780px);
+  --hero-apron: 120px;
+}
+@media (max-width: 767px) and (max-device-height: 700px) {
+  .hero-frame {
+    --hero-h: clamp(480px, 142vw, 560px);
+  }
+}
+@media (min-width: 768px) {
+  .hero-frame {
+    --hero-h: max(600px, 100svh);
+    --hero-apron: var(--browser-bar-b);
   }
 }
 

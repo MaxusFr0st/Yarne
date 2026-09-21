@@ -8,7 +8,7 @@
  * screen height minus svh, and only JS knows the screen height. Other browsers keep the CSS
  * fallback.
  */
-import { isInAppBrowser } from "./stableViewport";
+import { isInAppBrowser, isWebviewMode } from "./stableViewport";
 
 export function installBrowserBarInset(): void {
   if (typeof window === "undefined") return;
@@ -17,6 +17,7 @@ export function installBrowserBarInset(): void {
   if ((navigator as Navigator & { standalone?: boolean }).standalone) return; // home-screen app: no bar
 
   const apply = () => {
+    if (isWebviewMode()) return; // detected at runtime; stableViewport.ts owns the strip from then on
     const root = document.documentElement;
     if (window.innerWidth > window.innerHeight) {
       root.style.removeProperty("--browser-bar-b"); // landscape puts the chrome at the top

@@ -28,7 +28,7 @@ export function PageTransition({ children }: PageTransitionProps) {
   return (
     <div
       key={`${location.pathname}${location.search}`}
-      className="route-enter min-h-[calc(100vh-var(--main-header-h))]"
+      className="route-enter min-h-[calc(100svh-var(--main-header-h))]"
     >
       {children}
     </div>

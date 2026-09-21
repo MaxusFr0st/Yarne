@@ -15,7 +15,7 @@ import { useTouchMobileLayout } from "../hooks/useTouchMobileLayout";
 import { ScrollReveal, SECTION_REVEAL, SectionEyebrow, SectionTitle } from "../components/ScrollReveal";
 import { resolveMediaUrl } from "../utils/storefrontMedia";
 import { WhyYarneSection } from "../components/WhyYarneSection";
-import { getStableViewportHeight, isInAppBrowser } from "../utils/stableViewport";
+import { getStableViewportHeight, isInAppBrowser, isWebviewMode } from "../utils/stableViewport";
 
 const ease = [0.22, 1, 0.36, 1] as const;
 
@@ -41,7 +41,7 @@ function ViewportDebug() {
           `inner ${window.innerHeight} outer ${window.outerHeight} screen ${screen.height}`,
           `svh ${px("100svh")} lvh ${px("100lvh")} dvh ${px("100dvh")} vh ${px("100vh")}`,
           `inset-b ${px("env(safe-area-inset-bottom,0px)")} bar-var ${px("var(--browser-bar-b)")}`,
-          `app-svh ${px("var(--app-svh)")} stable ${getStableViewportHeight()} in-app ${isInAppBrowser()}`,
+          `app-svh ${px("var(--app-svh)")} stable ${getStableViewportHeight()} in-app ${isInAppBrowser()} webview ${isWebviewMode()}`,
           `visual h ${vv ? Math.round(vv.height) : "-"} off ${vv ? Math.round(vv.offsetTop) : "-"}`,
           `scrollY ${Math.round(window.scrollY)} docH ${document.documentElement.scrollHeight}`,
           ...secs.map((el, i) => {
@@ -128,12 +128,17 @@ export function Home() {
       {/* ─── HERO ───
           Pinned to the top of the page while everything after it scrolls up and covers it. */}
       <section
-        className="sticky z-0 flex items-end overflow-hidden min-h-[600px] pb-[var(--browser-bar-b)]"
-        // svh + the bar strip (see --browser-bar-b): at 100svh the hero ended under Safari's
-        // translucent bar and the Why section's "01" showed through it; 100lvh still fell short.
-        // `top` goes negative on a screen shorter than the hero's 600px minimum, so the pinned
-        // hero sits bottom-aligned (its buttons stay reachable) instead of clipped below the fold.
-        style={{ height: "calc(var(--app-svh) + var(--browser-bar-b))", top: "min(0px, calc(var(--app-svh) - 600px))" }}
+        className="hero-frame sticky z-0 flex items-end overflow-hidden"
+        // Sized by .hero-frame (theme.css): from the screen's width on phones, so no browser bar
+        // can resize it or re-crop the photo. The apron below the content fills the space under
+        // Safari's glass and the room in-app bars hand back with the hero's own photo.
+        // `top` goes negative when the content box is taller than the screen, so the pinned hero
+        // sits bottom-aligned (its buttons stay reachable) instead of clipped below the fold.
+        style={{
+          height: "calc(var(--hero-h) + var(--hero-apron))",
+          paddingBottom: "var(--hero-apron)",
+          top: "min(0px, calc(100svh - var(--hero-h)))",
+        }}
       >
         <div className="absolute inset-0 overflow-hidden">
           {heroImageSrc ? (

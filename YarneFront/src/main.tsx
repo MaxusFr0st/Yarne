@@ -7,8 +7,9 @@ import "./app/i18n";
 import { installBrowserBarInset } from "./app/utils/browserBarInset";
 import { installStableViewport } from "./app/utils/stableViewport";
 
-installBrowserBarInset();
+// Stable viewport first: it decides webview mode, which browserBarInset defers to.
 installStableViewport();
+installBrowserBarInset();
 
 if (import.meta.env.PROD && "serviceWorker" in navigator) {
   window.addEventListener("load", () => {

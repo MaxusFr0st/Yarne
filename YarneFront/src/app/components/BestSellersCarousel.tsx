@@ -74,21 +74,17 @@ export function BestSellersCarousel() {
   }, []);
 
   /**
-   * Full `100svh` plus the browser-chrome strip (--browser-bar-b), same technique as the hero
-   * section (see Home.tsx) — held steady while mobile browser chrome shows/hides instead of
-   * resizing on every scroll tick, and the section owns the full height itself (padding pushes
-   * content below the fixed header / above the chrome strip) rather than being sized by its
-   * content, so it always owns exactly one screen. (This was written for the page's snap
-   * scroll, which is gone; the full-screen height is kept as designed.)
+   * Phones: as tall as its content. The cards are sized from the width (3:4), so nothing here
+   * depends on the viewport's height and in-app browsers' sliding bars cannot resize it.
+   * Tablets and desktop: exactly one screen (100svh, fixed in real browsers) plus the
+   * browser-chrome strip (--browser-bar-b), with padding keeping content below the fixed header.
    */
   return (
     <section
-      className="relative overflow-hidden box-border"
+      className="relative overflow-hidden box-border pb-[clamp(28px,8vw,44px)] md:h-[calc(100svh+var(--browser-bar-b))] md:pb-[calc(var(--browser-bar-b)+clamp(8px,2vw,20px))]"
       style={{
         backgroundColor: "#EDE9E2",
-        height: "calc(var(--app-svh) + var(--browser-bar-b))",
         paddingTop: "calc(var(--main-header-h) + clamp(8px, 2vw, 20px))",
-        paddingBottom: "calc(var(--browser-bar-b) + clamp(8px, 2vw, 20px))",
       }}
     >
       <div className="h-full flex flex-col min-h-0">
@@ -168,7 +164,7 @@ export function BestSellersCarousel() {
             }
           }
         `}</style>
-        <div className="shrink-0 relative -mx-3 min-[600px]:-mx-4 md:-mx-6 lg:-mx-8 pt-1 sm:pt-2 md:pt-6 pb-1 min-h-[min(72vw,320px)] min-[600px]:min-h-[min(48vw,360px)] lg:min-h-[min(420px,calc(var(--app-vh)*48))]">
+        <div className="shrink-0 relative -mx-3 min-[600px]:-mx-4 md:-mx-6 lg:-mx-8 pt-1 sm:pt-2 md:pt-6 pb-1 min-h-[min(72vw,320px)] min-[600px]:min-h-[min(48vw,360px)] lg:min-h-[min(420px,48svh)]">
           <motion.div
             ref={(el) => {
               (emblaRef as (el: HTMLDivElement | null) => void)(el);

@@ -221,7 +221,7 @@ export function LoginModal() {
               role="dialog"
               aria-modal="true"
               aria-labelledby={titleId}
-              className="w-full max-w-md relative pointer-events-auto max-h-[92dvh] flex flex-col"
+              className="w-full max-w-md relative pointer-events-auto max-h-[92svh] flex flex-col"
               style={{
                 backgroundColor: "#F5F2ED",
                 borderRadius: "clamp(28px, 6vw, 40px)",

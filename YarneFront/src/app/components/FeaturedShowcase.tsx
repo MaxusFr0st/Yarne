@@ -321,7 +321,7 @@ function MagazineSpread({
 }: MagazineSpreadProps) {
   return (
     <div
-      className="grid h-[clamp(420px,min(72vh,760px),820px)] gap-4 md:gap-5"
+      className="grid h-[clamp(420px,min(72svh,760px),820px)] gap-4 md:gap-5"
       style={{
         gridTemplateColumns: "2.15fr 1fr 1fr",
         gridTemplateRows: "minmax(0, 1fr) minmax(0, 1.05fr)",
@@ -480,7 +480,10 @@ export function FeaturedShowcase() {
   );
 
   /**
-   * A full `100svh` tall, with the fixed header's height added as top padding — the same
+   * Phones (bento): as tall as its content; the bento grid's height comes from the width (see
+   * the grid below), so in-app browsers' sliding bars cannot resize it or re-crop its photos.
+   *
+   * Tablets and desktop (magazine spread): a full `100svh` tall, with the fixed header's height added as top padding — the same
    * arrangement the Best Sellers section uses, and the one the page's old snap scroll (since
    * removed) assumed: every section owns exactly one screen, or a shorter one gets centered
    * with the neighbouring section peeking in above and below it.
@@ -499,20 +502,16 @@ export function FeaturedShowcase() {
    * Safari's translucent bar so the next section cannot show through it; the strip is padding so
    * the grid's last row stays above the glass.
    */
-  const showcaseSectionHeight = "calc(var(--app-svh) + var(--browser-bar-b))";
   const showcaseSectionPaddingTop = "calc(var(--main-header-h) + clamp(6px, 1.6vw, 12px))";
-  const showcaseSectionPaddingBottom = "calc(var(--browser-bar-b) + clamp(6px, 1.6vw, 12px))";
 
   return (
     <section
       className={`relative bg-[#F5F2ED] overflow-hidden box-border ${
-        useSpreadLayout ? "py-8 md:py-10" : "py-[clamp(6px,1.6vw,12px)]"
+        useSpreadLayout
+          ? "h-[calc(100svh+var(--browser-bar-b))] pb-[calc(var(--browser-bar-b)+clamp(6px,1.6vw,12px))]"
+          : "pb-[clamp(20px,6vw,32px)]"
       }`}
-      style={{
-        height: showcaseSectionHeight,
-        paddingTop: showcaseSectionPaddingTop,
-        paddingBottom: showcaseSectionPaddingBottom,
-      }}
+      style={{ paddingTop: showcaseSectionPaddingTop }}
     >
       <div
         className={`max-w-[1400px] mx-auto px-[clamp(12px,3.5vw,40px)] h-full flex flex-col ${
@@ -553,9 +552,10 @@ export function FeaturedShowcase() {
           />
         )}
 
-        {/* Portrait bento — phones + tablet portrait */}
+        {/* Portrait bento — phones. Height from the width (about what one screen left for it
+            when the section was screen-tall), never from the viewport's height. */}
         <div
-          className={`${useBentoLayout ? "grid" : "hidden"} flex-1 min-h-0 gap-[clamp(5px,1.4vw,10px)]`}
+          className={`${useBentoLayout ? "grid" : "hidden"} h-[clamp(440px,148vw,820px)] gap-[clamp(5px,1.4vw,10px)]`}
           style={{
             gridTemplateRows: "minmax(0, 1.05fr) minmax(0, 1fr)",
           }}

@@ -190,7 +190,7 @@ export function ProductDetail() {
   if (!loading && !product) {
     return (
       <main
-        className="min-h-[100vh] flex flex-col items-center justify-center"
+        className="min-h-[100svh] flex flex-col items-center justify-center"
         style={{ backgroundColor: "#F5F2ED" }}
       >
         <p
@@ -277,12 +277,12 @@ export function ProductDetail() {
     // No overflow-x here at all: the viewport already clips sideways (see html in theme.css),
     // and any value other than `visible` on this element would make it a scroll container and
     // leave the mobile gallery's `position: sticky` inert.
-    <main className="min-h-[100vh]" style={{ backgroundColor: "#F3EFE8" }}>
+    <main className="min-h-[100svh]" style={{ backgroundColor: "#F3EFE8" }}>
       {/* Compared against null rather than through a Boolean() flag, so everything below is
           narrowed to a loaded product. The flag version rendered exactly the same thing but told
           the type checker nothing, which is why the branch was littered with `product!`. */}
       {product === null ? (
-        <div className="min-h-[50vh]" aria-busy="true" />
+        <div className="min-h-[50svh]" aria-busy="true" />
       ) : (
         <>
       <MobileProductDetailView
@@ -352,7 +352,7 @@ export function ProductDetail() {
               max-height keeps it from ever exceeding the viewport, with margin below. */}
           <div className="w-full flex flex-col self-start">
             <motion.div
-              className="relative rounded-[28px] overflow-hidden bg-[#EDE9E2] max-h-[calc(100dvh-200px)]"
+              className="relative rounded-[28px] overflow-hidden bg-[#EDE9E2] max-h-[calc(100svh-200px)]"
               initial={false}
               animate={{ height: Math.max(740, infoColHeight ?? 740) }}
               transition={reduceMotion ? { duration: 0 } : { type: "spring", stiffness: 260, damping: 32 }}

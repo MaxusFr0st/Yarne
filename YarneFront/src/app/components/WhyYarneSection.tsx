@@ -4,7 +4,7 @@ import { LangLink } from "../i18n/LangLink";
 import { useLocale } from "../i18n/useLocale";
 import { resolveMediaUrl } from "../utils/storefrontMedia";
 import { WHY_DEFAULT_IMAGES } from "../utils/whyDefaultImages";
-import { getStableViewportHeight } from "../utils/stableViewport";
+import { getStableViewportHeight, isViewportLocked, onStableViewportChange } from "../utils/stableViewport";
 import {
   getDefaultWhySectionContent,
   loadWhySectionContent,
@@ -170,7 +170,8 @@ export function WhyYarneSection() {
       const w = window.innerWidth;
       const h = getStableViewportHeight();
       setView((prev) => {
-        const heightMoved = Math.abs(h - prev.vh) > (narrow ? MOBILE_CHROME_PX : 4);
+        // A held height only changes for real (rotation, or the one-off settle in a webview).
+        const heightMoved = Math.abs(h - prev.vh) > (narrow && !isViewportLocked() ? MOBILE_CHROME_PX : 4);
         const widthMoved = Math.abs(w - prev.vw) > 4;
         if (narrow === prev.isNarrow && !heightMoved && !widthMoved) return prev;
         return { ...prev, isNarrow: narrow, vw: w, vh: h, squeeze: 0 };
@@ -180,7 +181,9 @@ export function WhyYarneSection() {
     window.addEventListener("resize", read);
     window.addEventListener("orientationchange", read);
     window.visualViewport?.addEventListener("resize", read);
+    const offStable = onStableViewportChange(read);
     return () => {
+      offStable();
       window.removeEventListener("resize", read);
       window.removeEventListener("orientationchange", read);
       window.visualViewport?.removeEventListener("resize", read);
