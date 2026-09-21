@@ -14,6 +14,7 @@ import type { ProductGuaranteeContent } from "../utils/productGuaranteeContent";
 import { getSupplementaryProductDetails, hasSupplementaryProductDetails } from "../utils/productDetails";
 import { useTouchMobileLayout } from "../hooks/useTouchMobileLayout";
 import { localizedCatalogName } from "../utils/localizedName";
+import { getStableViewportHeight } from "../utils/stableViewport";
 
 /** Duration of the sheet's glide back down off the image. */
 const SHEET_SLIDE_MS = 700;
@@ -27,7 +28,7 @@ const GALLERY_SWAP_CAP_MS = 2500;
  */
 function measureImageBoxHeight(): number {
   if (typeof window === "undefined") return 470;
-  return Math.min(window.innerHeight * 0.62 + 10, 470);
+  return Math.min(getStableViewportHeight() * 0.62 + 10, 470);
 }
 
 type MobileProductDetailViewProps = {

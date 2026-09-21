@@ -86,7 +86,7 @@ export function BestSellersCarousel() {
       className="relative overflow-hidden box-border"
       style={{
         backgroundColor: "#EDE9E2",
-        height: "calc(100svh + var(--browser-bar-b))",
+        height: "calc(var(--app-svh) + var(--browser-bar-b))",
         paddingTop: "calc(var(--main-header-h) + clamp(8px, 2vw, 20px))",
         paddingBottom: "calc(var(--browser-bar-b) + clamp(8px, 2vw, 20px))",
       }}

@@ -499,7 +499,7 @@ export function FeaturedShowcase() {
    * Safari's translucent bar so the next section cannot show through it; the strip is padding so
    * the grid's last row stays above the glass.
    */
-  const showcaseSectionHeight = "calc(100svh + var(--browser-bar-b))";
+  const showcaseSectionHeight = "calc(var(--app-svh) + var(--browser-bar-b))";
   const showcaseSectionPaddingTop = "calc(var(--main-header-h) + clamp(6px, 1.6vw, 12px))";
   const showcaseSectionPaddingBottom = "calc(var(--browser-bar-b) + clamp(6px, 1.6vw, 12px))";
 

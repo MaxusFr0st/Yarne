@@ -14,6 +14,10 @@
      This CSS value is the fallback; on iPhone the strip runs past lvh to the screen bottom, so
      browserBarInset.ts overrides it with a measured value. */
   --browser-bar-b: calc(100lvh - 100svh + env(safe-area-inset-bottom, 0px));
+  /* Height full-height sections are built from. Plain 100svh everywhere except in-app browsers
+     (Instagram etc.), whose webview resizes as the app's bars slide: stableViewport.ts holds
+     it at a fixed pixel value there so sections stop re-laying out on every scroll. */
+  --app-svh: 100svh;
   --background: #ffffff;
   --foreground: oklch(0.145 0 0);
   --card: #ffffff;

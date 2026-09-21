@@ -8,9 +8,12 @@
  * screen height minus svh, and only JS knows the screen height. Other browsers keep the CSS
  * fallback.
  */
+import { isInAppBrowser } from "./stableViewport";
+
 export function installBrowserBarInset(): void {
   if (typeof window === "undefined") return;
   if (!/iPhone|iPod/.test(navigator.userAgent)) return;
+  if (isInAppBrowser()) return; // its webview resizes with the app's bars; stableViewport.ts owns the strip there
   if ((navigator as Navigator & { standalone?: boolean }).standalone) return; // home-screen app: no bar
 
   const apply = () => {

@@ -4,6 +4,7 @@ import { LangLink } from "../i18n/LangLink";
 import { useLocale } from "../i18n/useLocale";
 import { resolveMediaUrl } from "../utils/storefrontMedia";
 import { WHY_DEFAULT_IMAGES } from "../utils/whyDefaultImages";
+import { getStableViewportHeight } from "../utils/stableViewport";
 import {
   getDefaultWhySectionContent,
   loadWhySectionContent,
@@ -46,6 +47,9 @@ const BROWN = "#6B5445";
 const WORD_TINT = "#7A6A58";
 
 const prettyWrap = { textWrap: "pretty" } as CSSProperties;
+
+/** `pct` percent of the layout height. Not svh/vh: in-app browsers resize those as their bars slide. */
+const sv = (pct: number) => `calc(var(--app-svh) * ${pct / 100})`;
 
 function makeHold(holdW: number) {
   const H = Math.min(Math.max(holdW, 0.05), 0.48);
@@ -107,7 +111,7 @@ function readInitialView(): View {
   return {
     isNarrow: hasWindow ? window.matchMedia("(max-width: 767px)").matches : false,
     vw: hasWindow ? window.innerWidth : 1200,
-    vh: hasWindow ? window.innerHeight : 800,
+    vh: hasWindow ? getStableViewportHeight() : 800,
     squeeze: 0,
     stageH: 0,
     roomW: 0,
@@ -164,7 +168,7 @@ export function WhyYarneSection() {
     const read = () => {
       const narrow = window.matchMedia("(max-width: 767px)").matches;
       const w = window.innerWidth;
-      const h = window.innerHeight;
+      const h = getStableViewportHeight();
       setView((prev) => {
         const heightMoved = Math.abs(h - prev.vh) > (narrow ? MOBILE_CHROME_PX : 4);
         const widthMoved = Math.abs(w - prev.vw) > 4;
@@ -340,7 +344,7 @@ export function WhyYarneSection() {
       const pin = pinRef.current;
       // The distance the pinned frame stays stuck for. Measured against the frame (not
       // innerHeight) so mobile toolbars collapsing don't shift where each product lands.
-      const travel = Math.max(1, section.offsetHeight - (pin ? pin.offsetHeight : window.innerHeight));
+      const travel = Math.max(1, section.offsetHeight - (pin ? pin.offsetHeight : getStableViewportHeight()));
       const rect = section.getBoundingClientRect();
       const scrolled = clamp(-rect.top, 0, travel);
 
@@ -465,8 +469,8 @@ export function WhyYarneSection() {
   const phoneMask =
     "linear-gradient(to bottom, rgba(0,0,0,0) 0%, rgba(0,0,0,1) 4%, rgba(0,0,0,1) 96%, rgba(0,0,0,0) 100%)";
   const scrollSpan = isNarrow
-    ? `${(STEPS - 1) * PHONE_SCROLL_PER_SLIDE_SVH + LEAD * 200}svh`
-    : `${(STEPS - 1) * SCROLL_PER_SLIDE_SVH}svh`;
+    ? sv((STEPS - 1) * PHONE_SCROLL_PER_SLIDE_SVH + LEAD * 200)
+    : sv((STEPS - 1) * SCROLL_PER_SLIDE_SVH);
 
   const factTitleSize = isNarrow
     ? tiny
@@ -488,15 +492,15 @@ export function WhyYarneSection() {
         ? "108px"
         : level >= 2
           ? "132px"
-          : "clamp(160px,20vh,230px)";
-  const topPad = isNarrow ? "10px" : level >= 3 ? "6px" : level >= 2 ? "10px" : "clamp(14px,2.6vh,32px)";
+          : `clamp(160px,${sv(20)},230px)`;
+  const topPad = isNarrow ? "10px" : level >= 3 ? "6px" : level >= 2 ? "10px" : `clamp(14px,${sv(2.6)},32px)`;
   const bottomPad = isNarrow
-    ? "clamp(16px,3.4vh,30px)"
+    ? `clamp(16px,${sv(3.4)},30px)`
     : level >= 3
       ? "12px"
       : level >= 2
         ? "16px"
-        : "clamp(20px,5vh,64px)";
+        : `clamp(20px,${sv(5)},64px)`;
   const careBodyHidden = isNarrow ? tiny : level >= 2;
 
   return (
@@ -509,7 +513,7 @@ export function WhyYarneSection() {
         // The pinned frame is svh + the browser-bar strip (see --browser-bar-b), like every
         // other full-screen section on this page, so the frame doesn't resize while a mobile
         // toolbar collapses. The scroll span is added on top of that.
-        height: `calc(100svh + var(--browser-bar-b) + ${scrollSpan})`,
+        height: `calc(var(--app-svh) + var(--browser-bar-b) + ${scrollSpan})`,
       }}
     >
       <div
@@ -517,7 +521,7 @@ export function WhyYarneSection() {
         style={{
           position: "sticky",
           top: 0,
-          height: "calc(100svh + var(--browser-bar-b))",
+          height: "calc(var(--app-svh) + var(--browser-bar-b))",
           overflow: "hidden",
           boxSizing: "border-box",
         }}
@@ -579,7 +583,7 @@ export function WhyYarneSection() {
             paddingBottom: `calc(var(--browser-bar-b) + ${bottomPad})`,
             paddingLeft: "clamp(16px,4vw,56px)",
             paddingRight: "clamp(16px,4vw,56px)",
-            gap: isNarrow ? "clamp(6px,1vh,12px)" : "clamp(10px,2vh,24px)",
+            gap: isNarrow ? `clamp(6px,${sv(1)},12px)` : `clamp(10px,${sv(2)},24px)`,
           }}
         >
           <h2
@@ -640,7 +644,7 @@ export function WhyYarneSection() {
             aria-hidden="true"
             style={{
               display: isNarrow ? "block" : "none",
-              minHeight: isNarrow ? "clamp(180px,32svh,340px)" : 0,
+              minHeight: isNarrow ? `clamp(180px,${sv(32)},340px)` : 0,
             }}
           />
 
@@ -673,7 +677,7 @@ export function WhyYarneSection() {
                   style={{
                     display: "flex",
                     flexDirection: "column",
-                    gap: isNarrow ? "clamp(8px,1.4vh,14px)" : "clamp(10px,1.6vh,18px)",
+                    gap: isNarrow ? `clamp(8px,${sv(1.4)},14px)` : `clamp(10px,${sv(1.6)},18px)`,
                   }}
                 >
                   <p

@@ -15,6 +15,7 @@ import { useTouchMobileLayout } from "../hooks/useTouchMobileLayout";
 import { ScrollReveal, SECTION_REVEAL, SectionEyebrow, SectionTitle } from "../components/ScrollReveal";
 import { resolveMediaUrl } from "../utils/storefrontMedia";
 import { WhyYarneSection } from "../components/WhyYarneSection";
+import { getStableViewportHeight, isInAppBrowser } from "../utils/stableViewport";
 
 const ease = [0.22, 1, 0.36, 1] as const;
 
@@ -40,6 +41,7 @@ function ViewportDebug() {
           `inner ${window.innerHeight} outer ${window.outerHeight} screen ${screen.height}`,
           `svh ${px("100svh")} lvh ${px("100lvh")} dvh ${px("100dvh")} vh ${px("100vh")}`,
           `inset-b ${px("env(safe-area-inset-bottom,0px)")} bar-var ${px("var(--browser-bar-b)")}`,
+          `app-svh ${px("var(--app-svh)")} stable ${getStableViewportHeight()} in-app ${isInAppBrowser()}`,
           `visual h ${vv ? Math.round(vv.height) : "-"} off ${vv ? Math.round(vv.offsetTop) : "-"}`,
           `scrollY ${Math.round(window.scrollY)} docH ${document.documentElement.scrollHeight}`,
           ...secs.map((el, i) => {
@@ -131,7 +133,7 @@ export function Home() {
         // translucent bar and the Why section's "01" showed through it; 100lvh still fell short.
         // `top` goes negative on a screen shorter than the hero's 600px minimum, so the pinned
         // hero sits bottom-aligned (its buttons stay reachable) instead of clipped below the fold.
-        style={{ height: "calc(100svh + var(--browser-bar-b))", top: "min(0px, calc(100svh - 600px))" }}
+        style={{ height: "calc(var(--app-svh) + var(--browser-bar-b))", top: "min(0px, calc(var(--app-svh) - 600px))" }}
       >
         <div className="absolute inset-0 overflow-hidden">
           {heroImageSrc ? (

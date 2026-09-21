@@ -5,8 +5,10 @@ import { watchForServiceWorkerUpdate } from "./app/offline/swUpdate";
 import "./styles/index.css";
 import "./app/i18n";
 import { installBrowserBarInset } from "./app/utils/browserBarInset";
+import { installStableViewport } from "./app/utils/stableViewport";
 
 installBrowserBarInset();
+installStableViewport();
 
 if (import.meta.env.PROD && "serviceWorker" in navigator) {
   window.addEventListener("load", () => {
