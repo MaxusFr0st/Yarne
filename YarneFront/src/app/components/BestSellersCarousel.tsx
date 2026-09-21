@@ -168,13 +168,13 @@ export function BestSellersCarousel() {
             }
           }
         `}</style>
-        <div className="shrink-0 relative -mx-3 min-[600px]:-mx-4 md:-mx-6 lg:-mx-8 pt-1 sm:pt-2 md:pt-6 pb-1 min-h-[min(72vw,320px)] min-[600px]:min-h-[min(48vw,360px)] lg:min-h-[min(420px,48vh)]">
+        <div className="shrink-0 relative -mx-3 min-[600px]:-mx-4 md:-mx-6 lg:-mx-8 pt-1 sm:pt-2 md:pt-6 pb-1 min-h-[min(72vw,320px)] min-[600px]:min-h-[min(48vw,360px)] lg:min-h-[min(420px,calc(var(--app-vh)*48))]">
           <motion.div
             ref={(el) => {
               (emblaRef as (el: HTMLDivElement | null) => void)(el);
               (viewportRef as React.MutableRefObject<HTMLDivElement | null>).current = el;
             }}
-            className="bestsellers-carousel relative overflow-x-hidden overflow-y-visible pt-2 pb-3 sm:pt-3 sm:pb-4 md:pt-4 md:pb-4 lg:pt-5 lg:pb-6 px-3 min-[600px]:px-5 md:px-6 lg:px-8"
+            className="bestsellers-carousel carousel-viewport relative pt-2 pb-3 sm:pt-3 sm:pb-4 md:pt-4 md:pb-4 lg:pt-5 lg:pb-6 px-3 min-[600px]:px-5 md:px-6 lg:px-8"
             initial={motionDisabled ? false : { opacity: 0, y: touchMobile ? 14 : 20 }}
             whileInView={motionDisabled ? undefined : { opacity: 1, y: 0 }}
             viewport={motionDisabled ? undefined : { once: true, margin: touchMobile ? "-24px" : "-60px" }}

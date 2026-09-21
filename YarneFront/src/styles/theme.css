@@ -18,6 +18,9 @@
      (Instagram etc.), whose webview resizes as the app's bars slide: stableViewport.ts holds
      it at a fixed pixel value there so sections stop re-laying out on every scroll. */
   --app-svh: 100svh;
+  /* 1% of --app-svh. Use this instead of vh/dvh/svh anywhere a size must not follow the
+     browser's bars: calc(var(--app-vh) * 72) rather than 72vh. */
+  --app-vh: calc(var(--app-svh) / 100);
   --background: #ffffff;
   --foreground: oklch(0.145 0 0);
   --card: #ffffff;
@@ -273,6 +276,22 @@
   .group\/card:hover .product-card-image {
     transform: none;
   }
+}
+
+/* Embla carousel viewport: clips sideways, and must NOT become a scroll container.
+
+   `overflow-x: hidden` with `overflow-y: visible` does not give that combination — per the
+   overflow spec a visible axis computes to `auto` once the other axis is non-visible, so the
+   viewport quietly became a vertical scroller. Card entrance animations start 16px low and the
+   viewport's bottom padding is smaller than that on phones, leaving a few pixels of scrollable
+   overflow, and a wheel tick or swipe that lands on the carousel was then spent scrolling those
+   pixels inside it instead of moving the page. `clip` clips the same way without creating a
+   scroll container, so `overflow-y` stays `visible` and the page scrolls straight through.
+   The `hidden` line is only a fallback for browsers without `clip` (Safari < 16). */
+.carousel-viewport {
+  overflow-x: hidden;
+  overflow-x: clip;
+  overflow-y: visible;
 }
 
 /* Route enter — compositor-only fade, deliberately without a fill mode.
