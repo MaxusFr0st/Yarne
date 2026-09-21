@@ -14,10 +14,9 @@ import {
  * Scroll-pinned "why Yarné" section.
  *
  * The section is much taller than the screen and its inner frame is `position: sticky`, so
- * scrolling through it plays one step per product (the three bags, then Yarné Care) on plain,
- * free scroll — nothing snaps or settles. Every bag rides one shared circle, STEP radians
- * apart, at angle (i - progress) * STEP; the display words and the copy crossfade off the
- * same `progress`.
+ * scrolling through it plays one step per product (the three bags, then Yarné Care). Every
+ * bag rides one shared circle, STEP radians apart, at angle (i - progress) * STEP; the
+ * display words and the copy crossfade off the same `progress`.
  */
 
 // ---- orbit ----
@@ -254,6 +253,88 @@ export function WhyYarneSection() {
     let visible = false;
     let firstFrame = true;
 
+    // Free scroll stays free. But once the wheel lets go anywhere near a product's own
+    // position, the page glides the last bit onto it and rests there — so you never come to a
+    // halt half-way between two products. Pointer devices only: on touch it fought the finger.
+    const magnet = {
+      run: false,
+      start: 0,
+      dur: 0,
+      from: 0,
+      delta: 0,
+      expect: 0,
+      lastInput: 0,
+      touching: false,
+      lastY: null as number | null,
+      movedAt: 0,
+      still: 0,
+      settledAt: null as number | null,
+    };
+
+    const runMagnet = (within: number, active: number) => {
+      const now = performance.now();
+      const y = window.scrollY;
+      const inside = within > 1 && within < active - 1;
+      // Leaving the section clears the memory of what we last settled on, so coming back in
+      // behaves like a first visit.
+      if (!inside) magnet.settledAt = null;
+
+      const zoomed = window.visualViewport ? window.visualViewport.scale > 1.05 : false;
+      if (reducedMotion || zoomed || viewRef.current.isNarrow) {
+        magnet.run = false;
+        return;
+      }
+
+      if (magnet.run) {
+        // Anything we didn't cause — a wheel tick, a fling still decaying, an anchor jump —
+        // aborts the glide rather than fighting it. Browsers round scrollTop, so the
+        // tolerance has to survive that.
+        const hijacked = Math.abs(y - magnet.expect) > 6;
+        if (hijacked || magnet.touching || now - magnet.lastInput < 60 || !inside) {
+          magnet.run = false;
+        } else {
+          const k = Math.min(1, (now - magnet.start) / magnet.dur);
+          // Smootherstep: leaves rest and arrives with zero velocity at both ends.
+          const e = k * k * k * (k * (6 * k - 15) + 10);
+          window.scrollTo(0, magnet.from + magnet.delta * e);
+          magnet.expect = window.scrollY;
+          if (k >= 1) magnet.run = false;
+          return;
+        }
+      }
+
+      // Two still frames, not one: momentum can dip under the threshold mid-fling, and
+      // grabbing the scroll there is what makes snapping fight the user.
+      const moving = Math.abs(y - (magnet.lastY ?? y)) > 0.6;
+      magnet.lastY = y;
+      if (moving) {
+        magnet.movedAt = now;
+        magnet.still = 0;
+      } else {
+        magnet.still += 1;
+      }
+      const idle = magnet.still >= 2 && now - magnet.movedAt > 130 && now - magnet.lastInput > 130;
+      if (!inside || magnet.touching || moving || !idle) return;
+
+      const seg = active / (STEPS - 1);
+      const raw = within / seg;
+      const n = Math.round(raw);
+      // Once a product has been settled on, small nudges are left alone; the glide only
+      // returns after you've genuinely moved into another product's half of the scroll.
+      if (magnet.settledAt != null && Math.abs(raw - magnet.settledAt) < 0.55) return;
+      const off = raw - n;
+      if (Math.abs(off) < 0.01) return;
+
+      magnet.settledAt = n;
+      magnet.run = true;
+      magnet.start = now;
+      // Short hops finish quickly; the longest allowed pull gets the full glide.
+      magnet.dur = 380 + Math.min(1, Math.abs(off) / 0.5) * 340;
+      magnet.from = y;
+      magnet.delta = -off * seg;
+      magnet.expect = y;
+    };
+
     const step = () => {
       const v = viewRef.current;
       const pin = pinRef.current;
@@ -285,6 +366,7 @@ export function WhyYarneSection() {
         patchView({ seen: true });
       }
 
+      runMagnet(within, active);
     };
 
     const frame = () => {
@@ -300,9 +382,25 @@ export function WhyYarneSection() {
     });
     io.observe(section);
 
+    const onInput = (e: Event) => {
+      magnet.lastInput = performance.now();
+      magnet.run = false;
+      if (e.type === "touchstart" || e.type === "touchmove") magnet.touching = true;
+    };
+    const onRelease = () => {
+      magnet.touching = false;
+      magnet.lastInput = performance.now();
+    };
+    const inputEvents = ["wheel", "touchstart", "touchmove", "pointerdown", "keydown"] as const;
+    const releaseEvents = ["touchend", "touchcancel"] as const;
+    for (const ev of inputEvents) window.addEventListener(ev, onInput, { passive: true, capture: true });
+    for (const ev of releaseEvents) window.addEventListener(ev, onRelease, { passive: true, capture: true });
+
     return () => {
       io.disconnect();
       if (raf) cancelAnimationFrame(raf);
+      for (const ev of inputEvents) window.removeEventListener(ev, onInput, { capture: true });
+      for (const ev of releaseEvents) window.removeEventListener(ev, onRelease, { capture: true });
     };
   }, [reducedMotion, patchView]);
 
