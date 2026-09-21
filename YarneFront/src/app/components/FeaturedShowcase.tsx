@@ -481,9 +481,9 @@ export function FeaturedShowcase() {
 
   /**
    * A full `100svh` tall, with the fixed header's height added as top padding — the same
-   * arrangement the Why and Best Sellers sections use, and the one the snap system
-   * (useHomeSnapScroll) assumes: every section in the snap sequence owns exactly one screen, or
-   * a shorter one gets centered with the neighbouring section peeking in above and below it.
+   * arrangement the Best Sellers section uses, and the one the page's old snap scroll (since
+   * removed) assumed: every section owns exactly one screen, or a shorter one gets centered
+   * with the neighbouring section peeking in above and below it.
    * Locked on every width now (previously only on touch+bento, i.e. phones only — leaving the
    * magazine-spread layout on tablet/desktop natural-height and exactly that peeking-neighbour
    * case).

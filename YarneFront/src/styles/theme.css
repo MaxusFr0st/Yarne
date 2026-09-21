@@ -4,9 +4,11 @@
   --font-size: 16px;
   /* Height of the fixed main header. Used for layout offsets and sticky tops. */
   --main-header-h: 56px;
-  /* Strip at the bottom of a 100lvh section that a mobile browser bar can cover. On iOS Safari
-     the page is scrolled programmatically (see useHomeSnapScroll), so the bar never retracts and
-     the visible viewport stays at svh; the bar's glass shows whatever sits between svh and lvh.
+  /* Strip at the bottom of a 100lvh section that a mobile browser bar can cover. While the home
+     page was scrolled programmatically (the old snap scroll, since removed) the bar never
+     retracted on iOS Safari and the visible viewport stayed at svh; the bar's glass shows
+     whatever sits between svh and lvh. With native scrolling the bar can retract, and the strip
+     is then just extra padding at the bottom of each full-height section.
      Full-height sections are 100svh + this strip so the glass always shows *their* background,
      and pad their bottom by it so content stays above the bar. 0 on desktop, where lvh = svh.
      This CSS value is the fallback; on iPhone the strip runs past lvh to the screen bottom, so

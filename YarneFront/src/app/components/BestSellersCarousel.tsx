@@ -78,9 +78,8 @@ export function BestSellersCarousel() {
    * section (see Home.tsx) — held steady while mobile browser chrome shows/hides instead of
    * resizing on every scroll tick, and the section owns the full height itself (padding pushes
    * content below the fixed header / above the chrome strip) rather than being sized by its
-   * content, so the snap-scroll system (useHomeSnapScroll) always gets exactly one screen here
-   * instead of centering a shorter section and leaving neighbouring sections peeking in above
-   * and below it.
+   * content, so it always owns exactly one screen. (This was written for the page's snap
+   * scroll, which is gone; the full-screen height is kept as designed.)
    */
   return (
     <section

@@ -199,7 +199,7 @@ export function MobileProductDetailView({
     const start = performance.now();
     const step = (now: number) => {
       const t = Math.min((now - start) / SHEET_SLIDE_MS, 1);
-      // Cubic in-out, the same curve useHomeSnapScroll travels the page with. This was an
+      // Cubic in-out, the same curve the home page's old snap scroll travelled with. This was an
       // exponential ease-out, which is not a glide at all: 2^-10t is already at 0.5 by a tenth
       // of the duration, so from 260px the sheet covered 122px before the eye registered it
       // starting and then crawled the last few pixels for half a second. Read as a jump

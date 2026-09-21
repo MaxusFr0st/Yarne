@@ -15,8 +15,6 @@ import { useTouchMobileLayout } from "../hooks/useTouchMobileLayout";
 import { ScrollReveal, SECTION_REVEAL, SectionEyebrow, SectionTitle } from "../components/ScrollReveal";
 import { resolveMediaUrl } from "../utils/storefrontMedia";
 import { WhyYarneSection } from "../components/WhyYarneSection";
-import { useHomeSnapScroll } from "../hooks/useHomeSnapScroll";
-import { useOverlay } from "../context/AppContext";
 
 const ease = [0.22, 1, 0.36, 1] as const;
 
@@ -34,7 +32,7 @@ function ViewportDebug() {
       return v;
     };
     const tick = () => {
-      const secs = Array.from(document.querySelectorAll("main > section, main [data-snap-why]")).slice(0, 2);
+      const secs = Array.from(document.querySelectorAll("main section")).slice(0, 2);
       const vv = window.visualViewport;
       setTxt(
         [
@@ -80,30 +78,16 @@ function ViewportDebug() {
 
 export function Home() {
   const copy = useHomePageCopy();
-  const heroRef = useRef<HTMLDivElement>(null);
   const editorialRef = useRef<HTMLDivElement>(null);
-  const mainRef = useRef<HTMLElement>(null);
   const touch = useTouchMobileLayout();
   const reducedMotion = useReducedMotion();
-  const animateHero = !touch && !reducedMotion;
-  const { cartOpen, loginOpen } = useOverlay();
-  useHomeSnapScroll({
-    mainRef,
-    // Section-snap scroll runs on desktop (wheel) and touch (swipe) alike —
-    // only reduced-motion and open overlays fall back to native scroll.
-    enabled: !reducedMotion && !cartOpen && !loginOpen,
-  });
+  const animateEditorial = !touch && !reducedMotion;
 
-  const { scrollYProgress: heroScroll } = useScroll({
-    target: heroRef,
-    offset: ["start start", "end start"],
-  });
   const { scrollYProgress: editorialScroll } = useScroll({
     target: editorialRef,
     offset: ["start end", "end start"],
   });
 
-  const heroY = useTransform(heroScroll, [0, 1], ["0%", "22%"]);
   const editorialY = useTransform(editorialScroll, [0, 1], ["0%", "-10%"]);
 
   const [homePageMedia, setHomePageMedia] = useState(getInitialHomePageMediaSelection);
@@ -133,52 +117,36 @@ export function Home() {
 
   return (
     <main
-      ref={mainRef}
       // overflow-x-clip, not -hidden: hidden quietly turns overflow-y into `auto`, which makes
       // <main> a scroll container and stops the Why section's `position: sticky` frame pinning.
       className="relative overflow-x-clip bg-[#F5F2ED]"
       style={{ fontFamily: "'DM Sans', sans-serif" }}
     >
       <ViewportDebug />
-      {/* ─── HERO ─── */}
+      {/* ─── HERO ───
+          Pinned to the top of the page while everything after it scrolls up and covers it. */}
       <section
-        ref={heroRef}
-        className="relative flex items-end overflow-hidden min-h-[600px] pb-[var(--browser-bar-b)]"
+        className="sticky z-0 flex items-end overflow-hidden min-h-[600px] pb-[var(--browser-bar-b)]"
         // svh + the bar strip (see --browser-bar-b): at 100svh the hero ended under Safari's
         // translucent bar and the Why section's "01" showed through it; 100lvh still fell short.
-        style={{ height: "calc(100svh + var(--browser-bar-b))" }}
+        // `top` goes negative on a screen shorter than the hero's 600px minimum, so the pinned
+        // hero sits bottom-aligned (its buttons stay reachable) instead of clipped below the fold.
+        style={{ height: "calc(100svh + var(--browser-bar-b))", top: "min(0px, calc(100svh - 600px))" }}
       >
-        {animateHero ? (
-          <motion.div className="absolute inset-0 overflow-hidden" style={{ y: heroY }}>
-            {heroImageSrc ? (
-              <Img
-                src={heroImageSrc}
-                alt="Yarné Hero"
-                className="absolute inset-0 h-[108%] w-full object-cover"
-                style={{ objectPosition: `${(homePageMedia.heroFocalX * 100).toFixed(1)}% ${(homePageMedia.heroFocalY * 100).toFixed(1)}%` }}
-                priority
-              />
-            ) : (
-              <div className="absolute inset-0" style={{ background: "linear-gradient(145deg, #4a3f38 0%, #8a8078 50%, #d4cfc8 100%)" }} />
-            )}
-            <div className="absolute inset-0" style={{ background: "linear-gradient(105deg, rgba(45,36,30,0.72) 0%, rgba(45,36,30,0.38) 55%, rgba(45,36,30,0.12) 100%)" }} />
-          </motion.div>
-        ) : (
-          <div className="absolute inset-0 overflow-hidden">
-            {heroImageSrc ? (
-              <Img
-                src={heroImageSrc}
-                alt="Yarné Hero"
-                className="absolute inset-0 h-full w-full object-cover"
-                style={{ objectPosition: `${(homePageMedia.heroFocalX * 100).toFixed(1)}% ${(homePageMedia.heroFocalY * 100).toFixed(1)}%` }}
-                priority
-              />
-            ) : (
-              <div className="absolute inset-0" style={{ background: "linear-gradient(145deg, #4a3f38 0%, #8a8078 50%, #d4cfc8 100%)" }} />
-            )}
-            <div className="absolute inset-0" style={{ background: "linear-gradient(105deg, rgba(45,36,30,0.72) 0%, rgba(45,36,30,0.38) 55%, rgba(45,36,30,0.12) 100%)" }} />
-          </div>
-        )}
+        <div className="absolute inset-0 overflow-hidden">
+          {heroImageSrc ? (
+            <Img
+              src={heroImageSrc}
+              alt="Yarné Hero"
+              className="absolute inset-0 h-full w-full object-cover"
+              style={{ objectPosition: `${(homePageMedia.heroFocalX * 100).toFixed(1)}% ${(homePageMedia.heroFocalY * 100).toFixed(1)}%` }}
+              priority
+            />
+          ) : (
+            <div className="absolute inset-0" style={{ background: "linear-gradient(145deg, #4a3f38 0%, #8a8078 50%, #d4cfc8 100%)" }} />
+          )}
+          <div className="absolute inset-0" style={{ background: "linear-gradient(105deg, rgba(45,36,30,0.72) 0%, rgba(45,36,30,0.38) 55%, rgba(45,36,30,0.12) 100%)" }} />
+        </div>
 
         <div className="relative z-10 w-full max-w-[1400px] mx-auto px-6 md:px-10 pb-14 md:pb-20">
           <div className="max-w-xl md:max-w-2xl">
@@ -240,83 +208,86 @@ export function Home() {
         </div>
       </section>
 
-      <WhyYarneSection />
+      {/* Slides over the pinned hero, so it brings its own opaque backdrop. */}
+      <div className="relative z-10 bg-[#F5F2ED]">
+        <WhyYarneSection />
 
-      <ScrollReveal {...SECTION_REVEAL}>
-        <BestSellersCarousel />
-      </ScrollReveal>
+        <ScrollReveal {...SECTION_REVEAL}>
+          <BestSellersCarousel />
+        </ScrollReveal>
 
-      <ScrollReveal {...SECTION_REVEAL}>
-        <FeaturedShowcase />
-      </ScrollReveal>
+        <ScrollReveal {...SECTION_REVEAL}>
+          <FeaturedShowcase />
+        </ScrollReveal>
 
-      {/* ─── EDITORIAL ─── */}
-      <ScrollReveal {...SECTION_REVEAL}>
-      <section ref={editorialRef} className="relative py-16 md:py-24 overflow-hidden bg-[#F5F2ED]">
-        <div className="max-w-[1400px] mx-auto px-6 md:px-10">
-          <div className="grid md:grid-cols-2 gap-10 md:gap-16 items-center">
-            <ScrollReveal className="relative">
-              <div className="relative rounded-[2rem] md:rounded-[2.5rem] overflow-hidden aspect-[4/5] bg-[#EDE9E2]">
-                {animateHero ? (
-                  <motion.div className="absolute inset-0" style={{ y: editorialY }}>
-                    {editorialImageSrc ? (
+        {/* ─── EDITORIAL ─── */}
+        <ScrollReveal {...SECTION_REVEAL}>
+        <section ref={editorialRef} className="relative py-16 md:py-24 overflow-hidden bg-[#F5F2ED]">
+          <div className="max-w-[1400px] mx-auto px-6 md:px-10">
+            <div className="grid md:grid-cols-2 gap-10 md:gap-16 items-center">
+              <ScrollReveal className="relative">
+                <div className="relative rounded-[2rem] md:rounded-[2.5rem] overflow-hidden aspect-[4/5] bg-[#EDE9E2]">
+                  {animateEditorial ? (
+                    <motion.div className="absolute inset-0" style={{ y: editorialY }}>
+                      {editorialImageSrc ? (
+                        <Img
+                          src={editorialImageSrc}
+                          alt={copy.editorial.eyebrow}
+                          className="h-[112%] w-full object-cover"
+                          style={{ objectPosition: `${(homePageMedia.editorialFocalX * 100).toFixed(1)}% ${(homePageMedia.editorialFocalY * 100).toFixed(1)}%` }}
+                        />
+                      ) : null}
+                    </motion.div>
+                  ) : (
+                    editorialImageSrc ? (
                       <Img
                         src={editorialImageSrc}
                         alt={copy.editorial.eyebrow}
-                        className="h-[112%] w-full object-cover"
+                        className="absolute inset-0 h-full w-full object-cover"
                         style={{ objectPosition: `${(homePageMedia.editorialFocalX * 100).toFixed(1)}% ${(homePageMedia.editorialFocalY * 100).toFixed(1)}%` }}
                       />
-                    ) : null}
-                  </motion.div>
-                ) : (
-                  editorialImageSrc ? (
-                    <Img
-                      src={editorialImageSrc}
-                      alt={copy.editorial.eyebrow}
-                      className="absolute inset-0 h-full w-full object-cover"
-                      style={{ objectPosition: `${(homePageMedia.editorialFocalX * 100).toFixed(1)}% ${(homePageMedia.editorialFocalY * 100).toFixed(1)}%` }}
-                    />
-                  ) : null
-                )}
-              </div>
-            </ScrollReveal>
+                    ) : null
+                  )}
+                </div>
+              </ScrollReveal>
 
-            <div className="flex flex-col gap-6 md:gap-7">
-              <ScrollReveal delay={0.05}>
-                <SectionEyebrow>{copy.editorial.eyebrow}</SectionEyebrow>
-                <SectionTitle className="mt-1">
-                  {copy.editorial.titleLine1}
-                  <br />
-                  {copy.editorial.titleLine2}
-                </SectionTitle>
-              </ScrollReveal>
-              <ScrollReveal delay={0.1}>
-                <p className="text-[#2D241E]/62 text-[0.92rem] leading-[1.85]" style={{ fontFamily: "'DM Sans', sans-serif" }}>
-                  {copy.editorial.paragraph1}
-                </p>
-              </ScrollReveal>
-              <ScrollReveal delay={0.14}>
-                <p className="text-[#2D241E]/62 text-[0.92rem] leading-[1.85]" style={{ fontFamily: "'DM Sans', sans-serif" }}>
-                  {copy.editorial.paragraph2}
-                </p>
-              </ScrollReveal>
-              <ScrollReveal delay={0.18}>
-                <LangLink
-                  to="/pages/our-history"
-                  className="inline-flex items-center gap-2.5 group text-[#2D241E] hover:text-[#4A0E0E] transition-colors duration-200 cursor-pointer"
-                  style={{ fontSize: "0.75rem", letterSpacing: "0.15em" }}
-                >
-                  <span className="uppercase tracking-widest border-b border-[#2D241E]/35 pb-0.5 group-hover:border-[#4A0E0E]">
-                    {copy.editorial.ourStory}
-                  </span>
-                  <ArrowRight size={14} className="group-hover:translate-x-0.5 transition-transform duration-200" />
-                </LangLink>
-              </ScrollReveal>
+              <div className="flex flex-col gap-6 md:gap-7">
+                <ScrollReveal delay={0.05}>
+                  <SectionEyebrow>{copy.editorial.eyebrow}</SectionEyebrow>
+                  <SectionTitle className="mt-1">
+                    {copy.editorial.titleLine1}
+                    <br />
+                    {copy.editorial.titleLine2}
+                  </SectionTitle>
+                </ScrollReveal>
+                <ScrollReveal delay={0.1}>
+                  <p className="text-[#2D241E]/62 text-[0.92rem] leading-[1.85]" style={{ fontFamily: "'DM Sans', sans-serif" }}>
+                    {copy.editorial.paragraph1}
+                  </p>
+                </ScrollReveal>
+                <ScrollReveal delay={0.14}>
+                  <p className="text-[#2D241E]/62 text-[0.92rem] leading-[1.85]" style={{ fontFamily: "'DM Sans', sans-serif" }}>
+                    {copy.editorial.paragraph2}
+                  </p>
+                </ScrollReveal>
+                <ScrollReveal delay={0.18}>
+                  <LangLink
+                    to="/pages/our-history"
+                    className="inline-flex items-center gap-2.5 group text-[#2D241E] hover:text-[#4A0E0E] transition-colors duration-200 cursor-pointer"
+                    style={{ fontSize: "0.75rem", letterSpacing: "0.15em" }}
+                  >
+                    <span className="uppercase tracking-widest border-b border-[#2D241E]/35 pb-0.5 group-hover:border-[#4A0E0E]">
+                      {copy.editorial.ourStory}
+                    </span>
+                    <ArrowRight size={14} className="group-hover:translate-x-0.5 transition-transform duration-200" />
+                  </LangLink>
+                </ScrollReveal>
+              </div>
             </div>
           </div>
-        </div>
-      </section>
-      </ScrollReveal>
+        </section>
+        </ScrollReveal>
+      </div>
     </main>
   );
 }
