@@ -3,13 +3,64 @@ import { ImagePlus } from "lucide-react";
 import type { Locale } from "../../i18n/config";
 import { resolveMediaUrl } from "../../utils/storefrontMedia";
 import { uploadRawMediaFile } from "../../utils/uploadCropPair";
+import { WHY_DEFAULT_IMAGES } from "../../utils/whyDefaultImages";
 import {
   persistWhySectionContent,
+  type WhyCare,
+  type WhyItem,
   type WhySectionContent,
 } from "../../utils/whySectionContent";
 import { AdminLanguageSelect } from "./AdminLanguageSelect";
 
 const SLOT_LABELS = ["Photo 1", "Photo 2", "Photo 3"] as const;
+
+const DM_SANS = { fontFamily: "'DM Sans', sans-serif" } as const;
+const INPUT_CLASS =
+  "w-full rounded-[12px] border bg-transparent px-3 py-2 text-[#2D241E] text-sm focus:outline-none";
+const INPUT_STYLE = { borderColor: "rgba(45,36,30,0.12)", ...DM_SANS } as const;
+
+type TextFieldProps = {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  hint?: string;
+  rows?: number;
+};
+
+function TextField({ label, value, onChange, hint, rows }: TextFieldProps) {
+  return (
+    <div>
+      <p
+        className="text-[#2D241E]/45 text-[10px] uppercase tracking-widest mb-1.5"
+        style={{ ...DM_SANS, letterSpacing: "0.1em" }}
+      >
+        {label}
+      </p>
+      {rows ? (
+        <textarea
+          rows={rows}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          className={`${INPUT_CLASS} resize-y`}
+          style={INPUT_STYLE}
+        />
+      ) : (
+        <input
+          type="text"
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          className={INPUT_CLASS}
+          style={INPUT_STYLE}
+        />
+      )}
+      {hint ? (
+        <p className="text-[#2D241E]/40 text-[11px] mt-1" style={DM_SANS}>
+          {hint}
+        </p>
+      ) : null}
+    </div>
+  );
+}
 
 type AdminWhySectionEditorProps = {
   initialContent: WhySectionContent;
@@ -35,18 +86,31 @@ export function AdminWhySectionEditor({ initialContent, onSaved, onError }: Admi
     [draft, savedContent]
   );
 
-  const updateLocaleField = <K extends keyof WhySectionContent["uk"]>(key: K, value: WhySectionContent["uk"][K]) => {
-    setDraft((prev) => ({
-      ...prev,
-      [activeLocale]: { ...prev[activeLocale], [key]: value },
-    }));
+  const updateHeading = (value: string) => {
+    setDraft((prev) => ({ ...prev, [activeLocale]: { ...prev[activeLocale], heading: value } }));
   };
 
-  const updateItemField = (index: number, key: "caption" | "factTitle" | "factBody", value: string) => {
+  const updateItemField = (index: number, key: keyof WhyItem, value: string) => {
     setDraft((prev) => {
       const items = [...prev[activeLocale].items] as WhySectionContent["uk"]["items"];
       items[index] = { ...items[index], [key]: value };
       return { ...prev, [activeLocale]: { ...prev[activeLocale], items } };
+    });
+  };
+
+  const updateCareField = (key: "word" | "title" | "linkLabel", value: string) => {
+    setDraft((prev) => {
+      const care: WhyCare = { ...prev[activeLocale].care, [key]: value };
+      return { ...prev, [activeLocale]: { ...prev[activeLocale], care } };
+    });
+  };
+
+  const updateCareItem = (index: number, key: "title" | "body", value: string) => {
+    setDraft((prev) => {
+      const items = [...prev[activeLocale].care.items] as WhyCare["items"];
+      items[index] = { ...items[index], [key]: value };
+      const care: WhyCare = { ...prev[activeLocale].care, items };
+      return { ...prev, [activeLocale]: { ...prev[activeLocale], care } };
     });
   };
 
@@ -91,20 +155,21 @@ export function AdminWhySectionEditor({ initialContent, onSaved, onError }: Admi
         style={{ backgroundColor: "rgba(45,36,30,0.03)", borderBottom: "1px solid rgba(45,36,30,0.06)" }}
       >
         <div>
-          <p className="text-[#2D241E] uppercase tracking-widest text-xs" style={{ fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.12em" }}>
+          <p className="text-[#2D241E] uppercase tracking-widest text-xs" style={{ ...DM_SANS, letterSpacing: "0.12em" }}>
             Why Yarné Section
           </p>
-          <p className="text-[#2D241E]/45 text-xs mt-1" style={{ fontFamily: "'DM Sans', sans-serif" }}>
-            The bag photos, captions, and reasons-to-buy shown right after the hero.
+          <p className="text-[#2D241E]/45 text-xs mt-1" style={DM_SANS}>
+            Scroll-through section right after the hero: three bags, then Yarné Care. Photos are shared by
+            both languages; all text is per language.
           </p>
         </div>
         <div className="flex items-center gap-3 shrink-0">
-          <label className="text-[#2D241E]/55 text-xs" style={{ fontFamily: "'DM Sans', sans-serif" }}>
+          <label className="text-[#2D241E]/55 text-xs" style={DM_SANS}>
             Language:
           </label>
           <AdminLanguageSelect value={activeLocale} onChange={setActiveLocale} />
           {!isDirty && !saving ? (
-            <span className="text-[#2D241E]/45 text-xs" style={{ fontFamily: "'DM Sans', sans-serif" }}>
+            <span className="text-[#2D241E]/45 text-xs" style={DM_SANS}>
               Saved
             </span>
           ) : null}
@@ -114,7 +179,7 @@ export function AdminWhySectionEditor({ initialContent, onSaved, onError }: Admi
             disabled={!isDirty || saving}
             className="px-5 py-2 rounded-full text-xs uppercase tracking-widest transition-all duration-300 hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed"
             style={{
-              fontFamily: "'DM Sans', sans-serif",
+              ...DM_SANS,
               letterSpacing: "0.1em",
               backgroundColor: "#2D241E",
               color: "#F5F2ED",
@@ -126,48 +191,17 @@ export function AdminWhySectionEditor({ initialContent, onSaved, onError }: Admi
       </div>
 
       <div className="px-6 py-5 space-y-6">
-        <div>
-          <p className="text-[#2D241E]/45 text-xs uppercase tracking-widest mb-2" style={{ fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.1em" }}>
-            Eyebrow
-          </p>
-          <input
-            type="text"
-            value={localeCopy.eyebrow}
-            onChange={(e) => updateLocaleField("eyebrow", e.target.value)}
-            className="w-full rounded-[14px] border bg-transparent px-4 py-2.5 text-[#2D241E] focus:outline-none"
-            style={{ borderColor: "rgba(45,36,30,0.12)", fontFamily: "'DM Sans', sans-serif" }}
-          />
-        </div>
-        <div className="grid md:grid-cols-2 gap-4">
-          <div>
-            <p className="text-[#2D241E]/45 text-xs uppercase tracking-widest mb-2" style={{ fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.1em" }}>
-              Title line 1
-            </p>
-            <input
-              type="text"
-              value={localeCopy.titleLine1}
-              onChange={(e) => updateLocaleField("titleLine1", e.target.value)}
-              className="w-full rounded-[14px] border bg-transparent px-4 py-2.5 text-[#2D241E] focus:outline-none"
-              style={{ borderColor: "rgba(45,36,30,0.12)", fontFamily: "'DM Sans', sans-serif" }}
-            />
-          </div>
-          <div>
-            <p className="text-[#2D241E]/45 text-xs uppercase tracking-widest mb-2" style={{ fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.1em" }}>
-              Title accent (italic)
-            </p>
-            <input
-              type="text"
-              value={localeCopy.titleAccent}
-              onChange={(e) => updateLocaleField("titleAccent", e.target.value)}
-              className="w-full rounded-[14px] border bg-transparent px-4 py-2.5 text-[#2D241E] focus:outline-none"
-              style={{ borderColor: "rgba(45,36,30,0.12)", fontFamily: "'DM Sans', sans-serif" }}
-            />
-          </div>
-        </div>
+        <TextField
+          label="Heading"
+          value={localeCopy.heading}
+          onChange={updateHeading}
+          hint="Small uppercase line above the large product name."
+        />
 
         <div className="grid md:grid-cols-3 gap-5">
           {SLOT_LABELS.map((label, i) => {
-            const preview = resolveMediaUrl(draft.images[i]);
+            const custom = resolveMediaUrl(draft.images[i]);
+            const preview = custom || WHY_DEFAULT_IMAGES[i];
             const isUploading = Boolean(uploading[i]);
             const item = localeCopy.items[i];
             return (
@@ -176,19 +210,18 @@ export function AdminWhySectionEditor({ initialContent, onSaved, onError }: Admi
                 className="rounded-[20px] p-4"
                 style={{ backgroundColor: "rgba(45,36,30,0.03)", border: "1px solid rgba(45,36,30,0.08)" }}
               >
-                <p className="text-[#2D241E] uppercase tracking-widest text-xs mb-3" style={{ fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.12em" }}>
+                <p className="text-[#2D241E] uppercase tracking-widest text-xs mb-3" style={{ ...DM_SANS, letterSpacing: "0.12em" }}>
                   {label}
                 </p>
                 <div
                   className="relative w-full overflow-hidden rounded-[16px] mb-3 flex items-center justify-center"
-                  style={{ aspectRatio: "1 / 1", backgroundColor: "#F5F2ED", border: "1px solid rgba(45,36,30,0.08)" }}
+                  style={{ aspectRatio: "1 / 1", backgroundColor: "#F1ECE4", border: "1px solid rgba(45,36,30,0.08)" }}
                 >
-                  {preview ? (
-                    <img src={preview} alt="" className="w-full h-full object-contain" />
-                  ) : (
+                  <img src={preview} alt="" className="w-full h-full object-contain" />
+                  {!custom && (
                     <span
-                      className="text-[9px] uppercase tracking-widest px-2 py-1"
-                      style={{ color: "rgba(45,36,30,0.35)", fontFamily: "'DM Sans', sans-serif" }}
+                      className="absolute left-2 top-2 text-[9px] uppercase tracking-widest px-2 py-1 rounded-full"
+                      style={{ color: "rgba(45,36,30,0.55)", backgroundColor: "rgba(245,242,237,0.85)", ...DM_SANS }}
                     >
                       Default photo
                     </span>
@@ -196,7 +229,7 @@ export function AdminWhySectionEditor({ initialContent, onSaved, onError }: Admi
                 </div>
                 <label
                   className={`flex items-center justify-center gap-2 rounded-full px-4 py-2 transition-all duration-300 hover:opacity-85 ${isUploading ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}`}
-                  style={{ backgroundColor: "#2D241E", color: "#F5F2ED", fontFamily: "'DM Sans', sans-serif", fontSize: "0.7rem", letterSpacing: "0.12em" }}
+                  style={{ backgroundColor: "#2D241E", color: "#F5F2ED", ...DM_SANS, fontSize: "0.7rem", letterSpacing: "0.12em" }}
                 >
                   <ImagePlus size={13} />
                   <span className="uppercase tracking-widest">{isUploading ? "Uploading…" : "Upload"}</span>
@@ -223,53 +256,86 @@ export function AdminWhySectionEditor({ initialContent, onSaved, onError }: Admi
                       });
                     }}
                     className="mt-2 w-full text-xs uppercase tracking-widest text-[#4A0E0E] hover:opacity-80"
-                    style={{ fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.1em" }}
+                    style={{ ...DM_SANS, letterSpacing: "0.1em" }}
                   >
                     Reset to default photo
                   </button>
                 )}
 
                 <div className="mt-4 space-y-3">
-                  <div>
-                    <p className="text-[#2D241E]/45 text-[10px] uppercase tracking-widest mb-1.5" style={{ fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.1em" }}>
-                      Caption
-                    </p>
-                    <input
-                      type="text"
-                      value={item.caption}
-                      onChange={(e) => updateItemField(i, "caption", e.target.value)}
-                      className="w-full rounded-[12px] border bg-transparent px-3 py-2 text-[#2D241E] text-sm focus:outline-none"
-                      style={{ borderColor: "rgba(45,36,30,0.12)", fontFamily: "'DM Sans', sans-serif" }}
-                    />
-                  </div>
-                  <div>
-                    <p className="text-[#2D241E]/45 text-[10px] uppercase tracking-widest mb-1.5" style={{ fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.1em" }}>
-                      Fact title
-                    </p>
-                    <input
-                      type="text"
-                      value={item.factTitle}
-                      onChange={(e) => updateItemField(i, "factTitle", e.target.value)}
-                      className="w-full rounded-[12px] border bg-transparent px-3 py-2 text-[#2D241E] text-sm focus:outline-none"
-                      style={{ borderColor: "rgba(45,36,30,0.12)", fontFamily: "'DM Sans', sans-serif" }}
-                    />
-                  </div>
-                  <div>
-                    <p className="text-[#2D241E]/45 text-[10px] uppercase tracking-widest mb-1.5" style={{ fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.1em" }}>
-                      Fact body
-                    </p>
-                    <textarea
-                      rows={2}
-                      value={item.factBody}
-                      onChange={(e) => updateItemField(i, "factBody", e.target.value)}
-                      className="w-full rounded-[12px] border bg-transparent px-3 py-2 text-[#2D241E] text-sm focus:outline-none resize-y"
-                      style={{ borderColor: "rgba(45,36,30,0.12)", fontFamily: "'DM Sans', sans-serif" }}
-                    />
-                  </div>
+                  <TextField
+                    label="Product name"
+                    value={item.word}
+                    onChange={(v) => updateItemField(i, "word", v)}
+                    hint="Large display name."
+                  />
+                  <TextField
+                    label="Fact title"
+                    value={item.factTitle}
+                    onChange={(v) => updateItemField(i, "factTitle", v)}
+                  />
+                  <TextField
+                    label="Fact body"
+                    value={item.factBody}
+                    onChange={(v) => updateItemField(i, "factBody", v)}
+                    rows={3}
+                  />
+                  <TextField
+                    label="Photo description"
+                    value={item.caption}
+                    onChange={(v) => updateItemField(i, "caption", v)}
+                    hint="Not shown on screen; read out by screen readers."
+                  />
                 </div>
               </div>
             );
           })}
+        </div>
+
+        <div
+          className="rounded-[20px] p-4"
+          style={{ backgroundColor: "rgba(45,36,30,0.03)", border: "1px solid rgba(45,36,30,0.08)" }}
+        >
+          <p className="text-[#2D241E] uppercase tracking-widest text-xs mb-1" style={{ ...DM_SANS, letterSpacing: "0.12em" }}>
+            Yarné Care
+          </p>
+          <p className="text-[#2D241E]/45 text-xs mb-4" style={DM_SANS}>
+            The closing step after the third bag. It reuses the last photo.
+          </p>
+          <div className="grid md:grid-cols-2 gap-3">
+            <TextField
+              label="Display name"
+              value={localeCopy.care.word}
+              onChange={(v) => updateCareField("word", v)}
+              hint="Large display name."
+            />
+            <TextField
+              label="Link label"
+              value={localeCopy.care.linkLabel}
+              onChange={(v) => updateCareField("linkLabel", v)}
+              hint="Links to the care terms page (desktop only)."
+            />
+          </div>
+          <div className="mt-3">
+            <TextField label="Title" value={localeCopy.care.title} onChange={(v) => updateCareField("title", v)} />
+          </div>
+          <div className="mt-4 grid md:grid-cols-3 gap-3">
+            {localeCopy.care.items.map((careItem, j) => (
+              <div key={j} className="space-y-3">
+                <TextField
+                  label={`Promise ${j + 1} title`}
+                  value={careItem.title}
+                  onChange={(v) => updateCareItem(j, "title", v)}
+                />
+                <TextField
+                  label={`Promise ${j + 1} text`}
+                  value={careItem.body}
+                  onChange={(v) => updateCareItem(j, "body", v)}
+                  rows={2}
+                />
+              </div>
+            ))}
+          </div>
         </div>
       </div>
     </div>

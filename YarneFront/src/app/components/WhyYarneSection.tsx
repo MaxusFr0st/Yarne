@@ -1,125 +1,153 @@
-import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from "react";
-import {
-  animate,
-  motion,
-  useMotionValue,
-  useMotionValueEvent,
-  useReducedMotion,
-  useTransform,
-  type MotionValue,
-} from "motion/react";
-import { ScrollReveal } from "./ScrollReveal";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from "react";
+import { useReducedMotion } from "motion/react";
+import { LangLink } from "../i18n/LangLink";
 import { useLocale } from "../i18n/useLocale";
 import { resolveMediaUrl } from "../utils/storefrontMedia";
+import { WHY_DEFAULT_IMAGES } from "../utils/whyDefaultImages";
 import {
   getDefaultWhySectionContent,
   loadWhySectionContent,
   type WhySectionContent,
 } from "../utils/whySectionContent";
-import cherieSrc from "../../../assets/CherieOxBloddGen-removebg-preview.png";
-import dvaSrc from "../../../assets/DvaShopperYelowGen-removebg-preview.png";
 
-// This filename has a space + parens — a plain static import trips some
-// bundlers on that, so it's resolved via URL instead. The other two import fine.
-const femmoraSrc = new URL(
-  "../../../assets/FemmoraPinkGen-removebg-preview (1).png",
-  import.meta.url
-).href;
+/**
+ * Scroll-pinned "why Yarné" section.
+ *
+ * The section is much taller than the screen and its inner frame is `position: sticky`, so
+ * scrolling through it plays one step per product (the three bags, then Yarné Care). Every
+ * bag rides one shared circle, STEP radians apart, at angle (i - progress) * STEP; the
+ * display words and the copy crossfade off the same `progress`.
+ */
 
-const DEFAULT_IMAGES = [femmoraSrc, cherieSrc, dvaSrc] as const;
-const BAG_COUNT = 3;
+// ---- orbit ----
+const STEP = (30 * Math.PI) / 180;
+const SPREAD = 0.52;
+const BOX = 0.9; // bag box height as a share of its stage (desktop)
+const STAGE_FALLBACK = 420;
+const ORBIT_HOLD = 0.3; // phones: how far from its own position a bag stays fully present
 
-const TILT_RAD = (26 * Math.PI) / 180;
-const SCALE_MAX = 1.62; // active bag scale
-const SCALE_SPAN = 0.62;
-const OPACITY_SPAN = 0.62;
-const BLUR_MAX = 0.9; // px
-const ROWH_FALLBACK = 200; // px, before first measurement
+// ---- scroll ----
+const STEPS = 4; // three bags + Yarné Care
+const SCROLL_PER_SLIDE_SVH = 90; // desktop
+const PHONE_SCROLL_PER_SLIDE_SVH = 50;
+/** Share of one screen spent holding at each end of the phone section. */
+const LEAD = 0.4;
+const GLIDE = 0.16; // per-frame easing toward the scroll target
+const TEXT_HOLD = 0.35; // share of a step where its copy is fully opaque
 
-/** Soft in, long glide out — no bounce, no snap. */
-const easeInOutCubic = (x: number) => (x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2);
+/** Mobile browser chrome shifts innerHeight by ~60-120px while scrolling; ignore that. */
+const MOBILE_CHROME_PX = 140;
+const MAX_SQUEEZE = 4;
 
-export type WhyBagHandle = {
-  stepTo: (i: number) => void;
-  jumpTo: (i: number) => void;
-  getIndex: () => number;
-  count: number;
-};
+const SERIF = "'Prata', serif";
+const SANS = "'Archivo', sans-serif";
+const INK = "#1E1B18";
+const BROWN = "#6B5445";
+const WORD_TINT = "#7A6A58";
 
-type ArcResult = { x: number; y: number; scale: number; opacity: number; filter: string; zIndex: number };
+const prettyWrap = { textWrap: "pretty" } as CSSProperties;
 
-/** Options ride a circle whose arc length between neighbours equals one row,
- *  so they swing in from the side rather than sliding flat. */
-function computeArc(d: number, rowHRaw: number): ArcResult {
-  const rowH = rowHRaw || ROWH_FALLBACK;
-  const dist = Math.min(Math.abs(d), 1);
-  const t = dist * dist * (3 - 2 * dist); // smoothstep
-  const scale = SCALE_MAX - t * SCALE_SPAN;
-  const blur = t * BLUR_MAX;
-  const R = rowH / TILT_RAD;
-  const ang = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, d * TILT_RAD));
-  const y = R * Math.sin(ang) - d * rowH;
-  const xRaw = -R * (1 - Math.cos(ang));
-  const x = Math.max(-rowH * 0.5, xRaw);
+function makeHold(holdW: number) {
+  const H = Math.min(Math.max(holdW, 0.05), 0.48);
+  const F = (0.5 - H) * 2;
+  return (d: number) => {
+    const a = Math.abs(d);
+    if (a <= H) return 1;
+    if (a >= H + F) return 0;
+    const t = (a - H) / F;
+    return 1 - t * t * (3 - 2 * t);
+  };
+}
+
+const hold = makeHold(TEXT_HOLD);
+
+function orbit(d: number, stageH: number, tight: boolean) {
+  const H = stageH || STAGE_FALLBACK;
+  // Phones trade orbit travel for size: the bag barely moves, it crossfades.
+  const R = (H * (tight ? SPREAD * 0.21 : SPREAD)) / Math.sin(STEP);
+  const ang = d * STEP;
+  const dist = Math.abs(d);
+  // On phones each bag holds fully present around its own position, then ramps linearly to
+  // zero — the linear ramp keeps the outgoing and incoming pair summing to 1, so a handover
+  // reads as one image dissolving rather than two half-transparent ones.
+  const away = Math.max(0, dist - ORBIT_HOLD);
+  const blur = Math.min(away, 1.6) * 1.1;
+  const opacity = tight
+    ? Math.max(0, 1 - away / (1 - 2 * ORBIT_HOLD))
+    : Math.max(0, 1 - Math.min(dist, 1.6) * 0.55);
   return {
-    x,
-    y,
-    scale,
-    opacity: 1 - t * OPACITY_SPAN,
-    filter: blur > 0.15 ? `blur(${blur}px)` : "none",
+    x: -R * (1 - Math.cos(ang)),
+    y: R * Math.sin(ang),
+    scale: 1 - Math.min(tight ? away : dist, 2) * 0.17,
+    opacity,
+    filter: blur > 0.2 ? `blur(${blur.toFixed(2)}px)` : "none",
     zIndex: Math.round(100 - dist * 10),
   };
 }
 
-type BagArcImageProps = {
-  progress: MotionValue<number>;
-  rowH: MotionValue<number>;
-  index: number;
-  src: string;
-  alt: string;
+const clamp = (v: number, lo: number, hi: number) => Math.min(Math.max(v, lo), hi);
+
+type View = {
+  isNarrow: boolean;
+  vw: number;
+  vh: number;
+  /** Fit-to-screen steps taken so far; each shrinks type/spacing until the frame stops overflowing. */
+  squeeze: number;
+  stageH: number;
+  roomW: number;
+  roomH: number;
+  factRoom: number;
+  slotTop: number;
+  slotBottom: number;
+  seen: boolean;
 };
 
-function BagArcImage({ progress, rowH, index, src, alt }: BagArcImageProps) {
-  const arc = useTransform([progress, rowH], (latest: number[]) => {
-    const [p, r] = latest;
-    return computeArc(p - index, r);
-  });
-  const x = useTransform(arc, (a) => a.x);
-  const y = useTransform(arc, (a) => a.y);
-  const scale = useTransform(arc, (a) => a.scale);
-  const opacity = useTransform(arc, (a) => a.opacity);
-  const filter = useTransform(arc, (a) => a.filter);
-  const zIndex = useTransform(arc, (a) => a.zIndex);
-
-  return (
-    <motion.img
-      src={src}
-      alt={alt}
-      className="w-[58%] md:w-full h-full object-contain object-center block"
-      style={{
-        x,
-        y,
-        scale,
-        opacity,
-        filter,
-        zIndex,
-        willChange: "transform, opacity, filter",
-        backfaceVisibility: "hidden",
-      }}
-    />
-  );
+function readInitialView(): View {
+  const hasWindow = typeof window !== "undefined";
+  return {
+    isNarrow: hasWindow ? window.matchMedia("(max-width: 767px)").matches : false,
+    vw: hasWindow ? window.innerWidth : 1200,
+    vh: hasWindow ? window.innerHeight : 800,
+    squeeze: 0,
+    stageH: 0,
+    roomW: 0,
+    roomH: 0,
+    factRoom: 0,
+    slotTop: 0,
+    slotBottom: 0,
+    seen: false,
+  };
 }
 
-export const WhyYarneSection = forwardRef<WhyBagHandle>(function WhyYarneSection(_props, ref) {
+export function WhyYarneSection() {
   const locale = useLocale();
-  const reducedMotion = useReducedMotion();
-  const stageRef = useRef<HTMLDivElement>(null);
-  const progress = useMotionValue(0);
-  const rowH = useMotionValue(0);
-  const indexRef = useRef(0);
-  const animRef = useRef<ReturnType<typeof animate> | null>(null);
-  const [factIndex, setFactIndex] = useState(0);
+  const reducedMotion = useReducedMotion() ?? false;
   const [content, setContent] = useState<WhySectionContent>(getDefaultWhySectionContent);
+  const [view, setView] = useState<View>(readInitialView);
+  const [progress, setProgress] = useState(0);
+
+  const sectionRef = useRef<HTMLElement>(null);
+  const pinRef = useRef<HTMLDivElement>(null);
+  const stageRef = useRef<HTMLDivElement>(null);
+  const frameRef = useRef<HTMLDivElement>(null);
+  const wordRowRef = useRef<HTMLDivElement>(null);
+  const slotRef = useRef<HTMLDivElement>(null);
+  const factColRef = useRef<HTMLDivElement>(null);
+
+  // Read by the frame loop, which outlives any single render.
+  const viewRef = useRef(view);
+  viewRef.current = view;
+  const progressRef = useRef(0);
+
+  // Stable identity (it only calls setView), so effects can list it as a dependency.
+  const patchView = useCallback((patch: Partial<View>) => {
+    setView((prev) => {
+      for (const key of Object.keys(patch) as (keyof View)[]) {
+        if (prev[key] !== patch[key]) return { ...prev, ...patch };
+      }
+      return prev;
+    });
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -131,215 +159,627 @@ export const WhyYarneSection = forwardRef<WhyBagHandle>(function WhyYarneSection
     };
   }, []);
 
-  useMotionValueEvent(progress, "change", (v) => {
-    setFactIndex(Math.round(v));
-  });
-
+  // ---- viewport ----
   useEffect(() => {
-    const el = stageRef.current;
-    if (!el) return;
-    const measure = () => rowH.set(el.clientHeight / 2);
-    measure();
-    const ro = new ResizeObserver(measure);
-    ro.observe(el);
-    return () => ro.disconnect();
-  }, [rowH]);
+    const read = () => {
+      const narrow = window.matchMedia("(max-width: 767px)").matches;
+      const w = window.innerWidth;
+      const h = window.innerHeight;
+      setView((prev) => {
+        const heightMoved = Math.abs(h - prev.vh) > (narrow ? MOBILE_CHROME_PX : 4);
+        const widthMoved = Math.abs(w - prev.vw) > 4;
+        if (narrow === prev.isNarrow && !heightMoved && !widthMoved) return prev;
+        return { ...prev, isNarrow: narrow, vw: w, vh: h, squeeze: 0 };
+      });
+    };
+    read();
+    window.addEventListener("resize", read);
+    window.addEventListener("orientationchange", read);
+    window.visualViewport?.addEventListener("resize", read);
+    return () => {
+      window.removeEventListener("resize", read);
+      window.removeEventListener("orientationchange", read);
+      window.visualViewport?.removeEventListener("resize", read);
+    };
+  }, []);
 
-  const stepTo = useCallback(
-    (i: number) => {
-      const clamped = Math.max(0, Math.min(BAG_COUNT - 1, i));
-      indexRef.current = clamped;
-      animRef.current?.stop();
-      if (reducedMotion) {
-        progress.set(clamped);
+  // ---- layout measurement ----
+  // Runs after every layout-affecting change and only ever sets state when a number actually
+  // moved, so it settles in a render or two. The copy, the word row and the phone image band
+  // all size themselves off what the previous pass measured.
+  const [remeasure, setRemeasure] = useState(0);
+  useLayoutEffect(() => {
+    const next: Partial<View> = {};
+    const num = <K extends keyof View>(key: K, value: number, tolerance: number) => {
+      if (Math.abs(value - (view[key] as number)) > tolerance) (next as Record<string, number>)[key] = value;
+    };
+
+    const frame = frameRef.current;
+    // Desktop keeps a hair-trigger; phones ignore the few px of slack the incoming card's
+    // translateY creates.
+    const slack = view.isNarrow ? 24 : 2;
+    if (frame && frame.scrollHeight - frame.clientHeight > slack && view.squeeze < MAX_SQUEEZE) {
+      next.squeeze = view.squeeze + 1;
+    }
+
+    if (stageRef.current) num("stageH", stageRef.current.clientHeight, 0.5);
+
+    const row = wordRowRef.current;
+    if (row) {
+      num("roomW", row.clientWidth, 1);
+      num("roomH", row.clientHeight, 1);
+    }
+
+    // On phones the bags live in their own band of the grid, measured here, so nothing can
+    // ever sit on top of the copy.
+    const pin = pinRef.current;
+    const slot = slotRef.current;
+    if (view.isNarrow && pin && slot) {
+      const pr = pin.getBoundingClientRect();
+      const sr = slot.getBoundingClientRect();
+      num("slotTop", Math.round(sr.top - pr.top), 2);
+      num("slotBottom", Math.round(pr.bottom - sr.bottom), 2);
+    }
+
+    const col = factColRef.current;
+    if (col) {
+      let tallest = 0;
+      for (const child of Array.from(col.children) as HTMLElement[]) {
+        tallest = Math.max(tallest, child.offsetHeight);
+      }
+      num("factRoom", tallest, 1);
+    }
+
+    if (Object.keys(next).length) patchView(next);
+    // `content` and `locale` are here because the copy changes text metrics.
+  }, [view, content, locale, remeasure, patchView]);
+
+  // Web fonts and late-arriving copy change text metrics after the first paint.
+  useEffect(() => {
+    const frame = frameRef.current;
+    if (!frame || typeof ResizeObserver === "undefined") return;
+    const ro = new ResizeObserver(() => setRemeasure((n) => n + 1));
+    ro.observe(frame);
+    void document.fonts?.ready.then(() => setRemeasure((n) => n + 1));
+    return () => ro.disconnect();
+  }, []);
+
+  // ---- scroll → progress ----
+  useEffect(() => {
+    const section = sectionRef.current;
+    if (!section) return;
+
+    let raf = 0;
+    let visible = false;
+    let firstFrame = true;
+
+    // Free scroll stays free. But once the wheel lets go anywhere near a product's own
+    // position, the page glides the last bit onto it and rests there — so you never come to a
+    // halt half-way between two products. Pointer devices only: on touch it fought the finger.
+    const magnet = {
+      run: false,
+      start: 0,
+      dur: 0,
+      from: 0,
+      delta: 0,
+      expect: 0,
+      lastInput: 0,
+      touching: false,
+      lastY: null as number | null,
+      movedAt: 0,
+      still: 0,
+      settledAt: null as number | null,
+    };
+
+    const runMagnet = (within: number, active: number) => {
+      const now = performance.now();
+      const y = window.scrollY;
+      const inside = within > 1 && within < active - 1;
+      // Leaving the section clears the memory of what we last settled on, so coming back in
+      // behaves like a first visit.
+      if (!inside) magnet.settledAt = null;
+
+      const zoomed = window.visualViewport ? window.visualViewport.scale > 1.05 : false;
+      if (reducedMotion || zoomed || viewRef.current.isNarrow) {
+        magnet.run = false;
         return;
       }
-      animRef.current = animate(progress, clamped, { duration: 1.2, ease: easeInOutCubic });
-    },
-    [progress, reducedMotion]
-  );
 
-  const jumpTo = useCallback(
-    (i: number) => {
-      const clamped = Math.max(0, Math.min(BAG_COUNT - 1, i));
-      animRef.current?.stop();
-      indexRef.current = clamped;
-      progress.set(clamped);
-    },
-    [progress]
-  );
+      if (magnet.run) {
+        // Anything we didn't cause — a wheel tick, a fling still decaying, an anchor jump —
+        // aborts the glide rather than fighting it. Browsers round scrollTop, so the
+        // tolerance has to survive that.
+        const hijacked = Math.abs(y - magnet.expect) > 6;
+        if (hijacked || magnet.touching || now - magnet.lastInput < 60 || !inside) {
+          magnet.run = false;
+        } else {
+          const k = Math.min(1, (now - magnet.start) / magnet.dur);
+          // Smootherstep: leaves rest and arrives with zero velocity at both ends.
+          const e = k * k * k * (k * (6 * k - 15) + 10);
+          window.scrollTo(0, magnet.from + magnet.delta * e);
+          magnet.expect = window.scrollY;
+          if (k >= 1) magnet.run = false;
+          return;
+        }
+      }
 
-  useImperativeHandle(
-    ref,
-    () => ({
-      stepTo,
-      jumpTo,
-      getIndex: () => indexRef.current,
-      count: BAG_COUNT,
-    }),
-    [stepTo, jumpTo]
-  );
+      // Two still frames, not one: momentum can dip under the threshold mid-fling, and
+      // grabbing the scroll there is what makes snapping fight the user.
+      const moving = Math.abs(y - (magnet.lastY ?? y)) > 0.6;
+      magnet.lastY = y;
+      if (moving) {
+        magnet.movedAt = now;
+        magnet.still = 0;
+      } else {
+        magnet.still += 1;
+      }
+      const idle = magnet.still >= 2 && now - magnet.movedAt > 130 && now - magnet.lastInput > 130;
+      if (!inside || magnet.touching || moving || !idle) return;
 
-  useEffect(
-    () => () => {
-      animRef.current?.stop();
-    },
-    []
-  );
+      const seg = active / (STEPS - 1);
+      const raw = within / seg;
+      const n = Math.round(raw);
+      // Once a product has been settled on, small nudges are left alone; the glide only
+      // returns after you've genuinely moved into another product's half of the scroll.
+      if (magnet.settledAt != null && Math.abs(raw - magnet.settledAt) < 0.55) return;
+      const off = raw - n;
+      if (Math.abs(off) < 0.01) return;
 
-  const trackY = useTransform([progress, rowH], (latest: number[]) => {
-    const [p, r] = latest;
-    return -(p * r);
+      magnet.settledAt = n;
+      magnet.run = true;
+      magnet.start = now;
+      // Short hops finish quickly; the longest allowed pull gets the full glide.
+      magnet.dur = 380 + Math.min(1, Math.abs(off) / 0.5) * 340;
+      magnet.from = y;
+      magnet.delta = -off * seg;
+      magnet.expect = y;
+    };
+
+    const step = () => {
+      const v = viewRef.current;
+      const pin = pinRef.current;
+      // The distance the pinned frame stays stuck for. Measured against the frame (not
+      // innerHeight) so mobile toolbars collapsing don't shift where each product lands.
+      const travel = Math.max(1, section.offsetHeight - (pin ? pin.offsetHeight : window.innerHeight));
+      const rect = section.getBoundingClientRect();
+      const scrolled = clamp(-rect.top, 0, travel);
+
+      // Phones get a longer section without faster product changes: quiet lead-in and
+      // lead-out scroll where the first/last product simply holds.
+      const lead = v.isNarrow ? Math.max(0, Math.min(v.vh * LEAD, (travel - 100) / 2)) : 0;
+      const active = Math.max(1, travel - lead * 2);
+      const within = clamp(scrolled - lead, 0, active);
+      const target = (within / active) * (STEPS - 1);
+
+      const from = progressRef.current;
+      // Touch scrolling is short and impatient: follow the finger much closer.
+      const ease = reducedMotion || firstFrame ? 1 : v.isNarrow ? Math.min(0.42, Math.max(GLIDE * 2.2, 0.3)) : GLIDE;
+      firstFrame = false;
+      const eased = from + (target - from) * ease;
+      const settled = Math.abs(target - eased) < 0.0008 ? target : eased;
+      if (Math.abs(settled - from) > 0.0004) {
+        progressRef.current = settled;
+        setProgress(settled);
+      }
+
+      if (!v.seen && rect.top < window.innerHeight * 0.85 && rect.bottom > 0) {
+        patchView({ seen: true });
+      }
+
+      runMagnet(within, active);
+    };
+
+    const frame = () => {
+      raf = 0;
+      step();
+      if (visible) raf = requestAnimationFrame(frame);
+    };
+
+    // The loop only runs while the (very tall) section is on screen.
+    const io = new IntersectionObserver((entries) => {
+      visible = entries[entries.length - 1]?.isIntersecting ?? false;
+      if (visible && !raf) raf = requestAnimationFrame(frame);
+    });
+    io.observe(section);
+
+    const onInput = (e: Event) => {
+      magnet.lastInput = performance.now();
+      magnet.run = false;
+      if (e.type === "touchstart" || e.type === "touchmove") magnet.touching = true;
+    };
+    const onRelease = () => {
+      magnet.touching = false;
+      magnet.lastInput = performance.now();
+    };
+    const inputEvents = ["wheel", "touchstart", "touchmove", "pointerdown", "keydown"] as const;
+    const releaseEvents = ["touchend", "touchcancel"] as const;
+    for (const ev of inputEvents) window.addEventListener(ev, onInput, { passive: true, capture: true });
+    for (const ev of releaseEvents) window.addEventListener(ev, onRelease, { passive: true, capture: true });
+
+    return () => {
+      io.disconnect();
+      if (raf) cancelAnimationFrame(raf);
+      for (const ev of inputEvents) window.removeEventListener(ev, onInput, { capture: true });
+      for (const ev of releaseEvents) window.removeEventListener(ev, onRelease, { capture: true });
+    };
+  }, [reducedMotion, patchView]);
+
+  // ---- derived values ----
+  const copy = content[locale];
+  const { isNarrow, vh } = view;
+  const p = progress;
+  const level = Math.max(view.squeeze, vh < 560 ? 3 : vh < 620 ? 2 : vh < 720 ? 1 : 0);
+  const tiny = isNarrow && vh < 680;
+  const on = reducedMotion || view.seen;
+  const lastBag = copy.items.length - 1;
+
+  const stretch = !isNarrow && level >= 2 ? 1.2 : isNarrow ? 1.22 : 1.34;
+  const labels = [...copy.items.map((it) => it.word), copy.care.word];
+  const widest = labels.reduce((m, l) => Math.max(m, l.length), 0);
+  const ceiling = isNarrow
+    ? Math.max(38, Math.min(92, Math.round(vh * 0.115)))
+    : level >= 3
+      ? 110
+      : level >= 2
+        ? 165
+        : 250;
+  const byWidth = view.roomW ? view.roomW / (widest * 0.585) : ceiling;
+  // On phones the word row is auto-sized, so height can't drive the size (it would feed back
+  // on itself) — width and the viewport cap do.
+  const byHeight = isNarrow ? ceiling : view.roomH ? (view.roomH * 0.96) / stretch : ceiling;
+  const wordPx = Math.max(isNarrow ? 30 : 44, Math.min(ceiling, byWidth, byHeight));
+  const wordLift = isNarrow ? (wordPx * (stretch - 1)) / 2 : 0;
+
+  const bags = copy.items.map((item, i) => {
+    // The last bag stays put while the Care step takes over.
+    const d = i === lastBag ? Math.max(i - p, 0) : i - p;
+    return {
+      src: resolveMediaUrl(content.images[i]) || WHY_DEFAULT_IMAGES[i],
+      alt: item.caption,
+      ...orbit(d, view.stageH, isNarrow),
+    };
   });
-  const railTop = useTransform(progress, (p) => `${(p / 2) * 100}%`);
 
-  // Fact/caption crossfade — driven continuously off `progress`, independent of
-  // the once-per-integer `factIndex` state that swaps the underlying text.
-  const delta = useTransform(progress, (p) => p - Math.round(p));
-  const factFade = useTransform(delta, (d) => Math.max(0, 1 - Math.min(1, Math.abs(d) * 2.5)));
-  const factY = useTransform(delta, (d) => -d * 34);
-  const captionX = useTransform(delta, (d) => d * 30);
+  const words = labels.map((label, i) => {
+    const n = hold(i - p);
+    return { label, color: i === lastBag + 1 ? BROWN : WORD_TINT, opacity: n, shift: wordLift + (1 - n) * 18 };
+  });
 
-  const localeCopy = content[locale];
-  const images = content.images.map((url, i) => resolveMediaUrl(url) || DEFAULT_IMAGES[i]);
-  const facts = localeCopy.items.map((item, i) => ({
-    n: String(i + 1).padStart(2, "0"),
-    title: item.factTitle,
-    body: item.factBody,
-  }));
-  const captions = localeCopy.items.map((item) => item.caption);
-  const fact = facts[factIndex] ?? facts[0];
-  const caption = captions[factIndex] ?? captions[0];
+  const facts = [
+    ...copy.items.map((item) => ({ title: item.factTitle, body: item.factBody, care: false })),
+    { title: copy.care.title, body: "", care: true },
+  ].map((f, i) => {
+    const n = hold(i - p);
+    const o = on ? n : 0;
+    return {
+      ...f,
+      opacity: o,
+      shift: on ? (1 - n) * 16 : 18,
+      interactive: o > 0.9,
+      bodyHidden: f.care || (!isNarrow && level >= 3) || (tiny && level >= 3),
+    };
+  });
+
+  const transition = reducedMotion ? undefined : "opacity 180ms linear, transform 180ms linear";
+  const bagBoxHeight = isNarrow ? "100%" : `${BOX * 100}%`;
+  const phoneMask =
+    "linear-gradient(to bottom, rgba(0,0,0,0) 0%, rgba(0,0,0,1) 4%, rgba(0,0,0,1) 96%, rgba(0,0,0,0) 100%)";
+  const scrollSpan = isNarrow
+    ? `${(STEPS - 1) * PHONE_SCROLL_PER_SLIDE_SVH + LEAD * 200}svh`
+    : `${(STEPS - 1) * SCROLL_PER_SLIDE_SVH}svh`;
+
+  const factTitleSize = isNarrow
+    ? tiny
+      ? "clamp(20px,5.6vw,26px)"
+      : "clamp(22px,6.4vw,32px)"
+    : level >= 3
+      ? "clamp(26px,2.6vw,34px)"
+      : level >= 2
+        ? "clamp(30px,3vw,41px)"
+        : level >= 1
+          ? "clamp(35px,3.5vw,50px)"
+          : "clamp(40px,4.2vw,66px)";
+  const factBodySize = isNarrow ? (tiny ? "13px" : "14px") : level >= 1 ? "14px" : "clamp(14px,1.05vw,16px)";
+  const factStackHeight = view.factRoom
+    ? `${view.factRoom}px`
+    : isNarrow
+      ? "170px"
+      : level >= 3
+        ? "108px"
+        : level >= 2
+          ? "132px"
+          : "clamp(160px,20vh,230px)";
+  const topPad = isNarrow ? "10px" : level >= 3 ? "6px" : level >= 2 ? "10px" : "clamp(14px,2.6vh,32px)";
+  const bottomPad = isNarrow
+    ? "clamp(16px,3.4vh,30px)"
+    : level >= 3
+      ? "12px"
+      : level >= 2
+        ? "16px"
+        : "clamp(20px,5vh,64px)";
+  const careBodyHidden = isNarrow ? tiny : level >= 2;
 
   return (
     <section
-      data-snap-why
-      className="relative isolate overflow-hidden bg-[#2D241E] text-[#F5F2ED] pt-[66px] pb-[var(--browser-bar-b)] md:pt-7 md:pb-7"
-      // svh + the bar strip, not dvh or lvh. dvh rebuilt the whole bag stage every time the mobile
-      // toolbar collapsed, which moved the bags against the caption above them. Plain svh (and
-      // even lvh) left the cream section below showing through Safari's translucent bar. The
-      // strip (--browser-bar-b) is padding, so the stage, and the next bag peeking at its
-      // bottom, stay above the glass while the section itself fills the screen edge to edge.
-      style={{ height: "calc(100svh + var(--browser-bar-b))" }}
+      ref={sectionRef}
+      data-snap-why="true"
+      style={{
+        position: "relative",
+        background: "#F1ECE4",
+        color: INK,
+        // The pinned frame is svh + the browser-bar strip (see --browser-bar-b), like every
+        // other full-screen section on this page, so the frame doesn't resize while a mobile
+        // toolbar collapses. The scroll span is added on top of that.
+        height: `calc(100svh + var(--browser-bar-b) + ${scrollSpan})`,
+      }}
     >
-      <div className="max-w-[1400px] mx-auto px-3.5 md:px-6 h-full">
-        <div className="grid grid-cols-1 md:grid-cols-2 md:gap-12 h-full items-stretch">
-          {/* Bag column — has its own entrance via the arc animation, not ScrollReveal */}
-          <div className="relative flex flex-col items-center justify-start md:justify-center gap-0 md:gap-3.5 h-full min-h-0">
-            <motion.div
-              className="md:hidden relative z-[4] w-full px-[18px] pb-5 text-center"
-              style={{ opacity: factFade, y: factY }}
-            >
-              {/* /55 not /40: on #2D241E the lighter tint measured 3.4:1, under the 4.5:1
-                  WCAG AA floor for text this size. /55 measures 5.1:1 and still reads as the
-                  quietest thing in the block. */}
-              <span
-                className="mb-2 block text-[15px] italic text-[#F5F2ED]/55"
-                style={{ fontFamily: "'Cormorant Garamond', serif" }}
-              >
-                {fact.n}
-              </span>
-              <p className="m-0 text-[17px] font-medium leading-[1.3] text-[#F5F2ED]">{fact.title}</p>
-              <p className="mx-auto mt-2 max-w-[300px] text-[13px] leading-[1.6] text-[#F5F2ED]/62">
-                {fact.body}
-              </p>
-              {/* The bag's name lives with the copy, not over the artwork. Every bag is clipped
-                  to the stage below, so a caption outside it cannot collide at any viewport
-                  size — which the old `absolute top-[188px]` could not promise: that pinned it
-                  to a fixed viewport band the neighbouring bag slid through on taller phones.
-                  It also inherits this block's fade, so the whole text unit crossfades as one. */}
-              <p
-                className="mx-auto mt-3.5 max-w-[300px] text-[13px] italic leading-[1.5] text-[#F5F2ED]/55"
-                style={{ fontFamily: "'Cormorant Garamond', serif" }}
-              >
-                {caption}
-              </p>
-            </motion.div>
+      <div
+        ref={pinRef}
+        data-snap-why-pin="true"
+        style={{
+          position: "sticky",
+          top: 0,
+          height: "calc(100svh + var(--browser-bar-b))",
+          overflow: "hidden",
+          boxSizing: "border-box",
+        }}
+      >
+        <div
+          ref={stageRef}
+          style={{
+            position: "absolute",
+            left: isNarrow ? 0 : "auto",
+            right: isNarrow ? 0 : "clamp(-40px,-2vw,0px)",
+            top: isNarrow ? view.slotTop : "20%",
+            bottom: isNarrow ? view.slotBottom : 0,
+            width: isNarrow ? "auto" : "clamp(380px,46vw,760px)",
+            overflow: isNarrow ? "hidden" : "visible",
+            WebkitMaskImage: isNarrow ? phoneMask : "none",
+            maskImage: isNarrow ? phoneMask : "none",
+            zIndex: 2,
+            pointerEvents: "none",
+          }}
+        >
+          {bags.map((bag, i) => (
+            <img
+              key={i}
+              src={bag.src}
+              alt={bag.alt}
+              draggable={false}
+              decoding="async"
+              style={{
+                position: "absolute",
+                left: "50%",
+                top: "50%",
+                width: "100%",
+                height: bagBoxHeight,
+                objectFit: "contain",
+                objectPosition: "center",
+                transform: `translate(-50%,-50%) translate(${bag.x.toFixed(1)}px,${bag.y.toFixed(1)}px) scale(${bag.scale.toFixed(3)})`,
+                opacity: bag.opacity,
+                filter: bag.filter,
+                zIndex: bag.zIndex,
+                willChange: "transform",
+                userSelect: "none",
+              }}
+            />
+          ))}
+        </div>
 
+        <div
+          ref={frameRef}
+          style={{
+            position: "relative",
+            zIndex: 1,
+            display: "grid",
+            gridTemplateRows: isNarrow ? "auto auto minmax(0,1fr) auto" : "auto minmax(0,1fr) auto",
+            height: "100%",
+            maxWidth: 1500,
+            margin: "0 auto",
+            boxSizing: "border-box",
+            paddingTop: `calc(var(--main-header-h, 57px) + env(safe-area-inset-top, 0px) + ${topPad})`,
+            paddingBottom: `calc(var(--browser-bar-b) + ${bottomPad})`,
+            paddingLeft: "clamp(16px,4vw,56px)",
+            paddingRight: "clamp(16px,4vw,56px)",
+            gap: isNarrow ? "clamp(6px,1vh,12px)" : "clamp(10px,2vh,24px)",
+          }}
+        >
+          <h2
+            style={{
+              margin: 0,
+              paddingBottom: isNarrow ? 8 : 0,
+              borderBottom: isNarrow ? "1px solid rgba(30,27,24,0.14)" : "none",
+              fontFamily: SANS,
+              fontWeight: 400,
+              fontSize: isNarrow ? 9 : 10,
+              textTransform: "uppercase",
+              letterSpacing: "0.34em",
+              color: "rgba(30,27,24,0.58)",
+            }}
+          >
+            {copy.heading}
+          </h2>
+
+          <div
+            ref={wordRowRef}
+            aria-hidden="true"
+            style={{ position: "relative", display: "flex", alignItems: "center", minHeight: 0, overflow: "hidden" }}
+          >
             <div
-              ref={stageRef}
-              className="relative w-full max-w-[min(54vh,320px)] md:max-w-[min(80vh,720px)] flex-1 min-h-0"
+              style={{
+                position: "relative",
+                width: "100%",
+                height: isNarrow ? wordPx * stretch : wordPx,
+              }}
             >
-              <div className="absolute inset-0 overflow-hidden">
-                <motion.div className="flex flex-col" style={{ height: "200%", y: trackY }}>
-                  <div style={{ height: "12.5%" }} className="shrink-0" />
-                  {images.map((src, i) => (
-                    <div
-                      key={i}
-                      style={{ height: "25%" }}
-                      className="flex shrink-0 items-center justify-center overflow-visible"
-                    >
-                      <BagArcImage progress={progress} rowH={rowH} index={i} src={src} alt={captions[i] ?? ""} />
-                    </div>
-                  ))}
-                  <div style={{ height: "12.5%" }} className="shrink-0" />
-                </motion.div>
-                {/* Mobile top fade. The outgoing bag parks with its underside just inside the stage
-                    top, an unreadable smear sitting under the caption. The next bag's handles at the
-                    bottom are a real "more below" cue, so only the top is faded. This used to be a
-                    box-shadow on the caption block, which faded out with the caption mid-step and
-                    let the clipped bag show for a few frames. */}
-                <div
-                  aria-hidden
-                  className="md:hidden pointer-events-none absolute inset-x-0 top-0 z-[1] h-[26%] bg-gradient-to-b from-[#2D241E] from-30% to-transparent"
-                />
-              </div>
-
-              <div className="pointer-events-none hidden md:block absolute md:left-auto md:right-[-26px] md:top-[12%] md:bottom-[12%] w-[2px] bg-white/15">
-                <motion.div
-                  className="absolute left-1/2 h-2 w-2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-[#F5F2ED]"
-                  style={{ top: railTop }}
-                />
-              </div>
-            </div>
-
-            {/* Desktop keeps the caption in flow beneath the stage — no room to collide there. */}
-            <motion.p
-              className="hidden md:block m-0 text-center text-[13px] italic leading-normal text-[#F5F2ED]/50"
-              style={{ fontFamily: "'Cormorant Garamond', serif", opacity: factFade, x: captionX }}
-            >
-              {caption}
-            </motion.p>
-          </div>
-
-          {/* Desktop copy column */}
-          <div className="hidden md:flex flex-col justify-center gap-[clamp(12px,2.6vh,32px)] min-h-0 pl-[60px]">
-            <ScrollReveal>
-              <p
-                className="mb-3.5 text-[11px] uppercase tracking-[0.24em] text-[#F5F2ED]/55"
-                style={{ fontFamily: "'DM Sans', sans-serif" }}
-              >
-                {localeCopy.eyebrow}
-              </p>
-              <h2
-                className="text-[#F5F2ED] font-normal leading-[1.12]"
-                style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "clamp(1.5rem, 3.4vw, 2.6rem)" }}
-              >
-                {localeCopy.titleLine1}
-                <br />
-                <em className="font-light italic opacity-[0.85]">{localeCopy.titleAccent}</em>
-              </h2>
-            </ScrollReveal>
-
-            <div className="flex flex-col">
-              {facts.map((f, i) => (
-                <ScrollReveal
-                  key={f.n}
-                  delay={i * 0.12}
-                  className={`flex items-baseline gap-6 border-t border-white/[0.14] py-[clamp(6px,1.5vh,18px)] ${
-                    i === facts.length - 1 ? "border-b border-white/[0.14]" : ""
-                  }`}
+              {words.map((word, i) => (
+                <span
+                  key={i}
+                  style={{
+                    position: "absolute",
+                    left: 0,
+                    top: 0,
+                    transformOrigin: "left center",
+                    fontFamily: SERIF,
+                    fontSize: wordPx,
+                    lineHeight: 1,
+                    letterSpacing: "-0.015em",
+                    whiteSpace: "nowrap",
+                    color: word.color,
+                    opacity: word.opacity,
+                    transform: `translateY(${word.shift.toFixed(1)}px) scaleY(${stretch})`,
+                    transition,
+                  }}
                 >
-                  <div>
-                    <p className="m-0 text-[15px] font-medium text-[#F5F2ED]">{f.title}</p>
-                    <p className="mt-1.5 text-[13px] leading-[1.55] text-[#F5F2ED]/50">{f.body}</p>
-                  </div>
-                </ScrollReveal>
+                  {word.label}
+                </span>
               ))}
             </div>
+          </div>
+
+          <div
+            ref={slotRef}
+            aria-hidden="true"
+            style={{
+              display: isNarrow ? "block" : "none",
+              minHeight: isNarrow ? "clamp(180px,32svh,340px)" : 0,
+            }}
+          />
+
+          <div
+            ref={factColRef}
+            style={{
+              position: "relative",
+              minHeight: factStackHeight,
+              width: isNarrow ? "100%" : "min(56%,680px)",
+            }}
+          >
+            {facts.map((fact, i) => (
+              <div
+                key={i}
+                style={{
+                  position: "absolute",
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  display: "flex",
+                  flexDirection: "column",
+                  paddingLeft: isNarrow ? 0 : "clamp(44px,5vw,88px)",
+                  opacity: fact.opacity,
+                  transform: `translateY(${fact.shift.toFixed(1)}px)`,
+                  transition,
+                  pointerEvents: fact.interactive ? "auto" : "none",
+                }}
+              >
+                <div
+                  style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: isNarrow ? "clamp(8px,1.4vh,14px)" : "clamp(10px,1.6vh,18px)",
+                  }}
+                >
+                  <p
+                    style={{
+                      margin: 0,
+                      maxWidth: "24ch",
+                      fontFamily: SERIF,
+                      fontSize: factTitleSize,
+                      lineHeight: 1.02,
+                      letterSpacing: "-0.012em",
+                      color: fact.care ? BROWN : INK,
+                      ...prettyWrap,
+                    }}
+                  >
+                    {fact.title}
+                  </p>
+
+                  {!fact.care && (
+                    <p
+                      style={{
+                        display: fact.bodyHidden ? "none" : "block",
+                        margin: 0,
+                        maxWidth: "38ch",
+                        fontFamily: SANS,
+                        fontSize: factBodySize,
+                        lineHeight: 1.6,
+                        color: "rgba(30,27,24,0.72)",
+                        ...prettyWrap,
+                      }}
+                    >
+                      {fact.body}
+                    </p>
+                  )}
+
+                  {fact.care && (
+                    <div
+                      style={{
+                        display: "flex",
+                        flexDirection: isNarrow ? "column" : "row",
+                        flexWrap: "wrap",
+                        gap: isNarrow ? 8 : "clamp(14px,2.2vw,40px)",
+                      }}
+                    >
+                      {copy.care.items.map((item, j) => (
+                        <div
+                          key={j}
+                          style={{
+                            display: "flex",
+                            flexDirection: "column",
+                            gap: 6,
+                            maxWidth: isNarrow ? "100%" : "21ch",
+                          }}
+                        >
+                          <p
+                            style={{
+                              margin: 0,
+                              fontFamily: SANS,
+                              fontWeight: 500,
+                              fontSize: isNarrow ? 11 : "clamp(13px,1vw,15px)",
+                              textTransform: "uppercase",
+                              letterSpacing: "0.14em",
+                              color: BROWN,
+                            }}
+                          >
+                            {item.title}
+                          </p>
+                          <p
+                            style={{
+                              display: careBodyHidden ? "none" : "block",
+                              margin: 0,
+                              fontFamily: SANS,
+                              fontSize: isNarrow ? 12 : level >= 1 ? 12 : "clamp(12px,0.9vw,13px)",
+                              lineHeight: 1.5,
+                              color: "rgba(30,27,24,0.68)",
+                            }}
+                          >
+                            {item.body}
+                          </p>
+                        </div>
+                      ))}
+                      <LangLink
+                        to="/pages/care"
+                        tabIndex={fact.interactive ? 0 : -1}
+                        className="text-[#6B5445] hover:text-[#1E1B18] transition-colors duration-200"
+                        style={{
+                          display: isNarrow || level >= 1 ? "none" : "block",
+                          alignSelf: "flex-end",
+                          fontFamily: SANS,
+                          fontSize: 11,
+                          letterSpacing: "0.04em",
+                          textDecoration: "underline",
+                          textUnderlineOffset: 5,
+                        }}
+                      >
+                        {copy.care.linkLabel}
+                      </LangLink>
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       </div>
     </section>
   );
-});
+}

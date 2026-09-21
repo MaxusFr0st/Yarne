@@ -1,7 +1,6 @@
 import { useEffect, useRef } from "react";
 import type { RefObject } from "react";
 import { animate } from "motion/react";
-import type { WhyBagHandle } from "../components/WhyYarneSection";
 
 // ---- snap-stop geometry (× viewport height, except *_PX which are px) ----
 const SLIVER_RATIO = 0.3;
@@ -25,11 +24,9 @@ const DEDUPE_RATIO = 0.4;
  */
 const MIN_PAGE_OVERFLOW_PX = 48;
 const MIN_PAGE_OVERFLOW_RATIO = 0.12;
-const WHY_PARK_TOL_PX = 120;
 const DIR_TOL_PX = 24;
 
 // ---- timing ----
-const WHY_BUSY_MS = 1240;
 const PAGE_MIN_MS = 850;
 const PAGE_MAX_MS = 1300;
 const PAGE_PER_VH_MS = 280;
@@ -75,21 +72,24 @@ function docTop(el: HTMLElement): number {
 
 type Params = {
   mainRef: RefObject<HTMLElement>;
-  whyRef: RefObject<WhyBagHandle>;
   enabled: boolean;
 };
 
 /**
  * Full-page "one gesture = snap to next/prev section" scroll system — one wheel
  * tick on desktop/trackpad, one vertical swipe on touch, each snapping the page
- * to the next/prev section (or stepping one bag inside the Why section first).
+ * to the next/prev section. The Why section is the exception: it is a tall,
+ * scroll-pinned range that plays its steps off native scrolling, so gestures
+ * inside it are left alone and it only contributes a stop at each end of its pin.
  * Attaches no listeners at all when `enabled` is false, so native scroll is
  * completely untouched.
  */
-export function useHomeSnapScroll({ mainRef, whyRef, enabled }: Params) {
+export function useHomeSnapScroll({ mainRef, enabled }: Params) {
   const busyUntilRef = useRef(0);
   const lastWheelRef = useRef(0);
   const passThroughRef = useRef(false);
+  /** Decided once per wheel gesture, so a fling that started natively stays native. */
+  const nativeGestureRef = useRef(false);
   const animRef = useRef<ReturnType<typeof animate> | null>(null);
 
   useEffect(() => {
@@ -132,6 +132,30 @@ export function useHomeSnapScroll({ mainRef, whyRef, enabled }: Params) {
       }
     };
 
+    /** Scroll range over which the Why section stays pinned: [lo, hi], in document px. */
+    const whyZone = (): { lo: number; hi: number } | null => {
+      const el = main.querySelector<HTMLElement>("[data-snap-why]");
+      if (!el) return null;
+      const pin = el.querySelector<HTMLElement>("[data-snap-why-pin]");
+      const lo = docTop(el);
+      return { lo, hi: lo + Math.max(0, el.offsetHeight - (pin ? pin.offsetHeight : stableVh())) };
+    };
+
+    /**
+     * True when a gesture heading `dir` starts inside the pinned Why range and should be left to
+     * native scrolling. The edges are directional: at the end of the pin a downward gesture is
+     * leaving (snap on to the next section) while an upward one is re-entering (stay native), and
+     * the reverse at the start.
+     */
+    const isNativeWhyScroll = (dir: 1 | -1): boolean => {
+      const zone = whyZone();
+      if (!zone || zone.hi <= zone.lo) return false;
+      const y = window.scrollY;
+      return dir > 0
+        ? y >= zone.lo - DIR_TOL_PX && y < zone.hi - DIR_TOL_PX
+        : y > zone.lo + DIR_TOL_PX && y <= zone.hi + DIR_TOL_PX;
+    };
+
     const buildStops = (): Stop[] => {
       const vh = stableVh();
       const barPx = measureBar();
@@ -146,7 +170,11 @@ export function useHomeSnapScroll({ mainRef, whyRef, enabled }: Params) {
         const isWhy = el.hasAttribute("data-snap-why") || el.querySelector("[data-snap-why]") !== null;
         const top = docTop(el);
         if (isWhy) {
+          // Two stops: where the pin engages, and where it lets go with the last step showing.
+          // Everything in between is native scroll (see isNativeWhyScroll).
           stops.push({ y: top, why: true, group: groupIndex });
+          const zone = whyZone();
+          if (zone && zone.hi > zone.lo) stops.push({ y: zone.hi, why: true, group: groupIndex });
           return;
         }
         // Fits the viewport (or spills only into its own bottom padding) — one centred stop.
@@ -217,28 +245,6 @@ export function useHomeSnapScroll({ mainRef, whyRef, enabled }: Params) {
       if (!stops.length) return;
       const y = window.scrollY;
 
-      let idx = 0;
-      let best = Infinity;
-      stops.forEach((s, i) => {
-        const d = Math.abs(s.y - y);
-        if (d < best) {
-          best = d;
-          idx = i;
-        }
-      });
-      const cur = stops[idx];
-
-      // Parked on the Why section: walk the bags before releasing the page.
-      if (cur.why && Math.abs(cur.y - y) < WHY_PARK_TOL_PX && whyRef.current) {
-        const count = whyRef.current.count;
-        const next = whyRef.current.getIndex() + dir;
-        if (next >= 0 && next < count) {
-          busyUntilRef.current = performance.now() + WHY_BUSY_MS;
-          whyRef.current.stepTo(next);
-          return;
-        }
-      }
-
       // Directional pick: first stop strictly PAST current position — nearest+dir
       // would skip a stop whenever the page sits just short of one.
       let target: Stop | null = null;
@@ -261,9 +267,6 @@ export function useHomeSnapScroll({ mainRef, whyRef, enabled }: Params) {
         passThroughRef.current = true;
         return;
       }
-      if (target.why && whyRef.current) {
-        whyRef.current.jumpTo(dir > 0 ? 0 : whyRef.current.count - 1);
-      }
       animateTo(target.y);
     };
 
@@ -276,6 +279,11 @@ export function useHomeSnapScroll({ mainRef, whyRef, enabled }: Params) {
       const busy = now < busyUntilRef.current;
       const quiet = now - lastWheelRef.current > GESTURE_QUIET_MS;
       lastWheelRef.current = now;
+      if (quiet) {
+        nativeGestureRef.current =
+          !busy && Math.abs(e.deltaY) >= MIN_DELTA_Y && isNativeWhyScroll(e.deltaY > 0 ? 1 : -1);
+      }
+      if (nativeGestureRef.current) return; // scrolling through the pinned Why section
       if (busy || !quiet || Math.abs(e.deltaY) < MIN_DELTA_Y) {
         e.preventDefault();
         return;
@@ -290,6 +298,7 @@ export function useHomeSnapScroll({ mainRef, whyRef, enabled }: Params) {
     const touch = {
       active: false,
       ignore: false, // started inside a scrollable overlay — hands off entirely
+      native: null as boolean | null, // decided on the first vertical move: leave to native scroll
       startX: 0,
       startY: 0,
       committed: null as "x" | "y" | null,
@@ -306,6 +315,7 @@ export function useHomeSnapScroll({ mainRef, whyRef, enabled }: Params) {
       touch.startX = e.touches[0].clientX;
       touch.startY = e.touches[0].clientY;
       touch.committed = null;
+      touch.native = null;
       touch.triggered = false;
     };
 
@@ -319,6 +329,9 @@ export function useHomeSnapScroll({ mainRef, whyRef, enabled }: Params) {
         touch.committed = Math.abs(dy) >= Math.abs(dx) ? "y" : "x";
       }
       if (touch.committed === "x") return; // horizontal swipe — leave to the carousel/native
+
+      if (touch.native === null) touch.native = isNativeWhyScroll(dy < 0 ? 1 : -1);
+      if (touch.native) return; // swiping through the pinned Why section — native scroll
 
       e.preventDefault(); // vertical swipe on the home page is ours from here on
       if (touch.triggered) return;
@@ -335,6 +348,7 @@ export function useHomeSnapScroll({ mainRef, whyRef, enabled }: Params) {
       touch.active = false;
       touch.ignore = false;
       touch.committed = null;
+      touch.native = null;
       touch.triggered = false;
     };
 
@@ -358,5 +372,5 @@ export function useHomeSnapScroll({ mainRef, whyRef, enabled }: Params) {
       window.removeEventListener("resize", onResize);
       animRef.current?.stop();
     };
-  }, [enabled, mainRef, whyRef]);
+  }, [enabled, mainRef]);
 }

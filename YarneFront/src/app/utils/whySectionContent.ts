@@ -3,19 +3,38 @@ import type { Locale } from "../i18n/config";
 import en from "../i18n/locales/en";
 import uk from "../i18n/locales/uk";
 
+// The storage key stays at v1: the backend whitelists keys, and everything a v1 save held
+// (photos, per-bag copy) still means the same thing. Fields the redesign added simply fall
+// back to their defaults until the admin saves.
 export const WHY_SECTION_KEY = "yarne.why.v1";
 
 export type WhyItem = {
+  /** The large display name shown behind/beside the bag ("Femmora"). */
+  word: string;
+  /** Describes the bag photo for screen readers; not shown on screen. */
   caption: string;
   factTitle: string;
   factBody: string;
 };
 
+export type WhyCareItem = {
+  title: string;
+  body: string;
+};
+
+/** The closing "Yarné Care" step that follows the three bags. */
+export type WhyCare = {
+  word: string;
+  title: string;
+  items: [WhyCareItem, WhyCareItem, WhyCareItem];
+  linkLabel: string;
+};
+
 export type WhySectionLocale = {
-  eyebrow: string;
-  titleLine1: string;
-  titleAccent: string;
+  /** Small uppercase line above the big display word. */
+  heading: string;
   items: [WhyItem, WhyItem, WhyItem];
+  care: WhyCare;
 };
 
 export type WhySectionContent = {
@@ -26,16 +45,22 @@ export type WhySectionContent = {
 };
 
 function pickLocale(home: typeof en.home): WhySectionLocale {
-  const items = home.why.facts.map((fact, i) => ({
-    caption: home.why.captions[i] ?? "",
-    factTitle: fact.title,
-    factBody: fact.body,
+  const why = home.why;
+  const items = why.items.map((item) => ({
+    word: item.word,
+    caption: item.caption,
+    factTitle: item.title,
+    factBody: item.body,
   })) as [WhyItem, WhyItem, WhyItem];
   return {
-    eyebrow: home.why.eyebrow,
-    titleLine1: home.why.titleLine1,
-    titleAccent: home.why.titleAccent,
+    heading: why.heading,
     items,
+    care: {
+      word: why.care.word,
+      title: why.care.title,
+      items: why.care.items.map((item) => ({ ...item })) as WhyCare["items"],
+      linkLabel: why.care.linkLabel,
+    },
   };
 }
 
@@ -45,36 +70,63 @@ export const DEFAULT_WHY_SECTION_CONTENT: WhySectionContent = {
   uk: pickLocale(uk.home),
 };
 
+function asRecord(value: unknown): Record<string, unknown> {
+  return typeof value === "object" && value !== null ? (value as Record<string, unknown>) : {};
+}
+
 function normalizeString(value: unknown, fallback: string): string {
   return typeof value === "string" ? value : fallback;
 }
 
 function normalizeItem(value: unknown, fallback: WhyItem): WhyItem {
-  const source = typeof value === "object" && value !== null ? (value as Record<string, unknown>) : {};
+  const source = asRecord(value);
   return {
+    word: normalizeString(source.word, fallback.word),
     caption: normalizeString(source.caption, fallback.caption),
     factTitle: normalizeString(source.factTitle, fallback.factTitle),
     factBody: normalizeString(source.factBody, fallback.factBody),
   };
 }
 
-function normalizeLocale(value: unknown, fallback: WhySectionLocale): WhySectionLocale {
-  const source = typeof value === "object" && value !== null ? (value as Record<string, unknown>) : {};
+function normalizeCareItem(value: unknown, fallback: WhyCareItem): WhyCareItem {
+  const source = asRecord(value);
+  return {
+    title: normalizeString(source.title, fallback.title),
+    body: normalizeString(source.body, fallback.body),
+  };
+}
+
+function normalizeCare(value: unknown, fallback: WhyCare): WhyCare {
+  const source = asRecord(value);
   const items = Array.isArray(source.items) ? source.items : [];
   return {
-    eyebrow: normalizeString(source.eyebrow, fallback.eyebrow),
-    titleLine1: normalizeString(source.titleLine1, fallback.titleLine1),
-    titleAccent: normalizeString(source.titleAccent, fallback.titleAccent),
+    word: normalizeString(source.word, fallback.word),
+    title: normalizeString(source.title, fallback.title),
+    items: [
+      normalizeCareItem(items[0], fallback.items[0]),
+      normalizeCareItem(items[1], fallback.items[1]),
+      normalizeCareItem(items[2], fallback.items[2]),
+    ],
+    linkLabel: normalizeString(source.linkLabel, fallback.linkLabel),
+  };
+}
+
+function normalizeLocale(value: unknown, fallback: WhySectionLocale): WhySectionLocale {
+  const source = asRecord(value);
+  const items = Array.isArray(source.items) ? source.items : [];
+  return {
+    heading: normalizeString(source.heading, fallback.heading),
     items: [
       normalizeItem(items[0], fallback.items[0]),
       normalizeItem(items[1], fallback.items[1]),
       normalizeItem(items[2], fallback.items[2]),
     ],
+    care: normalizeCare(source.care, fallback.care),
   };
 }
 
 export function normalizeWhySectionContent(value: unknown): WhySectionContent {
-  const source = typeof value === "object" && value !== null ? (value as Record<string, unknown>) : {};
+  const source = asRecord(value);
   const images = Array.isArray(source.images) ? source.images : [];
   return {
     images: [

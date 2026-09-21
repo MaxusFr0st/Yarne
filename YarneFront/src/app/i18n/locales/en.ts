@@ -71,31 +71,37 @@ const en = {
       yearsLabel: "Years of craft",
     },
     why: {
-      eyebrow: "The Craft",
-      titleLine1: "Why choose",
-      titleAccent: "a Yarné piece",
-      facts: [
+      heading: "Why choose",
+      items: [
         {
-          n: "01",
+          word: "Femmora",
+          caption: "Femmora — knitted shoulder bag",
           title: "Hand-knitted, not mass-produced",
           body: "Each bag is knitted by a single artisan, start to finish.",
         },
         {
-          n: "02",
+          word: "Cherie",
+          caption: "Cherie — hand-knitted mini bag",
           title: "Natural fibres, built to last",
           body: "Sourced yarns chosen for durability over trend cycles.",
         },
         {
-          n: "03",
+          word: "Dva Shopper",
+          caption: "Dva Shopper — knitted tote",
           title: "Made to order, in days not months",
           body: "No warehouse overstock — each order is knitted fresh.",
         },
       ],
-      captions: [
-        "Femmora — knitted shoulder bag",
-        "Cherie — hand-knitted mini bag",
-        "Dva Shopper — knitted tote",
-      ],
+      care: {
+        word: "Yarné Care",
+        title: "Yarné Care — we look after your bag once it's yours",
+        items: [
+          { title: "We re-knit it", body: "If it's damaged, we restore it stitch by stitch." },
+          { title: "We wash it", body: "Gentle wool washing in our own workshop." },
+          { title: "Free returns", body: "Not the right fit? We collect it at our cost." },
+        ],
+        linkLabel: "Care terms",
+      },
     },
   },
   showcase: {

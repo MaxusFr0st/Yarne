@@ -14,7 +14,7 @@ import {
 import { useTouchMobileLayout } from "../hooks/useTouchMobileLayout";
 import { ScrollReveal, SECTION_REVEAL, SectionEyebrow, SectionTitle } from "../components/ScrollReveal";
 import { resolveMediaUrl } from "../utils/storefrontMedia";
-import { WhyYarneSection, type WhyBagHandle } from "../components/WhyYarneSection";
+import { WhyYarneSection } from "../components/WhyYarneSection";
 import { useHomeSnapScroll } from "../hooks/useHomeSnapScroll";
 import { useOverlay } from "../context/AppContext";
 
@@ -83,14 +83,12 @@ export function Home() {
   const heroRef = useRef<HTMLDivElement>(null);
   const editorialRef = useRef<HTMLDivElement>(null);
   const mainRef = useRef<HTMLElement>(null);
-  const whyRef = useRef<WhyBagHandle>(null);
   const touch = useTouchMobileLayout();
   const reducedMotion = useReducedMotion();
   const animateHero = !touch && !reducedMotion;
   const { cartOpen, loginOpen } = useOverlay();
   useHomeSnapScroll({
     mainRef,
-    whyRef,
     // Section-snap scroll runs on desktop (wheel) and touch (swipe) alike —
     // only reduced-motion and open overlays fall back to native scroll.
     enabled: !reducedMotion && !cartOpen && !loginOpen,
@@ -136,7 +134,9 @@ export function Home() {
   return (
     <main
       ref={mainRef}
-      className="relative overflow-x-hidden bg-[#F5F2ED]"
+      // overflow-x-clip, not -hidden: hidden quietly turns overflow-y into `auto`, which makes
+      // <main> a scroll container and stops the Why section's `position: sticky` frame pinning.
+      className="relative overflow-x-clip bg-[#F5F2ED]"
       style={{ fontFamily: "'DM Sans', sans-serif" }}
     >
       <ViewportDebug />
@@ -240,7 +240,7 @@ export function Home() {
         </div>
       </section>
 
-      <WhyYarneSection ref={whyRef} />
+      <WhyYarneSection />
 
       <ScrollReveal {...SECTION_REVEAL}>
         <BestSellersCarousel />
