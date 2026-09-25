@@ -4,7 +4,7 @@ import { LangLink } from "../i18n/LangLink";
 import { useLocale } from "../i18n/useLocale";
 import { resolveMediaUrl } from "../utils/storefrontMedia";
 import { WHY_DEFAULT_IMAGES } from "../utils/whyDefaultImages";
-import { getStableViewportHeight, isViewportLocked, onStableViewportChange } from "../utils/stableViewport";
+import { getStableViewportHeight, onStableViewportChange } from "../utils/stableViewport";
 import {
   getDefaultWhySectionContent,
   loadWhySectionContent,
@@ -36,8 +36,6 @@ const LEAD = 0.4;
 const GLIDE = 0.16; // per-frame easing toward the scroll target
 const TEXT_HOLD = 0.35; // share of a step where its copy is fully opaque
 
-/** Mobile browser chrome shifts innerHeight by ~60-120px while scrolling; ignore that. */
-const MOBILE_CHROME_PX = 140;
 const MAX_SQUEEZE = 4;
 
 const SERIF = "'Prata', serif";
@@ -177,28 +175,23 @@ export function WhyYarneSection() {
 
   // ---- viewport ----
   useEffect(() => {
+    // The height is frozen on touch devices (see stableViewport.ts), so a bar sliding reads as
+    // no change here; only a real window resize or rotation does.
     const read = () => {
       const narrow = window.matchMedia("(max-width: 767px)").matches;
       const w = window.innerWidth;
       const h = getStableViewportHeight();
       setView((prev) => {
-        // A held height only changes for real (rotation, or the one-off settle in a webview).
-        const heightMoved = Math.abs(h - prev.vh) > (narrow && !isViewportLocked() ? MOBILE_CHROME_PX : 4);
-        const widthMoved = Math.abs(w - prev.vw) > 4;
-        if (narrow === prev.isNarrow && !heightMoved && !widthMoved) return prev;
+        if (narrow === prev.isNarrow && Math.abs(h - prev.vh) <= 4 && Math.abs(w - prev.vw) <= 4) return prev;
         return { ...prev, isNarrow: narrow, vw: w, vh: h, squeeze: 0 };
       });
     };
     read();
     window.addEventListener("resize", read);
-    window.addEventListener("orientationchange", read);
-    window.visualViewport?.addEventListener("resize", read);
     const offStable = onStableViewportChange(read);
     return () => {
       offStable();
       window.removeEventListener("resize", read);
-      window.removeEventListener("orientationchange", read);
-      window.visualViewport?.removeEventListener("resize", read);
     };
   }, []);
 

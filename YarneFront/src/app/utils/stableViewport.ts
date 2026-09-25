@@ -21,11 +21,6 @@ export function getStableViewportHeight(): number {
   return height || window.innerHeight;
 }
 
-/** Whether --app-svh is frozen at a pixel value. */
-export function isViewportLocked(): boolean {
-  return height > 0;
-}
-
 /** Called when the frozen height is re-taken (rotation). */
 export function onStableViewportChange(cb: () => void): () => void {
   listeners.add(cb);
