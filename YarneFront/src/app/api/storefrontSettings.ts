@@ -4,6 +4,28 @@ import { apiRequest } from "./client";
 // Add a value cache w/ save-invalidation if that measurably matters.
 const inFlight = new Map<string, Promise<unknown>>();
 
+// Every server answer is remembered, so the next visit's first paint shows the real content
+// instead of built-in defaults that get swapped a moment later.
+const CACHE_PREFIX = "yarne.cache:";
+
+function remember(key: string, value: unknown): void {
+  try {
+    window.localStorage.setItem(CACHE_PREFIX + key, JSON.stringify(value ?? null));
+  } catch {
+    // Storage full or blocked: the next visit just waits for the server again.
+  }
+}
+
+/** The last server answer for `key`, or undefined when this browser has never had one. */
+export function peekStorefrontSetting<T>(key: string): { value: T | null } | undefined {
+  try {
+    const raw = window.localStorage.getItem(CACHE_PREFIX + key);
+    return raw == null ? undefined : { value: JSON.parse(raw) as T | null };
+  } catch {
+    return undefined;
+  }
+}
+
 export async function fetchStorefrontSetting<T>(key: string): Promise<T | null> {
   const existing = inFlight.get(key);
   if (existing) return existing as Promise<T | null>;
@@ -13,9 +35,13 @@ export async function fetchStorefrontSetting<T>(key: string): Promise<T | null> 
       const res = await apiRequest<{ key: string; value: T }>(
         `/api/storefront-settings/${encodeURIComponent(key)}`
       );
+      remember(key, res.value);
       return res.value ?? null;
     } catch (e) {
-      if (e instanceof Error && /404/.test(e.message)) return null;
+      if (e instanceof Error && /404/.test(e.message)) {
+        remember(key, null);
+        return null;
+      }
       throw e;
     }
   })().finally(() => inFlight.delete(key));
@@ -33,6 +59,7 @@ export async function saveStorefrontSetting<T>(key: string, value: T): Promise<T
       body: JSON.stringify(value),
     }
   );
+  remember(key, res.value);
   return res.value;
 }
 

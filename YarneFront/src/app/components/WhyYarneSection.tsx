@@ -1,12 +1,14 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from "react";
 import { useReducedMotion } from "motion/react";
+import { useTranslation } from "react-i18next";
 import { LangLink } from "../i18n/LangLink";
+import { ImageWithFallback as Img } from "./figma/ImageWithFallback";
 import { useLocale } from "../i18n/useLocale";
 import { resolveMediaUrl } from "../utils/storefrontMedia";
 import { WHY_DEFAULT_IMAGES } from "../utils/whyDefaultImages";
 import { getStableViewportHeight, onStableViewportChange } from "../utils/stableViewport";
 import {
-  getDefaultWhySectionContent,
+  getInitialWhySectionContent,
   loadWhySectionContent,
   type WhySectionContent,
 } from "../utils/whySectionContent";
@@ -135,8 +137,9 @@ function readInitialView(): View {
 
 export function WhyYarneSection() {
   const locale = useLocale();
+  const { t } = useTranslation();
   const reducedMotion = useReducedMotion() ?? false;
-  const [content, setContent] = useState<WhySectionContent>(getDefaultWhySectionContent);
+  const [content, setContent] = useState<WhySectionContent>(getInitialWhySectionContent);
   const [view, setView] = useState<View>(readInitialView);
   const [progress, setProgress] = useState(0);
 
@@ -460,9 +463,11 @@ export function WhyYarneSection() {
     // The last bag stays put while the Care step takes over.
     const d = i === lastBag ? Math.max(i - p, 0) : i - p;
     const o = orbit(d, view.stageH, isNarrow);
+    const code = content.productCodes[i].trim();
     return {
       src: resolveMediaUrl(content.images[i]) || WHY_DEFAULT_IMAGES[i],
       alt: item.caption,
+      href: code ? `/product/${code}` : "",
       ...o,
       filter: o.filter === "none" ? shade || "none" : `${o.filter} ${shade}`,
     };
@@ -474,8 +479,8 @@ export function WhyYarneSection() {
   });
 
   const facts = [
-    ...copy.items.map((item) => ({ title: item.factTitle, body: item.factBody, care: false })),
-    { title: copy.care.title, body: "", care: true },
+    ...copy.items.map((item, i) => ({ title: item.factTitle, body: item.factBody, care: false, href: bags[i].href })),
+    { title: copy.care.title, body: "", care: true, href: "" },
   ].map((f, i) => {
     const n = hold(i - p);
     const o = on ? n : 0;
@@ -606,30 +611,49 @@ export function WhyYarneSection() {
             pointerEvents: "none",
           }}
         >
-          {bags.map((bag, i) => (
-            <img
-              key={i}
-              src={bag.src}
-              alt={bag.alt}
-              draggable={false}
-              decoding="async"
-              style={{
-                position: "absolute",
-                left: "50%",
-                top: "50%",
-                width: "100%",
-                height: bagBoxHeight,
-                objectFit: "contain",
-                objectPosition: "center",
-                transform: `translate(-50%,-50%) translate(${bag.x.toFixed(1)}px,${bag.y.toFixed(1)}px) scale(${bag.scale.toFixed(3)})`,
-                opacity: bag.opacity,
-                filter: bag.filter,
-                zIndex: bag.zIndex,
-                willChange: "transform",
-                userSelect: "none",
-              }}
-            />
-          ))}
+          {bags.map((bag, i) => {
+            // The wrapper carries the orbit (position, scale, scroll opacity); the photo inside
+            // only fades in once it has loaded, so the two never fight over opacity.
+            const box: CSSProperties = {
+              position: "absolute",
+              left: "50%",
+              top: "50%",
+              display: "block",
+              width: "100%",
+              height: bagBoxHeight,
+              transform: `translate(-50%,-50%) translate(${bag.x.toFixed(1)}px,${bag.y.toFixed(1)}px) scale(${bag.scale.toFixed(3)})`,
+              opacity: bag.opacity,
+              filter: bag.filter,
+              zIndex: bag.zIndex,
+              willChange: "transform",
+              userSelect: "none",
+            };
+            const img = (
+              <Img
+                src={bag.src}
+                alt={bag.alt}
+                draggable={false}
+                loading="eager"
+                fadeIn
+                style={{ width: "100%", height: "100%", objectFit: "contain", objectPosition: "center" }}
+              />
+            );
+            if (!bag.href) return <div key={i} style={box}>{img}</div>;
+            // Linked bags open their product, like the bento tiles. Only the bag on screen
+            // takes clicks; the stage itself stays click-through.
+            const active = bag.opacity > 0.9;
+            return (
+              <LangLink
+                key={i}
+                to={bag.href}
+                tabIndex={active ? 0 : -1}
+                aria-hidden={!active}
+                style={{ ...box, pointerEvents: active ? "auto" : "none", cursor: "pointer" }}
+              >
+                {img}
+              </LangLink>
+            );
+          })}
         </div>
 
         <div
@@ -774,6 +798,25 @@ export function WhyYarneSection() {
                     >
                       {fact.body}
                     </p>
+                  )}
+
+                  {fact.href && (
+                    <LangLink
+                      to={fact.href}
+                      tabIndex={fact.interactive ? 0 : -1}
+                      className="text-[#6B5445] hover:text-[#1E1B18] transition-colors duration-200"
+                      style={{
+                        alignSelf: "flex-start",
+                        fontFamily: SANS,
+                        fontSize: isNarrow ? 11 : 12,
+                        letterSpacing: "0.14em",
+                        textTransform: "uppercase",
+                        textDecoration: "underline",
+                        textUnderlineOffset: 5,
+                      }}
+                    >
+                      {t("home.why.viewProduct")}
+                    </LangLink>
                   )}
 
                   {fact.care && (

@@ -57,7 +57,7 @@ function AuthField({
           autoComplete={autoComplete}
           maxLength={maxLength}
           required={required}
-          className={`w-full bg-white/70 border border-[#2D241E]/12 rounded-2xl px-4 py-3.5 [@media(max-height:820px)]:py-2.5 text-[#2D241E] placeholder-[#2D241E]/25 focus:outline-none focus:border-[#2D241E]/35 focus:ring-2 focus:ring-[#2D241E]/8 transition-[border-color,box-shadow] duration-200${children ? " pr-12" : ""}`}
+          className={`w-full bg-white/70 border border-[#2D241E]/12 rounded-2xl px-4 py-3.5 [@media(max-height:820px)]:py-2.5 [@media(max-height:720px)]:py-2 text-[#2D241E] placeholder-[#2D241E]/25 focus:outline-none focus:border-[#2D241E]/35 focus:ring-2 focus:ring-[#2D241E]/8 transition-[border-color,box-shadow] duration-200${children ? " pr-12" : ""}`}
           style={{ fontFamily: "'DM Sans', sans-serif" }}
         />
         {children}
@@ -213,7 +213,7 @@ export function LoginModal() {
           />
 
           <div
-            className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 pointer-events-none"
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 [@media(max-height:720px)]:sm:p-4 pointer-events-none"
             role="presentation"
           >
             <motion.div
@@ -221,7 +221,7 @@ export function LoginModal() {
               role="dialog"
               aria-modal="true"
               aria-labelledby={titleId}
-              className="w-full max-w-md relative pointer-events-auto max-h-[calc(100svh-2rem)] sm:max-h-[calc(100svh-3rem)] flex flex-col"
+              className="w-full max-w-md relative pointer-events-auto max-h-[calc(100svh-2rem)] sm:max-h-[calc(100svh-3rem)] [@media(max-height:720px)]:sm:max-h-[calc(100svh-2rem)] flex flex-col"
               style={{
                 backgroundColor: "#F5F2ED",
                 borderRadius: "clamp(28px, 6vw, 40px)",
@@ -246,8 +246,9 @@ export function LoginModal() {
 
               <div className="flex-auto min-h-0 overflow-y-auto">
                 <div className="text-center mb-7 [@media(max-height:820px)]:mb-5">
+                {/* Very short screens: the page header shows the logo right behind the modal. */}
                 <p
-                  className="text-[#2D241E] mb-2"
+                  className="text-[#2D241E] mb-2 [@media(max-height:720px)]:hidden"
                   style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "1.75rem", fontWeight: 500, letterSpacing: "0.02em" }}
                 >
                   Yarné

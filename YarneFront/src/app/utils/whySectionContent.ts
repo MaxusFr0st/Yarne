@@ -1,4 +1,4 @@
-import { fetchStorefrontSetting, saveStorefrontSetting } from "../api/storefrontSettings";
+import { fetchStorefrontSetting, peekStorefrontSetting, saveStorefrontSetting } from "../api/storefrontSettings";
 import type { Locale } from "../i18n/config";
 import en from "../i18n/locales/en";
 import uk from "../i18n/locales/uk";
@@ -42,6 +42,8 @@ export type WhySectionContent = {
   images: [string, string, string];
   /** Painted scene behind each bag; empty string means no scene for that slot. */
   backgrounds: [string, string, string];
+  /** Product each bag links to (its id); empty string means the bag is not a link. */
+  productCodes: [string, string, string];
   en: WhySectionLocale;
   uk: WhySectionLocale;
 };
@@ -69,6 +71,7 @@ function pickLocale(home: typeof en.home): WhySectionLocale {
 export const DEFAULT_WHY_SECTION_CONTENT: WhySectionContent = {
   images: ["", "", ""],
   backgrounds: ["", "", ""],
+  productCodes: ["", "", ""],
   en: pickLocale(en.home),
   uk: pickLocale(uk.home),
 };
@@ -132,6 +135,7 @@ export function normalizeWhySectionContent(value: unknown): WhySectionContent {
   const source = asRecord(value);
   const images = Array.isArray(source.images) ? source.images : [];
   const backgrounds = Array.isArray(source.backgrounds) ? source.backgrounds : [];
+  const productCodes = Array.isArray(source.productCodes) ? source.productCodes : [];
   return {
     images: [
       normalizeString(images[0], ""),
@@ -143,6 +147,11 @@ export function normalizeWhySectionContent(value: unknown): WhySectionContent {
       normalizeString(backgrounds[1], ""),
       normalizeString(backgrounds[2], ""),
     ],
+    productCodes: [
+      normalizeString(productCodes[0], ""),
+      normalizeString(productCodes[1], ""),
+      normalizeString(productCodes[2], ""),
+    ],
     en: normalizeLocale(source.en, DEFAULT_WHY_SECTION_CONTENT.en),
     uk: normalizeLocale(source.uk, DEFAULT_WHY_SECTION_CONTENT.uk),
   };
@@ -152,6 +161,11 @@ export function getDefaultWhySectionContent(): WhySectionContent {
   return normalizeWhySectionContent({});
 }
 
+/** First paint: the last server answer if this browser has one, else the defaults. */
+export function getInitialWhySectionContent(): WhySectionContent {
+  return normalizeWhySectionContent(peekStorefrontSetting(WHY_SECTION_KEY)?.value ?? {});
+}
+
 export async function loadWhySectionContent(): Promise<WhySectionContent> {
   try {
     const remote = await fetchStorefrontSetting<WhySectionContent>(WHY_SECTION_KEY);
@@ -159,7 +173,7 @@ export async function loadWhySectionContent(): Promise<WhySectionContent> {
   } catch {
     // API unavailable
   }
-  return getDefaultWhySectionContent();
+  return getInitialWhySectionContent(); // unreachable server: keep the last answer, not the defaults
 }
 
 export async function loadWhySectionContentForAdmin(): Promise<WhySectionContent> {

@@ -40,7 +40,9 @@ function ProductTile({ slot, product, fallbackTitle, variant, priority = false }
   const { t } = useTranslation();
   const locale = useLocale();
   const touch = useTouchMobileLayout();
-  const title = product?.name ?? fallbackTitle;
+  // A tile linked to a product shows nothing until that product has loaded, never a built-in
+  // name that gets swapped for the real one. The built-in name is only for an unconfigured tile.
+  const title = product?.name ?? (slot.productCode ? "" : fallbackTitle);
   const price = product?.price;
   const eurPrice = product?.eurPrice;
   const targetImageSrc = useMemo(
@@ -120,6 +122,7 @@ function ProductTile({ slot, product, fallbackTitle, variant, priority = false }
         alt={title}
         priority={priority}
         focal={focalPoint}
+        fadeIn
         className={`absolute inset-0 h-full w-full object-cover ${cropClass} ${
           touch
             ? ""
@@ -163,7 +166,7 @@ function ProductTile({ slot, product, fallbackTitle, variant, priority = false }
 
         <div className={isLarge ? "mt-auto" : ""}>
           <h3
-            className="text-white"
+            className={title ? "text-white" : "hidden"}
             style={{
               fontFamily: "'Cormorant Garamond', serif",
               fontStyle: isLarge ? "normal" : "italic",
@@ -483,7 +486,9 @@ export function FeaturedShowcase() {
    * Phones (bento): as tall as its content; the bento grid's height comes from the width (see
    * the grid below), so in-app browsers' sliding bars cannot resize it or re-crop its photos.
    *
-   * Tablets and desktop (magazine spread): a full `100svh` tall, with the fixed header's height added as top padding — the same
+   * Tablets and desktop (magazine spread): at least one screen tall (a minimum, so a very short
+   * screen such as a sideways phone grows the section instead of cropping the grid), with the
+   * fixed header's height added as top padding — the same
    * arrangement the Best Sellers section uses, and the one the page's old snap scroll (since
    * removed) assumed: every section owns exactly one screen, or a shorter one gets centered
    * with the neighbouring section peeking in above and below it.
@@ -508,7 +513,7 @@ export function FeaturedShowcase() {
     <section
       className={`relative bg-[#F5F2ED] overflow-hidden box-border ${
         useSpreadLayout
-          ? "h-[calc(var(--app-svh)+var(--browser-bar-b))] pb-[calc(var(--browser-bar-b)+clamp(6px,1.6vw,12px))]"
+          ? "min-h-[calc(var(--app-svh)+var(--browser-bar-b))] pb-[calc(var(--browser-bar-b)+clamp(6px,1.6vw,12px))]"
           : "pb-[clamp(20px,6vw,32px)]"
       }`}
       style={{ paddingTop: showcaseSectionPaddingTop }}

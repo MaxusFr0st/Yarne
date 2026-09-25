@@ -72,6 +72,7 @@ const en = {
     },
     why: {
       heading: "Why choose",
+      viewProduct: "View product",
       items: [
         {
           word: "Femmora",

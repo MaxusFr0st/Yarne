@@ -23,7 +23,7 @@ import { scrollToPageTop } from "../utils/scrollToTop";
 import { clearScrollForRoute } from "../utils/scrollRestoration";
 import { localizedCatalogName } from "../utils/localizedName";
 import {
-  getEmptyProductGuaranteeContent,
+  getProductGuaranteeContent,
   loadProductGuaranteeContent,
   type ProductGuaranteeContent,
 } from "../utils/productGuaranteeContent";
@@ -104,7 +104,8 @@ export function ProductDetail() {
   );
   const showSupplementaryDetails = product ? hasSupplementaryProductDetails(product) : false;
   const [guaranteeContent, setGuaranteeContent] = useState<ProductGuaranteeContent>(
-    getEmptyProductGuaranteeContent
+    // Last server answer from an earlier visit, so the block does not pop in on repeat visits.
+    getProductGuaranteeContent
   );
 
   useLayoutEffect(() => {

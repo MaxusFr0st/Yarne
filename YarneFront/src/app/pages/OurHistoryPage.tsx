@@ -1,7 +1,9 @@
 import { useReducedMotion } from "motion/react";
 import { ArrowRight } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { useStaticPageCopy } from "../hooks/useStaticPageCopy";
+import { useStaticPageCopy, useStaticPageReady } from "../hooks/useStaticPageCopy";
+import { ImageWithFallback as Img } from "../components/figma/ImageWithFallback";
+import { firstVisitRevealStyle } from "../hooks/useFirstVisitReady";
 import { LangLink } from "../i18n/LangLink";
 import { ScrollReveal } from "../components/ScrollReveal";
 import heroImage from "../../assets/our-history-hero.jpg";
@@ -15,10 +17,15 @@ export function OurHistoryPage() {
   const { t } = useTranslation();
   const copy = useStaticPageCopy("ourHistory");
   const reduceMotion = useReducedMotion();
+  const ready = useStaticPageReady();
   const [lead, ...rest] = copy.paragraphs;
 
   return (
-    <main className="overflow-x-hidden" style={{ backgroundColor: "#F5F2ED", minHeight: "var(--app-svh)" }}>
+    <main
+      className="overflow-x-hidden"
+      style={{ backgroundColor: "#F5F2ED", minHeight: "var(--app-svh)", ...firstVisitRevealStyle(ready, Boolean(reduceMotion)) }}
+      aria-busy={!ready}
+    >
       <section className="pt-[calc(var(--main-header-h)+1.25rem)] pb-16 md:pb-24">
         <div className="max-w-[1180px] mx-auto px-5 sm:px-8 md:px-10">
           <div className="grid lg:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)] gap-10 lg:gap-14 xl:gap-16 items-start">
@@ -29,13 +36,13 @@ export function OurHistoryPage() {
                   className="relative overflow-hidden rounded-[1.75rem] md:rounded-[2.25rem] bg-[#EDE9E2]"
                   style={{ aspectRatio: "3 / 4" }}
                 >
-                  <img
+                  <Img
                     src={heroImage}
                     alt={copy.title}
                     width={1200}
                     height={1600}
-                    decoding="async"
-                    fetchPriority="high"
+                    priority
+                    fadeIn
                     className="absolute inset-0 h-full w-full object-cover object-[center_22%]"
                   />
                 </div>

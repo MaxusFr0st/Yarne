@@ -4,7 +4,8 @@ import { motion, useReducedMotion } from "motion/react";
 import { useHomePageCopy } from "../hooks/useHomePageCopy";
 import { useProducts } from "../hooks/useProducts";
 import { ProductCard } from "./ProductCard";
-import { loadCarouselSelection } from "../utils/carouselSelection";
+import { CAROUSEL_PRODUCT_CODES_KEY, getCarouselSelection, loadCarouselSelection } from "../utils/carouselSelection";
+import { peekStorefrontSetting } from "../api/storefrontSettings";
 import { useMotionEntrance } from "../hooks/useMotionEntrance";
 import { useTouchMobileLayout } from "../hooks/useTouchMobileLayout";
 import { Skeleton } from "./ui/skeleton";
@@ -30,7 +31,12 @@ export function BestSellersCarousel() {
 
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [scrollSnaps, setScrollSnaps] = useState<number[]>([]);
-  const [selectedProductCodes, setSelectedProductCodes] = useState<string[]>([]);
+  const [selectedProductCodes, setSelectedProductCodes] = useState<string[]>(() => getCarouselSelection().productCodes);
+  // Until the admin's pick is known, show placeholders rather than fallback products that get
+  // swapped out a moment later. A returning visitor already knows it from the last visit.
+  const [selectionKnown, setSelectionKnown] = useState(
+    () => peekStorefrontSetting(CAROUSEL_PRODUCT_CODES_KEY) !== undefined
+  );
 
   const onSelect = useCallback(() => {
     if (!emblaApi) return;
@@ -60,13 +66,15 @@ export function BestSellersCarousel() {
       ? products.filter((p) => p.isBestseller).slice(0, 8)
       : products.slice(0, 8);
   const carouselProducts = selectedProducts.length > 0 ? selectedProducts : fallbackProducts;
-  const showSkeleton = carouselProducts.length === 0;
+  const showSkeleton = !selectionKnown || carouselProducts.length === 0;
   const slides = showSkeleton ? Array.from({ length: 4 }, (_, i) => ({ id: `sk-${i}` })) : carouselProducts;
 
   useEffect(() => {
     let cancelled = false;
     void loadCarouselSelection().then(({ productCodes }) => {
-      if (!cancelled) setSelectedProductCodes(productCodes);
+      if (cancelled) return;
+      setSelectedProductCodes(productCodes);
+      setSelectionKnown(true);
     });
     return () => {
       cancelled = true;

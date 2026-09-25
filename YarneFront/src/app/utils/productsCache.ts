@@ -30,6 +30,41 @@ const detailInflight = new Map<string, Promise<DetailEntry>>();
 const listeners = new Set<() => void>();
 let cacheGeneration = 0;
 
+// The public, unfiltered list (what the home page shows) is also remembered in the browser, so a
+// returning visitor's first paint has real product names and photos instead of placeholders. It
+// is restored as stale (fetchedAt 0): shown at once, then refreshed from the server as usual.
+const PERSIST_KEY = "yarne.cache:products";
+
+function isPublicList(key: string): boolean {
+  return key === productsQueryKey();
+}
+
+function persistPublicList(key: string, data: ProductDto[]): void {
+  if (!isPublicList(key)) return;
+  try {
+    window.localStorage.setItem(PERSIST_KEY, JSON.stringify(data));
+  } catch {
+    // Storage full or blocked: the next visit just waits for the server again.
+  }
+}
+
+/** Whether this browser remembers the public product list from an earlier visit. */
+export function hasPersistedProducts(): boolean {
+  return listCache.has(productsQueryKey());
+}
+
+(function restorePublicList() {
+  if (typeof window === "undefined") return;
+  try {
+    const raw = window.localStorage.getItem(PERSIST_KEY);
+    if (!raw) return;
+    const data = JSON.parse(raw) as unknown;
+    if (Array.isArray(data)) listCache.set(productsQueryKey(), { data: data as ProductDto[], error: null, fetchedAt: 0 });
+  } catch {
+    // Corrupt or blocked storage: start empty.
+  }
+})();
+
 function notify() {
   for (const listener of listeners) {
     listener();
@@ -85,6 +120,7 @@ export async function loadProductsList(
     .then((data) => {
       const entry: ListEntry = { data, error: null, fetchedAt: Date.now() };
       listCache.set(key, entry);
+      persistPublicList(key, data);
       notify();
       return entry;
     })

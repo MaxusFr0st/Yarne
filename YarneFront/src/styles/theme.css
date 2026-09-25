@@ -363,3 +363,18 @@
 @media (prefers-reduced-motion: reduce) {
   .crossfade-out { animation: none; }
 }
+
+/* A photo arriving (ImageWithFallback fadeIn): it is held at opacity 0 until it has loaded, then
+   this plays. No fill mode, so when it ends the element simply rests at its own opacity — a fade
+   that never runs costs the fade, not the photo. */
+@keyframes yarne-img-fade-in {
+  from { opacity: 0; }
+}
+
+.img-fade-in {
+  animation: yarne-img-fade-in 0.45s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .img-fade-in { animation: none; }
+}

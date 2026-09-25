@@ -4342,6 +4342,7 @@ export function AdminPage() {
 
               <AdminWhySectionEditor
                 initialContent={whySectionContent}
+                products={products}
                 onSaved={(content) => {
                   setWhySectionContent(content);
                   setSaveError(null);

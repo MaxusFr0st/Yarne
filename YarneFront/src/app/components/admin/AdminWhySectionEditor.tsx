@@ -12,7 +12,7 @@ import {
 } from "../../utils/whySectionContent";
 import { AdminLanguageSelect } from "./AdminLanguageSelect";
 
-type SlotField = "images" | "backgrounds";
+type SlotField = "images" | "backgrounds" | "productCodes";
 
 const SLOT_LABELS = ["Photo 1", "Photo 2", "Photo 3"] as const;
 
@@ -64,13 +64,17 @@ function TextField({ label, value, onChange, hint, rows }: TextFieldProps) {
   );
 }
 
+type LinkableProduct = { id: string; name: string; sku?: string };
+
 type AdminWhySectionEditorProps = {
   initialContent: WhySectionContent;
+  /** Products a bag can link to. */
+  products: LinkableProduct[];
   onSaved?: (content: WhySectionContent) => void;
   onError?: (message: string) => void;
 };
 
-export function AdminWhySectionEditor({ initialContent, onSaved, onError }: AdminWhySectionEditorProps) {
+export function AdminWhySectionEditor({ initialContent, products, onSaved, onError }: AdminWhySectionEditorProps) {
   const [draft, setDraft] = useState<WhySectionContent>(initialContent);
   const [savedContent, setSavedContent] = useState<WhySectionContent>(initialContent);
   const [saving, setSaving] = useState(false);
@@ -316,6 +320,37 @@ export function AdminWhySectionEditor({ initialContent, onSaved, onError }: Admi
                     Remove background
                   </button>
                 )}
+
+                <div className="mt-4">
+                  <p
+                    className="text-[#2D241E]/45 text-[10px] uppercase tracking-widest mb-1.5"
+                    style={{ ...DM_SANS, letterSpacing: "0.1em" }}
+                  >
+                    Linked product
+                  </p>
+                  <select
+                    value={draft.productCodes[i]}
+                    onChange={(e) => setSlot("productCodes", i, e.target.value)}
+                    className={INPUT_CLASS}
+                    style={INPUT_STYLE}
+                  >
+                    <option value="">— Not linked —</option>
+                    {draft.productCodes[i] && !products.some((p) => p.id === draft.productCodes[i]) && (
+                      <option value={draft.productCodes[i]}>Missing product ({draft.productCodes[i]})</option>
+                    )}
+                    {products.map((product) => (
+                      <option key={product.id} value={product.id}>
+                        {product.name}
+                        {product.sku ? ` (${product.sku})` : ""}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="text-[#2D241E]/40 text-[11px] mt-1" style={DM_SANS}>
+                    {draft.productCodes[i]
+                      ? `Clicking the bag or "View product" opens /product/${draft.productCodes[i]}`
+                      : "The bag is not clickable."}
+                  </p>
+                </div>
 
                 <div className="mt-4 space-y-3">
                   <TextField

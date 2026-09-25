@@ -9,14 +9,57 @@ import { LangLink } from "../i18n/LangLink";
 import {
   getDefaultHomePageMediaSelection,
   getInitialHomePageMediaSelection,
+  HOME_PAGE_MEDIA_KEY,
   loadHomePageMediaSelection,
 } from "../utils/homePageMediaSelection";
+import { peekStorefrontSetting } from "../api/storefrontSettings";
+import { HOME_PAGE_COPY_KEY, loadHomePageCopy } from "../utils/homePageCopy";
+import { WHY_SECTION_KEY, loadWhySectionContent } from "../utils/whySectionContent";
+import { FEATURED_SHOWCASE_SELECTION_KEY, loadFeaturedShowcaseSelection } from "../utils/featuredShowcaseSelection";
+import { CAROUSEL_PRODUCT_CODES_KEY, loadCarouselSelection } from "../utils/carouselSelection";
+import { hasPersistedProducts, loadProductsList, productsQueryKey } from "../utils/productsCache";
+import { fetchProducts } from "../api/products";
+import { firstVisitRevealStyle, useFirstVisitReady } from "../hooks/useFirstVisitReady";
 import { useTouchMobileLayout } from "../hooks/useTouchMobileLayout";
 import { ScrollReveal, SECTION_REVEAL, SectionEyebrow, SectionTitle } from "../components/ScrollReveal";
 import { resolveMediaUrl } from "../utils/storefrontMedia";
 import { WhyYarneSection } from "../components/WhyYarneSection";
 
 const ease = [0.22, 1, 0.36, 1] as const;
+
+const HOME_SETTING_KEYS = [
+  HOME_PAGE_COPY_KEY,
+  HOME_PAGE_MEDIA_KEY,
+  WHY_SECTION_KEY,
+  FEATURED_SHOWCASE_SELECTION_KEY,
+  CAROUSEL_PRODUCT_CODES_KEY,
+];
+/**
+ * Every home section starts from the last server answer this browser saw, so a returning visitor
+ * gets the real text and photos on the first paint. A first visit waits for the settings, the
+ * product list and the hero photo, then fades in (see useFirstVisitReady).
+ */
+function useHomeContentReady(heroSrc: string): boolean {
+  return useFirstVisitReady(
+    () => hasPersistedProducts() && HOME_SETTING_KEYS.every((key) => peekStorefrontSetting(key) !== undefined),
+    () =>
+      Promise.allSettled([
+        loadHomePageCopy(),
+        loadWhySectionContent(),
+        loadFeaturedShowcaseSelection(),
+        loadCarouselSelection(),
+        // Product names and photos in the carousel and the bento come from here.
+        loadProductsList(productsQueryKey(), () => fetchProducts()),
+        loadHomePageMediaSelection().then((media) => {
+          const src = resolveMediaUrl(media.heroImageUrl.trim()) || heroSrc;
+          if (!src) return;
+          const img = new Image();
+          img.src = src;
+          return img.decode().catch(() => undefined);
+        }),
+      ])
+  );
+}
 
 export function Home() {
   const copy = useHomePageCopy();
@@ -47,6 +90,7 @@ export function Home() {
 
   const heroImageSrc = homePageMedia.heroImageUrl.trim();
   const editorialImageSrc = homePageMedia.editorialImageUrl.trim();
+  const contentReady = useHomeContentReady(resolveMediaUrl(heroImageSrc));
 
   useEffect(() => {
     const resolvedHero = resolveMediaUrl(heroImageSrc);
@@ -62,7 +106,11 @@ export function Home() {
       // overflow-x-clip, not -hidden: hidden quietly turns overflow-y into `auto`, which makes
       // <main> a scroll container and stops the Why section's `position: sticky` frame pinning.
       className="relative overflow-x-clip bg-[#F5F2ED]"
-      style={{ fontFamily: "'DM Sans', sans-serif" }}
+      style={{
+        fontFamily: "'DM Sans', sans-serif",
+        ...firstVisitRevealStyle(contentReady, Boolean(reducedMotion)),
+      }}
+      aria-busy={!contentReady}
     >
       {/* ─── HERO ───
           Pinned to the top of the page while everything after it scrolls up and covers it. */}
@@ -83,6 +131,7 @@ export function Home() {
           {heroImageSrc ? (
             <Img
               src={heroImageSrc}
+              fadeIn
               alt="Yarné Hero"
               className="absolute inset-0 h-full w-full object-cover"
               style={{ objectPosition: `${(homePageMedia.heroFocalX * 100).toFixed(1)}% ${(homePageMedia.heroFocalY * 100).toFixed(1)}%` }}
@@ -178,6 +227,7 @@ export function Home() {
                       {editorialImageSrc ? (
                         <Img
                           src={editorialImageSrc}
+                          fadeIn
                           alt={copy.editorial.eyebrow}
                           className="h-[112%] w-full object-cover"
                           style={{ objectPosition: `${(homePageMedia.editorialFocalX * 100).toFixed(1)}% ${(homePageMedia.editorialFocalY * 100).toFixed(1)}%` }}
@@ -188,6 +238,7 @@ export function Home() {
                     editorialImageSrc ? (
                       <Img
                         src={editorialImageSrc}
+                        fadeIn
                         alt={copy.editorial.eyebrow}
                         className="absolute inset-0 h-full w-full object-cover"
                         style={{ objectPosition: `${(homePageMedia.editorialFocalX * 100).toFixed(1)}% ${(homePageMedia.editorialFocalY * 100).toFixed(1)}%` }}

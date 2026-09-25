@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { resolveMediaUrl } from "../../utils/storefrontMedia";
 
 const ERROR_IMG_SRC =
@@ -14,17 +14,41 @@ interface ImageWithFallbackProps extends React.ImgHTMLAttributes<HTMLImageElemen
   priority?: boolean;
   /** Per-image focal point (0–1 normalized). Defaults to center-upper-third. */
   focal?: FocalPoint;
+  /**
+   * Stay invisible until the file has loaded, then fade in (the .img-fade-in CSS animation),
+   * instead of painting in progressively or popping. A photo already in the browser cache just
+   * appears. Only for photos meant to be seen: an image hidden on purpose would flash through.
+   */
+  fadeIn?: boolean;
 }
 
-export function ImageWithFallback({ priority, focal, ...props }: ImageWithFallbackProps) {
-  const [didError, setDidError] = useState(false);
+/** A load event that never comes (a stalled request) must not leave a photo invisible. */
+const FADE_SAFETY_MS = 5000;
 
-  const { src, alt, style, className, loading, decoding, ...rest } = props;
+export function ImageWithFallback({ priority, focal, fadeIn = false, ...props }: ImageWithFallbackProps) {
+  const [didError, setDidError] = useState(false);
+  // "hidden" until loaded, then "fading" (plays the animation) or "shown" (was already cached).
+  const [reveal, setReveal] = useState<"hidden" | "fading" | "shown">(fadeIn ? "hidden" : "shown");
+  const imgRef = useRef<HTMLImageElement>(null);
+
+  const { src, alt, style, className, loading, decoding, onLoad, ...rest } = props;
   const resolvedSrc = src ? resolveMediaUrl(String(src)) : "";
 
   useEffect(() => {
     setDidError(false);
   }, [resolvedSrc]);
+
+  useLayoutEffect(() => {
+    if (!fadeIn) return;
+    const img = imgRef.current;
+    if (img?.complete && img.naturalWidth > 0) {
+      setReveal("shown");
+      return;
+    }
+    setReveal("hidden");
+    const timer = window.setTimeout(() => setReveal((r) => (r === "hidden" ? "shown" : r)), FADE_SAFETY_MS);
+    return () => window.clearTimeout(timer);
+  }, [fadeIn, resolvedSrc]);
 
   if (!resolvedSrc) {
     return (
@@ -47,7 +71,9 @@ export function ImageWithFallback({ priority, focal, ...props }: ImageWithFallba
   const mergedStyle: React.CSSProperties = {
     ...style,
     ...(focalPosition ? { objectPosition: focalPosition } : undefined),
+    ...(reveal === "hidden" ? { opacity: 0 } : undefined),
   };
+  const mergedClassName = reveal === "fading" ? `${className ?? ""} img-fade-in` : className;
 
   return didError ? (
     <div
@@ -60,14 +86,19 @@ export function ImageWithFallback({ priority, focal, ...props }: ImageWithFallba
     </div>
   ) : (
     <img
+      ref={imgRef}
       src={resolvedSrc}
       alt={alt}
-      className={className}
+      className={mergedClassName}
       style={mergedStyle}
       loading={imgLoading}
       decoding={imgDecoding}
       {...(priority ? { fetchPriority: "high" } : {})}
       {...rest}
+      onLoad={(e) => {
+        if (fadeIn) setReveal((r) => (r === "hidden" ? "fading" : r));
+        onLoad?.(e);
+      }}
       onError={() => setDidError(true)}
     />
   );

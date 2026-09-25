@@ -162,6 +162,9 @@ export function CrossfadeImage({
               // is what keeps a grid of product cards from fetching every photo at once.
               loading={previous ? "eager" : loading}
               focal={frame.focal}
+              // The resting photo fades in when it first arrives; a swap's incoming photo is
+              // already decoded by then, so it shows at once and the dissolve is untouched.
+              fadeIn={!outgoing}
               className={`h-full w-full object-cover ${className}`}
             />
           </div>

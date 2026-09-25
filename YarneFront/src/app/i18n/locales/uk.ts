@@ -72,6 +72,7 @@ const uk: Translations = {
     },
     why: {
       heading: "Чому варто обрати",
+      viewProduct: "Переглянути виріб",
       items: [
         {
           word: "Femmora",
