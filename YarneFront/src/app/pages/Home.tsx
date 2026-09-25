@@ -15,68 +15,8 @@ import { useTouchMobileLayout } from "../hooks/useTouchMobileLayout";
 import { ScrollReveal, SECTION_REVEAL, SectionEyebrow, SectionTitle } from "../components/ScrollReveal";
 import { resolveMediaUrl } from "../utils/storefrontMedia";
 import { WhyYarneSection } from "../components/WhyYarneSection";
-import { getStableViewportHeight, isInAppBrowser, isWebviewMode } from "../utils/stableViewport";
 
 const ease = [0.22, 1, 0.36, 1] as const;
-
-/** TEMPORARY: on-screen viewport numbers for the iOS Safari bar investigation. Open /?vpdebug=1. */
-function ViewportDebug() {
-  const [txt, setTxt] = useState("");
-  useEffect(() => {
-    if (!window.location.search.includes("vpdebug")) return;
-    const px = (h: string) => {
-      const d = document.createElement("div");
-      d.style.cssText = `position:fixed;top:0;left:0;width:0;visibility:hidden;height:${h}`;
-      document.body.appendChild(d);
-      const v = d.offsetHeight;
-      d.remove();
-      return v;
-    };
-    const tick = () => {
-      const secs = Array.from(document.querySelectorAll("main section")).slice(0, 2);
-      const vv = window.visualViewport;
-      setTxt(
-        [
-          `build b8 html-bg ${getComputedStyle(document.documentElement).backgroundColor} body-bg ${getComputedStyle(document.body).backgroundColor}`,
-          `inner ${window.innerHeight} outer ${window.outerHeight} screen ${screen.height}`,
-          `svh ${px("100svh")} lvh ${px("100lvh")} dvh ${px("100dvh")} vh ${px("100vh")}`,
-          `inset-b ${px("env(safe-area-inset-bottom,0px)")} bar-var ${px("var(--browser-bar-b)")}`,
-          `app-svh ${px("var(--app-svh)")} stable ${getStableViewportHeight()} in-app ${isInAppBrowser()} webview ${isWebviewMode()}`,
-          `visual h ${vv ? Math.round(vv.height) : "-"} off ${vv ? Math.round(vv.offsetTop) : "-"}`,
-          `scrollY ${Math.round(window.scrollY)} docH ${document.documentElement.scrollHeight}`,
-          ...secs.map((el, i) => {
-            const r = el.getBoundingClientRect();
-            const cs = getComputedStyle(el);
-            return `sec${i} top ${Math.round(r.top)} h ${Math.round(r.height)} pb ${cs.paddingBottom}`;
-          }),
-        ].join("\n")
-      );
-    };
-    tick();
-    const id = window.setInterval(tick, 500);
-    return () => window.clearInterval(id);
-  }, []);
-  if (!txt) return null;
-  return (
-    <pre
-      style={{
-        position: "fixed",
-        top: 70,
-        left: 8,
-        zIndex: 9999,
-        margin: 0,
-        padding: 8,
-        fontSize: 11,
-        lineHeight: 1.4,
-        background: "rgba(0,0,0,0.75)",
-        color: "#0f0",
-        pointerEvents: "none",
-      }}
-    >
-      {txt}
-    </pre>
-  );
-}
 
 export function Home() {
   const copy = useHomePageCopy();
@@ -124,7 +64,6 @@ export function Home() {
       className="relative overflow-x-clip bg-[#F5F2ED]"
       style={{ fontFamily: "'DM Sans', sans-serif" }}
     >
-      <ViewportDebug />
       {/* ─── HERO ───
           Pinned to the top of the page while everything after it scrolls up and covers it. */}
       <section
@@ -137,7 +76,7 @@ export function Home() {
         style={{
           height: "calc(var(--hero-h) + var(--hero-apron))",
           paddingBottom: "var(--hero-apron)",
-          top: "min(0px, calc(100svh - var(--hero-h)))",
+          top: "min(0px, calc(var(--app-svh) - var(--hero-h)))",
         }}
       >
         <div className="absolute inset-0 overflow-hidden">

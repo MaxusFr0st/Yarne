@@ -225,7 +225,8 @@ export function LoginModal() {
               style={{
                 backgroundColor: "#F5F2ED",
                 borderRadius: "clamp(28px, 6vw, 40px)",
-                padding: "clamp(28px, 6vw, 48px)",
+                // Also shrinks with height, so a short laptop screen fits the login form unscrolled.
+                padding: "clamp(24px, min(6vw, 4svh), 48px)",
                 boxShadow: "0 40px 120px rgba(45,36,30,0.18), 0 8px 32px rgba(45,36,30,0.08)",
               }}
               initial={reduceMotion ? false : { scale: 0.96, opacity: 0, y: 16 }}

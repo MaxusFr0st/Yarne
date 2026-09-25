@@ -365,7 +365,7 @@ export function CheckoutPage() {
 
   if (cartItems.length === 0 && !placedOrder) {
     return (
-      <main className="min-h-[100svh] flex items-center justify-center px-6" style={{ backgroundColor: "#F3EFE8", paddingTop: "120px" }}>
+      <main className="min-h-[var(--app-svh)] flex items-center justify-center px-6" style={{ backgroundColor: "#F3EFE8", paddingTop: "120px" }}>
         <motion.div
           className="text-center max-w-[500px]"
           initial={{ opacity: 0, y: 20 }}
@@ -395,7 +395,7 @@ export function CheckoutPage() {
   }
 
   return (
-    <main style={{ backgroundColor: "#F3EFE8", minHeight: "100svh" }}>
+    <main style={{ backgroundColor: "#F3EFE8", minHeight: "var(--app-svh)" }}>
       <section className="pt-[calc(var(--main-header-h)+20px)] pb-5 md:pt-[calc(var(--main-header-h)+32px)] md:pb-7">
         <div className="max-w-[1300px] mx-auto px-5 md:px-14">
           <motion.div

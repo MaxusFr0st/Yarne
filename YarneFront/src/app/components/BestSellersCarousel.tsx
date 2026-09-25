@@ -81,7 +81,7 @@ export function BestSellersCarousel() {
    */
   return (
     <section
-      className="relative overflow-hidden box-border pb-[clamp(28px,8vw,44px)] md:h-[calc(100svh+var(--browser-bar-b))] md:pb-[calc(var(--browser-bar-b)+clamp(8px,2vw,20px))]"
+      className="relative overflow-hidden box-border pb-[clamp(28px,8vw,44px)] md:min-h-[calc(var(--app-svh)+var(--browser-bar-b))] md:pb-[calc(var(--browser-bar-b)+clamp(8px,2vw,20px))]"
       style={{
         backgroundColor: "#EDE9E2",
         paddingTop: "calc(var(--main-header-h) + clamp(8px, 2vw, 20px))",
@@ -163,18 +163,8 @@ export function BestSellersCarousel() {
               --slide-size: calc((100% - (var(--slide-spacing) * 3)) / 4);
             }
           }
-          /* The section is exactly one screen from md up, but cards are sized from the width
-             (3:4). On wide-but-short windows (e.g. a laptop at 100% zoom) that overflows, so
-             cap each card by the height left after the header, title, card info and dots. */
-          @media (min-width: 768px) {
-            .bestsellers-carousel {
-              --slide-cap: calc(
-                max(160px, (100svh - var(--main-header-h, 57px) - 380px) * 0.75) + var(--slide-spacing)
-              );
-            }
-          }
         `}</style>
-        <div className="shrink-0 relative -mx-3 min-[600px]:-mx-4 md:-mx-6 lg:-mx-8 pt-1 sm:pt-2 md:pt-6 pb-1 min-h-[min(72vw,320px)] min-[600px]:min-h-[min(48vw,360px)] lg:min-h-[min(420px,48svh)]">
+        <div className="shrink-0 relative -mx-3 min-[600px]:-mx-4 md:-mx-6 lg:-mx-8 pt-1 sm:pt-2 md:pt-6 pb-1 min-h-[min(72vw,320px)] min-[600px]:min-h-[min(48vw,360px)] lg:min-h-[min(420px,calc(var(--app-svh)*0.48))]">
           <motion.div
             ref={(el) => {
               (emblaRef as (el: HTMLDivElement | null) => void)(el);
@@ -196,7 +186,7 @@ export function BestSellersCarousel() {
                   className="shrink-0 min-w-0 self-start carousel-slide"
                   style={{
                     paddingLeft: "var(--slide-spacing)",
-                    flex: "0 0 min(var(--slide-size), var(--slide-cap, 100%))",
+                    flex: "0 0 var(--slide-size)",
                   }}
                 >
                   {showSkeleton ? (

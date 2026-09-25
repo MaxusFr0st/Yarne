@@ -7,7 +7,6 @@ import "./app/i18n";
 import { installBrowserBarInset } from "./app/utils/browserBarInset";
 import { installStableViewport } from "./app/utils/stableViewport";
 
-// Stable viewport first: it decides webview mode, which browserBarInset defers to.
 installStableViewport();
 installBrowserBarInset();
 

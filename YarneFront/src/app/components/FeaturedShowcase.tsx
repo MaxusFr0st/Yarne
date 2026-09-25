@@ -321,7 +321,7 @@ function MagazineSpread({
 }: MagazineSpreadProps) {
   return (
     <div
-      className="grid h-[clamp(420px,min(72svh,760px),820px)] gap-4 md:gap-5"
+      className="grid h-[clamp(420px,min(calc(var(--app-svh)*0.72),760px),820px)] gap-4 md:gap-5"
       style={{
         gridTemplateColumns: "2.15fr 1fr 1fr",
         gridTemplateRows: "minmax(0, 1fr) minmax(0, 1.05fr)",
@@ -508,7 +508,7 @@ export function FeaturedShowcase() {
     <section
       className={`relative bg-[#F5F2ED] overflow-hidden box-border ${
         useSpreadLayout
-          ? "h-[calc(100svh+var(--browser-bar-b))] pb-[calc(var(--browser-bar-b)+clamp(6px,1.6vw,12px))]"
+          ? "h-[calc(var(--app-svh)+var(--browser-bar-b))] pb-[calc(var(--browser-bar-b)+clamp(6px,1.6vw,12px))]"
           : "pb-[clamp(20px,6vw,32px)]"
       }`}
       style={{ paddingTop: showcaseSectionPaddingTop }}

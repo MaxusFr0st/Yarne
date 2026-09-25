@@ -8,16 +8,22 @@
  * screen height minus svh, and only JS knows the screen height. Other browsers keep the CSS
  * fallback.
  */
-import { isInAppBrowser, isWebviewMode } from "./stableViewport";
+const IN_APP_UA =
+  /Instagram|FBAN|FBAV|FB_IAB|FBIOS|Messenger|Barcelona|Threads|TikTok|musical_ly|BytedanceWebview|Snapchat|Pinterest|LinkedInApp|\bLine\/|GSA\/|Twitter|Telegram|Viber|WhatsApp|MicroMessenger|KAKAOTALK/i;
+
+/** In-app browsers have no Safari glass bar, and every real iOS browser keeps the "Safari/" token. */
+function isInAppBrowser(): boolean {
+  const ua = navigator.userAgent;
+  return IN_APP_UA.test(ua) || !/Safari\//.test(ua);
+}
 
 export function installBrowserBarInset(): void {
   if (typeof window === "undefined") return;
   if (!/iPhone|iPod/.test(navigator.userAgent)) return;
-  if (isInAppBrowser()) return; // its webview resizes with the app's bars; stableViewport.ts owns the strip there
+  if (isInAppBrowser()) return; // its webview resizes with the app's bars and has no glass bar
   if ((navigator as Navigator & { standalone?: boolean }).standalone) return; // home-screen app: no bar
 
   const apply = () => {
-    if (isWebviewMode()) return; // detected at runtime; stableViewport.ts owns the strip from then on
     const root = document.documentElement;
     if (window.innerWidth > window.innerHeight) {
       root.style.removeProperty("--browser-bar-b"); // landscape puts the chrome at the top

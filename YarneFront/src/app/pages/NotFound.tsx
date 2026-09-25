@@ -4,7 +4,7 @@ import { motion } from "motion/react";
 export function NotFound() {
   return (
     <main
-      className="min-h-[100svh] flex flex-col items-center justify-center text-center px-6"
+      className="min-h-[var(--app-svh)] flex flex-col items-center justify-center text-center px-6"
       style={{ backgroundColor: "#F5F2ED" }}
     >
       <motion.div

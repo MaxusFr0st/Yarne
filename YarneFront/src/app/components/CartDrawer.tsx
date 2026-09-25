@@ -29,7 +29,7 @@ export function CartDrawer() {
           <motion.div
             className="fixed inset-x-0 top-0 z-50"
             style={{
-              height: "calc(100svh + var(--browser-bar-b))",
+              height: "calc(var(--app-svh) + var(--browser-bar-b))",
               backgroundColor: touchMobile ? "rgba(45,36,30,0.45)" : "rgba(45,36,30,0.3)",
               backdropFilter: touchMobile ? "none" : "blur(8px)",
             }}
@@ -45,7 +45,7 @@ export function CartDrawer() {
             <div
               aria-hidden
               className="absolute inset-x-0"
-              style={{ top: "100svh", height: "var(--browser-bar-b)", backgroundColor: "#F5F2ED" }}
+              style={{ top: "var(--app-svh)", height: "var(--browser-bar-b)", backgroundColor: "#F5F2ED" }}
             />
           </motion.div>
 
@@ -54,7 +54,7 @@ export function CartDrawer() {
           <motion.div
             className="fixed top-0 right-0 z-50 w-full max-w-[480px] flex flex-col"
             style={{
-              height: "calc(100svh + var(--browser-bar-b))",
+              height: "calc(var(--app-svh) + var(--browser-bar-b))",
               paddingBottom: "var(--browser-bar-b)",
               backgroundColor: "#F5F2ED",
               boxShadow: "-24px 0 80px rgba(45,36,30,0.12)",

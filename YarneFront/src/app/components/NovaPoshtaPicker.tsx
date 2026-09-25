@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { createPortal } from "react-dom";
-import { motion, AnimatePresence, useReducedMotion } from "motion/react";
+import { motion, AnimatePresence, useDragControls, useReducedMotion, type PanInfo } from "motion/react";
 import { ChevronRight, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useBodyScrollLock } from "../hooks/useBodyScrollLock";
@@ -75,6 +75,7 @@ export function NovaPoshtaPicker({
   const { t } = useTranslation();
   const reduceMotion = useReducedMotion();
   const compact = useCompactViewport();
+  const dragControls = useDragControls();
   const [open, setOpen] = useState(false);
   const [frameLoaded, setFrameLoaded] = useState(false);
   /** True once the sheet has finished animating in — gates the iframe mount. */
@@ -255,7 +256,18 @@ export function NovaPoshtaPicker({
           exit: { opacity: 0, scale: 0.98, y: 6, transition: { duration: 0.36, ease: EASE_IN } },
         };
 
-  // Overlay height is pinned to 100svh rather than left to `inset-0`. For a fixed element,
+  // Phones: the sheet can be swiped down to close. The drag starts only from the grab bar and
+  // header: the body is Nova Poshta's cross-origin frame, whose touches never reach this page.
+  const startSheetDrag = (e: ReactPointerEvent) => {
+    if (!compact || reduceMotion) return;
+    if ((e.target as HTMLElement).closest("button")) return; // the close button stays a tap
+    dragControls.start(e);
+  };
+  const endSheetDrag = (_: unknown, info: PanInfo) => {
+    if (info.offset.y > 110 || info.velocity.y > 600) setOpen(false);
+  };
+
+  // Overlay height is pinned to the screen height (--app-svh) rather than left to `inset-0`. For a fixed element,
   // `bottom: 0` resolves against the layout viewport, which on mobile spans the LARGE viewport
   // — the area extending behind the browser's collapsible toolbar. Combined with items-end,
   // that put the sheet's bottom edge underneath iOS Safari's URL bar, cropping it. svh is the
@@ -269,7 +281,7 @@ export function NovaPoshtaPicker({
           animate={{ opacity: 1, transition: { duration: reduceMotion ? 0 : 0.4, ease: EASE_OUT } }}
           exit={reduceMotion ? undefined : { opacity: 0, transition: { duration: 0.36, ease: EASE_IN } }}
           style={{
-            height: "100svh",
+            height: "var(--app-svh)",
             backgroundColor: "rgba(45,36,30,0.55)",
             backdropFilter: "blur(3px)",
           }}
@@ -286,21 +298,28 @@ export function NovaPoshtaPicker({
               // its branch list is the tallest thing in the flow, so every point we take off
               // the sheet comes straight out of visible addresses. Still short of the top so
               // it reads as a sheet with the page behind it.
-              height: compact ? "92svh" : "min(78svh, 700px)",
+              height: compact ? "calc(var(--app-svh) * 0.92)" : "min(calc(var(--app-svh) * 0.78), 700px)",
               boxShadow: "0 -12px 48px rgba(45,36,30,0.28)",
             }}
             {...panelMotion}
+            drag={compact && !reduceMotion ? "y" : false}
+            dragControls={dragControls}
+            dragListener={false}
+            dragConstraints={{ top: 0, bottom: 0 }}
+            dragElastic={{ top: 0, bottom: 0.9 }}
+            dragSnapToOrigin
+            onDragEnd={endSheetDrag}
             onAnimationComplete={() => setEntered(true)}
             onClick={(e) => e.stopPropagation()}
           >
-            {/* Grab affordance — the sheet reads as draggable-adjacent on phones even though
-                dismissal is via the backdrop or the close control. */}
-            <div className="sm:hidden pt-2 pb-0.5 flex justify-center shrink-0">
+            {/* Grab bar + header: the swipe-down handle on phones. */}
+            <div className="shrink-0" onPointerDown={startSheetDrag} style={{ touchAction: compact ? "none" : undefined }}>
+            <div className="sm:hidden pt-2 pb-0.5 flex justify-center">
               <span className="block rounded-full" style={{ width: 40, height: 4, backgroundColor: "rgba(45,36,30,0.18)" }} />
             </div>
 
             <header
-              className="shrink-0 flex items-center justify-between gap-3 px-4 sm:px-5 py-2 sm:py-3"
+              className="flex items-center justify-between gap-3 px-4 sm:px-5 py-2 sm:py-3"
               style={{ borderBottom: "1px solid rgba(45,36,30,0.10)" }}
             >
               <span className="flex items-center gap-2.5 min-w-0">
@@ -327,6 +346,7 @@ export function NovaPoshtaPicker({
                 <X size={17} strokeWidth={1.5} className="text-[#2D241E]" />
               </button>
             </header>
+            </div>
 
             {/* overflow-hidden pairs with the iframe's extra height below: the widget renders
                 a strip of empty space under its branch list that we cannot reach or restyle
