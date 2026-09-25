@@ -12,6 +12,8 @@ import {
 } from "../../utils/whySectionContent";
 import { AdminLanguageSelect } from "./AdminLanguageSelect";
 
+type SlotField = "images" | "backgrounds";
+
 const SLOT_LABELS = ["Photo 1", "Photo 2", "Photo 3"] as const;
 
 const DM_SANS = { fontFamily: "'DM Sans', sans-serif" } as const;
@@ -72,9 +74,9 @@ export function AdminWhySectionEditor({ initialContent, onSaved, onError }: Admi
   const [draft, setDraft] = useState<WhySectionContent>(initialContent);
   const [savedContent, setSavedContent] = useState<WhySectionContent>(initialContent);
   const [saving, setSaving] = useState(false);
-  const [uploading, setUploading] = useState<Record<number, boolean>>({});
+  const [uploading, setUploading] = useState<Record<string, boolean>>({});
   const [activeLocale, setActiveLocale] = useState<Locale>("uk");
-  const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
+  const inputRefs = useRef<Record<string, HTMLInputElement | null>>({});
 
   useEffect(() => {
     setDraft(initialContent);
@@ -114,20 +116,24 @@ export function AdminWhySectionEditor({ initialContent, onSaved, onError }: Admi
     });
   };
 
-  const handleFile = async (index: number, file: File) => {
-    setUploading((prev) => ({ ...prev, [index]: true }));
+  const setSlot = (field: SlotField, index: number, url: string) => {
+    setDraft((prev) => {
+      const next = [...prev[field]] as WhySectionContent[SlotField];
+      next[index] = url;
+      return { ...prev, [field]: next };
+    });
+  };
+
+  const handleFile = async (field: SlotField, index: number, file: File) => {
+    const key = `${field}-${index}`;
+    setUploading((prev) => ({ ...prev, [key]: true }));
     try {
-      const url = await uploadRawMediaFile(file);
-      setDraft((prev) => {
-        const images = [...prev.images] as WhySectionContent["images"];
-        images[index] = url;
-        return { ...prev, images };
-      });
+      setSlot(field, index, await uploadRawMediaFile(file));
     } catch (e) {
       onError?.(e instanceof Error ? e.message : "Upload failed");
     } finally {
-      setUploading((prev) => ({ ...prev, [index]: false }));
-      const input = inputRefs.current[index];
+      setUploading((prev) => ({ ...prev, [key]: false }));
+      const input = inputRefs.current[key];
       if (input) input.value = "";
     }
   };
@@ -159,8 +165,9 @@ export function AdminWhySectionEditor({ initialContent, onSaved, onError }: Admi
             Why Yarné Section
           </p>
           <p className="text-[#2D241E]/45 text-xs mt-1" style={DM_SANS}>
-            Scroll-through section right after the hero: three bags, then Yarné Care. Photos are shared by
-            both languages; all text is per language.
+            Scroll-through section right after the hero: three bags, then Yarné Care. Photos and backgrounds are
+            shared by both languages; all text is per language. A slot without a background reuses its
+            neighbour's.
           </p>
         </div>
         <div className="flex items-center gap-3 shrink-0">
@@ -202,7 +209,9 @@ export function AdminWhySectionEditor({ initialContent, onSaved, onError }: Admi
           {SLOT_LABELS.map((label, i) => {
             const custom = resolveMediaUrl(draft.images[i]);
             const preview = custom || WHY_DEFAULT_IMAGES[i];
-            const isUploading = Boolean(uploading[i]);
+            const isUploading = Boolean(uploading[`images-${i}`]);
+            const bg = resolveMediaUrl(draft.backgrounds[i]);
+            const bgUploading = Boolean(uploading[`backgrounds-${i}`]);
             const item = localeCopy.items[i];
             return (
               <div
@@ -234,31 +243,77 @@ export function AdminWhySectionEditor({ initialContent, onSaved, onError }: Admi
                   <ImagePlus size={13} />
                   <span className="uppercase tracking-widest">{isUploading ? "Uploading…" : "Upload"}</span>
                   <input
-                    ref={(el) => { inputRefs.current[i] = el; }}
+                    ref={(el) => { inputRefs.current[`images-${i}`] = el; }}
                     type="file"
                     accept="image/*"
                     className="hidden"
                     disabled={isUploading}
                     onChange={(e) => {
                       const file = e.target.files?.[0];
-                      if (file) void handleFile(i, file);
+                      if (file) void handleFile("images", i, file);
                     }}
                   />
                 </label>
                 {draft.images[i].trim() && (
                   <button
                     type="button"
-                    onClick={() => {
-                      setDraft((prev) => {
-                        const images = [...prev.images] as WhySectionContent["images"];
-                        images[i] = "";
-                        return { ...prev, images };
-                      });
-                    }}
+                    onClick={() => setSlot("images", i, "")}
                     className="mt-2 w-full text-xs uppercase tracking-widest text-[#4A0E0E] hover:opacity-80"
                     style={{ ...DM_SANS, letterSpacing: "0.1em" }}
                   >
                     Reset to default photo
+                  </button>
+                )}
+
+                <p
+                  className="mt-4 text-[#2D241E]/45 text-[10px] uppercase tracking-widest mb-1.5"
+                  style={{ ...DM_SANS, letterSpacing: "0.1em" }}
+                >
+                  Background
+                </p>
+                <div
+                  className="relative w-full overflow-hidden rounded-[16px] mb-3 flex items-center justify-center"
+                  style={{
+                    aspectRatio: "16 / 10",
+                    backgroundColor: "#F1ECE4",
+                    backgroundImage: bg ? `url("${bg}")` : undefined,
+                    backgroundSize: "cover",
+                    backgroundPosition: "center",
+                    border: "1px solid rgba(45,36,30,0.08)",
+                  }}
+                >
+                  {!bg && (
+                    <span className="text-[#2D241E]/40 text-[11px]" style={DM_SANS}>
+                      No background
+                    </span>
+                  )}
+                </div>
+                <label
+                  className={`flex items-center justify-center gap-2 rounded-full px-4 py-2 transition-all duration-300 hover:opacity-85 ${bgUploading ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}`}
+                  style={{ backgroundColor: "#2D241E", color: "#F5F2ED", ...DM_SANS, fontSize: "0.7rem", letterSpacing: "0.12em" }}
+                >
+                  <ImagePlus size={13} />
+                  <span className="uppercase tracking-widest">{bgUploading ? "Uploading…" : "Upload background"}</span>
+                  <input
+                    ref={(el) => { inputRefs.current[`backgrounds-${i}`] = el; }}
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    disabled={bgUploading}
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) void handleFile("backgrounds", i, file);
+                    }}
+                  />
+                </label>
+                {draft.backgrounds[i].trim() && (
+                  <button
+                    type="button"
+                    onClick={() => setSlot("backgrounds", i, "")}
+                    className="mt-2 w-full text-xs uppercase tracking-widest text-[#4A0E0E] hover:opacity-80"
+                    style={{ ...DM_SANS, letterSpacing: "0.1em" }}
+                  >
+                    Remove background
                   </button>
                 )}
 

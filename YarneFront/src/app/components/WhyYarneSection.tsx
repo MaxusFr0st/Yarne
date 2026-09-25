@@ -46,6 +46,12 @@ const INK = "#1E1B18";
 const BROWN = "#6B5445";
 const WORD_TINT = "#7A6A58";
 
+const sceneMaskPhone =
+  "linear-gradient(to bottom, rgba(0,0,0,0) 0%, rgba(0,0,0,1) 22%, rgba(0,0,0,1) 78%, rgba(0,0,0,0) 100%)";
+const sceneMaskDesktop =
+  "linear-gradient(to right, rgba(0,0,0,0) 0%, rgba(0,0,0,0.55) 18%, rgba(0,0,0,1) 38%), " +
+  "linear-gradient(to bottom, rgba(0,0,0,0) 0%, rgba(0,0,0,1) 16%, rgba(0,0,0,1) 86%, rgba(0,0,0,0) 100%)";
+
 const prettyWrap = { textWrap: "pretty" } as CSSProperties;
 
 /** `pct` percent of the layout height. Not svh/vh: in-app browsers resize those as their bars slide. */
@@ -76,16 +82,22 @@ function orbit(d: number, stageH: number, tight: boolean) {
   // reads as one image dissolving rather than two half-transparent ones.
   const away = Math.max(0, dist - ORBIT_HOLD);
   const blur = Math.min(away, 1.6) * 1.1;
+  // Desktop: a bag already scrolled past (d < 0) fades out fully by 0.6 of a step, so it's
+  // gone before the next bag settles.
+  const gone = Math.min(1, dist / 0.6);
   const opacity = tight
     ? Math.max(0, 1 - away / (1 - 2 * ORBIT_HOLD))
-    : Math.max(0, 1 - Math.min(dist, 1.6) * 0.55);
+    : d < 0
+      ? 1 - gone * gone * (3 - 2 * gone)
+      : Math.max(0, 1 - Math.min(dist, 1.6) * 0.55);
   return {
     x: -R * (1 - Math.cos(ang)),
     y: R * Math.sin(ang),
     scale: 1 - Math.min(tight ? away : dist, 2) * 0.17,
     opacity,
     filter: blur > 0.2 ? `blur(${blur.toFixed(2)}px)` : "none",
-    zIndex: Math.round(100 - dist * 10),
+    // Desktop: the outgoing bag always sits under the incoming one.
+    zIndex: Math.round(100 - dist * 10) - (!tight && d < 0 ? 50 : 0),
   };
 }
 
@@ -437,13 +449,29 @@ export function WhyYarneSection() {
   const wordPx = Math.max(isNarrow ? 30 : 44, Math.min(ceiling, byWidth, byHeight));
   const wordLift = isNarrow ? (wordPx * (stretch - 1)) / 2 : 0;
 
+  // One painted scene per bag; the Care step keeps the last one. A slot without its own upload
+  // borrows its nearest neighbour's so the ground stays covered.
+  const bgUrls = content.backgrounds.map((b) => resolveMediaUrl(b));
+  const bgOn = bgUrls.some(Boolean);
+  const scenes = bgUrls.map((own, i) => {
+    const src = own || bgUrls.slice(0, i).reverse().find(Boolean) || bgUrls.find(Boolean) || "";
+    // Stacked dissolve: each scene fades in over the one below it, so the ground is always
+    // fully covered — never a see-through double exposure.
+    const inT = i === 0 ? 1 : clamp((p - i + 0.7) / 0.4, 0, 1);
+    const push = clamp(i + 1 - p, 0, 2) / 2;
+    return { src, opacity: inT, scale: 1 + 0.07 * push };
+  });
+  const shade = bgOn ? "drop-shadow(0 14px 16px rgba(40,28,18,0.3))" : "";
+
   const bags = copy.items.map((item, i) => {
     // The last bag stays put while the Care step takes over.
     const d = i === lastBag ? Math.max(i - p, 0) : i - p;
+    const o = orbit(d, view.stageH, isNarrow);
     return {
       src: resolveMediaUrl(content.images[i]) || WHY_DEFAULT_IMAGES[i],
       alt: item.caption,
-      ...orbit(d, view.stageH, isNarrow),
+      ...o,
+      filter: o.filter === "none" ? shade || "none" : `${o.filter} ${shade}`,
     };
   });
 
@@ -529,6 +557,46 @@ export function WhyYarneSection() {
           boxSizing: "border-box",
         }}
       >
+        {bgOn && (
+          <div
+            aria-hidden="true"
+            style={{
+              position: "absolute",
+              // Desktop: the painting fills the right side behind the orbiting bag and feathers
+              // left into the cream under the copy, and top/bottom into the neighbouring sections.
+              left: isNarrow ? 0 : "clamp(320px,42vw,860px)",
+              right: 0,
+              top: isNarrow ? Math.max(0, view.slotTop - 14) : 0,
+              bottom: isNarrow ? Math.max(0, view.slotBottom - 14) : 0,
+              overflow: "hidden",
+              WebkitMaskImage: isNarrow ? sceneMaskPhone : sceneMaskDesktop,
+              maskImage: isNarrow ? sceneMaskPhone : sceneMaskDesktop,
+              WebkitMaskComposite: isNarrow ? "source-over" : "source-in",
+              maskComposite: isNarrow ? "add" : "intersect",
+              zIndex: 0,
+              pointerEvents: "none",
+            }}
+          >
+            {scenes.map((sc, i) => (
+              <div
+                key={i}
+                style={{
+                  position: "absolute",
+                  inset: "-4%",
+                  backgroundImage: `url("${sc.src}")`,
+                  backgroundSize: "cover",
+                  backgroundPosition: "center",
+                  opacity: sc.opacity,
+                  transform: `scale(${sc.scale.toFixed(4)})`,
+                  filter: "saturate(0.88)",
+                  willChange: "opacity, transform",
+                }}
+              />
+            ))}
+            <div style={{ position: "absolute", inset: 0, background: "rgba(241,236,228,0.14)" }} />
+          </div>
+        )}
+
         <div
           ref={stageRef}
           style={{

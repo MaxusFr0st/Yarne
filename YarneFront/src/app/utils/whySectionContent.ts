@@ -40,6 +40,8 @@ export type WhySectionLocale = {
 export type WhySectionContent = {
   /** Custom bag photo uploads; empty string keeps the built-in default photo for that slot. */
   images: [string, string, string];
+  /** Painted scene behind each bag; empty string means no scene for that slot. */
+  backgrounds: [string, string, string];
   en: WhySectionLocale;
   uk: WhySectionLocale;
 };
@@ -66,6 +68,7 @@ function pickLocale(home: typeof en.home): WhySectionLocale {
 
 export const DEFAULT_WHY_SECTION_CONTENT: WhySectionContent = {
   images: ["", "", ""],
+  backgrounds: ["", "", ""],
   en: pickLocale(en.home),
   uk: pickLocale(uk.home),
 };
@@ -128,11 +131,17 @@ function normalizeLocale(value: unknown, fallback: WhySectionLocale): WhySection
 export function normalizeWhySectionContent(value: unknown): WhySectionContent {
   const source = asRecord(value);
   const images = Array.isArray(source.images) ? source.images : [];
+  const backgrounds = Array.isArray(source.backgrounds) ? source.backgrounds : [];
   return {
     images: [
       normalizeString(images[0], ""),
       normalizeString(images[1], ""),
       normalizeString(images[2], ""),
+    ],
+    backgrounds: [
+      normalizeString(backgrounds[0], ""),
+      normalizeString(backgrounds[1], ""),
+      normalizeString(backgrounds[2], ""),
     ],
     en: normalizeLocale(source.en, DEFAULT_WHY_SECTION_CONTENT.en),
     uk: normalizeLocale(source.uk, DEFAULT_WHY_SECTION_CONTENT.uk),
