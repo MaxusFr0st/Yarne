@@ -1,20 +1,12 @@
 import React, { useRef } from "react";
 import { motion, useReducedMotion, useScroll, useTransform } from "motion/react";
 import { ArrowRight, ChevronDown } from "lucide-react";
-import { useHomePageCopy } from "../hooks/useHomePageCopy";
 import { BestSellersCarousel } from "../components/BestSellersCarousel";
 import { FeaturedShowcase } from "../components/FeaturedShowcase";
 import { ImageWithFallback as Img } from "../components/figma/ImageWithFallback";
 import { LangLink } from "../i18n/LangLink";
-import { HOME_PAGE_MEDIA_KEY } from "../utils/homePageMediaSelection";
-import { peekStorefrontSetting } from "../api/storefrontSettings";
-import { getHomePageCopyForLocale, HOME_PAGE_COPY_KEY } from "../utils/homePageCopy";
-import { WHY_SECTION_KEY, loadWhySectionContent } from "../utils/whySectionContent";
-import { FEATURED_SHOWCASE_SELECTION_KEY, loadFeaturedShowcaseSelection } from "../utils/featuredShowcaseSelection";
-import { CAROUSEL_PRODUCT_CODES_KEY, loadCarouselSelection } from "../utils/carouselSelection";
-import { hasPersistedProducts, loadProductsList, productsQueryKey } from "../utils/productsCache";
-import { fetchProducts } from "../api/products";
-import { firstVisitRevealStyle, useFirstVisitReady } from "../hooks/useFirstVisitReady";
+import { getHomePageCopyForLocale } from "../utils/homePageCopy";
+import { firstVisitRevealStyle } from "../hooks/useFirstVisitReady";
 import { useTouchMobileLayout } from "../hooks/useTouchMobileLayout";
 import { useHomeHero } from "../hooks/useHomeHero";
 import { useLocale } from "../i18n/useLocale";
@@ -23,35 +15,12 @@ import { WhyYarneSection } from "../components/WhyYarneSection";
 
 const ease = [0.22, 1, 0.36, 1] as const;
 
-const HOME_SETTING_KEYS = [
-  HOME_PAGE_COPY_KEY,
-  HOME_PAGE_MEDIA_KEY,
-  WHY_SECTION_KEY,
-  FEATURED_SHOWCASE_SELECTION_KEY,
-  CAROUSEL_PRODUCT_CODES_KEY,
-];
 /**
- * Every section below the hero starts from the last server answer this browser saw, so a
- * returning visitor gets the real text and photos on the first paint. A first visit waits for
- * the settings and the product list, then fades in (see useFirstVisitReady). The hero has its
- * own, stricter rule: useHomeHero.
+ * The page appears as soon as the hero is ready (useHomeHero). Each section below loads behind it
+ * on its own, stays hidden on a first visit until its content is in, and never changes once the
+ * visitor has seen it (useFirstVisitReady, useSeenLock).
  */
-function useSectionsReady(): boolean {
-  return useFirstVisitReady(
-    () => hasPersistedProducts() && HOME_SETTING_KEYS.every((key) => peekStorefrontSetting(key) !== undefined),
-    () =>
-      Promise.allSettled([
-        loadWhySectionContent(),
-        loadFeaturedShowcaseSelection(),
-        loadCarouselSelection(),
-        // Product names and photos in the carousel and the bento come from here.
-        loadProductsList(productsQueryKey(), () => fetchProducts()),
-      ])
-  );
-}
-
 export function Home() {
-  const copy = useHomePageCopy();
   const editorialRef = useRef<HTMLDivElement>(null);
   const touch = useTouchMobileLayout();
   const reducedMotion = useReducedMotion();
@@ -66,13 +35,14 @@ export function Home() {
 
   const locale = useLocale();
   const { hero, ready: heroReady } = useHomeHero();
-  const heroCopy = getHomePageCopyForLocale(hero.copy, locale).hero;
+  // The editorial block shares the hero's copy: the same answer, kept for the whole visit.
+  const copy = getHomePageCopyForLocale(hero.copy, locale);
+  const heroCopy = copy.hero;
   const homePageMedia = hero.media;
 
   const heroImageSrc = homePageMedia.heroImageUrl.trim();
   const editorialImageSrc = homePageMedia.editorialImageUrl.trim();
-  const sectionsReady = useSectionsReady();
-  const contentReady = heroReady && sectionsReady;
+  const contentReady = heroReady;
 
   return (
     <main

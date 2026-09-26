@@ -1,5 +1,5 @@
-import React, { useEffect, useMemo, useState } from "react";
-import { motion } from "motion/react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import { motion, useReducedMotion } from "motion/react";
 import { ArrowRight, ArrowUpRight } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import type { Product } from "../types/product";
@@ -9,8 +9,15 @@ import { LangLink } from "../i18n/LangLink";
 import { useLocale } from "../i18n/useLocale";
 import { PriceTag } from "./PriceTag";
 import { resolveMediaUrl } from "../utils/storefrontMedia";
-import { useHomePageCopy } from "../hooks/useHomePageCopy";
+import { useHomePageCopyAll } from "../hooks/useHomePageCopy";
+import { fetchProducts } from "../api/products";
+import { peekStorefrontSetting } from "../api/storefrontSettings";
+import { firstVisitRevealStyle, useFirstVisitReady } from "../hooks/useFirstVisitReady";
+import { useSeenLock } from "../hooks/useSeenLock";
+import { getHomePageCopyForLocale, HOME_PAGE_COPY_KEY, loadHomePageCopy } from "../utils/homePageCopy";
+import { hasPersistedProducts, loadProductsList, productsQueryKey } from "../utils/productsCache";
 import {
+  FEATURED_SHOWCASE_SELECTION_KEY,
   getFeaturedShowcaseSelection,
   loadFeaturedShowcaseSelection,
   type FeaturedShowcaseSelection,
@@ -393,13 +400,16 @@ function MagazineSpread({
 
 export function FeaturedShowcase() {
   const { t } = useTranslation();
-  const copy = useHomePageCopy();
-  const { products } = useProducts();
+  const locale = useLocale();
+  const reduceMotion = useReducedMotion();
+  const liveCopy = useHomePageCopyAll();
+  const { products: liveProducts } = useProducts();
+  const sectionRef = useRef<HTMLElement>(null);
   const touchLayout = useTouchMobileLayout();
   const useSpreadLayout = useShowcaseSpreadLayout();
   const useBentoLayout = !useSpreadLayout;
   const { disabled: motionDisabled } = useMotionEntrance();
-  const [selection, setSelection] = useState<FeaturedShowcaseSelection>(
+  const [liveSelection, setSelection] = useState<FeaturedShowcaseSelection>(
     getFeaturedShowcaseSelection
   );
 
@@ -416,6 +426,22 @@ export function FeaturedShowcase() {
       cancelled = true;
     };
   }, []);
+
+  // Hidden on a first visit until its content is in, then kept once seen (useSeenLock).
+  const ready = useFirstVisitReady(
+    () =>
+      hasPersistedProducts() &&
+      [FEATURED_SHOWCASE_SELECTION_KEY, HOME_PAGE_COPY_KEY].every((key) => peekStorefrontSetting(key) !== undefined),
+    () =>
+      Promise.allSettled([
+        loadFeaturedShowcaseSelection(),
+        loadHomePageCopy(),
+        loadProductsList(productsQueryKey(), () => fetchProducts()),
+      ]),
+  );
+  const shown = useSeenLock({ copy: liveCopy, products: liveProducts, selection: liveSelection }, ready, sectionRef);
+  const { products, selection } = shown;
+  const copy = getHomePageCopyForLocale(shown.copy, locale);
 
   useEffect(() => {
     const slots = [selection.slot1, selection.slot2, selection.slot4];
@@ -511,12 +537,14 @@ export function FeaturedShowcase() {
 
   return (
     <section
+      ref={sectionRef}
+      aria-busy={!ready}
       className={`relative bg-[#F5F2ED] overflow-hidden box-border ${
         useSpreadLayout
           ? "min-h-[calc(var(--app-svh)+var(--browser-bar-b))] pb-[calc(var(--browser-bar-b)+clamp(6px,1.6vw,12px))]"
           : "pb-[clamp(20px,6vw,32px)]"
       }`}
-      style={{ paddingTop: showcaseSectionPaddingTop }}
+      style={{ ...firstVisitRevealStyle(ready, Boolean(reduceMotion)), paddingTop: showcaseSectionPaddingTop }}
     >
       <div
         className={`max-w-[1400px] mx-auto px-[clamp(12px,3.5vw,40px)] h-full flex flex-col ${

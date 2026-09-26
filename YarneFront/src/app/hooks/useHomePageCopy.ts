@@ -1,15 +1,12 @@
 import { useEffect, useState } from "react";
-import { useLocale } from "../i18n/useLocale";
 import {
-  getHomePageCopyForLocale,
   getInitialHomePageCopy,
   loadHomePageCopy,
   type HomePageCopy,
-  type HomePageCopyLocale,
 } from "../utils/homePageCopy";
 
-export function useHomePageCopy(): HomePageCopyLocale {
-  const locale = useLocale();
+/** Both languages, for a section that keeps what the visitor saw (useSeenLock) yet must still switch language. */
+export function useHomePageCopyAll(): HomePageCopy {
   const [copy, setCopy] = useState<HomePageCopy>(getInitialHomePageCopy);
 
   useEffect(() => {
@@ -22,5 +19,5 @@ export function useHomePageCopy(): HomePageCopyLocale {
     };
   }, []);
 
-  return getHomePageCopyForLocale(copy, locale);
+  return copy;
 }

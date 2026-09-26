@@ -7,9 +7,13 @@ import { useLocale } from "../i18n/useLocale";
 import { resolveMediaUrl } from "../utils/storefrontMedia";
 import { WHY_DEFAULT_IMAGES } from "../utils/whyDefaultImages";
 import { getStableViewportHeight, onStableViewportChange } from "../utils/stableViewport";
+import { peekStorefrontSetting } from "../api/storefrontSettings";
+import { firstVisitRevealStyle, useFirstVisitReady } from "../hooks/useFirstVisitReady";
+import { useSeenLock } from "../hooks/useSeenLock";
 import {
   getInitialWhySectionContent,
   loadWhySectionContent,
+  WHY_SECTION_KEY,
   type WhySectionContent,
 } from "../utils/whySectionContent";
 
@@ -139,7 +143,7 @@ export function WhyYarneSection() {
   const locale = useLocale();
   const { t } = useTranslation();
   const reducedMotion = useReducedMotion() ?? false;
-  const [content, setContent] = useState<WhySectionContent>(getInitialWhySectionContent);
+  const [loaded, setLoaded] = useState<WhySectionContent>(getInitialWhySectionContent);
   const [view, setView] = useState<View>(readInitialView);
   const [progress, setProgress] = useState(0);
 
@@ -169,12 +173,16 @@ export function WhyYarneSection() {
   useEffect(() => {
     let cancelled = false;
     void loadWhySectionContent().then((next) => {
-      if (!cancelled) setContent(next);
+      if (!cancelled) setLoaded(next);
     });
     return () => {
       cancelled = true;
     };
   }, []);
+
+  // Hidden on a first visit until the admin's content is in, then kept once seen (useSeenLock).
+  const ready = useFirstVisitReady(() => peekStorefrontSetting(WHY_SECTION_KEY) !== undefined, loadWhySectionContent);
+  const content = useSeenLock(loaded, ready, sectionRef);
 
   // ---- viewport ----
   useEffect(() => {
@@ -535,7 +543,9 @@ export function WhyYarneSection() {
   return (
     <section
       ref={sectionRef}
+      aria-busy={!ready}
       style={{
+        ...firstVisitRevealStyle(ready, reducedMotion),
         position: "relative",
         background: "#F1ECE4",
         color: INK,

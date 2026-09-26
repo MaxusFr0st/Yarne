@@ -1,4 +1,4 @@
-import { fetchStorefrontSetting, saveStorefrontSetting } from "../api/storefrontSettings";
+import { fetchStorefrontSetting, peekCurrentStorefrontSetting, saveStorefrontSetting } from "../api/storefrontSettings";
 import type { Locale } from "../i18n/config";
 import en from "../i18n/locales/en";
 import uk from "../i18n/locales/uk";
@@ -145,9 +145,10 @@ function readLocalHomePageCopy(): HomePageCopy {
   }
 }
 
-/** Synchronous localStorage peek for first paint (avoids CMS hardcoded-default flash). */
+/** First paint: the server's current answer if src/early.ts already has it, else the last one saved. */
 export function getInitialHomePageCopy(): HomePageCopy {
-  return readLocalHomePageCopy();
+  const current = peekCurrentStorefrontSetting<HomePageCopy>(HOME_PAGE_COPY_KEY);
+  return current ? normalizeHomePageCopy(current.value ?? {}) : readLocalHomePageCopy();
 }
 
 function writeLocalHomePageCopy(copy: HomePageCopy) {

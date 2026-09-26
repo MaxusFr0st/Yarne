@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { useEmblaCarouselWithGestures } from "../hooks/useEmblaCarouselWithGestures";
 import { motion, useReducedMotion } from "motion/react";
-import { useHomePageCopy } from "../hooks/useHomePageCopy";
+import { useHomePageCopyAll } from "../hooks/useHomePageCopy";
 import { useProducts } from "../hooks/useProducts";
 import { ProductCard } from "./ProductCard";
 import { CAROUSEL_PRODUCT_CODES_KEY, getCarouselSelection, loadCarouselSelection } from "../utils/carouselSelection";
@@ -9,11 +9,19 @@ import { peekStorefrontSetting } from "../api/storefrontSettings";
 import { useMotionEntrance } from "../hooks/useMotionEntrance";
 import { useTouchMobileLayout } from "../hooks/useTouchMobileLayout";
 import { Skeleton } from "./ui/skeleton";
+import { fetchProducts } from "../api/products";
+import { firstVisitRevealStyle, useFirstVisitReady } from "../hooks/useFirstVisitReady";
+import { useSeenLock } from "../hooks/useSeenLock";
+import { useLocale } from "../i18n/useLocale";
+import { getHomePageCopyForLocale, HOME_PAGE_COPY_KEY, loadHomePageCopy } from "../utils/homePageCopy";
+import { hasPersistedProducts, loadProductsList, productsQueryKey } from "../utils/productsCache";
 
 const easing = [0.25, 0.1, 0.25, 1] as const;
 
 export function BestSellersCarousel() {
-  const copy = useHomePageCopy();
+  const locale = useLocale();
+  const liveCopy = useHomePageCopyAll();
+  const sectionRef = useRef<HTMLElement>(null);
   const { disabled: motionDisabled } = useMotionEntrance();
   const touchMobile = useTouchMobileLayout();
   const reduceMotion = useReducedMotion();
@@ -66,8 +74,28 @@ export function BestSellersCarousel() {
       ? products.filter((p) => p.isBestseller).slice(0, 8)
       : products.slice(0, 8);
   const carouselProducts = selectedProducts.length > 0 ? selectedProducts : fallbackProducts;
-  const showSkeleton = !selectionKnown || carouselProducts.length === 0;
-  const slides = showSkeleton ? Array.from({ length: 4 }, (_, i) => ({ id: `sk-${i}` })) : carouselProducts;
+  const liveShowSkeleton = !selectionKnown || carouselProducts.length === 0;
+
+  // Hidden on a first visit until its content is in, then kept once seen (useSeenLock).
+  const ready = useFirstVisitReady(
+    () =>
+      hasPersistedProducts() &&
+      [CAROUSEL_PRODUCT_CODES_KEY, HOME_PAGE_COPY_KEY].every((key) => peekStorefrontSetting(key) !== undefined),
+    () =>
+      Promise.allSettled([
+        loadCarouselSelection(),
+        loadHomePageCopy(),
+        loadProductsList(productsQueryKey(), () => fetchProducts()),
+      ]),
+  );
+  const shown = useSeenLock(
+    { copy: liveCopy, products: carouselProducts, showSkeleton: liveShowSkeleton },
+    ready,
+    sectionRef,
+  );
+  const copy = getHomePageCopyForLocale(shown.copy, locale);
+  const showSkeleton = shown.showSkeleton;
+  const slides = showSkeleton ? Array.from({ length: 4 }, (_, i) => ({ id: `sk-${i}` })) : shown.products;
 
   useEffect(() => {
     let cancelled = false;
@@ -89,8 +117,11 @@ export function BestSellersCarousel() {
    */
   return (
     <section
+      ref={sectionRef}
+      aria-busy={!ready}
       className="relative overflow-hidden box-border pb-[clamp(28px,8vw,44px)] md:min-h-[calc(var(--app-svh)+var(--browser-bar-b))] md:pb-[calc(var(--browser-bar-b)+clamp(8px,2vw,20px))]"
       style={{
+        ...firstVisitRevealStyle(ready, Boolean(reduceMotion)),
         backgroundColor: "#EDE9E2",
         paddingTop: "calc(var(--main-header-h) + clamp(8px, 2vw, 20px))",
       }}
