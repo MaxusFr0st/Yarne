@@ -77,25 +77,25 @@ With **"save data"** turned on, only step 1 runs.
 1. **Hero:** its heading and photo (see change 3). The page appears as soon as they are ready. Nothing else is waited for.
 2. **The rest of the home page:** the content of the Why section, Бестселери, the showcase and editorial, plus their photos, downloaded in the background while the visitor looks at the hero. Today these photos only start when the visitor scrolls near them; after this change they are already there.
 3. **One tap away:** as each section comes on screen, the products it links to (Бестселери cards, bento tiles, Why bags) get their product pages and colours prepared.
-4. **The collection page:** its code and the default photo of every product. Opening the collection page is then instant.
+4. **The collection page:** the default photo of every product. Opening the collection page is then instant.
 5. **Desktop only:** everything else.
 
 ### Workflow B: the visitor opens the collection page first
 
-1. **The product list and the collection page code** download together (see change 3). A return visitor already has the product list saved from the last visit.
+1. **The product list and the site's code** download together (see change 3). A return visitor already has the product list saved from the last visit.
 2. **On screen:** the default photos of the visible cards. Urgent.
 3. **One tap away:** the product pages and other colours of the visible cards.
 4. **One scroll away:** the next cards' default photos, then their product pages and colours. This keeps moving as the visitor scrolls, so the card they tap, first or last, is always prepared.
-5. **The rest:** the default photo of every product, then the home page's code and hero, so going to home is instant too.
+5. **The rest:** the default photo of every product, then the home page's hero and section photos, so going to home is instant too.
 6. **Desktop only:** everything else.
 
 ### Workflow C: the visitor opens a product page first (for example, a link shared on Instagram)
 
-1. **The product list and the product page code** download together (see change 3).
+1. **The product and the site's code** download together (see change 3).
 2. **The main photo** of the product. Urgent.
 3. **The rest of this product:** every photo of it, nearest first (see "On any product page").
 4. **One tap away:** the related products shown on the page get their product pages prepared.
-5. **The rest:** the default photo of every product and the collection page's code, so going "to the collection" is instant.
+5. **The rest:** the default photo of every product, so going "to the collection" is instant.
 6. **Desktop only:** everything else.
 
 ---
@@ -104,9 +104,13 @@ With **"save data"** turned on, only step 1 runs.
 
 **Today:** the whole site is one JavaScript file: 1.26 MB, 347 KB compressed. Every visitor downloads all of it, including the admin panel (over 6,000 lines), checkout and account. Nothing appears until this file has downloaded and started, which takes roughly 1–2 seconds on a mid-range phone on mobile data.
 
-**Change:** split the code by page. Visitors download only what the page they opened needs. The admin, checkout and account code loads only when someone opens those pages. The home, collection and product page code is downloaded in the background by the queue above, so moving between them never waits for code.
+**Change:** split the code by page. The admin panel, checkout, account, Our History, the info pages and the 404 page are each their own file, loaded only when opened; while one loads, the page the visitor is on stays on screen.
 
-**Expected result:** the first download shrinks by roughly half. This is an estimate, not a measurement; measure the file sizes before and after the split.
+Home, collection and product page stay in the main file. They are where visitors land and move between, and splitting them too saved only about 3% for a home visitor while adding a second wait on a direct visit (main file, then page file).
+
+After a deploy, a tab still running the old version would ask for page files that no longer exist; it opens that page as a full load instead, which picks up the new version.
+
+**Result (measured):** the main file went from 1,265 KB (349 KB compressed) to 746 KB (237 KB compressed); the admin panel alone was 456 KB.
 
 ---
 

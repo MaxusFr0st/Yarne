@@ -9,12 +9,6 @@ import { Root } from "./pages/Root";
 import { Home } from "./pages/Home";
 import { Collection } from "./pages/Collection";
 import { ProductDetail } from "./pages/ProductDetail";
-import { AccountPage } from "./pages/AccountPage";
-import { AdminPage } from "./pages/AdminPage";
-import { CheckoutPage } from "./pages/CheckoutPage";
-import { StaticContentPage } from "./pages/StaticContentPage";
-import { OurHistoryPage } from "./pages/OurHistoryPage";
-import { NotFound } from "./pages/NotFound";
 import { AdminGuard } from "./components/AdminGuard";
 import {
   DEFAULT_LOCALE,
@@ -65,6 +59,15 @@ function langLoader(args: LoaderFunctionArgs) {
   return localeRedirectLoader(args);
 }
 
+// Home, collection and product pages ship in the main file: they are where visitors land and
+// move between, and splitting them saved only ~3% for a second round trip on a direct visit.
+// Every other page is its own file, loaded when opened (the admin panel alone was a third of the
+// main file). While one loads, the page the visitor is on stays on screen.
+async function staticPage(pageKey: "delivery" | "care" | "terms") {
+  const { StaticContentPage } = await import("./pages/StaticContentPage");
+  return { element: <StaticContentPage pageKey={pageKey} /> };
+}
+
 export const router = createBrowserRouter([
   {
     path: "/",
@@ -79,26 +82,31 @@ export const router = createBrowserRouter([
           { index: true, Component: Home },
           { path: "collection", Component: Collection },
           { path: "product/:id", Component: ProductDetail },
-          { path: "checkout", Component: CheckoutPage },
-          { path: "account", Component: AccountPage },
-          { path: "pages/our-history", Component: OurHistoryPage },
-          { path: "pages/delivery", element: <StaticContentPage pageKey="delivery" /> },
-          { path: "pages/care", element: <StaticContentPage pageKey="care" /> },
-          { path: "pages/terms", element: <StaticContentPage pageKey="terms" /> },
+          { path: "checkout", lazy: async () => ({ Component: (await import("./pages/CheckoutPage")).CheckoutPage }) },
+          { path: "account", lazy: async () => ({ Component: (await import("./pages/AccountPage")).AccountPage }) },
+          { path: "pages/our-history", lazy: async () => ({ Component: (await import("./pages/OurHistoryPage")).OurHistoryPage }) },
+          { path: "pages/delivery", lazy: () => staticPage("delivery") },
+          { path: "pages/care", lazy: () => staticPage("care") },
+          { path: "pages/terms", lazy: () => staticPage("terms") },
           // /en/admin → canonical /admin (admin has no locale prefix).
           { path: "admin", loader: () => redirect("/admin") },
           // Unknown path under a valid locale → 404 (don't redirect-loop).
-          { path: "*", Component: NotFound },
+          { path: "*", lazy: async () => ({ Component: (await import("./pages/NotFound")).NotFound }) },
         ],
       },
       // Admin stays unprefixed (English-only operator UI).
       {
         path: "admin",
-        element: (
-          <AdminGuard>
-            <AdminPage />
-          </AdminGuard>
-        ),
+        lazy: async () => {
+          const { AdminPage } = await import("./pages/AdminPage");
+          return {
+            element: (
+              <AdminGuard>
+                <AdminPage />
+              </AdminGuard>
+            ),
+          };
+        },
       },
       // Bare root → redirect into preferred locale (loader runs synchronously).
       { index: true, loader: localeRedirectLoader, element: null },
@@ -107,3 +115,21 @@ export const router = createBrowserRouter([
     ],
   },
 ]);
+
+const RELOADED_FOR_DEPLOY_KEY = "yarne.reloadedForDeploy";
+
+// After a deploy, a tab still running the old version asks for page files that no longer exist.
+// Open the page the visitor was going to as a full load instead, which picks up the new version.
+// Once only: if that just happened and a file still fails, let the error show.
+window.addEventListener("vite:preloadError", (event) => {
+  try {
+    const last = Number(window.sessionStorage.getItem(RELOADED_FOR_DEPLOY_KEY) ?? 0);
+    if (Date.now() - last < 10_000) return;
+    window.sessionStorage.setItem(RELOADED_FOR_DEPLOY_KEY, String(Date.now()));
+  } catch {
+    return;
+  }
+  event.preventDefault();
+  const next = router.state.navigation.location;
+  window.location.assign(next ? next.pathname + next.search + next.hash : window.location.href);
+});
