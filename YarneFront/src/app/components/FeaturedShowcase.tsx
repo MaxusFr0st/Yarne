@@ -14,6 +14,8 @@ import { fetchProducts } from "../api/products";
 import { peekStorefrontSetting } from "../api/storefrontSettings";
 import { firstVisitRevealStyle, useFirstVisitReady } from "../hooks/useFirstVisitReady";
 import { useSeenLock } from "../hooks/useSeenLock";
+import { usePrepareProducts } from "../hooks/usePrepareProducts";
+import { Priority, queuePhotos } from "../utils/photoQueue";
 import { getHomePageCopyForLocale, HOME_PAGE_COPY_KEY, loadHomePageCopy } from "../utils/homePageCopy";
 import { hasPersistedProducts, loadProductsList, productsQueryKey } from "../utils/productsCache";
 import {
@@ -443,15 +445,6 @@ export function FeaturedShowcase() {
   const { products, selection } = shown;
   const copy = getHomePageCopyForLocale(shown.copy, locale);
 
-  useEffect(() => {
-    const slots = [selection.slot1, selection.slot2, selection.slot4];
-    for (const slot of slots) {
-      const url = resolveMediaUrl(slot.imageUrl);
-      if (!url) continue;
-      const img = new Image();
-      img.src = url;
-    }
-  }, [selection.slot1.imageUrl, selection.slot2.imageUrl, selection.slot4.imageUrl]);
 
   const productByCode = useMemo(() => {
     const map = new Map<string, Product>();
@@ -469,15 +462,20 @@ export function FeaturedShowcase() {
     ? productByCode.get(selection.slot4.productCode) ?? null
     : null;
 
+  // Its photos download behind the hero, and the tiles' products get ready to open.
+  const tilePhotos = [
+    selection.slot1.imageUrl,
+    selection.slot2.imageUrl,
+    selection.slot4.imageUrl,
+    // What a tile shows when it has no photo of its own (see the tile above).
+    ...[slot1Product, slot2Product, slot4Product].map((p) => p?.colors?.[0]?.image?.src ?? ""),
+  ]
+    .filter(Boolean)
+    .join(" ");
   useEffect(() => {
-    for (const p of [slot1Product, slot2Product, slot4Product]) {
-      if (!p) continue;
-      const url = resolveMediaUrl(p.colors?.[0]?.image?.src);
-      if (!url) continue;
-      const img = new Image();
-      img.src = url;
-    }
-  }, [slot1Product, slot2Product, slot4Product]);
+    if (ready && tilePhotos) queuePhotos(tilePhotos.split(" "), Priority.oneTap);
+  }, [ready, tilePhotos]);
+  usePrepareProducts(sectionRef, [slot1Product, slot2Product, slot4Product]);
 
   const eyebrow = copy.showcase.eyebrow;
   const title = copy.showcase.title;

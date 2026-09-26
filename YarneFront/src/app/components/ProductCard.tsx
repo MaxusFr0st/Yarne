@@ -1,4 +1,4 @@
-import React, { memo, useEffect, useState, type MouseEvent } from "react";
+import React, { memo, useEffect, useRef, useState, type MouseEvent } from "react";
 import { motion } from "motion/react";
 import { ShoppingBag } from "lucide-react";
 import { useTranslation } from "react-i18next";
@@ -13,7 +13,7 @@ import { useTouchMobileLayout } from "../hooks/useTouchMobileLayout";
 import { getDefaultColorIndex } from "../utils/productColorIndex";
 import { localizedCatalogName } from "../utils/localizedName";
 import { resolveDisplayPrice, resolveDisplayEurPrice } from "../utils/variantStock";
-import { resolveMediaUrl } from "../utils/storefrontMedia";
+import { usePrepareProducts } from "../hooks/usePrepareProducts";
 
 interface ProductCardProps {
   product: Product;
@@ -130,45 +130,9 @@ function ProductCardInner({
     }
   };
 
-  // Warm the other colours so tapping a swatch is instant — but only once the browser has gone
-  // idle, never alongside the first paint. A browser runs ~6 requests per host at a time, so
-  // asking for all 19 colour photos up front is not "more parallel", it queues the 7 photos the
-  // shopper is actually looking at behind 12 nobody has asked for: same bytes, slower page.
-  // Ordering is free, so the visible photo goes first and the rest follow a moment later.
-  // Whole-catalogue warming is fine at 7 products / 19 photos; if the catalogue grows past a
-  // few dozen, gate this on the card having been scrolled into view.
-  useEffect(() => {
-    if (previewMode || product.colors.length < 2) return;
-    // Respect an explicit "don't spend my data" from the device.
-    if ((navigator as unknown as { connection?: { saveData?: boolean } }).connection?.saveData) return;
-    const sources = product.colors
-      .map((c) => resolveMediaUrl(c.image.src))
-      .filter(Boolean);
-    if (!sources.length) return;
-
-    let cancelled = false;
-    const warm = () => {
-      if (cancelled) return;
-      // The photo already on screen is a cache hit, so it costs nothing to include it here.
-      for (const src of sources) {
-        const img = new Image();
-        img.decoding = "async";
-        img.src = src;
-      }
-    };
-    // typeof, not truthiness: the DOM lib declares requestIdleCallback as always present, so a
-    // plain `if (idle)` is a check TypeScript knows can never fail — while Safari only shipped
-    // it in 2022 and this still has to fall back there.
-    const hasIdle = typeof window.requestIdleCallback === "function";
-    const handle = hasIdle
-      ? window.requestIdleCallback(warm, { timeout: 2500 })
-      : window.setTimeout(warm, 1200);
-    return () => {
-      cancelled = true;
-      if (hasIdle) window.cancelIdleCallback(handle as number);
-      else window.clearTimeout(handle as number);
-    };
-  }, [product.id, previewMode]);
+  // Its product page and other colours download while the card is near the screen (one tap away).
+  const cardRef = useRef<HTMLDivElement>(null);
+  usePrepareProducts(cardRef, previewMode ? [] : [product]);
 
   useEffect(() => {
     if (!mobilePeek) return;
@@ -356,6 +320,7 @@ function ProductCardInner({
 
   return (
     <motion.div
+      ref={cardRef}
       initial={entranceInitial}
       whileInView={entranceAnimate}
       viewport={motionDisabled ? undefined : (useCarouselViewport || !inCarousel ? viewport : undefined)}

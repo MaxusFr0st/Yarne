@@ -7,6 +7,7 @@ import { LoginModal } from "../components/LoginModal";
 import { Footer } from "../components/Footer";
 import { PageTransition } from "../components/PageTransition";
 import { Toaster } from "../components/ui/sonner";
+import { SitePrefetch } from "../components/SitePrefetch";
 import { getLocaleFromPath, stripLocaleFromPath } from "../i18n/useLocale";
 import { consumePreservedScroll } from "../i18n/localeNavigation";
 import {
@@ -204,6 +205,7 @@ export function Root() {
       <CartDrawer />
       <LoginModal />
       <Toaster />
+      {!location.pathname.startsWith("/admin") && <SitePrefetch />}
     </div>
   );
 }

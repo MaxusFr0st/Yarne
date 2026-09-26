@@ -1,4 +1,4 @@
-import React, { useRef } from "react";
+import React, { useEffect, useRef } from "react";
 import { motion, useReducedMotion, useScroll, useTransform } from "motion/react";
 import { ArrowRight, ChevronDown } from "lucide-react";
 import { BestSellersCarousel } from "../components/BestSellersCarousel";
@@ -9,6 +9,7 @@ import { getHomePageCopyForLocale } from "../utils/homePageCopy";
 import { firstVisitRevealStyle } from "../hooks/useFirstVisitReady";
 import { useTouchMobileLayout } from "../hooks/useTouchMobileLayout";
 import { useHomeHero } from "../hooks/useHomeHero";
+import { Priority, queuePhotos } from "../utils/photoQueue";
 import { useLocale } from "../i18n/useLocale";
 import { ScrollReveal, SECTION_REVEAL, SectionEyebrow, SectionTitle } from "../components/ScrollReveal";
 import { WhyYarneSection } from "../components/WhyYarneSection";
@@ -43,6 +44,11 @@ export function Home() {
   const heroImageSrc = homePageMedia.heroImageUrl.trim();
   const editorialImageSrc = homePageMedia.editorialImageUrl.trim();
   const contentReady = heroReady;
+
+  // The rest of the page downloads behind the hero (the sections queue their own photos).
+  useEffect(() => {
+    if (heroReady && editorialImageSrc) queuePhotos([editorialImageSrc], Priority.oneTap);
+  }, [heroReady, editorialImageSrc]);
 
   return (
     <main

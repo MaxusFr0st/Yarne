@@ -18,8 +18,9 @@ import { MobileRelatedProducts } from "../components/MobileRelatedProducts";
 import { ProductGuaranteeBlock } from "../components/ProductGuaranteeBlock";
 import { resolveDisplayImages } from "../utils/variantImages";
 import { resolveDisplayPrice, resolveDisplayEurPrice } from "../utils/variantStock";
-import { resolveMediaUrl } from "../utils/storefrontMedia";
 import { scrollToPageTop } from "../utils/scrollToTop";
+import { dropPhotos, Priority, queuePhotos } from "../utils/photoQueue";
+import { productPagePhotos } from "../utils/productPhotos";
 import { clearScrollForRoute } from "../utils/scrollRestoration";
 import { localizedCatalogName } from "../utils/localizedName";
 import {
@@ -167,26 +168,18 @@ export function ProductDetail() {
     }
   }, [product, activeColor, activeSize, displaySizes]);
 
+  // Every photo of this product, nearest first: the first photo of every colour and every size
+  // (so any tap shows its photo at once), then all the rest. Dropped if the visitor leaves.
   useEffect(() => {
     if (!product) return;
-    const colorIndices = new Set<number>([activeColor]);
-    if (activeColor > 0) colorIndices.add(activeColor - 1);
-    if (activeColor < product.colors.length - 1) colorIndices.add(activeColor + 1);
-
-    const seen = new Set<string>();
-    for (const colorIndex of colorIndices) {
-      const color = product.colors[colorIndex];
-      if (!color) continue;
-      const imgs = resolveDisplayImages(product, color, activeSize, activeLace);
-      for (const entry of imgs) {
-        const resolved = resolveMediaUrl(entry.src);
-        if (!resolved || seen.has(resolved)) continue;
-        seen.add(resolved);
-        const img = new Image();
-        img.src = resolved;
-      }
-    }
-  }, [product, activeColor, activeSize, activeLace]);
+    const owner = `product:${product.id}`;
+    const [firsts, rest] = productPagePhotos(product, activeColor);
+    queuePhotos(firsts, Priority.now, owner);
+    queuePhotos(rest, Priority.oneTap, owner);
+    return () => dropPhotos(owner);
+    // product is rebuilt on every render; its id is what identifies it.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [product?.id, activeColor]);
 
   if (!loading && !product) {
     return (

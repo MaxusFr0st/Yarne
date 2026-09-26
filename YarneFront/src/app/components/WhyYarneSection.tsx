@@ -10,6 +10,9 @@ import { getStableViewportHeight, onStableViewportChange } from "../utils/stable
 import { peekStorefrontSetting } from "../api/storefrontSettings";
 import { firstVisitRevealStyle, useFirstVisitReady } from "../hooks/useFirstVisitReady";
 import { useSeenLock } from "../hooks/useSeenLock";
+import { usePrepareProducts } from "../hooks/usePrepareProducts";
+import { useProducts } from "../hooks/useProducts";
+import { Priority, queuePhotos } from "../utils/photoQueue";
 import {
   getInitialWhySectionContent,
   loadWhySectionContent,
@@ -183,6 +186,20 @@ export function WhyYarneSection() {
   // Hidden on a first visit until the admin's content is in, then kept once seen (useSeenLock).
   const ready = useFirstVisitReady(() => peekStorefrontSetting(WHY_SECTION_KEY) !== undefined, loadWhySectionContent);
   const content = useSeenLock(loaded, ready, sectionRef);
+
+  // Its photos download behind the hero, and the bags' products get ready to open.
+  useEffect(() => {
+    if (!ready) return;
+    queuePhotos(
+      [...content.images.map((src, i) => src || WHY_DEFAULT_IMAGES[i]), ...content.backgrounds],
+      Priority.oneTap,
+    );
+  }, [ready, content]);
+  const { products } = useProducts();
+  usePrepareProducts(
+    sectionRef,
+    content.productCodes.map((code) => products.find((p) => p.id === code.trim())),
+  );
 
   // ---- viewport ----
   useEffect(() => {

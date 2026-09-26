@@ -12,6 +12,8 @@ import { Skeleton } from "./ui/skeleton";
 import { fetchProducts } from "../api/products";
 import { firstVisitRevealStyle, useFirstVisitReady } from "../hooks/useFirstVisitReady";
 import { useSeenLock } from "../hooks/useSeenLock";
+import { Priority, queuePhotos } from "../utils/photoQueue";
+import { defaultPhoto } from "../utils/productPhotos";
 import { useLocale } from "../i18n/useLocale";
 import { getHomePageCopyForLocale, HOME_PAGE_COPY_KEY, loadHomePageCopy } from "../utils/homePageCopy";
 import { hasPersistedProducts, loadProductsList, productsQueryKey } from "../utils/productsCache";
@@ -96,6 +98,12 @@ export function BestSellersCarousel() {
   const copy = getHomePageCopyForLocale(shown.copy, locale);
   const showSkeleton = shown.showSkeleton;
   const slides = showSkeleton ? Array.from({ length: 4 }, (_, i) => ({ id: `sk-${i}` })) : shown.products;
+
+  // The cards' photos download behind the hero, including slides not yet swiped to.
+  const cardPhotos = showSkeleton ? "" : shown.products.map(defaultPhoto).filter(Boolean).join(" ");
+  useEffect(() => {
+    if (ready && cardPhotos) queuePhotos(cardPhotos.split(" "), Priority.oneTap);
+  }, [ready, cardPhotos]);
 
   useEffect(() => {
     let cancelled = false;
