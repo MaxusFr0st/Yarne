@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useRef } from "react";
 import { motion, useReducedMotion, useScroll, useTransform } from "motion/react";
 import { ArrowRight, ChevronDown } from "lucide-react";
 import { useHomePageCopy } from "../hooks/useHomePageCopy";
@@ -6,14 +6,9 @@ import { BestSellersCarousel } from "../components/BestSellersCarousel";
 import { FeaturedShowcase } from "../components/FeaturedShowcase";
 import { ImageWithFallback as Img } from "../components/figma/ImageWithFallback";
 import { LangLink } from "../i18n/LangLink";
-import {
-  getDefaultHomePageMediaSelection,
-  getInitialHomePageMediaSelection,
-  HOME_PAGE_MEDIA_KEY,
-  loadHomePageMediaSelection,
-} from "../utils/homePageMediaSelection";
+import { HOME_PAGE_MEDIA_KEY } from "../utils/homePageMediaSelection";
 import { peekStorefrontSetting } from "../api/storefrontSettings";
-import { HOME_PAGE_COPY_KEY, loadHomePageCopy } from "../utils/homePageCopy";
+import { getHomePageCopyForLocale, HOME_PAGE_COPY_KEY } from "../utils/homePageCopy";
 import { WHY_SECTION_KEY, loadWhySectionContent } from "../utils/whySectionContent";
 import { FEATURED_SHOWCASE_SELECTION_KEY, loadFeaturedShowcaseSelection } from "../utils/featuredShowcaseSelection";
 import { CAROUSEL_PRODUCT_CODES_KEY, loadCarouselSelection } from "../utils/carouselSelection";
@@ -21,8 +16,9 @@ import { hasPersistedProducts, loadProductsList, productsQueryKey } from "../uti
 import { fetchProducts } from "../api/products";
 import { firstVisitRevealStyle, useFirstVisitReady } from "../hooks/useFirstVisitReady";
 import { useTouchMobileLayout } from "../hooks/useTouchMobileLayout";
+import { useHomeHero } from "../hooks/useHomeHero";
+import { useLocale } from "../i18n/useLocale";
 import { ScrollReveal, SECTION_REVEAL, SectionEyebrow, SectionTitle } from "../components/ScrollReveal";
-import { resolveMediaUrl } from "../utils/storefrontMedia";
 import { WhyYarneSection } from "../components/WhyYarneSection";
 
 const ease = [0.22, 1, 0.36, 1] as const;
@@ -35,28 +31,21 @@ const HOME_SETTING_KEYS = [
   CAROUSEL_PRODUCT_CODES_KEY,
 ];
 /**
- * Every home section starts from the last server answer this browser saw, so a returning visitor
- * gets the real text and photos on the first paint. A first visit waits for the settings, the
- * product list and the hero photo, then fades in (see useFirstVisitReady).
+ * Every section below the hero starts from the last server answer this browser saw, so a
+ * returning visitor gets the real text and photos on the first paint. A first visit waits for
+ * the settings and the product list, then fades in (see useFirstVisitReady). The hero has its
+ * own, stricter rule: useHomeHero.
  */
-function useHomeContentReady(heroSrc: string): boolean {
+function useSectionsReady(): boolean {
   return useFirstVisitReady(
     () => hasPersistedProducts() && HOME_SETTING_KEYS.every((key) => peekStorefrontSetting(key) !== undefined),
     () =>
       Promise.allSettled([
-        loadHomePageCopy(),
         loadWhySectionContent(),
         loadFeaturedShowcaseSelection(),
         loadCarouselSelection(),
         // Product names and photos in the carousel and the bento come from here.
         loadProductsList(productsQueryKey(), () => fetchProducts()),
-        loadHomePageMediaSelection().then((media) => {
-          const src = resolveMediaUrl(media.heroImageUrl.trim()) || heroSrc;
-          if (!src) return;
-          const img = new Image();
-          img.src = src;
-          return img.decode().catch(() => undefined);
-        }),
       ])
   );
 }
@@ -75,31 +64,15 @@ export function Home() {
 
   const editorialY = useTransform(editorialScroll, [0, 1], ["0%", "-10%"]);
 
-  const [homePageMedia, setHomePageMedia] = useState(getInitialHomePageMediaSelection);
-
-  useEffect(() => {
-    let cancelled = false;
-    void loadHomePageMediaSelection().then((media) => {
-      if (cancelled) return;
-      setHomePageMedia(media);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+  const locale = useLocale();
+  const { hero, ready: heroReady } = useHomeHero();
+  const heroCopy = getHomePageCopyForLocale(hero.copy, locale).hero;
+  const homePageMedia = hero.media;
 
   const heroImageSrc = homePageMedia.heroImageUrl.trim();
   const editorialImageSrc = homePageMedia.editorialImageUrl.trim();
-  const contentReady = useHomeContentReady(resolveMediaUrl(heroImageSrc));
-
-  useEffect(() => {
-    const resolvedHero = resolveMediaUrl(heroImageSrc);
-    if (!resolvedHero) return;
-    const img = new Image();
-    img.decoding = "async";
-    img.fetchPriority = "high";
-    img.src = resolvedHero;
-  }, [heroImageSrc]);
+  const sectionsReady = useSectionsReady();
+  const contentReady = heroReady && sectionsReady;
 
   return (
     <main
@@ -149,7 +122,7 @@ export function Home() {
               className="text-white/65 tracking-[0.28em] uppercase text-[0.65rem] mb-5 md:mb-6"
               style={{ fontFamily: "'DM Sans', sans-serif" }}
             >
-              {copy.hero.eyebrow}
+              {heroCopy.eyebrow}
             </p>
             <h1
               className="text-white"
@@ -162,15 +135,15 @@ export function Home() {
                 textWrap: "balance",
               } as React.CSSProperties}
             >
-              {copy.hero.titleLine1}
+              {heroCopy.titleLine1}
               <br />
-              <em className="font-light italic">{copy.hero.titleAccent}</em>
+              <em className="font-light italic">{heroCopy.titleAccent}</em>
             </h1>
             <p
               className="text-white/70 mt-5 md:mt-6 max-w-md text-[0.95rem] leading-relaxed min-h-[4.25rem]"
               style={{ fontFamily: "'DM Sans', sans-serif" }}
             >
-              {copy.hero.subtitle}
+              {heroCopy.subtitle}
             </p>
             <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 mt-8 md:mt-10 w-full max-w-lg">
               <LangLink
@@ -178,7 +151,7 @@ export function Home() {
                 className="flex items-center justify-center gap-2.5 w-full sm:w-auto px-7 py-3.5 rounded-full bg-[#F5F2ED] text-[#2D241E] hover:bg-white transition-colors duration-200 group cursor-pointer"
                 style={{ fontSize: "0.75rem", letterSpacing: "0.16em" }}
               >
-                <span className="uppercase tracking-widest">{copy.hero.ctaPrimary}</span>
+                <span className="uppercase tracking-widest">{heroCopy.ctaPrimary}</span>
                 <ArrowRight size={14} className="group-hover:translate-x-0.5 transition-transform duration-200" />
               </LangLink>
               <LangLink
@@ -186,7 +159,7 @@ export function Home() {
                 className="flex items-center justify-center gap-2.5 w-full sm:w-auto px-7 py-3.5 rounded-full text-white border border-white/35 hover:border-white/70 hover:bg-white/10 transition-colors duration-200 cursor-pointer"
                 style={{ fontSize: "0.75rem", letterSpacing: "0.16em" }}
               >
-                <span className="uppercase tracking-widest">{copy.hero.ctaSecondary}</span>
+                <span className="uppercase tracking-widest">{heroCopy.ctaSecondary}</span>
               </LangLink>
             </div>
           </div>
@@ -197,7 +170,7 @@ export function Home() {
             className="text-[0.62rem] tracking-[0.25em] uppercase"
             style={{ writingMode: "vertical-rl", fontFamily: "'DM Sans', sans-serif" }}
           >
-            {copy.hero.scroll}
+            {heroCopy.scroll}
           </span>
           <ChevronDown size={16} className="animate-[bounce-soft_2s_ease-in-out_infinite] motion-reduce:animate-none" />
         </div>

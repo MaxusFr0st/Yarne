@@ -1,5 +1,6 @@
 import { buildApiUrl, resolveApiBase } from "./base";
 import { ApiRequestError } from "./errors";
+import { takeEarlyResponse } from "./earlyRequests";
 
 /** Clear legacy JWT storage from before httpOnly cookies. */
 export function clearLegacyAuthStorage() {
@@ -60,6 +61,16 @@ export async function apiRequest<T>(
   options: ApiRequestOptions = {}
 ): Promise<T> {
   const { skipAuthExpire, _retriedAfterRefresh, ...fetchOptions } = options;
+  if (!fetchOptions.method || fetchOptions.method === "GET") {
+    const early = takeEarlyResponse<T>(endpoint);
+    if (early) {
+      try {
+        return await early;
+      } catch {
+        // Failed early: ask again below, which also produces the usual errors.
+      }
+    }
+  }
   const headers = new Headers(fetchOptions.headers);
   const hasBody = fetchOptions.body !== undefined && fetchOptions.body !== null;
   if (hasBody && !(fetchOptions.body instanceof FormData) && !headers.has("Content-Type")) {

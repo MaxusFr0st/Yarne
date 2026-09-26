@@ -1,4 +1,5 @@
 import { apiRequest } from "./client";
+import { peekEarlyResponse } from "./earlyRequests";
 
 // ponytail: dedupes concurrent in-flight requests only, not resolved values — a remount still refetches.
 // Add a value cache w/ save-invalidation if that measurably matters.
@@ -26,6 +27,19 @@ export function peekStorefrontSetting<T>(key: string): { value: T | null } | und
   }
 }
 
+function settingEndpoint(key: string): string {
+  return `/api/storefront-settings/${encodeURIComponent(key)}`;
+}
+
+/**
+ * The server's current answer for `key`, if it has already arrived for this page load (asked
+ * for by src/early.ts before the app started). Undefined while it is still on its way.
+ */
+export function peekCurrentStorefrontSetting<T>(key: string): { value: T | null } | undefined {
+  const early = peekEarlyResponse<{ value?: T }>(settingEndpoint(key));
+  return early && { value: early.value.value ?? null };
+}
+
 export async function fetchStorefrontSetting<T>(key: string): Promise<T | null> {
   const existing = inFlight.get(key);
   if (existing) return existing as Promise<T | null>;
@@ -33,7 +47,7 @@ export async function fetchStorefrontSetting<T>(key: string): Promise<T | null> 
   const promise = (async () => {
     try {
       const res = await apiRequest<{ key: string; value: T }>(
-        `/api/storefront-settings/${encodeURIComponent(key)}`
+        settingEndpoint(key)
       );
       remember(key, res.value);
       return res.value ?? null;
@@ -53,7 +67,7 @@ export async function fetchStorefrontSetting<T>(key: string): Promise<T | null> 
 export async function saveStorefrontSetting<T>(key: string, value: T): Promise<T> {
   inFlight.delete(key);
   const res = await apiRequest<{ key: string; value: T }>(
-    `/api/storefront-settings/${encodeURIComponent(key)}`,
+    settingEndpoint(key),
     {
       method: "PUT",
       body: JSON.stringify(value),
