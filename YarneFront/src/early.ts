@@ -35,7 +35,7 @@ type Product = { defaultColor?: string | null; colors?: Color[] };
         if (!res.ok) throw new Error(String(res.status));
         return res.json();
       });
-      const entry: EarlyEntry = { promise };
+      const entry: EarlyEntry = { promise, askedAt: Date.now() };
       promise.then((value) => (entry.value = value), () => undefined);
       early[url] = entry;
       return promise;
