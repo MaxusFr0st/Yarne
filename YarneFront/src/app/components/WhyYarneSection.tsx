@@ -88,7 +88,11 @@ function orbit(d: number, stageH: number, tight: boolean) {
   // zero — the linear ramp keeps the outgoing and incoming pair summing to 1, so a handover
   // reads as one image dissolving rather than two half-transparent ones.
   const away = Math.max(0, dist - ORBIT_HOLD);
-  const blur = Math.min(away, 1.6) * 1.1;
+  // Desktop only. On phones it never passed half a pixel (the bag fades out first), and iOS
+  // Safari could keep painting it blurred after the blur was removed: coming back from a
+  // product page, the section mounts at the start of its scroll (bags blurred) and jumps to
+  // the restored position in one frame.
+  const blur = tight ? 0 : Math.min(away, 1.6) * 1.1;
   // Desktop: a bag already scrolled past (d < 0) fades out fully by 0.6 of a step, so it's
   // gone before the next bag settles.
   const gone = Math.min(1, dist / 0.6);

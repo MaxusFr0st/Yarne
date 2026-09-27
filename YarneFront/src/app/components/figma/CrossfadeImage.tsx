@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useReducedMotion } from "motion/react";
 import { resolveMediaUrl } from "../../utils/storefrontMedia";
+import { markPhotoLoaded } from "../../utils/photoQueue";
 import { ImageWithFallback, type FocalPoint } from "./ImageWithFallback";
 
 /**
@@ -109,6 +110,8 @@ export function CrossfadeImage({
     // dissolve is timed against the moment the new photo appears, and on iOS the gap between
     // "loaded" and "decoded" is easily long enough to start fading onto a blank frame.
     img.onload = () => {
+      // So the incoming layer shows at once under the dissolve instead of fading in itself.
+      markPhotoLoaded(resolved);
       if (typeof img.decode !== "function") return settle();
       img.decode().then(settle, settle);
     };
@@ -162,8 +165,8 @@ export function CrossfadeImage({
               // is what keeps a grid of product cards from fetching every photo at once.
               loading={previous ? "eager" : loading}
               focal={frame.focal}
-              // The resting photo fades in when it first arrives; a swap's incoming photo is
-              // already decoded by then, so it shows at once and the dissolve is untouched.
+              // The resting photo fades in when it really downloads; a swap's incoming photo is
+              // already loaded by then (marked above), so it shows at once under the dissolve.
               fadeIn={!outgoing}
               className={`h-full w-full object-cover ${className}`}
             />

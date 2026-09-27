@@ -15,6 +15,7 @@ import {
   type HomePageMediaSelection,
 } from "../utils/homePageMediaSelection";
 import { resolveMediaUrl } from "../utils/storefrontMedia";
+import { markPhotoLoaded } from "../utils/photoQueue";
 
 /** A returning visitor waits at most this long for the current hero before seeing the saved one. */
 const SLOW_SERVER_MS = 1500;
@@ -41,16 +42,24 @@ function savedHero(): HomeHero {
 /**
  * Resolves once the photo has downloaded (at once when the browser already has it). Not
  * decode(): decoding a large photo takes a slow phone a few hundred milliseconds, and the hero's
- * own fade-in (ImageWithFallback `fadeIn`) already covers that.
+ * page's fade-in (firstVisitRevealStyle) already covers that.
  */
 function photoReady(url: string): Promise<void> {
   const src = resolveMediaUrl(url.trim());
   if (!src) return Promise.resolve();
   const img = new Image();
   img.src = src;
-  if (img.complete) return Promise.resolve();
+  if (img.complete) {
+    markPhotoLoaded(src);
+    return Promise.resolve();
+  }
   return new Promise((resolve) => {
-    img.onload = img.onerror = () => resolve();
+    img.onload = () => {
+      // So the hero appears with the page instead of fading in a second time.
+      markPhotoLoaded(src);
+      resolve();
+    };
+    img.onerror = () => resolve();
   });
 }
 

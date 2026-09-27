@@ -15,6 +15,7 @@ import { getSupplementaryProductDetails, hasSupplementaryProductDetails } from "
 import { useTouchMobileLayout } from "../hooks/useTouchMobileLayout";
 import { localizedCatalogName } from "../utils/localizedName";
 import { getStableViewportHeight } from "../utils/stableViewport";
+import { markPhotoLoaded } from "../utils/photoQueue";
 
 /** Duration of the sheet's glide back down off the image. */
 const SHEET_SLIDE_MS = 700;
@@ -254,11 +255,15 @@ export function MobileProductDetailView({
       images.map(
         (image) =>
           new Promise<void>((resolve) => {
+            const src = resolveMediaUrl(image.src);
             const probe = new Image();
             probe.decoding = "async";
-            probe.onload = () => resolve();
+            probe.onload = () => {
+              markPhotoLoaded(src);
+              resolve();
+            };
             probe.onerror = () => resolve();
-            probe.src = resolveMediaUrl(image.src);
+            probe.src = src;
           }),
       ),
     );

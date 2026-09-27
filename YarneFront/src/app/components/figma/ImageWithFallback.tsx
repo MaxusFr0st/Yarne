@@ -1,5 +1,6 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { resolveMediaUrl } from "../../utils/storefrontMedia";
+import { isPhotoLoaded, markPhotoLoaded } from "../../utils/photoQueue";
 
 const ERROR_IMG_SRC =
   "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iODgiIGhlaWdodD0iODgiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyIgc3Ryb2tlPSIjMDAwIiBzdHJva2UtbGluZWpvaW49InJvdW5kIiBvcGFjaXR5PSIuMyIgZmlsbD0ibm9uZSIgc3Ryb2tlLXdpZHRoPSIzLjciPjxyZWN0IHg9IjE2IiB5PSIxNiIgd2lkdGg9IjU2IiBoZWlnaHQ9IjU2IiByeD0iNiIvPjxwYXRoIGQ9Im0xNiA1OCAxNi0xOCAzMiAzMiIvPjxjaXJjbGUgY3g9IjUzIiBjeT0iMzUiIHI9IjciLz48L3N2Zz4KCg==";
@@ -16,8 +17,9 @@ interface ImageWithFallbackProps extends React.ImgHTMLAttributes<HTMLImageElemen
   focal?: FocalPoint;
   /**
    * Stay invisible until the file has loaded, then fade in (the .img-fade-in CSS animation),
-   * instead of painting in progressively or popping. A photo already in the browser cache just
-   * appears. Only for photos meant to be seen: an image hidden on purpose would flash through.
+   * instead of painting in progressively or popping. Only a photo that is actually downloading
+   * fades: one this visit already has (utils/photoQueue.ts) shows with the page. Only for photos
+   * meant to be seen: an image hidden on purpose would flash through.
    */
   fadeIn?: boolean;
 }
@@ -26,13 +28,15 @@ interface ImageWithFallbackProps extends React.ImgHTMLAttributes<HTMLImageElemen
 const FADE_SAFETY_MS = 5000;
 
 export function ImageWithFallback({ priority, focal, fadeIn = false, ...props }: ImageWithFallbackProps) {
-  const [didError, setDidError] = useState(false);
-  // "hidden" until loaded, then "fading" (plays the animation) or "shown" (was already cached).
-  const [reveal, setReveal] = useState<"hidden" | "fading" | "shown">(fadeIn ? "hidden" : "shown");
-  const imgRef = useRef<HTMLImageElement>(null);
-
   const { src, alt, style, className, loading, decoding, onLoad, ...rest } = props;
   const resolvedSrc = src ? resolveMediaUrl(String(src)) : "";
+
+  const [didError, setDidError] = useState(false);
+  // "hidden" until loaded, then "fading" (plays the animation) or "shown" (already on the phone).
+  const [reveal, setReveal] = useState<"hidden" | "fading" | "shown">(() =>
+    fadeIn && !isPhotoLoaded(resolvedSrc) ? "hidden" : "shown",
+  );
+  const imgRef = useRef<HTMLImageElement>(null);
 
   useEffect(() => {
     setDidError(false);
@@ -41,7 +45,7 @@ export function ImageWithFallback({ priority, focal, fadeIn = false, ...props }:
   useLayoutEffect(() => {
     if (!fadeIn) return;
     const img = imgRef.current;
-    if (img?.complete && img.naturalWidth > 0) {
+    if (isPhotoLoaded(resolvedSrc) || (img?.complete && img.naturalWidth > 0)) {
       setReveal("shown");
       return;
     }
@@ -96,6 +100,7 @@ export function ImageWithFallback({ priority, focal, fadeIn = false, ...props }:
       {...(priority ? { fetchPriority: "high" } : {})}
       {...rest}
       onLoad={(e) => {
+        markPhotoLoaded(resolvedSrc);
         if (fadeIn) setReveal((r) => (r === "hidden" ? "fading" : r));
         onLoad?.(e);
       }}

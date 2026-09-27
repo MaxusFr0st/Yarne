@@ -12,6 +12,7 @@ import { resolveMediaUrl } from "./storefrontMedia";
  * - Paused while a newly opened page loads the photos on its screen (`settlePage`).
  * - Off entirely when the device asks to save data.
  * - A photo is downloaded once per visit; after that the browser's cache has it (a year).
+ * - Remembers what this visit has downloaded (`isPhotoLoaded`), so those photos show at once.
  */
 export const Priority = {
   /** On the product page the visitor is looking at: that product's other colours and sizes. */
@@ -35,6 +36,7 @@ const SETTLE_CHECK_MS = 250;
 
 const queued = new Map<string, Task>();
 const started = new Set<string>();
+const loaded = new Set<string>();
 let running = 0;
 let order = 0;
 let paused = true;
@@ -61,14 +63,34 @@ function pump(): void {
     queued.delete(next.url);
     started.add(next.url);
     running += 1;
+    const url = next.url;
     const img = new Image();
     img.decoding = "async";
-    img.onload = img.onerror = () => {
+    const done = () => {
       running -= 1;
       pump();
     };
-    img.src = next.url;
+    img.onload = () => {
+      loaded.add(url);
+      done();
+    };
+    img.onerror = done;
+    img.src = url;
   }
+}
+
+/** Record a photo (resolved URL) as downloaded; a page's own photos report themselves here. */
+export function markPhotoLoaded(url: string): void {
+  loaded.add(url);
+}
+
+/**
+ * Whether this visit has already downloaded the photo (resolved URL), so it can be shown at
+ * once instead of fading in (components/figma/ImageWithFallback.tsx). Safari cannot be asked
+ * directly: a new <img> of a photo it already has still reports itself as not loaded yet.
+ */
+export function isPhotoLoaded(url: string): boolean {
+  return loaded.has(url);
 }
 
 /**
