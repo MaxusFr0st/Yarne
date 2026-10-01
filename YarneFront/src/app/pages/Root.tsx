@@ -8,6 +8,7 @@ import { Footer } from "../components/Footer";
 import { PageTransition } from "../components/PageTransition";
 import { Toaster } from "../components/ui/sonner";
 import { SitePrefetch } from "../components/SitePrefetch";
+import { noteNavigation } from "../hooks/useMotionEntrance";
 import { getLocaleFromPath, stripLocaleFromPath } from "../i18n/useLocale";
 import { consumePreservedScroll } from "../i18n/localeNavigation";
 import {
@@ -97,6 +98,7 @@ export function Root() {
       prev.key !== location.key;
 
     if (pathChanged) {
+      noteNavigation();
       positionsRef.current = captureScrollPosition(
         positionsRef.current,
         prev.pathname,

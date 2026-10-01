@@ -1,5 +1,6 @@
 import { type ReactNode } from "react";
 import { useLocation } from "react-router";
+import { useReturningToPage } from "../hooks/useMotionEntrance";
 
 type PageTransitionProps = {
   children: ReactNode;
@@ -23,12 +24,14 @@ type PageTransitionProps = {
  */
 export function PageTransition({ children }: PageTransitionProps) {
   const location = useLocation();
+  // Back/forward returns to a page as it was left, so it does not fade in again.
+  const returning = useReturningToPage();
 
   // Remounting on the route key is what restarts the CSS animation.
   return (
     <div
       key={`${location.pathname}${location.search}`}
-      className="route-enter min-h-[calc(var(--app-svh)-var(--main-header-h))]"
+      className={`${returning ? "" : "route-enter "}min-h-[calc(var(--app-svh)-var(--main-header-h))]`}
     >
       {children}
     </div>

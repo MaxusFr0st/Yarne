@@ -3,6 +3,7 @@ import type React from "react";
 import { useRef } from "react";
 import type { CSSProperties, ReactNode } from "react";
 import { useTouchMobileLayout } from "../hooks/useTouchMobileLayout";
+import { useReturningToPage } from "../hooks/useMotionEntrance";
 
 /** Soft settle — a touch longer on mobile so the slide reads continuous, not snappy. */
 const EASE_OUT = [0.22, 1, 0.36, 1] as const;
@@ -51,6 +52,8 @@ export function ScrollReveal({
   ease,
 }: ScrollRevealProps) {
   const reduced = useReducedMotion();
+  // A page reached with back/forward comes back as it was left, not revealed again.
+  const returning = useReturningToPage();
   const touch = useTouchMobileLayout();
   const ref = useRef<HTMLDivElement>(null);
   const inView = useInView(ref, {
@@ -60,7 +63,7 @@ export function ScrollReveal({
     margin: touch ? "0px 0px -4% 0px" : "0px 0px -40px 0px",
   });
 
-  if (reduced) {
+  if (reduced || returning) {
     return (
       <div className={className} style={style}>
         {children}

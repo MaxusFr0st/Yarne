@@ -24,6 +24,9 @@ const FIRST_VISIT_MAX_WAIT_MS = 3000;
 
 export type HomeHero = { copy: HomePageCopy; media: HomePageMediaSelection };
 
+/** The hero this visit has shown. Coming back to the home page shows it again, at once. */
+let shownHero: HomeHero | undefined;
+
 /** The server's current hero, if its answer already arrived (src/early.ts asks before the app starts). */
 function currentHero(): HomeHero | undefined {
   const copy = peekCurrentStorefrontSetting(HOME_PAGE_COPY_KEY);
@@ -76,7 +79,8 @@ export function useHomeHero(): { hero: HomeHero; ready: boolean } {
   // the page back to wait for the photo would cost a whole extra render of the page, a few
   // hundred milliseconds on a phone, and the photo's own fade-in covers it anyway.
   const [state, setState] = useState(() => {
-    const current = currentHero();
+    const current = shownHero ?? currentHero();
+    if (current) shownHero = current;
     return { hero: current ?? savedHero(), ready: Boolean(current) };
   });
 
@@ -86,6 +90,7 @@ export function useHomeHero(): { hero: HomeHero; ready: boolean } {
     const show = (hero: HomeHero) => {
       if (shown) return;
       shown = true;
+      shownHero = hero;
       setState({ hero, ready: true });
     };
     if (shown) {
