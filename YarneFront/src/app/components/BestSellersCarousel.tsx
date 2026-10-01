@@ -6,7 +6,7 @@ import { useProducts } from "../hooks/useProducts";
 import { ProductCard } from "./ProductCard";
 import { CAROUSEL_PRODUCT_CODES_KEY, getCarouselSelection, loadCarouselSelection } from "../utils/carouselSelection";
 import { peekStorefrontSetting } from "../api/storefrontSettings";
-import { useMotionEntrance } from "../hooks/useMotionEntrance";
+import { useMotionEntrance, useReturningToPage } from "../hooks/useMotionEntrance";
 import { useTouchMobileLayout } from "../hooks/useTouchMobileLayout";
 import { Skeleton } from "./ui/skeleton";
 import { fetchProducts } from "../api/products";
@@ -20,11 +20,17 @@ import { hasPersistedProducts, loadProductsList, productsQueryKey } from "../uti
 
 const easing = [0.25, 0.1, 0.25, 1] as const;
 
+/** The slide the visitor last swiped to this visit. */
+let leftAtSlide = 0;
+
 export function BestSellersCarousel() {
   const locale = useLocale();
   const liveCopy = useHomePageCopyAll();
   const sectionRef = useRef<HTMLElement>(null);
   const { disabled: motionDisabled } = useMotionEntrance();
+  const returning = useReturningToPage();
+  // Coming back with Back, the carousel starts on the slide the visitor left it on.
+  const [startSlide] = useState(() => (returning ? leftAtSlide : 0));
   const touchMobile = useTouchMobileLayout();
   const reduceMotion = useReducedMotion();
   const viewportRef = useRef<HTMLDivElement>(null);
@@ -32,6 +38,7 @@ export function BestSellersCarousel() {
     loop: true,
     align: "center",
     containScroll: "trimSnaps",
+    startIndex: startSlide,
     duration: touchMobile || reduceMotion ? 0 : 25,
     dragFree: false,
     breakpoints: {
@@ -39,7 +46,7 @@ export function BestSellersCarousel() {
     },
   }, [], { wheelAxis: "x" });
 
-  const [selectedIndex, setSelectedIndex] = useState(0);
+  const [selectedIndex, setSelectedIndex] = useState(startSlide);
   const [scrollSnaps, setScrollSnaps] = useState<number[]>([]);
   const [selectedProductCodes, setSelectedProductCodes] = useState<string[]>(() => getCarouselSelection().productCodes);
   // Until the admin's pick is known, show placeholders rather than fallback products that get
@@ -51,6 +58,36 @@ export function BestSellersCarousel() {
   const onSelect = useCallback(() => {
     if (!emblaApi) return;
     setSelectedIndex(emblaApi.selectedScrollSnap());
+  }, [emblaApi]);
+
+  // Back on the visitor's slide after every re-init too (placeholders swapped for cards, loop mode
+  // switched on), each of which can move it, until the visitor touches it or the page has settled.
+  const restoreTo = useRef(startSlide);
+  useEffect(() => {
+    if (!emblaApi) return;
+    const restore = () => {
+      const target = restoreTo.current;
+      if (target > 0 && target < emblaApi.scrollSnapList().length) emblaApi.scrollTo(target, true);
+    };
+    const remember = () => {
+      if (!restoreTo.current) leftAtSlide = emblaApi.selectedScrollSnap();
+    };
+    const release = () => {
+      if (!restoreTo.current) return;
+      restoreTo.current = 0;
+      remember();
+    };
+    restore();
+    const timer = window.setTimeout(release, 1500);
+    emblaApi.on("reInit", restore);
+    emblaApi.on("select", remember);
+    emblaApi.on("pointerDown", release);
+    return () => {
+      window.clearTimeout(timer);
+      emblaApi.off("reInit", restore);
+      emblaApi.off("select", remember);
+      emblaApi.off("pointerDown", release);
+    };
   }, [emblaApi]);
 
   useEffect(() => {
@@ -98,6 +135,7 @@ export function BestSellersCarousel() {
   const copy = getHomePageCopyForLocale(shown.copy, locale);
   const showSkeleton = shown.showSkeleton;
   const slides = showSkeleton ? Array.from({ length: 4 }, (_, i) => ({ id: `sk-${i}` })) : shown.products;
+  const dotCount = scrollSnaps.length || slides.length;
 
   // The cards' photos download behind the hero, including slides not yet swiped to.
   const cardPhotos = showSkeleton ? "" : shown.products.map(defaultPhoto).filter(Boolean).join(" ");
@@ -247,10 +285,12 @@ export function BestSellersCarousel() {
           </motion.div>
         </div>
 
-        {/* Dot Indicators */}
-        {scrollSnaps.length > 1 && (
-          <div className="shrink-0 flex items-center justify-center gap-2.5 mt-4 sm:mt-5 md:mt-6">
-            {scrollSnaps.map((_, index) => (
+        {/* Dot Indicators. The row is there from the first render and drawn one dot per slide
+            until the carousel reports its snap points: it appearing later pushed every section
+            below down by 26px, a visible jump when coming back to the page. */}
+        <div className="shrink-0 h-[10px] flex items-center justify-center gap-2.5 mt-4 sm:mt-5 md:mt-6">
+          {dotCount > 1 &&
+            Array.from({ length: dotCount }, (_, index) => (
               <button
                 key={index}
                 type="button"
@@ -268,8 +308,7 @@ export function BestSellersCarousel() {
                 aria-current={index === selectedIndex}
               />
             ))}
-          </div>
-        )}
+        </div>
       </div>
       </div>
     </section>

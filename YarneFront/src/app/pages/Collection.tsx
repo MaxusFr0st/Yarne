@@ -20,11 +20,18 @@ type SortOptionKey = (typeof SORT_OPTION_KEYS)[number];
 function CollectionCardSkeleton() {
   return (
     <div aria-hidden>
-      <Skeleton className="aspect-[3/4] w-full rounded-[24px] md:rounded-[32px] bg-[#E5E0D8]" />
-      <div className="mt-4 space-y-2 px-1">
-        <Skeleton className="h-4 w-3/4 rounded bg-[#E5E0D8]" />
-        <Skeleton className="h-3 w-1/2 rounded bg-[#E5E0D8]" />
-        <div className="flex gap-2 pt-1">
+      {/* Every box here is the height of its counterpart in a collection ProductCard (photo, name
+          line, subtitle from md up, swatch row), so the real cards replace these without moving
+          anything below. They used to be 10px taller, and the whole grid jumped up on load. */}
+      <Skeleton className="aspect-[3/4] md:aspect-[4/5] w-full rounded-[24px] md:rounded-[32px] bg-[#E5E0D8]" />
+      <div className="mt-4 px-0.5">
+        <div className="h-[1.365rem] flex items-center">
+          <Skeleton className="h-4 w-3/4 rounded bg-[#E5E0D8]" />
+        </div>
+        <div className="hidden md:flex h-4 mt-0.5 items-center">
+          <Skeleton className="h-3 w-1/2 rounded bg-[#E5E0D8]" />
+        </div>
+        <div className="flex items-center gap-2 mt-3 h-[18px]">
           {Array.from({ length: 3 }).map((_, i) => (
             <Skeleton key={i} className="h-3.5 w-3.5 rounded-full bg-[#E5E0D8]" />
           ))}
@@ -184,14 +191,18 @@ export function Collection() {
               )}
             </h1>
             <p
-              className="text-[#2D241E]/50 mt-4 max-w-lg min-h-[1.5rem]"
+              className="relative text-[#2D241E]/50 mt-4 max-w-lg min-h-[1.5rem]"
               style={{ fontFamily: "'DM Sans', sans-serif", lineHeight: 1.7, fontSize: "0.9rem" }}
               aria-live="polite"
             >
-              {loading ? (
-                <span className="inline-block w-48 h-4 rounded bg-[#E5E0D8] animate-pulse align-middle" aria-hidden />
-              ) : (
-                t("collection.header.pieceCount", { count: filtered.length })
+              {/* While loading, the sentence is laid out invisibly under the placeholder so it
+                  takes its real room: two lines on a phone, where a one-line placeholder made
+                  everything below drop 25px when the count arrived. */}
+              <span className={loading ? "invisible" : undefined} aria-hidden={loading || undefined}>
+                {t("collection.header.pieceCount", { count: loading ? 10 : filtered.length })}
+              </span>
+              {loading && (
+                <span className="absolute left-0 top-[0.35em] w-48 h-4 rounded bg-[#E5E0D8] animate-pulse" aria-hidden />
               )}
             </p>
           </div>
@@ -225,7 +236,7 @@ export function Collection() {
               <select
                 value={activeSort}
                 onChange={(e) => setActiveSort(e.target.value as SortOptionKey)}
-                className="bg-transparent border border-[#2D241E]/20 rounded-full px-4 py-2 text-xs text-[#2D241E] focus:outline-none focus:border-[#2D241E]/50 cursor-pointer"
+                className="h-9 bg-transparent border border-[#2D241E]/20 rounded-full px-4 py-0 text-xs text-[#2D241E] focus:outline-none focus:border-[#2D241E]/50 cursor-pointer"
                 style={{ fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.06em" }}
               >
                 {SORT_OPTION_KEYS.map((s) => (

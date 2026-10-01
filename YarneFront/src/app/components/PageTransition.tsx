@@ -24,14 +24,14 @@ type PageTransitionProps = {
  */
 export function PageTransition({ children }: PageTransitionProps) {
   const location = useLocation();
-  // Back/forward returns to a page as it was left, so it does not fade in again.
+  // Back/forward returns to a page as it was left: a short settle, not a fade in from nothing.
   const returning = useReturningToPage();
 
   // Remounting on the route key is what restarts the CSS animation.
   return (
     <div
       key={`${location.pathname}${location.search}`}
-      className={`${returning ? "" : "route-enter "}min-h-[calc(var(--app-svh)-var(--main-header-h))]`}
+      className={`${returning ? "route-return" : "route-enter"} min-h-[calc(var(--app-svh)-var(--main-header-h))]`}
     >
       {children}
     </div>

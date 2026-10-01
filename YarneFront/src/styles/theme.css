@@ -341,8 +341,20 @@
   animation: yarne-route-in 0.32s cubic-bezier(0.37, 0, 0.63, 1);
 }
 
+/* Back/forward: the page is already all there, as it was left, so it does not rise from the
+   background like a page loading. It settles in from part-way, the whole page at once and on the
+   compositor, so nothing on it waits. Same no-fill rule as above. */
+@keyframes yarne-route-return {
+  from { opacity: 0.45; }
+  to   { opacity: 1; }
+}
+
+.route-return {
+  animation: yarne-route-return 0.34s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .route-enter { animation: none; }
+  .route-enter, .route-return { animation: none; }
 }
 
 /* Colour/photo cross-dissolve — the outgoing photo fades off the top of the incoming one.
