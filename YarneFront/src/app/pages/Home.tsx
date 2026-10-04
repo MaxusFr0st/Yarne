@@ -81,6 +81,7 @@ export function Home() {
             <Img
               src={heroImageSrc}
               fadeIn
+              poster
               alt="Yarné Hero"
               className="absolute inset-0 h-full w-full object-cover"
               style={{ objectPosition: `${(homePageMedia.heroFocalX * 100).toFixed(1)}% ${(homePageMedia.heroFocalY * 100).toFixed(1)}%` }}
@@ -188,6 +189,7 @@ export function Home() {
                       <Img
                         src={editorialImageSrc}
                         fadeIn
+                        poster
                         alt={copy.editorial.eyebrow}
                         className="absolute inset-0 h-full w-full object-cover"
                         style={{ objectPosition: `${(homePageMedia.editorialFocalX * 100).toFixed(1)}% ${(homePageMedia.editorialFocalY * 100).toFixed(1)}%` }}

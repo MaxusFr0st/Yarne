@@ -242,7 +242,9 @@ export function MobileProductDetailView({
   // a cache hit rather than trailing a network request. The cap is there so one slow or broken
   // photo cannot strand the gallery on the previous colour.
   useEffect(() => {
-    if (skipNextSheetSlide.current) {
+    // The first photos, or photos for a gallery that has none: there is nothing to dissolve
+    // from, so nothing to wait for.
+    if (skipNextSheetSlide.current || galleryImages.length === 0) {
       skipNextSheetSlide.current = false;
       setGalleryImages(images);
       return;

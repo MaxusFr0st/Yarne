@@ -170,6 +170,37 @@ export function resolveScrollPosition(
   return 0;
 }
 
+/** A page that cannot get back to its place must still be shown. */
+const HOLD_MAX_MS = 350;
+
+/**
+ * Keep the page the visitor came back to unseen until it is where they left it (the
+ * `data-restoring-scroll` rule in theme.css), then let its return fade play. An iPhone can paint
+ * a frame of the rebuilt page at the top before the restored position takes effect, which showed
+ * as a flash of the hero on Back. Returns a function that shows the page at once.
+ */
+export function holdPageUntilRestored(top: number): () => void {
+  const target = Math.max(0, Math.round(top));
+  if (typeof window === "undefined" || target === 0) return () => {};
+  const root = document.documentElement;
+  root.setAttribute("data-restoring-scroll", "");
+  let frame = 0;
+  let framesInPlace = 0;
+  const startedAt = performance.now();
+  const release = () => {
+    cancelAnimationFrame(frame);
+    root.removeAttribute("data-restoring-scroll");
+  };
+  const check = () => {
+    framesInPlace = Math.abs(window.scrollY - target) <= 8 ? framesInPlace + 1 : 0;
+    // Two frames in place: the first is the one the phone may still paint at the old position.
+    if (framesInPlace >= 2 || performance.now() - startedAt > HOLD_MAX_MS) release();
+    else frame = requestAnimationFrame(check);
+  };
+  frame = requestAnimationFrame(check);
+  return release;
+}
+
 const RESTORE_DELAYS_MS = [0, 16, 50, 100, 200, 400, 800, 1200, 2000];
 
 export function restoreScrollPosition(

@@ -168,6 +168,8 @@ export function CrossfadeImage({
               // The resting photo fades in when it really downloads; a swap's incoming photo is
               // already loaded by then (marked above), so it shows at once under the dissolve.
               fadeIn={!outgoing}
+              // A photo this visit has shown before is drawn from its copy in the first frame.
+              poster
               className={`h-full w-full object-cover ${className}`}
             />
           </div>

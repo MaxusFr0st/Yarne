@@ -61,7 +61,7 @@ export function ProductDetail() {
 
   const [activeColor, setActiveColor] = useState(0);
   const [activeFurniture, setActiveFurniture] = useState(0);
-  const [activeSize, setActiveSize] = useState<string | null>(null);
+  const [pickedSize, setActiveSize] = useState<string | null>(null);
   const [activeImage, setActiveImage] = useState(0);
   const [activeLace, setActiveLace] = useState(false);
   const [addedToBag, setAddedToBag] = useState(false);
@@ -141,32 +141,26 @@ export function ProductDetail() {
     colorScopedSizes.length > 0
       ? colorScopedSizes
       : (product?.sizes ?? []).map((s) => s.name);
+  // Worked out while rendering, not set by an effect afterwards: with no size yet a product has
+  // no photos to show, so the page used to open with an empty gallery, and the photos then
+  // arrived as a "change of photos" that waits for every one of them to download.
+  const activeSize = pickedSize && displaySizes.includes(pickedSize) ? pickedSize : displaySizes[0] ?? null;
 
   // A shopper who picked a color on the card arrives expecting that color, not the product's
   // default — cards link here with ?color=<name>. Read per render rather than stored in state so
   // browser back/forward between two colors of the same product lands on the right one.
   const requestedColor = new URLSearchParams(location.search).get("color");
-  // Layout, not plain effect: a plain effect runs after the browser has painted, so the page
-  // showed one frame of the product's default colour before correcting to the chosen one — a
-  // visible flash of the wrong bag, and with the crossfade in place it was a wrong-photo fade
-  // rather than a blink. Running before paint means the first frame is already correct.
-  useLayoutEffect(() => {
-    if (!product) return;
+  // Set while rendering, not in an effect: the gallery must be built with the right colour's
+  // photos from its very first render. Built with the default colour and corrected afterwards,
+  // it treated the correction as a change of photos, which waits for every photo to download.
+  const colourChoice = product ? `${product.id}|${requestedColor ?? ""}` : "";
+  const [colourChoiceApplied, setColourChoiceApplied] = useState("");
+  if (product && colourChoiceApplied !== colourChoice) {
+    setColourChoiceApplied(colourChoice);
     setActiveColor(getDefaultColorIndex(product, requestedColor));
     setActiveFurniture(getDefaultFurnitureColorIndex(product));
     setActiveImage(0);
-  }, [product?.id, requestedColor]);
-
-  useEffect(() => {
-    if (!product) return;
-    if (displaySizes.length === 0) {
-      setActiveSize(null);
-      return;
-    }
-    if (!activeSize || !displaySizes.includes(activeSize)) {
-      setActiveSize(displaySizes[0]);
-    }
-  }, [product, activeColor, activeSize, displaySizes]);
+  }
 
   // Every photo of this product, nearest first: the first photo of every colour and every size
   // (so any tap shows its photo at once), then all the rest. Dropped if the visitor leaves.

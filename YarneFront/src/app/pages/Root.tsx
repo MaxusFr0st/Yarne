@@ -17,6 +17,7 @@ import {
   clearScrollForRoute,
   consumeReturnScroll,
   entryStorageKey,
+  holdPageUntilRestored,
   isProductDetailPath,
   markReturnScroll,
   persistScrollPosition,
@@ -152,8 +153,12 @@ export function Root() {
           location.search,
           location.key,
         );
+      const showPage = holdPageUntilRestored(nextTop);
       restoreScrollPosition(nextTop, (cleanup) => {
-        restoreCleanupRef.current = cleanup;
+        restoreCleanupRef.current = () => {
+          cleanup();
+          showPage();
+        };
       });
       return;
     }

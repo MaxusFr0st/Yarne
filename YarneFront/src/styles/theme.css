@@ -353,6 +353,13 @@
   animation: yarne-route-return 0.34s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
+/* Back to a scrolled page: unseen until it is where the visitor left it
+   (holdPageUntilRestored). Taking this away starts the return fade from its beginning. */
+html[data-restoring-scroll] .route-return {
+  opacity: 0;
+  animation: none;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .route-enter, .route-return { animation: none; }
 }

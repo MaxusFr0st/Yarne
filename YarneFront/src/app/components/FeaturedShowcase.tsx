@@ -132,6 +132,7 @@ function ProductTile({ slot, product, fallbackTitle, variant, priority = false }
         priority={priority}
         focal={focalPoint}
         fadeIn
+        poster
         className={`absolute inset-0 h-full w-full object-cover ${cropClass} ${
           touch
             ? ""
