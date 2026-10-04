@@ -1,6 +1,6 @@
-import { useEffect, useRef, type KeyboardEvent } from "react";
+import { useEffect, useRef, type KeyboardEvent, type PointerEvent as ReactPointerEvent } from "react";
 import { createPortal } from "react-dom";
-import { AnimatePresence, motion, useDragControls, useReducedMotion, type PanInfo } from "motion/react";
+import { animate, AnimatePresence, motion, useMotionValue, useReducedMotion } from "motion/react";
 import { ArrowLeft, ArrowRight, ChevronLeft, ChevronRight, ShoppingBag, TriangleAlert, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useBodyScrollLock } from "../../hooks/useBodyScrollLock";
@@ -22,11 +22,17 @@ type Props = {
   onTopic: (topicId: string) => void;
 };
 
-const EASE = [0.37, 0, 0.63, 1] as const;
-const DURATION = 0.32;
-/** A swipe down on the sheet's top closes it past this distance (px) or speed (px/s). */
+// The panel travels into place, so it decelerates (fast start, long soft landing); leaving is
+// shorter and accelerates away. The scrim only fades.
+const EASE_IN_PLACE = [0.32, 0.72, 0, 1] as const;
+const EASE_AWAY = [0.4, 0, 1, 1] as const;
+const OPEN_S = 0.46;
+const CLOSE_S = 0.28;
+/** A swipe down on the sheet's top closes it past this distance (px) or speed (px/ms). */
 const SWIPE_CLOSE_DISTANCE = 110;
-const SWIPE_CLOSE_VELOCITY = 600;
+const SWIPE_CLOSE_VELOCITY = 0.55;
+const SWIPE_FLICK_MIN_DISTANCE = 28;
+const SCROLL_KEYS: Record<string, number> = { ArrowDown: 60, ArrowUp: -60, PageDown: 400, PageUp: -400 };
 const FOCUSABLE = 'a[href], button:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
 /**
@@ -41,13 +47,75 @@ export function CareGuidePanel({ material, topic, pieces, piece, onClose, onTopi
   const panelRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const closeRef = useRef<HTMLButtonElement>(null);
-  const dragControls = useDragControls();
   const open = topic !== null;
-  useBodyScrollLock(open);
+  // Phones only. On desktop, fixing the body in place takes the page's scrollbar away, and the
+  // page behind (and the header) jumps sideways as the panel opens; there the page is held by
+  // not letting the wheel or the keys reach it (below).
+  useBodyScrollLock(open && narrow);
 
   useEffect(() => {
-    if (open) closeRef.current?.focus();
+    if (!open || narrow) return;
+    const onWheel = (event: WheelEvent) => {
+      const scroller = scrollRef.current;
+      if (!scroller || !scroller.contains(event.target as Node)) {
+        event.preventDefault();
+        return;
+      }
+      const atTop = scroller.scrollTop <= 0 && event.deltaY < 0;
+      const atEnd = scroller.scrollTop + scroller.clientHeight >= scroller.scrollHeight - 1 && event.deltaY > 0;
+      if (atTop || atEnd) event.preventDefault();
+    };
+    window.addEventListener("wheel", onWheel, { passive: false });
+    return () => window.removeEventListener("wheel", onWheel);
+  }, [open, narrow]);
+
+  // preventScroll: the panel is still off screen when it takes focus, and the browser would
+  // scroll the page to reach it.
+  useEffect(() => {
+    if (open) closeRef.current?.focus({ preventScroll: true });
   }, [open]);
+
+  // Phones: how far the sheet is from its place, in px. The enter and exit slides and the
+  // finger all drive this one value, so they hand over to each other without a jump.
+  const sheetY = useMotionValue(0);
+  const swipe = useRef<{ startY: number; lastY: number; lastT: number; velocity: number } | null>(null);
+  const offScreen = typeof window === "undefined" ? 900 : window.innerHeight;
+
+  const onSwipeStart = (event: ReactPointerEvent<HTMLDivElement>) => {
+    // Not from the close button: that is a tap.
+    if (!narrow || (event.target as Element).closest("button")) return;
+    sheetY.stop();
+    swipe.current = { startY: event.clientY - sheetY.get(), lastY: event.clientY, lastT: event.timeStamp, velocity: 0 };
+    try {
+      // The finger keeps the sheet even when it slides off this strip.
+      event.currentTarget.setPointerCapture(event.pointerId);
+    } catch {
+      // No capture: the swipe still works while the finger stays on the strip.
+    }
+  };
+  const onSwipeMove = (event: ReactPointerEvent<HTMLDivElement>) => {
+    const state = swipe.current;
+    if (!state) return;
+    const elapsed = event.timeStamp - state.lastT;
+    if (elapsed > 0) state.velocity = (event.clientY - state.lastY) / elapsed;
+    state.lastY = event.clientY;
+    state.lastT = event.timeStamp;
+    sheetY.set(Math.max(0, event.clientY - state.startY));
+  };
+  const onSwipeEnd = () => {
+    const state = swipe.current;
+    if (!state) return;
+    swipe.current = null;
+    const moved = sheetY.get();
+    // A flick counts only once the sheet has really moved: a tap that jitters must not close it.
+    if (moved > SWIPE_CLOSE_DISTANCE || (moved > SWIPE_FLICK_MIN_DISTANCE && state.velocity > SWIPE_CLOSE_VELOCITY)) {
+      // Keep going down from where the finger left it; closing takes over on the way.
+      animate(sheetY, offScreen, { duration: CLOSE_S, ease: "easeOut" });
+      onClose();
+    } else {
+      animate(sheetY, 0, { type: "spring", stiffness: 420, damping: 40 });
+    }
+  };
 
   // Previous / next: the new topic starts from its top.
   useEffect(() => {
@@ -58,6 +126,12 @@ export function CareGuidePanel({ material, topic, pieces, piece, onClose, onTopi
     if (event.key === "Escape") {
       event.stopPropagation();
       onClose();
+      return;
+    }
+    // Arrow and page keys scroll the steps, never the page behind.
+    if (event.key in SCROLL_KEYS) {
+      event.preventDefault();
+      scrollRef.current?.scrollBy({ top: SCROLL_KEYS[event.key] });
       return;
     }
     if (event.key !== "Tab") return;
@@ -74,14 +148,8 @@ export function CareGuidePanel({ material, topic, pieces, piece, onClose, onTopi
     }
   };
 
-  // Phones: the sheet follows a finger that starts on its top (handle and title row), and
-  // closes when let go far or fast enough; otherwise it springs back. The steps below scroll.
-  const onDragEnd = (_event: unknown, info: PanInfo) => {
-    if (info.offset.y > SWIPE_CLOSE_DISTANCE || info.velocity.y > SWIPE_CLOSE_VELOCITY) onClose();
-  };
-
-  const slide = reduceMotion ? { opacity: 0 } : narrow ? { y: "100%" } : { x: "100%" };
-  const rest = reduceMotion ? { opacity: 1 } : narrow ? { y: 0 } : { x: 0 };
+  const away = reduceMotion ? { opacity: 0 } : narrow ? { y: offScreen } : { x: "100%" };
+  const inPlace = reduceMotion ? { opacity: 1 } : narrow ? { y: 0 } : { x: 0 };
 
   const body = () => {
     if (!topic) return null;
@@ -107,8 +175,8 @@ export function CareGuidePanel({ material, topic, pieces, piece, onClose, onTopi
           style={{ height: "calc(var(--app-svh) + var(--browser-bar-b))", backgroundColor: "rgba(45,36,30,0.48)" }}
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: DURATION, ease: EASE }}
+          exit={{ opacity: 0, transition: { duration: CLOSE_S, ease: "linear" } }}
+          transition={{ duration: OPEN_S, ease: "linear" }}
           onClick={onClose}
         />
         <motion.div
@@ -134,34 +202,30 @@ export function CareGuidePanel({ material, topic, pieces, piece, onClose, onTopi
                   boxShadow: "0 40px 120px rgba(45,36,30,0.18), 0 8px 32px rgba(45,36,30,0.08)",
                 }),
             paddingBottom: "var(--browser-bar-b)",
+            willChange: "transform",
+            ...(narrow ? { y: sheetY } : undefined),
           }}
-          initial={slide}
-          animate={rest}
-          exit={slide}
-          transition={{ duration: DURATION, ease: EASE }}
-          drag={narrow ? "y" : false}
-          dragControls={dragControls}
-          dragListener={false}
-          dragConstraints={{ top: 0, bottom: 0 }}
-          dragElastic={{ top: 0, bottom: 1 }}
-          dragSnapToOrigin
-          onDragEnd={onDragEnd}
+          initial={away}
+          animate={inPlace}
+          exit={{ ...away, transition: { duration: CLOSE_S, ease: EASE_AWAY } }}
+          transition={{ duration: OPEN_S, ease: EASE_IN_PLACE }}
         >
+          {/* The sheet's top (handle and title row) is where a finger takes hold of it: it follows
+              the finger down and closes when let go far or fast enough, else settles back. */}
+          <div
+            className="shrink-0 max-md:touch-none"
+            onPointerDown={onSwipeStart}
+            onPointerMove={onSwipeMove}
+            onPointerUp={onSwipeEnd}
+            onPointerCancel={onSwipeEnd}
+          >
           {narrow && (
-            <div
-              className="pt-2.5 pb-1 flex justify-center shrink-0 touch-none cursor-grab"
-              onPointerDown={(event) => dragControls.start(event)}
-              aria-hidden
-            >
+            <div className="pt-2.5 pb-1 flex justify-center" aria-hidden>
               <span className="w-10 h-1 rounded-full bg-[#2D241E]/20" />
             </div>
           )}
           <div
-            onPointerDown={(event) => {
-              // Not from the close button: that is a tap.
-              if (narrow && !(event.target as Element).closest("button")) dragControls.start(event);
-            }}
-            className="max-md:touch-none shrink-0 flex items-center justify-between gap-4 pt-2 pr-4 pb-2 pl-6 md:h-[72px] md:py-0 md:pr-6 md:pl-10 md:border-b md:border-[#2D241E]/10">
+            className="flex items-center justify-between gap-4 pt-2 pr-4 pb-2 pl-6 md:h-[72px] md:py-0 md:pr-6 md:pl-10 md:border-b md:border-[#2D241E]/10">
             <p className={`${EYEBROW} text-[11px] md:text-xs text-[#4A0E0E]`}>
               {t("care.panel.eyebrow", { material: materialName, topic: careText(topic.title, locale) })}
             </p>
@@ -174,6 +238,7 @@ export function CareGuidePanel({ material, topic, pieces, piece, onClose, onTopi
             >
               <X size={16} strokeWidth={1.5} aria-hidden />
             </button>
+          </div>
           </div>
 
           <div
@@ -225,8 +290,9 @@ export function CareGuidePanel({ material, topic, pieces, piece, onClose, onTopi
               {steps.map((step, i) => (
                 <li key={i} className="flex gap-3.5 md:gap-5 py-3.5 md:py-4 border-t border-[#2D241E]/10">
                   <span
-                    className="shrink-0 w-8 h-8 md:w-10 md:h-10 rounded-full border border-[#4A0E0E] text-[#4A0E0E] flex items-center justify-center text-[17px] md:text-xl"
-                    style={SERIF}
+                    className="shrink-0 w-8 h-8 md:w-10 md:h-10 rounded-full border border-[#4A0E0E] text-[#4A0E0E] flex items-center justify-center text-[17px] md:text-xl leading-none"
+                    // Lining figures: the font's default ones hang below the line and sit off-centre.
+                    style={{ ...SERIF, fontVariantNumeric: "lining-nums", fontFeatureSettings: '"lnum" 1' }}
                     aria-hidden
                   >
                     {i + 1}
