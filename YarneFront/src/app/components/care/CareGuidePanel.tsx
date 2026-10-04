@@ -26,11 +26,11 @@ type Props = {
 // shorter and accelerates away. The scrim only fades.
 const EASE_IN_PLACE = [0.32, 0.72, 0, 1] as const;
 const EASE_AWAY = [0.4, 0, 1, 1] as const;
-const OPEN_S = 0.46;
-const CLOSE_S = 0.28;
+const OPEN_S = 0.66;
+const CLOSE_S = 0.46;
 /** Phones: the sheet leaves at one steady speed; this is the time for its whole height. */
-const SHEET_CLOSE_S = 0.3;
-const SHEET_SETTLE_S = 0.2;
+const SHEET_CLOSE_S = 0.5;
+const SHEET_SETTLE_S = 0.36;
 /** A swipe down on the sheet's top closes it past this distance (px) or speed (px/ms). */
 const SWIPE_CLOSE_DISTANCE = 110;
 const SWIPE_CLOSE_VELOCITY = 0.55;
