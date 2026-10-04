@@ -696,7 +696,9 @@ export function WhyYarneSection() {
             gridTemplateRows: isNarrow ? "auto auto minmax(0,1fr) auto" : "auto minmax(0,1fr) auto",
             height: "100%",
             maxWidth: 1500,
-            margin: "0 auto",
+            // Desktop: on screens wider than the frame the copy sits left of centre, so the
+            // spare width goes to the painting's side rather than to an empty left margin.
+            margin: isNarrow ? "0 auto" : "0 auto 0 max(0px, calc((100% - 1500px) * 0.25))",
             boxSizing: "border-box",
             paddingTop: `calc(var(--main-header-h, 57px) + env(safe-area-inset-top, 0px) + ${topPad})`,
             paddingBottom: `calc(var(--browser-bar-b) + ${bottomPad})`,
