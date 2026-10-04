@@ -22,15 +22,17 @@ type Props = {
   onTopic: (topicId: string) => void;
 };
 
-// The panel travels into place, so it decelerates (fast start, long soft landing); leaving is
-// shorter and accelerates away. The scrim only fades.
-const EASE_IN_PLACE = [0.32, 0.72, 0, 1] as const;
-const EASE_AWAY = [0.4, 0, 1, 1] as const;
+// Desktop: the panel moves at one steady speed, in and out. Phones: the sheet moves like the
+// Nova Poshta picker's (components/NovaPoshtaPicker.tsx): it decelerates into place and
+// accelerates away. The scrim darkens in step with either. Times are for the whole travel.
+const SHEET_EASE_OUT = [0.16, 1, 0.3, 1] as const;
+const SHEET_EASE_IN = [0.4, 0, 1, 1] as const;
 const OPEN_S = 0.66;
 const CLOSE_S = 0.46;
-/** Phones: the sheet leaves at one steady speed; this is the time for its whole height. */
-const SHEET_CLOSE_S = 0.5;
-const SHEET_SETTLE_S = 0.36;
+const SHEET_OPEN_S = 0.61;
+const PANEL_WIDTH = 600;
+const SHEET_CLOSE_S = 0.45;
+const SHEET_SETTLE_S = 0.31;
 /** A swipe down on the sheet's top closes it past this distance (px) or speed (px/ms). */
 const SWIPE_CLOSE_DISTANCE = 110;
 const SWIPE_CLOSE_VELOCITY = 0.55;
@@ -85,41 +87,51 @@ export function CareGuidePanel({ material, topic, pieces, piece, onClose, onTopi
     if (open) closeRef.current?.focus({ preventScroll: true });
   }, [open]);
 
-  // Phones: how far the sheet is from its place, in px. The enter and exit slides and the
-  // finger all drive this one value, so they hand over to each other without a jump.
-  const sheetY = useMotionValue(0);
+  // How far the panel is from its place, in px: down on phones, to the right on desktop. The
+  // enter and exit slides and the finger all drive this one value, so they hand over to each
+  // other without a jump.
+  const offset = useMotionValue(0);
   const swipe = useRef<{ startY: number; lastY: number; lastT: number; velocity: number } | null>(null);
-  const offScreen = typeof window === "undefined" ? 900 : window.innerHeight;
-  // The scrim clears as the sheet goes down, under the finger too.
-  const scrimOpacity = useTransform(sheetY, [0, offScreen], [1, 0]);
-  const sheetMoves = narrow && !reduceMotion;
+  const offScreen =
+    typeof window === "undefined" ? 900 : narrow ? window.innerHeight : Math.min(PANEL_WIDTH, window.innerWidth);
+  const openS = narrow ? SHEET_OPEN_S : OPEN_S;
+  const closeS = narrow ? SHEET_CLOSE_S : CLOSE_S;
+  const openEase = narrow ? SHEET_EASE_OUT : "linear";
+  const closeEase = narrow ? SHEET_EASE_IN : "linear";
+  // The scrim clears as the panel goes, under the finger too.
+  const scrimOpacity = useTransform(offset, [0, offScreen], [1, 0]);
+  const slides = !reduceMotion;
   const closing = useRef(false);
   useEffect(() => {
     if (open) closing.current = false;
   }, [open]);
 
   /**
-   * Phones: the sheet goes down at one steady speed from wherever it is, and only then is the
-   * guide closed. One animation, nothing else moving the sheet or the page under it.
-   * `velocity`: the finger's speed on release (px/ms); the sheet never leaves slower than it.
+   * The panel leaves from wherever it is, and only then is the guide closed. One animation,
+   * nothing else moving the panel or the page under it.
+   * Once only: a double click on the scrim must not close twice (the second would go Back a
+   * page further).
+   * `velocity`: the finger's speed on release (px/ms). A sheet let go by a finger is already
+   * moving, so it carries on steadily, never slower than the finger, instead of starting again
+   * from rest.
    */
-  const close = (velocity = 0) => {
-    if (!sheetMoves) {
+  const close = (velocity?: number) => {
+    if (closing.current) return;
+    closing.current = true;
+    if (!slides) {
       onClose();
       return;
     }
-    if (closing.current) return;
-    closing.current = true;
-    const speed = Math.max(velocity, offScreen / (SHEET_CLOSE_S * 1000));
-    const duration = Math.max(0, offScreen - sheetY.get()) / speed / 1000;
-    animate(sheetY, offScreen, { duration, ease: "linear", onComplete: onClose });
+    const speed = Math.max(velocity ?? 0, offScreen / (closeS * 1000));
+    const duration = Math.max(0, offScreen - offset.get()) / speed / 1000;
+    animate(offset, offScreen, { duration, ease: velocity === undefined ? closeEase : "linear", onComplete: onClose });
   };
 
   const onSwipeStart = (event: ReactPointerEvent<HTMLDivElement>) => {
     // Not from the close button: that is a tap.
     if (!narrow || closing.current || (event.target as Element).closest("button")) return;
-    sheetY.stop();
-    swipe.current = { startY: event.clientY - sheetY.get(), lastY: event.clientY, lastT: event.timeStamp, velocity: 0 };
+    offset.stop();
+    swipe.current = { startY: event.clientY - offset.get(), lastY: event.clientY, lastT: event.timeStamp, velocity: 0 };
     try {
       // The finger keeps the sheet even when it slides off this strip.
       event.currentTarget.setPointerCapture(event.pointerId);
@@ -134,19 +146,19 @@ export function CareGuidePanel({ material, topic, pieces, piece, onClose, onTopi
     if (elapsed > 0) state.velocity = (event.clientY - state.lastY) / elapsed;
     state.lastY = event.clientY;
     state.lastT = event.timeStamp;
-    sheetY.set(Math.max(0, event.clientY - state.startY));
+    offset.set(Math.max(0, event.clientY - state.startY));
   };
   const onSwipeEnd = () => {
     const state = swipe.current;
     if (!state) return;
     swipe.current = null;
-    const moved = sheetY.get();
+    const moved = offset.get();
     // A flick counts only once the sheet has really moved: a tap that jitters must not close it.
     if (moved > SWIPE_CLOSE_DISTANCE || (moved > SWIPE_FLICK_MIN_DISTANCE && state.velocity > SWIPE_CLOSE_VELOCITY)) {
       // Keeps going down from where, and as fast as, the finger left it.
       close(state.velocity);
     } else {
-      animate(sheetY, 0, { duration: SHEET_SETTLE_S, ease: "easeOut" });
+      animate(offset, 0, { duration: SHEET_SETTLE_S, ease: SHEET_EASE_OUT });
     }
   };
 
@@ -181,7 +193,7 @@ export function CareGuidePanel({ material, topic, pieces, piece, onClose, onTopi
     }
   };
 
-  const away = reduceMotion ? { opacity: 0 } : narrow ? { y: offScreen } : { x: "100%" };
+  const away = reduceMotion ? { opacity: 0 } : narrow ? { y: offScreen } : { x: offScreen };
   const inPlace = reduceMotion ? { opacity: 1 } : narrow ? { y: 0 } : { x: 0 };
 
   const body = () => {
@@ -208,9 +220,9 @@ export function CareGuidePanel({ material, topic, pieces, piece, onClose, onTopi
           style={{
             height: "calc(var(--app-svh) + var(--browser-bar-b))",
             backgroundColor: "rgba(45,36,30,0.48)",
-            ...(sheetMoves ? { opacity: scrimOpacity } : undefined),
+            ...(slides ? { opacity: scrimOpacity } : undefined),
           }}
-          {...(sheetMoves
+          {...(slides
             ? undefined
             : {
                 initial: { opacity: 0 },
@@ -244,13 +256,13 @@ export function CareGuidePanel({ material, topic, pieces, piece, onClose, onTopi
                 }),
             paddingBottom: "var(--browser-bar-b)",
             willChange: "transform",
-            ...(narrow ? { y: sheetY } : undefined),
+            ...(narrow ? { y: offset } : { x: offset }),
           }}
           initial={away}
           animate={inPlace}
-          // Phones (the browser's Back, which closes without `close`): steady, like `close`.
-          exit={{ ...away, transition: sheetMoves ? { duration: SHEET_CLOSE_S, ease: "linear" } : { duration: CLOSE_S, ease: EASE_AWAY } }}
-          transition={{ duration: OPEN_S, ease: EASE_IN_PLACE }}
+          // The browser's Back closes without `close`: the same slide.
+          exit={{ ...away, transition: { duration: closeS, ease: closeEase } }}
+          transition={{ duration: openS, ease: openEase }}
         >
           {/* The sheet's top (handle and title row) is where a finger takes hold of it: it follows
               the finger down and closes when let go far or fast enough, else settles back. */}
