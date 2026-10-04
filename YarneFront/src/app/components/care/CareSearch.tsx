@@ -97,7 +97,7 @@ export function CareSearch({ entries }: { entries: CareSearchEntry[] }) {
             setNotFound(false);
           }}
           onKeyDown={onKeyDown}
-          className="grow min-w-0 h-11 border-0 bg-transparent text-[15px] text-[#2D241E] placeholder:text-[#2D241E]/72 outline-none [&::-webkit-search-cancel-button]:hidden"
+          className="grow min-w-0 h-11 border-0 bg-transparent text-base md:text-[15px] text-[#2D241E] placeholder:text-[#2D241E]/72 outline-none [&::-webkit-search-cancel-button]:hidden"
         />
         <button
           type="submit"
