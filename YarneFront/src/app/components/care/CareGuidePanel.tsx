@@ -27,8 +27,8 @@ type Props = {
 // accelerates away. The scrim darkens in step with either. Times are for the whole travel.
 const SHEET_EASE_OUT = [0.16, 1, 0.3, 1] as const;
 const SHEET_EASE_IN = [0.4, 0, 1, 1] as const;
-const OPEN_S = 0.66;
-const CLOSE_S = 0.46;
+const OPEN_S = 0.34;
+const CLOSE_S = 0.26;
 const SHEET_OPEN_S = 0.61;
 const PANEL_WIDTH = 600;
 const SHEET_CLOSE_S = 0.45;
