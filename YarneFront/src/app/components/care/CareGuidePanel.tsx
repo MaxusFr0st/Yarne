@@ -1,6 +1,6 @@
-import { useEffect, useRef, type KeyboardEvent, type PointerEvent as ReactPointerEvent } from "react";
+import { useEffect, useRef, useState, type KeyboardEvent, type PointerEvent as ReactPointerEvent } from "react";
 import { createPortal } from "react-dom";
-import { animate, AnimatePresence, motion, useMotionValue, useReducedMotion } from "motion/react";
+import { animate, AnimatePresence, motion, useMotionValue, useReducedMotion, useTransform } from "motion/react";
 import { ArrowLeft, ArrowRight, ChevronLeft, ChevronRight, ShoppingBag, TriangleAlert, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useBodyScrollLock } from "../../hooks/useBodyScrollLock";
@@ -28,6 +28,9 @@ const EASE_IN_PLACE = [0.32, 0.72, 0, 1] as const;
 const EASE_AWAY = [0.4, 0, 1, 1] as const;
 const OPEN_S = 0.46;
 const CLOSE_S = 0.28;
+/** Phones: the sheet leaves at one steady speed; this is the time for its whole height. */
+const SHEET_CLOSE_S = 0.3;
+const SHEET_SETTLE_S = 0.2;
 /** A swipe down on the sheet's top closes it past this distance (px) or speed (px/ms). */
 const SWIPE_CLOSE_DISTANCE = 110;
 const SWIPE_CLOSE_VELOCITY = 0.55;
@@ -48,10 +51,17 @@ export function CareGuidePanel({ material, topic, pieces, piece, onClose, onTopi
   const scrollRef = useRef<HTMLDivElement>(null);
   const closeRef = useRef<HTMLButtonElement>(null);
   const open = topic !== null;
+  // Still on screen: from opening until the closing slide has finished.
+  const [present, setPresent] = useState(false);
+  useEffect(() => {
+    if (open) setPresent(true);
+  }, [open]);
   // Phones only. On desktop, fixing the body in place takes the page's scrollbar away, and the
   // page behind (and the header) jumps sideways as the panel opens; there the page is held by
   // not letting the wheel or the keys reach it (below).
-  useBodyScrollLock(open && narrow);
+  // Held until the sheet is gone: letting the page go mid-slide lays it out again and the
+  // slide stutters.
+  useBodyScrollLock((open || present) && narrow);
 
   useEffect(() => {
     if (!open || narrow) return;
@@ -80,10 +90,34 @@ export function CareGuidePanel({ material, topic, pieces, piece, onClose, onTopi
   const sheetY = useMotionValue(0);
   const swipe = useRef<{ startY: number; lastY: number; lastT: number; velocity: number } | null>(null);
   const offScreen = typeof window === "undefined" ? 900 : window.innerHeight;
+  // The scrim clears as the sheet goes down, under the finger too.
+  const scrimOpacity = useTransform(sheetY, [0, offScreen], [1, 0]);
+  const sheetMoves = narrow && !reduceMotion;
+  const closing = useRef(false);
+  useEffect(() => {
+    if (open) closing.current = false;
+  }, [open]);
+
+  /**
+   * Phones: the sheet goes down at one steady speed from wherever it is, and only then is the
+   * guide closed. One animation, nothing else moving the sheet or the page under it.
+   * `velocity`: the finger's speed on release (px/ms); the sheet never leaves slower than it.
+   */
+  const close = (velocity = 0) => {
+    if (!sheetMoves) {
+      onClose();
+      return;
+    }
+    if (closing.current) return;
+    closing.current = true;
+    const speed = Math.max(velocity, offScreen / (SHEET_CLOSE_S * 1000));
+    const duration = Math.max(0, offScreen - sheetY.get()) / speed / 1000;
+    animate(sheetY, offScreen, { duration, ease: "linear", onComplete: onClose });
+  };
 
   const onSwipeStart = (event: ReactPointerEvent<HTMLDivElement>) => {
     // Not from the close button: that is a tap.
-    if (!narrow || (event.target as Element).closest("button")) return;
+    if (!narrow || closing.current || (event.target as Element).closest("button")) return;
     sheetY.stop();
     swipe.current = { startY: event.clientY - sheetY.get(), lastY: event.clientY, lastT: event.timeStamp, velocity: 0 };
     try {
@@ -109,11 +143,10 @@ export function CareGuidePanel({ material, topic, pieces, piece, onClose, onTopi
     const moved = sheetY.get();
     // A flick counts only once the sheet has really moved: a tap that jitters must not close it.
     if (moved > SWIPE_CLOSE_DISTANCE || (moved > SWIPE_FLICK_MIN_DISTANCE && state.velocity > SWIPE_CLOSE_VELOCITY)) {
-      // Keep going down from where the finger left it; closing takes over on the way.
-      animate(sheetY, offScreen, { duration: CLOSE_S, ease: "easeOut" });
-      onClose();
+      // Keeps going down from where, and as fast as, the finger left it.
+      close(state.velocity);
     } else {
-      animate(sheetY, 0, { type: "spring", stiffness: 420, damping: 40 });
+      animate(sheetY, 0, { duration: SHEET_SETTLE_S, ease: "easeOut" });
     }
   };
 
@@ -125,7 +158,7 @@ export function CareGuidePanel({ material, topic, pieces, piece, onClose, onTopi
   const onKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
     if (event.key === "Escape") {
       event.stopPropagation();
-      onClose();
+      close();
       return;
     }
     // Arrow and page keys scroll the steps, never the page behind.
@@ -172,12 +205,20 @@ export function CareGuidePanel({ material, topic, pieces, piece, onClose, onTopi
             of the screen bottom Safari's translucent bar renders through. */}
         <motion.div
           className="fixed inset-x-0 top-0 z-[60]"
-          style={{ height: "calc(var(--app-svh) + var(--browser-bar-b))", backgroundColor: "rgba(45,36,30,0.48)" }}
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0, transition: { duration: CLOSE_S, ease: "linear" } }}
-          transition={{ duration: OPEN_S, ease: "linear" }}
-          onClick={onClose}
+          style={{
+            height: "calc(var(--app-svh) + var(--browser-bar-b))",
+            backgroundColor: "rgba(45,36,30,0.48)",
+            ...(sheetMoves ? { opacity: scrimOpacity } : undefined),
+          }}
+          {...(sheetMoves
+            ? undefined
+            : {
+                initial: { opacity: 0 },
+                animate: { opacity: 1 },
+                exit: { opacity: 0, transition: { duration: CLOSE_S, ease: "linear" } },
+                transition: { duration: OPEN_S, ease: "linear" },
+              })}
+          onClick={() => close()}
         />
         <motion.div
           ref={panelRef}
@@ -207,7 +248,8 @@ export function CareGuidePanel({ material, topic, pieces, piece, onClose, onTopi
           }}
           initial={away}
           animate={inPlace}
-          exit={{ ...away, transition: { duration: CLOSE_S, ease: EASE_AWAY } }}
+          // Phones (the browser's Back, which closes without `close`): steady, like `close`.
+          exit={{ ...away, transition: sheetMoves ? { duration: SHEET_CLOSE_S, ease: "linear" } : { duration: CLOSE_S, ease: EASE_AWAY } }}
           transition={{ duration: OPEN_S, ease: EASE_IN_PLACE }}
         >
           {/* The sheet's top (handle and title row) is where a finger takes hold of it: it follows
@@ -232,7 +274,7 @@ export function CareGuidePanel({ material, topic, pieces, piece, onClose, onTopi
             <button
               ref={closeRef}
               type="button"
-              onClick={onClose}
+              onClick={() => close()}
               aria-label={t("care.panel.close")}
               className={`shrink-0 w-11 h-11 rounded-full border border-[#2D241E]/20 flex items-center justify-center cursor-pointer hover:bg-[#2D241E]/5 transition-colors ${FOCUS_RING}`}
             >
@@ -341,5 +383,5 @@ export function CareGuidePanel({ material, topic, pieces, piece, onClose, onTopi
   };
 
   // In <body>, outside the page's route fade: the panel sits above the header.
-  return createPortal(<AnimatePresence>{open && body()}</AnimatePresence>, document.body);
+  return createPortal(<AnimatePresence onExitComplete={() => setPresent(false)}>{open && body()}</AnimatePresence>, document.body);
 }
