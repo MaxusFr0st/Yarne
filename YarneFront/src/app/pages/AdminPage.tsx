@@ -100,6 +100,7 @@ import {
   Phone,
   Crop,
   Crosshair,
+  Sparkles,
 } from "lucide-react";
 import { fetchActivityLogs, type AdminActivityLogDto } from "../api/admin";
 import { fetchProduct, uploadProductShareImage, deleteProductShareImage } from "../api/products";
@@ -109,6 +110,8 @@ import { FocalPointEditor } from "../components/admin/FocalPointEditor";
 import { AdminHomeCopyEditor } from "../components/admin/AdminHomeCopyEditor";
 import { AdminOurHistoryEditor } from "../components/admin/AdminOurHistoryEditor";
 import { AdminCollectionsTab } from "../components/admin/AdminCollectionsTab";
+import { AdminCareTab } from "../components/admin/AdminCareTab";
+import { defaultPhoto } from "../utils/productPhotos";
 import { AdminAccountingTab } from "../components/admin/AdminAccountingTab";
 import { formatPriceCompact } from "../i18n/format";
 import { PriceTag } from "../components/PriceTag";
@@ -2997,7 +3000,7 @@ function DeleteModal({
 /* ─────────────────────────────────────────────
    MAIN ADMIN PAGE
 ───────────────────────────────────────────── */
-type AdminTab = "dashboard" | "contents" | "products" | "users" | "orders" | "logs" | "accounting" | "categories" | "collections" | "colors" | "furniture" | "sizes";
+type AdminTab = "dashboard" | "contents" | "care" | "products" | "users" | "orders" | "logs" | "accounting" | "categories" | "collections" | "colors" | "furniture" | "sizes";
 type LogsSubTab = "all" | "product" | "user" | "push" | "order" | "catalog" | "image";
 
 function formatLogTimestamp(iso: string) {
@@ -4165,6 +4168,7 @@ export function AdminPage() {
             {([
               { key: "dashboard" as AdminTab, label: "Dashboard", icon: <LayoutDashboard size={14} /> },
               { key: "contents" as AdminTab, label: "Contents", icon: <ImagePlus size={14} /> },
+              { key: "care" as AdminTab, label: "Care", icon: <Sparkles size={14} /> },
               { key: "products" as AdminTab, label: "Products", icon: <Package size={14} /> },
               { key: "users" as AdminTab, label: "Users", icon: <Users size={14} /> },
               { key: "orders" as AdminTab, label: "Orders", icon: <ShoppingCart size={14} /> },
@@ -4978,6 +4982,27 @@ export function AdminPage() {
           )}
 
           {/* ── PRODUCTS ── */}
+          {/* ── CARE ── */}
+          {activeTab === "care" && (
+            <motion.div
+              key="care"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              transition={{ duration: 0.4, ease: easing }}
+            >
+              <AdminCareTab
+                products={products.map((product) => ({
+                  id: product.id,
+                  name: product.name,
+                  sku: product.sku,
+                  photo: defaultPhoto(product),
+                }))}
+                onError={(message) => setSaveError(message)}
+              />
+            </motion.div>
+          )}
+
           {activeTab === "products" && (
             <motion.div
               key="products"

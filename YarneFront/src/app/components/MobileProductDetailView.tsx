@@ -10,6 +10,7 @@ import { ImageWithFallback } from "./figma/ImageWithFallback";
 import { CrossfadeImage } from "./figma/CrossfadeImage";
 import { resolveMediaUrl } from "../utils/storefrontMedia";
 import { ProductGuaranteeBlock } from "./ProductGuaranteeBlock";
+import { CareProductLink } from "./care/CareProductLink";
 import type { ProductGuaranteeContent } from "../utils/productGuaranteeContent";
 import { getSupplementaryProductDetails, hasSupplementaryProductDetails } from "../utils/productDetails";
 import { useTouchMobileLayout } from "../hooks/useTouchMobileLayout";
@@ -869,6 +870,7 @@ export function MobileProductDetailView({
             locale={locale}
             className="mt-[clamp(10px,3vw,14px)]"
           />
+          <CareProductLink productId={product.id} className="mt-2" />
         </div>
       </div>
     </div>

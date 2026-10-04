@@ -67,6 +67,14 @@ export function isProductDetailPath(barePath: string): boolean {
   return /^\/product\/[^/]+/.test(barePath);
 }
 
+/**
+ * A care guide keeps its open topic and chosen piece in the query (?topic=&piece=). Changing
+ * them is not a page change: the page stays mounted and where it is.
+ */
+export function isCareGuidePath(barePath: string): boolean {
+  return /^\/pages\/care\/[^/]+/.test(barePath);
+}
+
 export function shouldRestoreScrollOnPop(barePath: string): boolean {
   if (isProductDetailPath(barePath)) return false;
   if (barePath === "/" || barePath === "") return true;

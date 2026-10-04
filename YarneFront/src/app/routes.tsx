@@ -63,7 +63,7 @@ function langLoader(args: LoaderFunctionArgs) {
 // move between, and splitting them saved only ~3% for a second round trip on a direct visit.
 // Every other page is its own file, loaded when opened (the admin panel alone was a third of the
 // main file). While one loads, the page the visitor is on stays on screen.
-async function staticPage(pageKey: "delivery" | "care" | "terms") {
+async function staticPage(pageKey: "delivery" | "terms") {
   const { StaticContentPage } = await import("./pages/StaticContentPage");
   return { element: <StaticContentPage pageKey={pageKey} /> };
 }
@@ -86,7 +86,8 @@ export const router = createBrowserRouter([
           { path: "account", lazy: async () => ({ Component: (await import("./pages/AccountPage")).AccountPage }) },
           { path: "pages/our-history", lazy: async () => ({ Component: (await import("./pages/OurHistoryPage")).OurHistoryPage }) },
           { path: "pages/delivery", lazy: () => staticPage("delivery") },
-          { path: "pages/care", lazy: () => staticPage("care") },
+          { path: "pages/care", lazy: async () => ({ Component: (await import("./pages/CarePage")).CarePage }) },
+          { path: "pages/care/:materialSlug", lazy: async () => ({ Component: (await import("./pages/CareMaterialPage")).CareMaterialPage }) },
           { path: "pages/terms", lazy: () => staticPage("terms") },
           // /en/admin → canonical /admin (admin has no locale prefix).
           { path: "admin", loader: () => redirect("/admin") },

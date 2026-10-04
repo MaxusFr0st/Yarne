@@ -22,6 +22,8 @@ type Product = { defaultColor?: string | null; colors?: Color[] };
 (function () {
   /** Cards on the first screen of the collection page: one row on desktop, two on phones. */
   const FIRST_CARDS = 4;
+  /** Material tiles on the first screen of the care page. */
+  const FIRST_CARE_TILES = 2;
 
   try {
     const api = apiBase();
@@ -54,8 +56,19 @@ type Product = { defaultColor?: string | null; colors?: Color[] };
 
     const [, lang, page, id] = location.pathname.match(/^\/(uk|en)?\/?(collection|product)?\/?([^/]*)/) ?? [];
     const query = new URLSearchParams(location.search);
+    const [care, careMaterial] = location.pathname.match(/^\/(?:uk|en)\/pages\/care(?:\/([^/]+))?\/?$/) ?? [];
 
-    if (!page && !id) {
+    if (care) {
+      // Yarné Care: the guide's content, and on the materials page the first tiles' photos.
+      // Key from app/utils/careContent.ts; tiles from app/pages/CarePage.tsx. The pieces are named
+      // from the product list (app/api/products.ts fetchProducts), which the pages wait for.
+      get("/api/products").catch(() => undefined);
+      get("/api/storefront-settings/yarne.care.v1").then((res) => {
+        if (careMaterial) return;
+        const value = (res as { value?: { materials?: { tileImageUrl?: string | null }[] } }).value;
+        (value?.materials ?? []).slice(0, FIRST_CARE_TILES).forEach((m) => photo(m.tileImageUrl ?? undefined));
+      }, () => undefined);
+    } else if (!page && !id) {
       // Home (or the bare root, which redirects to it): the hero's heading and photo.
       // Keys from app/utils/homePageCopy.ts and homePageMediaSelection.ts.
       get("/api/storefront-settings/yarne.home.copy.v1").catch(() => undefined);

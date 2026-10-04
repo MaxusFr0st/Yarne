@@ -1,6 +1,8 @@
-import { type ReactNode } from "react";
+import { useRef, type ReactNode } from "react";
 import { useLocation } from "react-router";
 import { useReturningToPage } from "../hooks/useMotionEntrance";
+import { stripLocaleFromPath } from "../i18n/useLocale";
+import { isCareGuidePath } from "../utils/scrollRestoration";
 
 type PageTransitionProps = {
   children: ReactNode;
@@ -27,11 +29,19 @@ export function PageTransition({ children }: PageTransitionProps) {
   // Back/forward returns to a page as it was left: a short settle, not a fade in from nothing.
   const returning = useReturningToPage();
 
+  // A care guide's query only opens a topic or picks a piece on the same page.
+  const key = isCareGuidePath(stripLocaleFromPath(location.pathname))
+    ? location.pathname
+    : `${location.pathname}${location.search}`;
+  // How the page was entered, kept while it stays: switching the class would replay the fade.
+  const entered = useRef({ key, returning });
+  if (entered.current.key !== key) entered.current = { key, returning };
+
   // Remounting on the route key is what restarts the CSS animation.
   return (
     <div
-      key={`${location.pathname}${location.search}`}
-      className={`${returning ? "route-return" : "route-enter"} min-h-[calc(var(--app-svh)-var(--main-header-h))]`}
+      key={key}
+      className={`${entered.current.returning ? "route-return" : "route-enter"} min-h-[calc(var(--app-svh)-var(--main-header-h))]`}
     >
       {children}
     </div>

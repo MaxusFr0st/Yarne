@@ -7,8 +7,12 @@ import { loadHomePageMediaSelection } from "../utils/homePageMediaSelection";
 import { loadWhySectionContent } from "../utils/whySectionContent";
 import { loadFeaturedShowcaseSelection } from "../utils/featuredShowcaseSelection";
 import { WHY_DEFAULT_IMAGES } from "../utils/whyDefaultImages";
+import { loadCareContent } from "../utils/careContent";
 
 const HOME_PATH = /^\/(uk|en)\/?$/;
+const CARE_PATH = /^\/(uk|en)\/pages\/care(\/|$)/;
+/** After the opened page's own requests. */
+const CARE_PREFETCH_DELAY_MS = 2500;
 
 /**
  * Gets the storefront's other pages ready while the visitor is on this one (utils/photoQueue.ts):
@@ -59,6 +63,29 @@ export function SitePrefetch() {
     );
     return () => {
       cancelled = true;
+    };
+    // Once, for the page the visit started on.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Yarné Care is linked from every page's footer and from product pages: its content (saved
+  // for its first render) and its material photos, so it opens without waiting. The care pages
+  // themselves do this.
+  useEffect(() => {
+    if (CARE_PATH.test(pathname)) return;
+    let cancelled = false;
+    const timer = window.setTimeout(() => {
+      // The pages' code too, so opening one is not a wait for its file.
+      void import("../pages/CarePage").catch(() => undefined);
+      void import("../pages/CareMaterialPage").catch(() => undefined);
+      void loadCareContent().then((care) => {
+        if (cancelled || !care) return;
+        queuePhotos(care.materials.map((material) => material.tileImageUrl), Priority.otherPages);
+      });
+    }, CARE_PREFETCH_DELAY_MS);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
     };
     // Once, for the page the visit started on.
     // eslint-disable-next-line react-hooks/exhaustive-deps

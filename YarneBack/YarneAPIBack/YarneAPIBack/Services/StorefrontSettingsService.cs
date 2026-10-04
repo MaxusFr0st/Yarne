@@ -18,6 +18,7 @@ public class StorefrontSettingsService : IStorefrontSettingsService
         "yarne.product.guarantee.v1",
         "yarne.share.default.v1",
         "yarne.why.v1",
+        "yarne.care.v1",
     };
 
     private readonly YarneDbContext _context;

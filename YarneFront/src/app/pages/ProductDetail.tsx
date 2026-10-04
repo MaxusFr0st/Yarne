@@ -16,6 +16,7 @@ import { MobileProductDetailView } from "../components/MobileProductDetailView";
 import { getSupplementaryProductDetails, hasSupplementaryProductDetails } from "../utils/productDetails";
 import { MobileRelatedProducts } from "../components/MobileRelatedProducts";
 import { ProductGuaranteeBlock } from "../components/ProductGuaranteeBlock";
+import { CareProductLink } from "../components/care/CareProductLink";
 import { resolveDisplayImages } from "../utils/variantImages";
 import { resolveDisplayPrice, resolveDisplayEurPrice } from "../utils/variantStock";
 import { scrollToPageTop } from "../utils/scrollToTop";
@@ -764,6 +765,7 @@ export function ProductDetail() {
             ) : null}
 
             <ProductGuaranteeBlock content={guaranteeContent} locale={locale} />
+            <CareProductLink productId={product.id} className="mt-3" />
           </div>
         </div>
       </div>

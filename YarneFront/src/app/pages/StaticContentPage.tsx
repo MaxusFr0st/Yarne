@@ -1,7 +1,7 @@
 import { useTranslation } from "react-i18next";
 import { ScrollReveal, SectionEyebrow, SectionTitle } from "../components/ScrollReveal";
 
-type StaticPageKey = "delivery" | "care" | "terms";
+type StaticPageKey = "delivery" | "terms";
 
 type Props = {
   pageKey: StaticPageKey;

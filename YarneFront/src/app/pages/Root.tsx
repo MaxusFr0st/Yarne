@@ -18,6 +18,7 @@ import {
   consumeReturnScroll,
   entryStorageKey,
   holdPageUntilRestored,
+  isCareGuidePath,
   isProductDetailPath,
   markReturnScroll,
   persistScrollPosition,
@@ -109,6 +110,11 @@ export function Root() {
     }
 
     prevLocationRef.current = location;
+
+    // Opening a care topic or picking a piece only changes the query: the page stays put.
+    if (pathChanged && prev.pathname === location.pathname && isCareGuidePath(stripLocaleFromPath(location.pathname))) {
+      return;
+    }
 
     const snapScroll = (top: number) => {
       window.scrollTo(0, Math.max(0, Math.round(top)));

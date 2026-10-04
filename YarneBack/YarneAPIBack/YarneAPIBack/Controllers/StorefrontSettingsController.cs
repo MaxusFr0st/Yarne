@@ -22,6 +22,7 @@ public class StorefrontSettingsController : ControllerBase
             ["yarne.product.guarantee.v1"] = "Product page guarantee",
             ["yarne.share.default.v1"] = "Default share card",
             ["yarne.why.v1"] = "Why Yarné section",
+            ["yarne.care.v1"] = "Yarné Care guide",
         };
 
     private readonly IStorefrontSettingsService _settings;
@@ -124,7 +125,8 @@ public class StorefrontSettingsController : ControllerBase
         string.Equals(key, "yarne.home.media.v1", StringComparison.Ordinal)
         || string.Equals(key, "yarne.featuredShowcase.v1", StringComparison.Ordinal)
         || string.Equals(key, "yarne.home.sections.v1", StringComparison.Ordinal)
-        || string.Equals(key, "yarne.why.v1", StringComparison.Ordinal);
+        || string.Equals(key, "yarne.why.v1", StringComparison.Ordinal)
+        || string.Equals(key, "yarne.care.v1", StringComparison.Ordinal);
 
     private static object? ParseJson(string valueJson)
     {
