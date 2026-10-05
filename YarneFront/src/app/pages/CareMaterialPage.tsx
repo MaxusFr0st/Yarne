@@ -11,7 +11,15 @@ import { useCareContent, useCareProducts } from "../hooks/useCareContent";
 import { firstVisitRevealStyle } from "../hooks/useFirstVisitReady";
 import { LangLink } from "../i18n/LangLink";
 import { useLocale } from "../i18n/useLocale";
-import { careGuidePath, careText, countPieceNotes } from "../utils/careContent";
+import {
+  careGuidePath,
+  careText,
+  countPieceNotes,
+  stepsForPiece,
+  topicDiffersForPiece,
+  topicsForPiece,
+  type CareTopic,
+} from "../utils/careContent";
 import { NotFound } from "./NotFound";
 
 const topicCardId = (topicId: string) => `care-topic-${topicId}`;
@@ -53,8 +61,10 @@ export function CareMaterialPage() {
   }, [material, products]);
 
   const topicId = params.get("topic");
-  const topic = material?.topics.find((item) => item.id === topicId) ?? null;
   const piece = pieces.find((item) => item.id === params.get("piece")) ?? null;
+  // A topic left out for the chosen piece is not on its guide at all.
+  const topics = material ? topicsForPiece(material, piece?.id ?? null) : [];
+  const topic = topics.find((item) => item.id === topicId) ?? null;
 
   const setQuery = (change: { topic?: string | null; piece?: string | null }, options: { replace?: boolean; state?: unknown }) => {
     const next = new URLSearchParams(location.search);
@@ -102,11 +112,13 @@ export function CareMaterialPage() {
     .filter((item) => item.q || item.a);
   const other = content.materials.length > 1 ? content.materials[(materialIndex + 1) % content.materials.length] : null;
 
-  const tagFor = (pieceNotes: Record<string, unknown>) => {
+  const tagFor = (item: CareTopic) => {
     if (piece) {
-      return pieceNotes[piece.id] ? { solid: true, label: t("care.noteFor", { piece: piece.name }) } : null;
+      return topicDiffersForPiece(item, piece.id) ? { solid: true, label: t("care.noteFor", { piece: piece.name }) } : null;
     }
-    return pieces.some((item) => pieceNotes[item.id]) ? { solid: false, label: t("care.topic.differsByPiece") } : null;
+    return pieces.some((option) => topicDiffersForPiece(item, option.id) || item.hiddenForPieces.includes(option.id))
+      ? { solid: false, label: t("care.topic.differsByPiece") }
+      : null;
   };
 
   const tag = (value: ReturnType<typeof tagFor>) =>
@@ -189,9 +201,9 @@ export function CareMaterialPage() {
         </section>
 
         <section className="px-4 pb-14 md:px-10 md:pb-[104px] flex flex-col gap-2.5 md:grid md:grid-cols-3 md:gap-6">
-          {material.topics.map((item) => {
-            const stepsLabel = t("care.topic.seeSteps", { count: item.steps.length });
-            const badge = tag(tagFor(item.pieceNotes));
+          {topics.map((item) => {
+            const stepsLabel = t("care.topic.seeSteps", { count: stepsForPiece(item, piece?.id ?? null).length });
+            const badge = tag(tagFor(item));
             return (
               <button
                 key={item.id}
@@ -272,7 +284,7 @@ export function CareMaterialPage() {
       </div>
 
       <CareGuidePanel
-        material={material}
+        material={{ ...material, topics }}
         topic={topic}
         pieces={pieces}
         piece={piece}

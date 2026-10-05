@@ -23,9 +23,19 @@ export type CareTopic = {
   warning: L10n;
   /** "You'll need" chips; can be empty. */
   need: L10n[];
+  /** The default steps: every piece follows them unless it has its own (pieceSteps). */
   steps: L10n[];
   /** Product id → note shown only for that piece. */
   pieceNotes: Record<string, L10n>;
+  /**
+   * Product id → that piece's own steps, by position in `steps`. An empty text means the
+   * default step; a piece with nothing of its own has no entry.
+   */
+  pieceSteps: Record<string, L10n[]>;
+  /** Product id → the default steps that piece leaves out, by position in `steps`. */
+  pieceSkippedSteps: Record<string, boolean[]>;
+  /** Product ids the whole topic is left out for. */
+  hiddenForPieces: string[];
 };
 
 export type CareQuestion = { q: L10n; a: L10n };
@@ -125,6 +135,32 @@ function normalizeTopic(value: unknown, pieceIds: Set<string>, takenIds: Set<str
     const normalized = l10n(note, CARE_LIMITS.long);
     if (!isEmptyL10n(normalized)) pieceNotes[productId] = normalized;
   }
+  // Empty default steps are dropped; a piece's own steps follow the ones that stay.
+  const rawSteps = (Array.isArray(source.steps) ? source.steps : []).map((item) => l10n(item, CARE_LIMITS.long));
+  const kept = rawSteps
+    .map((_, index) => index)
+    .filter((index) => !isEmptyL10n(rawSteps[index]))
+    .slice(0, CARE_LIMITS.steps);
+  const steps = kept.map((index) => rawSteps[index]);
+  const pieceSteps: Record<string, L10n[]> = {};
+  for (const [productId, list] of Object.entries(asRecord(source.pieceSteps))) {
+    if (!pieceIds.has(productId) || !Array.isArray(list)) continue;
+    const own = kept.map((index, position) => {
+      const step = l10n(list[index], CARE_LIMITS.long);
+      const base = steps[position];
+      return { en: step.en === base.en ? "" : step.en, uk: step.uk === base.uk ? "" : step.uk };
+    });
+    if (own.some((step) => !isEmptyL10n(step))) pieceSteps[productId] = own;
+  }
+  const pieceSkippedSteps: Record<string, boolean[]> = {};
+  for (const [productId, list] of Object.entries(asRecord(source.pieceSkippedSteps))) {
+    if (!pieceIds.has(productId) || !Array.isArray(list)) continue;
+    const skipped = kept.map((index) => list[index] === true);
+    if (skipped.some(Boolean)) pieceSkippedSteps[productId] = skipped;
+  }
+  const hiddenForPieces = Array.isArray(source.hiddenForPieces)
+    ? [...new Set(source.hiddenForPieces.filter((id): id is string => typeof id === "string" && pieceIds.has(id)))]
+    : [];
   return {
     id: unique(slugify(text(source.id, 60)) || slugify(title.en), takenIds, "topic"),
     icon: CARE_ICONS.includes(source.icon as CareIcon) ? (source.icon as CareIcon) : "bag",
@@ -133,8 +169,11 @@ function normalizeTopic(value: unknown, pieceIds: Set<string>, takenIds: Set<str
     heading: l10n(source.heading, CARE_LIMITS.short),
     warning: l10n(source.warning, CARE_LIMITS.long),
     need: l10nList(source.need, CARE_LIMITS.need, CARE_LIMITS.short),
-    steps: l10nList(source.steps, CARE_LIMITS.steps, CARE_LIMITS.long),
+    steps,
     pieceNotes,
+    pieceSteps,
+    pieceSkippedSteps,
+    hiddenForPieces,
   };
 }
 
@@ -218,13 +257,34 @@ export function careText(value: L10n, locale: Locale): string {
   return value[locale].trim() || value[other].trim();
 }
 
-export function topicDiffersByPiece(topic: CareTopic): boolean {
-  return Object.keys(topic.pieceNotes).length > 0;
+/** The steps a piece follows: the default ones, minus those it leaves out, in its own words where it has them. */
+export function stepsForPiece(topic: CareTopic, productId: string | null): L10n[] {
+  const own = productId ? topic.pieceSteps[productId] : undefined;
+  const skipped = productId ? topic.pieceSkippedSteps[productId] : undefined;
+  if (!own && !skipped) return topic.steps;
+  return topic.steps
+    .map((step, index) => ({ en: own?.[index]?.en || step.en, uk: own?.[index]?.uk || step.uk }))
+    .filter((_, index) => !skipped?.[index]);
 }
 
-/** How many of the material's topics carry a note for this piece. */
+/** The piece has its own steps (reworded or left out) in this topic. */
+export function pieceHasOwnSteps(topic: CareTopic, productId: string): boolean {
+  return Boolean(topic.pieceSteps[productId] || topic.pieceSkippedSteps[productId]);
+}
+
+/** The piece has a note or steps of its own in this topic. */
+export function topicDiffersForPiece(topic: CareTopic, productId: string): boolean {
+  return Boolean(topic.pieceNotes[productId]) || pieceHasOwnSteps(topic, productId);
+}
+
+/** The topics a piece's guide shows: all of them with no piece chosen. */
+export function topicsForPiece(material: CareMaterial, productId: string | null): CareTopic[] {
+  return productId ? material.topics.filter((topic) => !topic.hiddenForPieces.includes(productId)) : material.topics;
+}
+
+/** How many of the material's topics differ for this piece. */
 export function countPieceNotes(material: CareMaterial, productId: string): number {
-  return material.topics.filter((topic) => topic.pieceNotes[productId]).length;
+  return material.topics.filter((topic) => topicDiffersForPiece(topic, productId)).length;
 }
 
 export function findCareMaterialForProduct(content: CareContent | null, productId: string): CareMaterial | null {

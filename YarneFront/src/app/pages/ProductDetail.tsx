@@ -764,7 +764,7 @@ export function ProductDetail() {
               </div>
             ) : null}
 
-            <ProductGuaranteeBlock content={guaranteeContent} locale={locale} />
+            <ProductGuaranteeBlock content={guaranteeContent} locale={locale} productId={product.id} />
             <CareProductLink productId={product.id} className="mt-3" />
           </div>
         </div>

@@ -5,7 +5,7 @@ import { ArrowLeft, ArrowRight, ChevronLeft, ChevronRight, ShoppingBag, Triangle
 import { useTranslation } from "react-i18next";
 import { useBodyScrollLock } from "../../hooks/useBodyScrollLock";
 import { useLocale } from "../../i18n/useLocale";
-import { careText, type CareMaterial, type CareTopic } from "../../utils/careContent";
+import { careText, pieceHasOwnSteps, stepsForPiece, topicDiffersForPiece, type CareMaterial, type CareTopic } from "../../utils/careContent";
 import { CARE_CONTACT_HREF, EYEBROW, FOCUS_RING, LABEL, SANS, SERIF, useNarrowScreen } from "./careUi";
 
 export type CarePiece = { id: string; name: string };
@@ -205,10 +205,13 @@ export function CareGuidePanel({ material, topic, pieces, piece, onClose, onTopi
     const previous = material.topics[(index + count - 1) % count];
     const next = material.topics[(index + 1) % count];
     const note = piece && topic.pieceNotes[piece.id] ? careText(topic.pieceNotes[piece.id], locale) : "";
-    const differing = pieces.filter((item) => topic.pieceNotes[item.id]).map((item) => item.name);
+    const ownSteps = Boolean(piece && pieceHasOwnSteps(topic, piece.id));
+    const differing = pieces.filter((item) => topicDiffersForPiece(topic, item.id)).map((item) => item.name);
     const warning = careText(topic.warning, locale);
     const need = topic.need.map((item) => careText(item, locale)).filter(Boolean);
-    const steps = topic.steps.map((item) => careText(item, locale)).filter(Boolean);
+    const steps = stepsForPiece(topic, piece?.id ?? null)
+      .map((item) => careText(item, locale))
+      .filter(Boolean);
     const muted = "text-[13px] md:text-[13.5px] leading-[1.6] text-[#2D241E]/72";
 
     return (
@@ -324,7 +327,7 @@ export function CareGuidePanel({ material, topic, pieces, piece, onClose, onTopi
                 </div>
               </div>
             ) : piece ? (
-              <p className={muted}>{t("care.panel.nothingDifferent", { piece: piece.name })}</p>
+              <p className={muted}>{t(ownSteps ? "care.panel.stepsFor" : "care.panel.nothingDifferent", { piece: piece.name })}</p>
             ) : differing.length > 0 ? (
               <p className={muted}>{t("care.panel.someDiffer", { pieces: differing.join(", ") })}</p>
             ) : null}

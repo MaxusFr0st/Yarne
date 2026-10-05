@@ -500,6 +500,7 @@ const uk: Translations = {
       beforeYouStart: "Перш ніж почати",
       onlyFor: "Лише для {{piece}}",
       nothingDifferent: "Для {{piece}} нічого особливого: дотримуйтесь кроків нижче.",
+      stepsFor: "Кроки нижче написані саме для {{piece}}.",
       someDiffer: "Деякі вироби потребують особливого догляду: {{pieces}}. Оберіть свій виріб угорі сторінки.",
       youllNeed: "Вам знадобиться",
       notSure: "Не впевнені?",

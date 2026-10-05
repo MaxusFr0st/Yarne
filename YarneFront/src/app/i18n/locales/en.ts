@@ -482,6 +482,7 @@ const en = {
       beforeYouStart: "Before you start",
       onlyFor: "Only for {{piece}}",
       nothingDifferent: "Nothing different for {{piece}}: follow the steps below.",
+      stepsFor: "The steps below are written for {{piece}}.",
       someDiffer: "Some pieces need extra care here: {{pieces}}. Choose your piece at the top of the page.",
       youllNeed: "You'll need",
       notSure: "Not sure?",

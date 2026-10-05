@@ -9,6 +9,7 @@ import {
   loadCareContent,
   persistCareContent,
   slugify,
+  topicDiffersForPiece,
   type CareContent,
   type CareIcon,
   type CareMaterial,
@@ -61,6 +62,9 @@ function newTopic(): CareTopic {
     need: [],
     steps: [emptyL10n()],
     pieceNotes: {},
+    pieceSteps: {},
+    pieceSkippedSteps: {},
+    hiddenForPieces: [],
   };
 }
 
@@ -162,9 +166,12 @@ type L10nListProps = {
   rows?: number;
   maxLength: number;
   numbered?: boolean;
+  /** Moving or removing an item goes through here when other lists must follow the same change. */
+  onRearrange?: (rearrange: <T>(list: T[]) => T[]) => void;
 };
 
-function L10nList({ label, items, locale, onChange, max, addLabel, rows, maxLength, numbered }: L10nListProps) {
+function L10nList({ label, items, locale, onChange, max, addLabel, rows, maxLength, numbered, onRearrange }: L10nListProps) {
+  const rearrange = (change: <T>(list: T[]) => T[]) => (onRearrange ? onRearrange(change) : onChange(change(items)));
   return (
     <div>
       <Label>{label}</Label>
@@ -183,13 +190,13 @@ function L10nList({ label, items, locale, onChange, max, addLabel, rows, maxLeng
               maxLength={maxLength}
               onChange={(value) => onChange(items.map((existing, i) => (i === index ? value : existing)))}
             />
-            <button type="button" className={ICON_BUTTON} aria-label="Move up" disabled={index === 0} onClick={() => onChange(moved(items, index, -1))}>
+            <button type="button" className={ICON_BUTTON} aria-label="Move up" disabled={index === 0} onClick={() => rearrange((list) => moved(list, index, -1))}>
               <ArrowUp size={14} />
             </button>
-            <button type="button" className={ICON_BUTTON} aria-label="Move down" disabled={index === items.length - 1} onClick={() => onChange(moved(items, index, 1))}>
+            <button type="button" className={ICON_BUTTON} aria-label="Move down" disabled={index === items.length - 1} onClick={() => rearrange((list) => moved(list, index, 1))}>
               <ArrowDown size={14} />
             </button>
-            <button type="button" className={ICON_BUTTON} aria-label="Remove" onClick={() => onChange(items.filter((_, i) => i !== index))}>
+            <button type="button" className={ICON_BUTTON} aria-label="Remove" onClick={() => rearrange((list) => list.filter((_, i) => i !== index))}>
               <X size={14} />
             </button>
           </div>
@@ -245,6 +252,8 @@ export function AdminCareTab({ products, onError }: Props) {
   const [selected, setSelected] = useState(0);
   const [openTopic, setOpenTopic] = useState<number | null>(null);
   const [pieceQuery, setPieceQuery] = useState("");
+  /** The piece whose own note and steps the open topic shows. */
+  const [pieceFor, setPieceFor] = useState("");
   const [confirm, setConfirm] = useState<Confirm | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const { promptCropForUpload, cropDialogNode, cropBusy } = useCropDialog();
@@ -502,7 +511,7 @@ export function AdminCareTab({ products, onError }: Props) {
                         slug: "",
                         name: { en: material.name.en ? `${material.name.en} copy` : "", uk: material.name.uk ? `${material.name.uk} (копія)` : "" },
                         pieceProductIds: [],
-                        topics: material.topics.map((topic) => ({ ...topic, pieceNotes: {} })),
+                        topics: material.topics.map((topic) => ({ ...topic, pieceNotes: {}, pieceSteps: {}, pieceSkippedSteps: {}, hiddenForPieces: [] })),
                       };
                       setMaterials((materials) => [...materials, copy]);
                       selectMaterial(draft.materials.length);
@@ -647,7 +656,10 @@ export function AdminCareTab({ products, onError }: Props) {
                             pieceProductIds: current.pieceProductIds.filter((id) => id !== productId),
                             topics: current.topics.map((topic) => {
                               const { [productId]: _removed, ...pieceNotes } = topic.pieceNotes;
-                              return { ...topic, pieceNotes };
+                              const { [productId]: _removedSteps, ...pieceSteps } = topic.pieceSteps;
+                              const { [productId]: _removedSkips, ...pieceSkippedSteps } = topic.pieceSkippedSteps;
+                              const hiddenForPieces = topic.hiddenForPieces.filter((id) => id !== productId);
+                              return { ...topic, pieceNotes, pieceSteps, pieceSkippedSteps, hiddenForPieces };
                             }),
                           }))
                         }
@@ -714,6 +726,29 @@ export function AdminCareTab({ products, onError }: Props) {
               <div className="space-y-2">
                 {material.topics.map((topic, index) => {
                   const isOpen = openTopic === index;
+                  const differsFor = (id: string) => topicDiffersForPiece(topic, id) || topic.hiddenForPieces.includes(id);
+                  const differing = material.pieceProductIds.filter(differsFor).length;
+                  const pieceId = material.pieceProductIds.includes(pieceFor) ? pieceFor : material.pieceProductIds[0];
+                  const ownSteps = topic.pieceSteps[pieceId] ?? [];
+                  const skippedSteps = topic.pieceSkippedSteps[pieceId] ?? [];
+                  const hiddenForPiece = topic.hiddenForPieces.includes(pieceId);
+                  const toggleSkippedStep = (stepIndex: number) => {
+                    const skipped = topic.steps.map((_, i) => (i === stepIndex ? !skippedSteps[i] : Boolean(skippedSteps[i])));
+                    const { [pieceId]: _previous, ...others } = topic.pieceSkippedSteps;
+                    patchTopic(index, { pieceSkippedSteps: skipped.some(Boolean) ? { ...others, [pieceId]: skipped } : others });
+                  };
+                  const setPieceStep = (stepIndex: number, text: string | null) => {
+                    const own = topic.steps.map((step, i) => {
+                      const current = ownSteps[i] ?? emptyL10n();
+                      if (i !== stepIndex) return current;
+                      // The default text again (or nothing): the step is no longer the piece's own.
+                      return text === null ? emptyL10n() : { ...current, [locale]: text === step[locale] ? "" : text };
+                    });
+                    const { [pieceId]: _previous, ...others } = topic.pieceSteps;
+                    patchTopic(index, {
+                      pieceSteps: own.some((step) => step.en || step.uk) ? { ...others, [pieceId]: own } : others,
+                    });
+                  };
                   return (
                     <div key={index} className="rounded-[16px] overflow-hidden" style={{ border: "1px solid rgba(45,36,30,0.1)", backgroundColor: "#F5F2ED" }}>
                       <div className="flex items-center gap-1 pl-3 pr-1 py-1.5">
@@ -728,7 +763,7 @@ export function AdminCareTab({ products, onError }: Props) {
                           <span className="grow min-w-0">
                             <span className="block text-sm truncate">{topic.title[locale] || topic.title[OTHER[locale]] || "Untitled topic"}</span>
                             <span className="block text-[11px] text-[#2D241E]/50">
-                              {topic.steps.length} steps · {Object.keys(topic.pieceNotes).length} piece notes
+                              {topic.steps.length} steps · {differing} {differing === 1 ? "piece differs" : "pieces differ"}
                             </span>
                           </span>
                           <ChevronDown size={16} className={`shrink-0 text-[#2D241E]/50 transition-transform ${isOpen ? "rotate-180" : ""}`} />
@@ -796,29 +831,123 @@ export function AdminCareTab({ products, onError }: Props) {
                           <L10nField label="Panel heading" value={topic.heading} locale={locale} maxLength={CARE_LIMITS.short} onChange={(heading) => patchTopic(index, { heading })} hint='E.g. "How to clean raffia". Empty: the card title is used.' />
                           <L10nField label="Before you start (warning)" value={topic.warning} locale={locale} rows={2} maxLength={CARE_LIMITS.long} onChange={(warning) => patchTopic(index, { warning })} hint="Applies to every piece. Empty: no warning box." />
                           <L10nList label="You'll need" items={topic.need} locale={locale} max={CARE_LIMITS.need} addLabel="Add item" maxLength={CARE_LIMITS.short} onChange={(need) => patchTopic(index, { need })} />
-                          <L10nList label="Steps" items={topic.steps} locale={locale} max={CARE_LIMITS.steps} addLabel="Add step" rows={2} maxLength={CARE_LIMITS.long} numbered onChange={(steps) => patchTopic(index, { steps })} />
+                          <L10nList
+                            label="Default steps"
+                            items={topic.steps}
+                            locale={locale}
+                            max={CARE_LIMITS.steps}
+                            addLabel="Add step"
+                            rows={2}
+                            maxLength={CARE_LIMITS.long}
+                            numbered
+                            onChange={(steps) => patchTopic(index, { steps })}
+                            // A piece's own steps go by position: they move and go with the default ones.
+                            onRearrange={(rearrange) =>
+                              patchTopic(index, {
+                                steps: rearrange(topic.steps),
+                                pieceSteps: Object.fromEntries(
+                                  Object.entries(topic.pieceSteps).map(([id, own]) => [
+                                    id,
+                                    rearrange(topic.steps.map((_, i) => own[i] ?? emptyL10n())),
+                                  ]),
+                                ),
+                                pieceSkippedSteps: Object.fromEntries(
+                                  Object.entries(topic.pieceSkippedSteps).map(([id, skipped]) => [
+                                    id,
+                                    rearrange(topic.steps.map((_, i) => Boolean(skipped[i]))),
+                                  ]),
+                                ),
+                              })
+                            }
+                          />
+                          <Hint>Every piece follows these. Change or remove a step for one piece below.</Hint>
 
                           <div>
-                            <Label>Piece notes</Label>
-                            {material.pieceProductIds.length === 0 ? (
-                              <Hint>Link pieces to this material to write a note that shows only for one of them.</Hint>
+                            <Label>For one piece</Label>
+                            {pieceId === undefined ? (
+                              <Hint>Link pieces to this material to give one of them its own note or steps, or to leave this topic out for it.</Hint>
                             ) : (
-                              <div className="space-y-2">
-                                {material.pieceProductIds.map((productId) => (
-                                  <div key={productId} className="grid md:grid-cols-[180px_minmax(0,1fr)] gap-2 items-start">
-                                    <span className="text-sm text-[#2D241E] pt-2 truncate" style={DM_SANS}>
+                              <div className="space-y-3">
+                                <select value={pieceId} onChange={(e) => setPieceFor(e.target.value)} className={`${INPUT_CLASS} cursor-pointer md:max-w-sm`} style={INPUT_STYLE}>
+                                  {material.pieceProductIds.map((productId) => (
+                                    <option key={productId} value={productId}>
                                       {productsById.get(productId)?.name ?? `Missing product (${productId})`}
-                                    </span>
-                                    <L10nField
-                                      value={topic.pieceNotes[productId] ?? emptyL10n()}
-                                      locale={locale}
-                                      rows={2}
-                                      maxLength={CARE_LIMITS.long}
-                                      onChange={(note) => patchTopic(index, { pieceNotes: { ...topic.pieceNotes, [productId]: note } })}
-                                    />
+                                      {topic.hiddenForPieces.includes(productId) ? " · topic hidden" : topicDiffersForPiece(topic, productId) ? " · differs" : ""}
+                                    </option>
+                                  ))}
+                                </select>
+                                <label className="flex items-center gap-2 text-sm text-[#2D241E] cursor-pointer" style={DM_SANS}>
+                                  <input
+                                    type="checkbox"
+                                    checked={hiddenForPiece}
+                                    onChange={(e) =>
+                                      patchTopic(index, {
+                                        hiddenForPieces: e.target.checked
+                                          ? [...topic.hiddenForPieces, pieceId]
+                                          : topic.hiddenForPieces.filter((id) => id !== pieceId),
+                                      })
+                                    }
+                                  />
+                                  Hide this whole topic for this piece
+                                </label>
+                                {hiddenForPiece ? null : (
+                                  <>
+                                  <L10nField
+                                    label="Note"
+                                    value={topic.pieceNotes[pieceId] ?? emptyL10n()}
+                                    locale={locale}
+                                    rows={2}
+                                    maxLength={CARE_LIMITS.long}
+                                    onChange={(note) => patchTopic(index, { pieceNotes: { ...topic.pieceNotes, [pieceId]: note } })}
+                                    hint="Optional. Shown as “Only for …” when the visitor has chosen this piece."
+                                  />
+                                  <div>
+                                    <Label>Steps for this piece</Label>
+                                    <div className="space-y-2">
+                                      {topic.steps.map((step, stepIndex) => {
+                                        const own = ownSteps[stepIndex];
+                                        const changed = Boolean(own && (own.en || own.uk));
+                                        const skipped = Boolean(skippedSteps[stepIndex]);
+                                        return (
+                                          <div key={stepIndex} className="flex items-start gap-1.5">
+                                            <span className="w-6 pt-2 text-right text-[#2D241E]/45 text-xs shrink-0" style={DM_SANS}>
+                                              {stepIndex + 1}.
+                                            </span>
+                                            <textarea
+                                              rows={2}
+                                              value={own?.[locale] || step[locale]}
+                                              disabled={skipped}
+                                              placeholder={step[OTHER[locale]]}
+                                              maxLength={CARE_LIMITS.long}
+                                              onChange={(e) => setPieceStep(stepIndex, e.target.value)}
+                                              className={`${INPUT_CLASS} resize-y placeholder:text-[#2D241E]/30 disabled:opacity-40 disabled:line-through`}
+                                              style={{ ...INPUT_STYLE, ...(changed ? { borderColor: "#9B6B2E" } : undefined) }}
+                                            />
+                                            <button
+                                              type="button"
+                                              className="h-8 px-2 shrink-0 text-[11px] text-[#9B6B2E] underline underline-offset-2 cursor-pointer disabled:invisible"
+                                              style={DM_SANS}
+                                              disabled={!changed || skipped}
+                                              onClick={() => setPieceStep(stepIndex, null)}
+                                            >
+                                              Reset
+                                            </button>
+                                            <button
+                                              type="button"
+                                              className="h-8 w-16 shrink-0 text-[11px] text-[#2D241E]/70 hover:text-[#2D241E] underline underline-offset-2 cursor-pointer"
+                                              style={DM_SANS}
+                                              onClick={() => toggleSkippedStep(stepIndex)}
+                                            >
+                                              {skipped ? "Restore" : "Remove"}
+                                            </button>
+                                          </div>
+                                        );
+                                      })}
+                                    </div>
+                                    <Hint>Filled with the default steps. A step you change here shows only for this piece (outlined); Reset, or clearing the field, brings the default back. Remove leaves a step out for this piece only.</Hint>
                                   </div>
-                                ))}
-                                <Hint>Optional. Shown as “Only for …” when the visitor has chosen that piece; leave empty when nothing differs.</Hint>
+                                  </>
+                                )}
                               </div>
                             )}
                           </div>

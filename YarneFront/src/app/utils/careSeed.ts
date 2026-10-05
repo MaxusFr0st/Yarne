@@ -44,6 +44,9 @@ export const CARE_SEED: CareContent = {
             t("Empty it at the end of the day and let it rest in its shape.", "Наприкінці дня спорожніть сумку й дайте їй відпочити у своїй формі."),
           ],
           pieceNotes: {},
+          pieceSteps: {},
+          pieceSkippedSteps: {},
+          hiddenForPieces: [],
         },
         {
           id: "clean",
@@ -84,6 +87,9 @@ export const CARE_SEED: CareContent = {
             ),
           ],
           pieceNotes: {},
+          pieceSteps: {},
+          pieceSkippedSteps: {},
+          hiddenForPieces: [],
         },
         {
           id: "wash",
@@ -108,6 +114,9 @@ export const CARE_SEED: CareContent = {
             ),
           ],
           pieceNotes: {},
+          pieceSteps: {},
+          pieceSkippedSteps: {},
+          hiddenForPieces: [],
         },
         {
           id: "dry",
@@ -134,6 +143,9 @@ export const CARE_SEED: CareContent = {
             t("Let it dry completely before you store it.", "Дайте повністю висохнути, перш ніж ховати на зберігання."),
           ],
           pieceNotes: {},
+          pieceSteps: {},
+          pieceSkippedSteps: {},
+          hiddenForPieces: [],
         },
         {
           id: "store",
@@ -156,6 +168,9 @@ export const CARE_SEED: CareContent = {
             t("Stand it on a shelf with nothing on top.", "Поставте на полицю, нічого не кладучи зверху."),
           ],
           pieceNotes: {},
+          pieceSteps: {},
+          pieceSkippedSteps: {},
+          hiddenForPieces: [],
         },
         {
           id: "shape",
@@ -185,6 +200,9 @@ export const CARE_SEED: CareContent = {
             ),
           ],
           pieceNotes: {},
+          pieceSteps: {},
+          pieceSkippedSteps: {},
+          hiddenForPieces: [],
         },
       ],
       dos: [
@@ -265,6 +283,9 @@ export const CARE_SEED: CareContent = {
             ),
           ],
           pieceNotes: {},
+          pieceSteps: {},
+          pieceSkippedSteps: {},
+          hiddenForPieces: [],
         },
         {
           id: "clean",
@@ -288,6 +309,9 @@ export const CARE_SEED: CareContent = {
             t("Lay it flat to dry.", "Розкладіть сумку сушитися."),
           ],
           pieceNotes: {},
+          pieceSteps: {},
+          pieceSkippedSteps: {},
+          hiddenForPieces: [],
         },
         {
           id: "wash",
@@ -327,6 +351,9 @@ export const CARE_SEED: CareContent = {
             t("Reshape it and dry it flat.", "Поправте форму й сушіть у розкладеному вигляді."),
           ],
           pieceNotes: {},
+          pieceSteps: {},
+          pieceSkippedSteps: {},
+          hiddenForPieces: [],
         },
         {
           id: "dry",
@@ -353,6 +380,9 @@ export const CARE_SEED: CareContent = {
             t("Dry it away from radiators and direct sun.", "Сушіть подалі від батарей і прямого сонця."),
           ],
           pieceNotes: {},
+          pieceSteps: {},
+          pieceSkippedSteps: {},
+          hiddenForPieces: [],
         },
         {
           id: "store",
@@ -381,6 +411,9 @@ export const CARE_SEED: CareContent = {
             ),
           ],
           pieceNotes: {},
+          pieceSteps: {},
+          pieceSkippedSteps: {},
+          hiddenForPieces: [],
         },
         {
           id: "pill",
@@ -406,6 +439,9 @@ export const CARE_SEED: CareContent = {
             t("Brush away the loose fibres.", "Змахніть зняті волокна."),
           ],
           pieceNotes: {},
+          pieceSteps: {},
+          pieceSkippedSteps: {},
+          hiddenForPieces: [],
         },
       ],
       dos: [

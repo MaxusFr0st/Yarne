@@ -5,6 +5,7 @@ import { useTranslation } from "react-i18next";
 import type { Locale } from "../i18n/config";
 import { useTouchMobileLayout } from "../hooks/useTouchMobileLayout";
 import { LangLink } from "../i18n/LangLink";
+import { useProductCarePath } from "./care/CareProductLink";
 import {
   resolveProductGuaranteeText,
   type ProductGuaranteeContent,
@@ -15,6 +16,8 @@ const EASE_OUT = [0.22, 1, 0.36, 1] as const;
 type ProductGuaranteeBlockProps = {
   content: ProductGuaranteeContent;
   locale: Locale;
+  /** "Read more" opens this product's material guide (the care page when no material lists it). */
+  productId?: string;
   showIcon?: boolean;
   className?: string;
 };
@@ -22,10 +25,12 @@ type ProductGuaranteeBlockProps = {
 export function ProductGuaranteeBlock({
   content,
   locale,
+  productId,
   showIcon = true,
   className = "",
 }: ProductGuaranteeBlockProps) {
   const { t } = useTranslation();
+  const carePath = useProductCarePath(productId);
   const reduced = useReducedMotion();
   const touch = useTouchMobileLayout();
   const ref = useRef<HTMLDivElement>(null);
@@ -64,7 +69,7 @@ export function ProductGuaranteeBlock({
           {description}
         </p>
         <LangLink
-          to="/pages/care"
+          to={carePath ?? "/pages/care"}
           className="inline-block mt-2 text-[#2D241E]/70 underline underline-offset-2 text-[0.76rem]"
           style={{ fontFamily: "'DM Sans', sans-serif" }}
         >
