@@ -5,6 +5,7 @@ import { CropCancelledError, useCropDialog } from "../../hooks/useCropDialog";
 import {
   CARE_ICONS,
   CARE_LIMITS,
+  CARE_RESERVED_SLUGS,
   emptyL10n,
   loadCareContent,
   persistCareContent,
@@ -31,13 +32,13 @@ type Props = {
   onError?: (message: string) => void;
 };
 
-const DM_SANS = { fontFamily: "'DM Sans', sans-serif" } as const;
-const INPUT_CLASS = "w-full rounded-[12px] border bg-transparent px-3 py-2 text-[#2D241E] text-sm focus:outline-none focus:border-[#2D241E]/40";
-const INPUT_STYLE = { borderColor: "rgba(45,36,30,0.12)", ...DM_SANS } as const;
-const CARD_STYLE = { backgroundColor: "rgba(45,36,30,0.03)", border: "1px solid rgba(45,36,30,0.08)" } as const;
-const ICON_BUTTON =
+export const DM_SANS = { fontFamily: "'DM Sans', sans-serif" } as const;
+export const INPUT_CLASS = "w-full rounded-[12px] border bg-transparent px-3 py-2 text-[#2D241E] text-sm focus:outline-none focus:border-[#2D241E]/40";
+export const INPUT_STYLE = { borderColor: "rgba(45,36,30,0.12)", ...DM_SANS } as const;
+export const CARD_STYLE = { backgroundColor: "rgba(45,36,30,0.03)", border: "1px solid rgba(45,36,30,0.08)" } as const;
+export const ICON_BUTTON =
   "w-8 h-8 shrink-0 rounded-full flex items-center justify-center text-[#2D241E]/60 hover:text-[#2D241E] hover:bg-[#2D241E]/8 disabled:opacity-25 disabled:pointer-events-none cursor-pointer transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2D241E]/30";
-const TILE_ASPECT = 4 / 3;
+const TILE_ASPECT = 16 / 9;
 
 const ICON_LABELS: Record<CareIcon, string> = {
   bag: "Bag (carrying)",
@@ -85,7 +86,7 @@ function newMaterial(): CareMaterial {
   };
 }
 
-function moved<T>(list: T[], index: number, by: -1 | 1): T[] {
+export function moved<T>(list: T[], index: number, by: -1 | 1): T[] {
   const target = index + by;
   if (target < 0 || target >= list.length) return list;
   const next = [...list];
@@ -93,7 +94,7 @@ function moved<T>(list: T[], index: number, by: -1 | 1): T[] {
   return next;
 }
 
-function Label({ children }: { children: ReactNode }) {
+export function Label({ children }: { children: ReactNode }) {
   return (
     <p className="text-[#2D241E]/45 text-[10px] uppercase tracking-widest mb-1.5" style={{ ...DM_SANS, letterSpacing: "0.1em" }}>
       {children}
@@ -101,7 +102,7 @@ function Label({ children }: { children: ReactNode }) {
   );
 }
 
-function Hint({ children }: { children: ReactNode }) {
+export function Hint({ children }: { children: ReactNode }) {
   return (
     <p className="text-[#2D241E]/40 text-[11px] mt-1" style={DM_SANS}>
       {children}
@@ -109,7 +110,7 @@ function Hint({ children }: { children: ReactNode }) {
   );
 }
 
-function SectionTitle({ title, note }: { title: string; note?: string }) {
+export function SectionTitle({ title, note }: { title: string; note?: string }) {
   return (
     <div className="mb-3">
       <p className="text-[#2D241E] uppercase tracking-widest text-xs" style={{ ...DM_SANS, letterSpacing: "0.12em" }}>
@@ -135,7 +136,7 @@ type L10nFieldProps = {
 };
 
 /** One language at a time; the other language's text shows as the placeholder (it is the fallback on the site). */
-function L10nField({ label, value, locale, onChange, rows, hint, maxLength }: L10nFieldProps) {
+export function L10nField({ label, value, locale, onChange, rows, hint, maxLength }: L10nFieldProps) {
   const shared = {
     value: value[locale],
     placeholder: value[OTHER[locale]],
@@ -170,7 +171,7 @@ type L10nListProps = {
   onRearrange?: (rearrange: <T>(list: T[]) => T[]) => void;
 };
 
-function L10nList({ label, items, locale, onChange, max, addLabel, rows, maxLength, numbered, onRearrange }: L10nListProps) {
+export function L10nList({ label, items, locale, onChange, max, addLabel, rows, maxLength, numbered, onRearrange }: L10nListProps) {
   const rearrange = (change: <T>(list: T[]) => T[]) => (onRearrange ? onRearrange(change) : onChange(change(items)));
   return (
     <div>
@@ -216,7 +217,7 @@ function L10nList({ label, items, locale, onChange, max, addLabel, rows, maxLeng
   );
 }
 
-function PillButton({ onClick, children, disabled, tone = "outline" }: { onClick: () => void; children: ReactNode; disabled?: boolean; tone?: "outline" | "ink" }) {
+export function PillButton({ onClick, children, disabled, tone = "outline" }: { onClick: () => void; children: ReactNode; disabled?: boolean; tone?: "outline" | "ink" }) {
   return (
     <button
       type="button"
@@ -302,6 +303,13 @@ export function AdminCareTab({ products, onError }: Props) {
       onError?.("Every material needs a name before saving.");
       return;
     }
+    const reserved = draft.materials.find((item) =>
+      (CARE_RESERVED_SLUGS as readonly string[]).includes(slugify(item.slug) || slugify(item.name.en)),
+    );
+    if (reserved) {
+      onError?.(`The link “${slugify(reserved.slug) || slugify(reserved.name.en)}” belongs to another Yarné Care page. Choose a different link for this material.`);
+      return;
+    }
     setSaving(true);
     try {
       const persisted = await persistCareContent(draft);
@@ -322,7 +330,7 @@ export function AdminCareTab({ products, onError }: Props) {
       const { croppedFile, originalFile } = await promptCropForUpload(file, {
         title: "Crop material photo",
         aspect: TILE_ASPECT,
-        hintText: "Shown 4:3 on the desktop tile; phones show its centre in a tall thumbnail.",
+        hintText: "Shown 16:9 on the desktop tile; phones show its centre in a tall thumbnail.",
       });
       const { displayUrl } = await uploadCroppedWithOriginal(croppedFile, originalFile);
       patchMaterial({ tileImageUrl: displayUrl });
@@ -610,7 +618,7 @@ export function AdminCareTab({ products, onError }: Props) {
                         style={INPUT_STYLE}
                         maxLength={60}
                       />
-                      <Hint>/pages/care/{slugify(material.slug) || "…"} — filled from the English name for a new material. Changing it later breaks links already shared.</Hint>
+                      <Hint>/pages/care/{slugify(material.slug) || "…"} — filled from the English name for a new material. Changing it later breaks links already shared. “guarantee” and “request” are taken by the Guarantee terms and Request care pages.</Hint>
                     </div>
                   </div>
                   <div className="grid md:grid-cols-2 gap-3">

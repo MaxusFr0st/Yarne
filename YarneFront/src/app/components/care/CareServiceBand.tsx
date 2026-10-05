@@ -22,9 +22,8 @@ function headline(title: string, word: string): string {
 /**
  * The dark "Yarné Care" service panel (we re-knit it / we wash it / free returns). Its copy is
  * the home page's Why section's closing step, edited in Admin → Contents.
- * `compact`: on phones, the three promises share one row (the materials page); otherwise they stack.
  */
-export function CareServiceBand({ compact = false }: { compact?: boolean }) {
+export function CareServiceBand() {
   const locale = useLocale();
   const reduceMotion = useReducedMotion();
   const ref = useRef<HTMLElement>(null);
@@ -67,19 +66,19 @@ export function CareServiceBand({ compact = false }: { compact?: boolean }) {
       </div>
 
       <div
-        className={`${compact ? "grid grid-cols-3 gap-2 pt-3.5 border-t" : "flex flex-col gap-4"} md:contents`}
+        className="flex flex-col gap-4 md:contents"
         style={{ borderColor: "rgba(245,242,237,0.16)" }}
       >
         {care.items.map((item, index) => (
           <div
             key={index}
-            className={`flex flex-col gap-1 md:gap-2 md:pl-8 md:pt-0 md:border-t-0 md:border-l ${compact ? "" : "pt-3.5 border-t"}`}
+            className="flex flex-col gap-1 md:gap-2 pt-3.5 border-t md:pl-8 md:pt-0 md:border-t-0 md:border-l"
             style={{ borderColor: "rgba(245,242,237,0.16)" }}
           >
-            <p className={`${compact ? "text-[18px] leading-[1.1]" : "text-[20px]"} md:text-2xl md:leading-normal`} style={SERIF}>
+            <p className="text-[20px] md:text-2xl md:leading-normal" style={SERIF}>
               {item.title}
             </p>
-            <p className={`${compact ? "text-xs leading-[1.45]" : "text-[13.5px] leading-[1.55]"} md:text-sm md:leading-[1.6] opacity-80`}>
+            <p className="text-[13.5px] leading-[1.55] md:text-sm md:leading-[1.6] opacity-80">
               {item.body}
             </p>
           </div>

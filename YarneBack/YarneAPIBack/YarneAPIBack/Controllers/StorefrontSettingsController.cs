@@ -23,6 +23,8 @@ public class StorefrontSettingsController : ControllerBase
             ["yarne.share.default.v1"] = "Default share card",
             ["yarne.why.v1"] = "Why Yarné section",
             ["yarne.care.v1"] = "Yarné Care guide",
+            ["yarne.guarantee.terms.v1"] = "Guarantee terms",
+            ["yarne.contact.v1"] = "Contact details",
         };
 
     private readonly IStorefrontSettingsService _settings;

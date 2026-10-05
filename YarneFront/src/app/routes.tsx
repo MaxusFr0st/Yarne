@@ -87,6 +87,9 @@ export const router = createBrowserRouter([
           { path: "pages/our-history", lazy: async () => ({ Component: (await import("./pages/OurHistoryPage")).OurHistoryPage }) },
           { path: "pages/delivery", lazy: () => staticPage("delivery") },
           { path: "pages/care", lazy: async () => ({ Component: (await import("./pages/CarePage")).CarePage }) },
+          // Before the material route: these two are pages of their own (CARE_RESERVED_SLUGS).
+          { path: "pages/care/guarantee", lazy: async () => ({ Component: (await import("./pages/CareGuaranteePage")).CareGuaranteePage }) },
+          { path: "pages/care/request", lazy: async () => ({ Component: (await import("./pages/CareRequestPage")).CareRequestPage }) },
           { path: "pages/care/:materialSlug", lazy: async () => ({ Component: (await import("./pages/CareMaterialPage")).CareMaterialPage }) },
           { path: "pages/terms", lazy: () => staticPage("terms") },
           // /en/admin → canonical /admin (admin has no locale prefix).

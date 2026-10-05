@@ -58,7 +58,11 @@ type Product = { defaultColor?: string | null; colors?: Color[] };
     const query = new URLSearchParams(location.search);
     const [care, careMaterial] = location.pathname.match(/^\/(?:uk|en)\/pages\/care(?:\/([^/]+))?\/?$/) ?? [];
 
-    if (care) {
+    if (careMaterial === "guarantee" || careMaterial === "request") {
+      // Guarantee terms and Request care: keys from app/utils/guaranteeContent.ts and contactContent.ts.
+      if (careMaterial === "guarantee") get("/api/storefront-settings/yarne.guarantee.terms.v1").catch(() => undefined);
+      get("/api/storefront-settings/yarne.contact.v1").catch(() => undefined);
+    } else if (care) {
       // Yarné Care: the guide's content, and on the materials page the first tiles' photos.
       // Key from app/utils/careContent.ts; tiles from app/pages/CarePage.tsx. The pieces are named
       // from the product list (app/api/products.ts fetchProducts), which the pages wait for.

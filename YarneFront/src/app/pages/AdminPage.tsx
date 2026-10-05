@@ -111,6 +111,7 @@ import { AdminHomeCopyEditor } from "../components/admin/AdminHomeCopyEditor";
 import { AdminOurHistoryEditor } from "../components/admin/AdminOurHistoryEditor";
 import { AdminCollectionsTab } from "../components/admin/AdminCollectionsTab";
 import { AdminCareTab } from "../components/admin/AdminCareTab";
+import { AdminCareServiceEditors } from "../components/admin/AdminCareServiceEditors";
 import { defaultPhoto } from "../utils/productPhotos";
 import { AdminAccountingTab } from "../components/admin/AdminAccountingTab";
 import { formatPriceCompact } from "../i18n/format";
@@ -5000,6 +5001,7 @@ export function AdminPage() {
                 }))}
                 onError={(message) => setSaveError(message)}
               />
+              <AdminCareServiceEditors onError={(message) => setSaveError(message)} />
             </motion.div>
           )}
 

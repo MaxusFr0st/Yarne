@@ -107,6 +107,12 @@ function l10nList(value: unknown, maxItems: number, maxLength: number): L10n[] {
     .slice(0, maxItems);
 }
 
+// The Guarantee terms and contact details (guaranteeContent.ts, contactContent.ts) are cleaned the same way.
+export { asRecord, text as trimmedText, l10n as normalizeL10n, l10nList as normalizeL10nList };
+
+/** /pages/care/guarantee and /pages/care/request are pages of their own: no material can take these slugs. */
+export const CARE_RESERVED_SLUGS = ["guarantee", "request"] as const;
+
 /** Lowercase latin letters, digits and dashes; anything else becomes a dash. */
 export function slugify(value: string): string {
   return value
@@ -217,7 +223,7 @@ function normalizeMaterial(value: unknown, takenIds: Set<string>, takenSlugs: Se
 export function normalizeCareContent(value: unknown): CareContent {
   const source = asRecord(value);
   const ids = new Set<string>();
-  const slugs = new Set<string>();
+  const slugs = new Set<string>(CARE_RESERVED_SLUGS);
   return {
     version: 1,
     materials: (Array.isArray(source.materials) ? source.materials : [])
