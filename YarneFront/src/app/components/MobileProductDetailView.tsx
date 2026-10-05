@@ -868,6 +868,7 @@ export function MobileProductDetailView({
           <ProductGuaranteeBlock
             content={guaranteeContent}
             locale={locale}
+            productId={product.id}
             className="mt-[clamp(10px,3vw,14px)]"
           />
           <CareProductLink productId={product.id} className="mt-2" />

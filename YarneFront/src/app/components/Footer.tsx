@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router";
+import { Link, useLocation } from "react-router";
 import { Instagram } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Logo } from "./Logo";
 import { LangLink } from "../i18n/LangLink";
+import { useProductCarePath } from "./care/CareProductLink";
 import { useLocale, withLocale } from "../i18n/useLocale";
 import { fetchCollections, type CollectionDto } from "../api/collections";
 
@@ -58,9 +59,12 @@ export function Footer() {
     { label: t("footer.links.ourHistory"), to: "/pages/our-history" },
   ];
 
+  // On a product page, Care opens that product's material guide.
+  const productCarePath = useProductCarePath(useLocation().pathname.match(/\/product\/([^/]+)/)?.[1]);
+
   const helpLinks = [
     { label: t("footer.links.delivery"), to: "/pages/delivery" },
-    { label: t("footer.links.care"), to: "/pages/care" },
+    { label: t("footer.links.care"), to: productCarePath ?? "/pages/care" },
     { label: t("footer.legal.terms"), to: "/pages/terms" },
     { label: t("footer.links.contact"), href: "mailto:hello@yarne.acc" },
   ];
