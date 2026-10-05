@@ -90,7 +90,9 @@ export function CarePage() {
 
   return (
     <main
-      className="overflow-x-hidden"
+      // Clipped, not hidden: "hidden" would make the page a scroll area of its own, with the last
+      // reveal's rise as extra height that disappears (and jumps) once it has played.
+      className="overflow-x-clip"
       style={{ backgroundColor: "#F5F2ED", color: "#2D241E", minHeight: "var(--app-svh)", ...SANS, ...firstVisitRevealStyle(ready, Boolean(reduceMotion)) }}
       aria-busy={!ready}
     >
