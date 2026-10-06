@@ -19,6 +19,7 @@ import {
 } from "../components/care/careUi";
 import { useContactContent } from "../hooks/useCareServiceContent";
 import { firstVisitRevealStyle } from "../hooks/useFirstVisitReady";
+import { usePageTitle } from "../hooks/usePageTitle";
 import { LangLink } from "../i18n/LangLink";
 import { useLocale } from "../i18n/useLocale";
 import { careText } from "../utils/careContent";
@@ -37,6 +38,7 @@ const READY_ICONS = [Tag, ShoppingBag, Camera, FileText];
 export function CareRequestPage() {
   const { t } = useTranslation();
   const locale = useLocale();
+  usePageTitle(t("care.request.breadcrumb"));
   const reduceMotion = useReducedMotion();
   const { content: contact, ready } = useContactContent();
   const { phone, phoneDisplay, email, instagramHandle, instagramUrl } = contact;
@@ -215,19 +217,20 @@ export function CareRequestPage() {
           })}
         </section>
         {instagramHandle && instagramUrl && (
-          <p className="px-[22px] pt-3.5 md:px-10 md:pt-5 flex items-center gap-2 md:gap-2.5 text-[13px] md:text-sm text-[#2D241E]/72">
-            <Instagram size={17} strokeWidth={1.5} className="shrink-0" aria-hidden />
-            <span>
-              {t("care.request.instagram")}{" "}
-              <a
-                href={instagramUrl}
-                target="_blank"
-                rel="noreferrer"
-                className={`text-[#2D241E] underline underline-offset-2 hover:text-[#4A0E0E] rounded-sm ${FOCUS_RING}`}
-              >
-                {instagramHandle}
-              </a>
-            </span>
+          <p className="px-[22px] pt-1.5 md:px-10 md:pt-3">
+            {/* The whole line is the link: easy to tap, wherever the finger lands. */}
+            <a
+              href={instagramUrl}
+              target="_blank"
+              rel="noreferrer"
+              className={`group min-h-11 inline-flex items-center gap-2 md:gap-2.5 text-[13px] md:text-sm text-[#2D241E]/72 rounded-sm ${FOCUS_RING}`}
+            >
+              <Instagram size={17} strokeWidth={1.5} className="shrink-0" aria-hidden />
+              <span>
+                {t("care.request.instagram")}{" "}
+                <span className="text-[#2D241E] underline underline-offset-2 group-hover:text-[#4A0E0E]">{instagramHandle}</span>
+              </span>
+            </a>
           </p>
         )}
 

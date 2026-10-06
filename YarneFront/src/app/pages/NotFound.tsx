@@ -1,7 +1,9 @@
-import { Link } from "react-router";
 import { motion } from "motion/react";
+import { useTranslation } from "react-i18next";
+import { LangLink } from "../i18n/LangLink";
 
 export function NotFound() {
+  const { t } = useTranslation();
   return (
     <main
       className="min-h-[var(--app-svh)] flex flex-col items-center justify-center text-center px-6"
@@ -22,21 +24,21 @@ export function NotFound() {
           className="text-[#2D241E] mb-4"
           style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "2rem", fontWeight: 400 }}
         >
-          Page not found
+          {t("notFound.title")}
         </h1>
         <p
           className="text-[#2D241E]/50 mb-10 max-w-sm"
           style={{ fontFamily: "'DM Sans', sans-serif", lineHeight: 1.7, fontSize: "0.9rem" }}
         >
-          The page you're looking for has moved, or perhaps it was never here to begin with.
+          {t("notFound.text")}
         </p>
-        <Link
+        <LangLink
           to="/"
           className="px-10 py-4 rounded-full text-white transition-all duration-300 hover:opacity-90 inline-block"
           style={{ backgroundColor: "#2D241E", fontFamily: "'DM Sans', sans-serif", fontSize: "0.75rem", letterSpacing: "0.15em" }}
         >
-          <span className="uppercase tracking-widest">Return Home</span>
-        </Link>
+          <span className="uppercase tracking-widest">{t("notFound.cta")}</span>
+        </LangLink>
       </motion.div>
     </main>
   );

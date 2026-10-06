@@ -5,10 +5,11 @@ import { ArrowLeft, ArrowRight, Check, ChevronRight, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { CareGuidePanel, type CarePiece } from "../components/care/CareGuidePanel";
 import { CarePiecePicker } from "../components/care/CarePiecePicker";
-import { CareServiceBand } from "../components/care/CareServiceBand";
+import { CareHelpPanel } from "../components/care/CareHelpPanel";
 import { CareTopicIcon, EYEBROW, FOCUS_RING, LABEL, SANS, SERIF, useNarrowScreen } from "../components/care/careUi";
 import { useCareContent, useCareProducts } from "../hooks/useCareContent";
 import { firstVisitRevealStyle } from "../hooks/useFirstVisitReady";
+import { usePageTitle } from "../hooks/usePageTitle";
 import { LangLink } from "../i18n/LangLink";
 import { useLocale } from "../i18n/useLocale";
 import {
@@ -97,6 +98,10 @@ export function CareMaterialPage() {
       lastTopicRef.current = null;
     }
   }, [topic]);
+
+  // A link to one piece's guide is named after the piece.
+  const titleName = piece?.name ?? (material ? careText(material.name, locale) : "");
+  usePageTitle(titleName ? t("care.tabTitle.guide", { name: titleName }) : null);
 
   if (!material) {
     // Not in the copy this browser saved: wait for the server before calling it missing.
@@ -268,7 +273,7 @@ export function CareMaterialPage() {
           </section>
         )}
 
-        <CareServiceBand />
+        <CareHelpPanel />
 
         {other && (
           <div className="px-6 pt-8 md:px-10 md:pt-12 flex justify-center">

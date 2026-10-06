@@ -5,9 +5,11 @@ import { useLangNavigate } from "../../i18n/useLangNavigate";
 import { careGuidePath, type CareMaterial } from "../../utils/careContent";
 import { FOCUS_RING, LABEL, SANS } from "./careUi";
 
+/** A piece (opens its material's guide with it chosen), or with no productId the material itself. */
 export type CareSearchEntry = {
-  productId: string;
-  productName: string;
+  productId?: string;
+  /** What the visitor types: the piece's name, or the material's. */
+  name: string;
   material: CareMaterial;
   materialName: string;
 };
@@ -20,7 +22,7 @@ function fold(value: string): string {
   return value.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().trim();
 }
 
-/** "Find care for your bag": finds a piece by name and opens its material's guide with it chosen. */
+/** "Find care for your bag": finds a piece or a material by name and opens the guide. */
 export function CareSearch({ entries }: { entries: CareSearchEntry[] }) {
   const { t } = useTranslation();
   const navigate = useLangNavigate();
@@ -38,7 +40,7 @@ export function CareSearch({ entries }: { entries: CareSearchEntry[] }) {
 
   const match = (text: string) => {
     const needle = fold(text);
-    return needle ? entries.filter((entry) => fold(entry.productName).includes(needle)).slice(0, MAX_RESULTS) : [];
+    return needle ? entries.filter((entry) => fold(entry.name).includes(needle)).slice(0, MAX_RESULTS) : [];
   };
   const results = useMemo(() => match(query), [query, entries]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -119,7 +121,7 @@ export function CareSearch({ entries }: { entries: CareSearchEntry[] }) {
       >
         {results.map((entry, index) => (
           <li
-            key={`${entry.material.id}:${entry.productId}`}
+            key={`${entry.material.id}:${entry.productId ?? ""}`}
             id={`${listId}-${index}`}
             role="option"
             aria-selected={index === active}
@@ -131,7 +133,7 @@ export function CareSearch({ entries }: { entries: CareSearchEntry[] }) {
             }}
             className={`min-h-11 px-3 py-2 flex items-center rounded-[10px] text-sm text-[#2D241E] cursor-pointer ${index === active ? "bg-[#EDE9E2]" : ""}`}
           >
-            {t("care.search.resultMaterial", { product: entry.productName, material: entry.materialName })}
+            {t("care.search.resultMaterial", { product: entry.name, material: entry.productId ? entry.materialName : t("care.tile.cta") })}
           </li>
         ))}
       </ul>

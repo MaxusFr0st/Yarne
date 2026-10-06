@@ -62,6 +62,7 @@ export function Header() {
   const LEFT_NAV_LINKS = [
     { key: "home", label: t("header.home"), href: "/" },
     { key: "collection", label: t("header.collection"), href: "/collection" },
+    { key: "care", label: t("header.care"), href: "/pages/care" },
   ];
   const RIGHT_NAV_LINKS: Array<{ key: string; label: string; href: string }> =
     [];

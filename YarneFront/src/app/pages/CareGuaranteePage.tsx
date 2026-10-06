@@ -22,6 +22,7 @@ import {
 } from "../components/care/careUi";
 import { useContactContent, useGuaranteeContent } from "../hooks/useCareServiceContent";
 import { firstVisitRevealStyle } from "../hooks/useFirstVisitReady";
+import { usePageTitle } from "../hooks/usePageTitle";
 import { LangLink } from "../i18n/LangLink";
 import { useLocale } from "../i18n/useLocale";
 import { careText } from "../utils/careContent";
@@ -42,6 +43,7 @@ function IncludeIcon({ icon }: { icon: GuaranteeIcon }) {
 export function CareGuaranteePage() {
   const { t } = useTranslation();
   const locale = useLocale();
+  usePageTitle(t("care.guarantee.breadcrumb"));
   const reduceMotion = useReducedMotion();
   const guarantee = useGuaranteeContent();
   const contact = useContactContent();
@@ -208,7 +210,7 @@ export function CareGuaranteePage() {
                 <p className="mt-1.5 md:mt-auto px-4 py-3.5 md:px-5 md:py-[18px] rounded-2xl md:rounded-[18px] bg-[#F5F2ED] text-[13.5px] md:text-sm leading-[1.55] md:leading-[1.6]">
                   {notCoveredNote}{" "}
                   <LangLink to={CARE_REQUEST_PATH} className={`underline underline-offset-2 hover:text-[#4A0E0E] whitespace-nowrap rounded-sm ${FOCUS_RING}`}>
-                    {t("care.landing.service.request")} →
+                    {t("care.guarantee.notCoveredLink")} →
                   </LangLink>
                 </p>
               )}

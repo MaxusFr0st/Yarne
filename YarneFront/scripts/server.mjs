@@ -107,25 +107,79 @@ function toAbsoluteImageUrl(src, origin, fallback) {
 // Cached briefly so most requests don't round-trip to the API just to unfurl a link.
 const SHARE_DEFAULT_KEY = "yarne.share.default.v1";
 const SHARE_DEFAULT_TTL_MS = 5 * 60 * 1000;
-let shareDefaultCache = null;
-let shareDefaultFetchedAt = 0;
+const CARE_CONTENT_KEY = "yarne.care.v1";
+const settingCache = new Map();
 
-async function getShareDefault() {
+async function getSetting(key) {
   if (!apiUrl) return null;
-  const isStale = Date.now() - shareDefaultFetchedAt > SHARE_DEFAULT_TTL_MS;
-  if (!isStale) return shareDefaultCache;
+  const cached = settingCache.get(key);
+  if (cached && Date.now() - cached.fetchedAt <= SHARE_DEFAULT_TTL_MS) return cached.value;
 
   try {
-    const res = await fetch(`${apiUrl}/api/storefront-settings/${SHARE_DEFAULT_KEY}`);
+    const res = await fetch(`${apiUrl}/api/storefront-settings/${key}`);
     if (res.ok) {
       const json = await res.json();
-      shareDefaultCache = json.value ?? null;
-      shareDefaultFetchedAt = Date.now();
+      settingCache.set(key, { value: json.value ?? null, fetchedAt: Date.now() });
     }
   } catch {
     // keep the previous cached value (or null) on failure
   }
-  return shareDefaultCache;
+  return settingCache.get(key)?.value ?? null;
+}
+
+const getShareDefault = () => getSetting(SHARE_DEFAULT_KEY);
+
+// Matches "/:lang/pages/care" and one optional segment: guarantee, request or a material slug.
+const CARE_PATH = /^\/([^/]+)\/pages\/care(?:\/([^/?]+))?\/?(?:\?|$)/;
+
+// The same titles the app sets on the tab (src/app/hooks/usePageTitle.ts and the care.* locale
+// strings): keep the two in step.
+const CARE_TITLES = {
+  uk: {
+    landing: "Догляд за виробами",
+    guarantee: "Умови гарантії",
+    request: "Замовити догляд",
+    guide: (name) => `${name}: догляд`,
+  },
+  en: {
+    landing: "Care",
+    guarantee: "Guarantee terms",
+    request: "Request care",
+    guide: (name) => `${name} care`,
+  },
+};
+
+function localized(value, lang) {
+  if (!value || typeof value !== "object") return "";
+  const other = lang === "uk" ? "en" : "uk";
+  return String(value[lang] || value[other] || "").trim();
+}
+
+// Title and description of a care page, or null when the address is not one (or names a
+// material that does not exist): the default share card is used then.
+async function careMeta(reqUrl) {
+  const match = CARE_PATH.exec(reqUrl);
+  if (!match) return null;
+  const lang = match[1] === "en" ? "en" : "uk";
+  const titles = CARE_TITLES[lang];
+  const segment = match[2] ? decodeURIComponent(match[2]) : "";
+
+  if (!segment) return { title: titles.landing };
+  if (segment === "guarantee" || segment === "request") return { title: titles[segment] };
+
+  const care = await getSetting(CARE_CONTENT_KEY);
+  const material = Array.isArray(care?.materials) ? care.materials.find((item) => item?.slug === segment) : null;
+  if (!material) return null;
+
+  // A link to one piece's guide is named after the piece.
+  const pieceId = new URL(reqUrl, "http://placeholder").searchParams.get("piece");
+  const piece = pieceId ? await fetchProduct(pieceId) : null;
+  const name = piece?.name || localized(material.name, lang);
+  if (!name) return null;
+  return {
+    title: titles.guide(name),
+    description: localized(material.intro, lang) || localized(material.heroSubtitle, lang),
+  };
 }
 
 async function renderHtml(req, origin) {
@@ -146,6 +200,16 @@ async function renderHtml(req, origin) {
         pageUrl,
       });
     }
+  }
+
+  const care = await careMeta(req.url);
+  if (care) {
+    return buildMetaBlock({
+      title: `${care.title} — ${SITE_NAME}`,
+      description: care.description || fallbackDescription,
+      imageUrl: fallbackImage,
+      pageUrl,
+    });
   }
 
   return buildMetaBlock({

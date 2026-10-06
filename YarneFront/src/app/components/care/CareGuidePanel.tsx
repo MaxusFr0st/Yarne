@@ -4,9 +4,10 @@ import { animate, AnimatePresence, motion, useMotionValue, useReducedMotion, use
 import { ArrowLeft, ArrowRight, ChevronLeft, ChevronRight, ShoppingBag, TriangleAlert, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useBodyScrollLock } from "../../hooks/useBodyScrollLock";
+import { LangLink } from "../../i18n/LangLink";
 import { useLocale } from "../../i18n/useLocale";
 import { careText, pieceHasOwnSteps, stepsForPiece, topicDiffersForPiece, type CareMaterial, type CareTopic } from "../../utils/careContent";
-import { CARE_CONTACT_HREF, EYEBROW, FOCUS_RING, LABEL, SANS, SERIF, useNarrowScreen } from "./careUi";
+import { CARE_REQUEST_PATH, EYEBROW, FOCUS_RING, LABEL, SANS, SERIF, useNarrowScreen } from "./careUi";
 
 export type CarePiece = { id: string; name: string };
 
@@ -364,9 +365,9 @@ export function CareGuidePanel({ material, topic, pieces, piece, onClose, onTopi
 
             <p className={muted}>
               {t("care.panel.notSure")}{" "}
-              <a href={CARE_CONTACT_HREF} className="text-[#2D241E] underline underline-offset-2 hover:text-[#4A0E0E]">
+              <LangLink to={CARE_REQUEST_PATH} className="text-[#2D241E] underline underline-offset-2 hover:text-[#4A0E0E]">
                 {t("care.panel.askUs")}
-              </a>
+              </LangLink>
               <span className="hidden md:inline">, {t("care.panel.orSend")}</span>
               <span className="md:hidden">.</span>
             </p>

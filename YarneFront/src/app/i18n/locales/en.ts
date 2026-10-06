@@ -16,6 +16,7 @@ const en = {
   header: {
     home: "Home",
     collection: "Collection",
+    care: "Care",
     journal: "Journal",
     about: "About",
     admin: "Admin",
@@ -438,6 +439,7 @@ const en = {
   care: {
     eyebrow: "Help",
     title: "Yarné Care",
+    tabTitle: { landing: "Care", guide: "{{name}} care" },
     search: {
       label: "Find care for your bag",
       placeholder: "Find your bag",
@@ -480,8 +482,8 @@ const en = {
       stepsFor: "The steps below are written for {{piece}}.",
       someDiffer: "Some pieces need extra care here: {{pieces}}. Choose your piece at the top of the page.",
       youllNeed: "You'll need",
-      notSure: "Not sure?",
-      askUs: "Ask us about your piece",
+      notSure: "Not sure, or something went wrong?",
+      askUs: "Contact us about your piece",
       orSend: "or send it to us and we'll do it for you.",
     },
     doDontTitle: "Do and don't with {{material}}",
@@ -490,6 +492,10 @@ const en = {
     questionsTitle: "Small questions",
     otherMaterial: "Other material: {{material}}",
     productLink: "How to care for this piece",
+    help: {
+      title: "Don't feel like cleaning it yourself, or something went wrong?",
+      text: "Send it to our workshop. It's free under your lifetime guarantee.",
+    },
     landing: {
       eyebrow: "Yarné Care",
       titleLine1: "Care for your bag,",
@@ -509,7 +515,7 @@ const en = {
         eyebrow: "Guarantee & care service",
         title: "Something went wrong, or a question about your guarantee?",
         text: "Find out what's covered, or ask us to re-knit, wash or repair your piece. It's free under your lifetime guarantee.",
-        request: "Request care",
+        request: "Order free care",
         terms: "Guarantee terms",
       },
       materialsEyebrow: "Care at home",
@@ -548,6 +554,7 @@ const en = {
       howTitle: "From your door to our workshop, and back",
       faqEyebrow: "Small questions",
       faqTitle: "Good to know",
+      notCoveredLink: "Contact us",
       ctaEyebrow: "Something happened to your piece?",
       ctaTitle: "Talk to us.",
       ctaTitleAccent: "We'll agree what it needs together.",
@@ -593,6 +600,11 @@ const en = {
       reminder: "Every Yarné piece is covered by our lifetime guarantee.",
       reminderText: "Re-knitting, washing and repairs are free for covered care.",
     },
+  },
+  notFound: {
+    title: "Page not found",
+    text: "The page you're looking for has moved, or perhaps it was never here to begin with.",
+    cta: "Return Home",
   },
   footer: {
     tagline: "Crafted slowly. Worn forever.",

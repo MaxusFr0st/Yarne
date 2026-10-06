@@ -65,8 +65,9 @@ export function Footer() {
   const helpLinks = [
     { label: t("footer.links.delivery"), to: "/pages/delivery" },
     { label: t("footer.links.care"), to: productCarePath ?? "/pages/care" },
+    { label: t("care.guarantee.breadcrumb"), to: "/pages/care/guarantee" },
     { label: t("footer.legal.terms"), to: "/pages/terms" },
-    { label: t("footer.links.contact"), href: "mailto:hello@yarne.acc" },
+    { label: t("footer.links.contact"), to: "/pages/care/request" },
   ];
 
   const columns = [
@@ -118,23 +119,13 @@ export function Footer() {
                     ))
                   : col.links.map((link) => (
                       <li key={link.label}>
-                        {"href" in link ? (
-                          <a
-                            href={link.href}
-                            className={linkClassName}
-                            style={{ fontFamily: "'DM Sans', sans-serif" }}
-                          >
-                            {link.label}
-                          </a>
-                        ) : (
-                          <Link
-                            to={withLocale(link.to, locale)}
-                            className={linkClassName}
-                            style={{ fontFamily: "'DM Sans', sans-serif" }}
-                          >
-                            {link.label}
-                          </Link>
-                        )}
+                        <Link
+                          to={withLocale(link.to, locale)}
+                          className={linkClassName}
+                          style={{ fontFamily: "'DM Sans', sans-serif" }}
+                        >
+                          {link.label}
+                        </Link>
                       </li>
                     ))}
               </ul>

@@ -22,14 +22,15 @@ import {
 } from "../components/care/careUi";
 import { useCareContent, useCareProducts } from "../hooks/useCareContent";
 import { firstVisitRevealStyle } from "../hooks/useFirstVisitReady";
+import { usePageTitle } from "../hooks/usePageTitle";
 import { usePrepareProducts } from "../hooks/usePrepareProducts";
 import { LangLink } from "../i18n/LangLink";
 import { useLocale } from "../i18n/useLocale";
 import type { Product } from "../types/product";
 import { careGuidePath, careText, type CareMaterial } from "../utils/careContent";
 
-/** The phone's two service buttons share one row: smaller than the page's other pills. */
-const SMALL_PILL = "h-[46px] px-2 flex items-center justify-center rounded-full uppercase font-medium tracking-[0.1em] text-[10.5px] text-center";
+/** The phone's two service buttons: a little smaller than the page's other pills. */
+const SMALL_PILL = "h-[46px] px-4 flex items-center justify-center rounded-full uppercase font-medium tracking-[0.12em] text-[11px] text-center";
 
 type MaterialView = { material: CareMaterial; name: string; pieces: Product[] };
 
@@ -42,6 +43,7 @@ type MaterialView = { material: CareMaterial; name: string; pieces: Product[] };
 export function CarePage() {
   const { t } = useTranslation();
   const locale = useLocale();
+  usePageTitle(t("care.tabTitle.landing"));
   const reduceMotion = useReducedMotion();
   const narrow = useNarrowScreen();
   const care = useCareContent();
@@ -63,9 +65,10 @@ export function CarePage() {
 
   const searchEntries = useMemo<CareSearchEntry[]>(
     () =>
-      materials.flatMap(({ material, name, pieces }) =>
-        pieces.map((piece) => ({ productId: piece.id, productName: piece.name, material, materialName: name })),
-      ),
+      materials.flatMap(({ material, name, pieces }) => [
+        { name, material, materialName: name },
+        ...pieces.map((piece) => ({ productId: piece.id, name: piece.name, material, materialName: name })),
+      ]),
     [materials],
   );
 
@@ -137,7 +140,7 @@ export function CarePage() {
                     {t("care.landing.service.title")}
                   </h2>
                 </div>
-                <div className="grid grid-cols-2 gap-2">
+                <div className="flex flex-col gap-2">
                   <LangLink to={CARE_REQUEST_PATH} className={`${SMALL_PILL} ${PILL_CREAM}`}>
                     {t("care.landing.service.request")}
                   </LangLink>

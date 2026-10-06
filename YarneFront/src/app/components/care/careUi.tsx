@@ -50,8 +50,6 @@ export function CareTopicIcon({ icon, size = 26 }: { icon: CareIcon; size?: numb
   return <Icon size={size} strokeWidth={1.5} aria-hidden />;
 }
 
-/** Same address as the footer's Contact link. */
-export const CARE_CONTACT_HREF = "mailto:hello@yarne.acc";
 
 export const FOCUS_RING_ON_INK = "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#F5F2ED]/70";
 
