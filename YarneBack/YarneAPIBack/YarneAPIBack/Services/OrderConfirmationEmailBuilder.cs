@@ -48,6 +48,7 @@ public static class OrderConfirmationEmailBuilder
             var safeSubtitle = WebUtility.HtmlEncode(item.ProductSubtitle ?? "—");
             var safeColor = WebUtility.HtmlEncode(item.ColorName ?? "—");
             var safeSize = WebUtility.HtmlEncode(item.SizeName ?? "—");
+            var safeFurnitureColor = WebUtility.HtmlEncode(item.FurnitureColorName ?? "—");
             var laceLabel = FormatLaceLabel(item.WithLace);
             var eurLineTotal = showEur && item.EurUnitPrice.HasValue ? item.EurUnitPrice.Value * item.Quantity : (decimal?)null;
             var lineTotal = FormatPrice(item.UnitPrice * item.Quantity, eurLineTotal);
@@ -64,6 +65,7 @@ public static class OrderConfirmationEmailBuilder
                       <td style="padding:8px;border:1px solid #e5e7eb;">{safeColor}</td>
                       <td style="padding:8px;border:1px solid #e5e7eb;text-align:center;">{safeSize}</td>
                       <td style="padding:8px;border:1px solid #e5e7eb;">{laceLabel}</td>
+                      <td style="padding:8px;border:1px solid #e5e7eb;">{safeFurnitureColor}</td>
                       <td style="padding:8px;border:1px solid #e5e7eb;text-align:center;">{item.Quantity}</td>
                       <td style="padding:8px;border:1px solid #e5e7eb;text-align:right;">{unitPrice}</td>
                       <td style="padding:8px;border:1px solid #e5e7eb;text-align:right;">{lineTotal}</td>
@@ -116,6 +118,7 @@ public static class OrderConfirmationEmailBuilder
                                   <th align="left" style="padding:8px;border:1px solid #e5e7eb;">Колір</th>
                                   <th align="center" style="padding:8px;border:1px solid #e5e7eb;">Розмір</th>
                                   <th align="left" style="padding:8px;border:1px solid #e5e7eb;">Ремінець</th>
+                                  <th align="left" style="padding:8px;border:1px solid #e5e7eb;">Фурнітура</th>
                                   <th align="center" style="padding:8px;border:1px solid #e5e7eb;">Кількість</th>
                                   <th align="right" style="padding:8px;border:1px solid #e5e7eb;">Ціна</th>
                                   <th align="right" style="padding:8px;border:1px solid #e5e7eb;">Разом</th>

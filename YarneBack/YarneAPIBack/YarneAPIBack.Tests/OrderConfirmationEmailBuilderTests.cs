@@ -50,6 +50,33 @@ public class OrderConfirmationEmailBuilderTests
     }
 
     [Fact]
+    public void BuildHtml_ShowsColorSizeStrapAndHardwareColor()
+    {
+        var message = SampleMessage();
+        message.Items =
+        [
+            new OrderConfirmationEmailItem
+            {
+                ProductCode = "YRN-1",
+                ProductName = "Chérie",
+                ColorName = "Brownie",
+                SizeName = "One Size",
+                WithLace = true,
+                FurnitureColorName = "Gold",
+                Quantity = 1,
+                UnitPrice = 1500m,
+            },
+        ];
+
+        var html = OrderConfirmationEmailBuilder.BuildHtml(message);
+
+        Assert.Contains("Фурнітура", html);
+        Assert.Contains("Brownie", html);
+        Assert.Contains("One Size", html);
+        Assert.Contains("Gold", html);
+    }
+
+    [Fact]
     public void BuildHtml_IncludesOrderMetadata()
     {
         var message = SampleMessage(orderId: 7, total: 250m);

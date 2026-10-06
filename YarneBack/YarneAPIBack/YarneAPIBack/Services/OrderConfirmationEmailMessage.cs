@@ -52,6 +52,8 @@ public class OrderConfirmationEmailItem
 
     public string? SizeName { get; set; }
 
+    public string? FurnitureColorName { get; set; }
+
     public bool? WithLace { get; set; }
 
     public int Quantity { get; set; }
