@@ -2,6 +2,7 @@ import { useReducedMotion } from "motion/react";
 import { ArrowRight } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useStaticPageCopy, useStaticPageReady } from "../hooks/useStaticPageCopy";
+import { usePageTitle } from "../hooks/usePageTitle";
 import { ImageWithFallback as Img } from "../components/figma/ImageWithFallback";
 import { firstVisitRevealStyle } from "../hooks/useFirstVisitReady";
 import { LangLink } from "../i18n/LangLink";
@@ -15,6 +16,7 @@ import heroImage from "../../assets/our-history-hero.jpg";
  */
 export function OurHistoryPage() {
   const { t } = useTranslation();
+  usePageTitle(t("seo.ourHistoryTitle"));
   const copy = useStaticPageCopy("ourHistory");
   const reduceMotion = useReducedMotion();
   const ready = useStaticPageReady();

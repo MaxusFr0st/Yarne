@@ -8,6 +8,7 @@ import { useApp, type CartItem } from "../context/AppContext";
 import { ImageWithFallback } from "../components/figma/ImageWithFallback";
 import { LangLink } from "../i18n/LangLink";
 import { useLocale } from "../i18n/useLocale";
+import { showsEur } from "../i18n/format";
 import { PriceTag } from "../components/PriceTag";
 import { OrderLineDetails, cartItemToLineDetails } from "../components/OrderLineDetails";
 import { cartItemsTotal, mergePlacedOrderDisplay } from "../utils/mergePlacedOrderItems";
@@ -526,7 +527,7 @@ export function CheckoutPage() {
             </span>
             <PriceTag amount={displayTotal} eurAmount={displayTotalEur} locale={locale} variant="emphasis" tone="light" withUnit />
           </div>
-          {locale === "en" && displayTotalEur != null && (
+          {showsEur(locale) && displayTotalEur != null && (
             <p
               className="mt-1.5 text-right"
               style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "0.68rem", color: "rgba(245,242,237,0.4)" }}

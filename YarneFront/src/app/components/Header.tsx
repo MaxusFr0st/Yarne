@@ -24,12 +24,31 @@ export function Header() {
   const skipScrollStyle = useTouchMobileLayout();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
   const [langOpen, setLangOpen] = useState(false);
   const langRef = useRef<HTMLDivElement>(null);
   const location = useLocation();
   const navigate = useLangNavigate();
   const rawNavigate = useNavigate();
   const locale = useLocale();
+
+  const submitSearch = (event: React.FormEvent) => {
+    event.preventDefault();
+    const term = searchTerm.trim();
+    if (!term) return;
+    setSearchOpen(false);
+    setSearchTerm("");
+    navigate(`/collection?q=${encodeURIComponent(term)}`);
+  };
+
+  useEffect(() => {
+    if (!searchOpen) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setSearchOpen(false);
+    };
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [searchOpen]);
 
   const handleLogoClick = (event: React.MouseEvent<HTMLAnchorElement>) => {
     clearAllScrollPositions();
@@ -219,7 +238,7 @@ export function Header() {
             {/* Center Logo */}
             <LangLink to="/" className="flex items-center justify-center justify-self-center text-[#2D241E]" onClick={handleLogoClick}>
               <Logo
-                title="Yarné – The Knit Gallery"
+                title="Yarné"
                 className="h-6 md:h-7 w-auto"
               />
             </LangLink>
@@ -429,7 +448,7 @@ export function Header() {
             <button
               onClick={() => setSearchOpen(false)}
               className="absolute top-8 right-8 text-[#2D241E]/60 hover:text-[#2D241E] transition-colors"
-              aria-label={t("header.closeMenu")}
+              aria-label={t("header.closeSearch")}
             >
               <X size={24} />
             </button>
@@ -445,16 +464,20 @@ export function Header() {
               >
                 {t("header.searchTitle")}
               </p>
-              <div className="relative">
+              <form role="search" className="relative" onSubmit={submitSearch}>
                 <input
                   type="text"
+                  name="q"
+                  value={searchTerm}
+                  onChange={(event) => setSearchTerm(event.target.value)}
+                  aria-label={t("header.searchLabel")}
                   placeholder={t("header.searchPlaceholder")}
                   autoFocus
                   className="w-full bg-transparent border-0 border-b-2 border-[#2D241E]/20 focus:border-[#4A0E0E] focus:outline-none pb-4 text-[#2D241E] placeholder-[#2D241E]/30 text-xl transition-colors duration-300"
                   style={{ fontFamily: "'Cormorant Garamond', serif" }}
                 />
                 <Search className="absolute right-0 bottom-4 text-[#2D241E]/40" size={22} />
-              </div>
+              </form>
             </motion.div>
           </motion.div>
         )}

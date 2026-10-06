@@ -13,6 +13,8 @@ import { useTouchMobileLayout } from "../hooks/useTouchMobileLayout";
 import { getDefaultColorIndex } from "../utils/productColorIndex";
 import { localizedCatalogName } from "../utils/localizedName";
 import { resolveDisplayPrice, resolveDisplayEurPrice } from "../utils/variantStock";
+import { quickAddLine } from "../utils/cartLine";
+import { useLangNavigate } from "../i18n/useLangNavigate";
 import { usePrepareProducts } from "../hooks/usePrepareProducts";
 
 interface ProductCardProps {
@@ -55,6 +57,7 @@ function ProductCardInner({
     onActiveColorChange?.(index);
   };
   const { addToCart } = useCart();
+  const navigate = useLangNavigate();
   const { disabled: motionDisabled } = useMotionEntrance();
   const touchMobile = useTouchMobileLayout();
   const [mobilePeek, setMobilePeek] = useState(false);
@@ -88,19 +91,12 @@ function ProductCardInner({
     if (previewMode) return;
     e.preventDefault();
     e.stopPropagation();
-    addToCart({
-      productId: product.id,
-      name: product.name,
-      subtitle: product.subtitle,
-      price: resolveDisplayPrice(product.colors[activeColor], false, product.price),
-      color: product.colors[activeColor].name,
-      colorId: product.colors[activeColor].colorId,
-      colorHex: product.colors[activeColor].hex,
-      size: "S",
-      withLace: null,
-      quantity: 1,
-      image: product.colors[activeColor].image.src,
-    });
+    // Only a piece with nothing left to choose is added from here: exactly what the shopper sees,
+    // line for line as the product page would add it. A size, strap or hardware colour to pick
+    // sends them to the product page (with the chosen colour) instead of guessing.
+    const line = quickAddLine(product, product.colors[activeColor]);
+    if (line) addToCart(line);
+    else navigate(productHref);
   };
 
   const activeColorVariant = product.colors[activeColor];

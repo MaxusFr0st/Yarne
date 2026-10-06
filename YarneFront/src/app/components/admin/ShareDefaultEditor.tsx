@@ -178,7 +178,7 @@ export function ShareDefaultEditor({ initialContent, onSaved, onError }: ShareDe
             rows={3}
             value={draft.description}
             onChange={(e) => updateField("description", e.target.value)}
-            placeholder="Handmade knitwear, made to order."
+            placeholder="Handmade knitted bags, hats and beach sets, made to order."
             className="w-full rounded-[14px] border bg-transparent px-4 py-2.5 text-[#2D241E] focus:outline-none resize-y"
             style={{ borderColor: "rgba(45,36,30,0.12)", fontFamily: "'DM Sans', sans-serif" }}
           />

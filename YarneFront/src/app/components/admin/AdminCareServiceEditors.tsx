@@ -325,7 +325,7 @@ function ContactDetailsEditor({ locale, onError }: Props & { locale: Locale }) {
         {field("Phone as shown", "phoneDisplay", "+380 67 123 45 67", "Empty: the number above, spaced.")}
         <L10nField label="Phone hours" value={draft.hours} locale={locale} maxLength={120} onChange={(hours) => patch({ hours })} />
         <div />
-        {field("Email", "email", "hello@yarne.acc")}
+        {field("Email", "email", CONTACT_SEED.email)}
         <L10nField label="Email reply time" value={draft.replyTime} locale={locale} maxLength={120} onChange={(replyTime) => patch({ replyTime })} />
         {field("Instagram name", "instagramHandle", "@yarne.acc", "Empty hides the Instagram line.")}
         {field("Instagram link", "instagramUrl", "https://www.instagram.com/yarne.acc/")}

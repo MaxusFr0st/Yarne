@@ -26,7 +26,7 @@ export const CONTACT_SEED: ContactContent = {
   version: 1,
   phone: "+380952601903",
   phoneDisplay: "+380 95 260 19 03",
-  email: "hello@yarne.acc",
+  email: "anastasiia.moroz.yarne@gmail.com",
   hours: { en: "Mon–Fri, 10:00–18:00 (Kyiv time)", uk: "Пн–Пт, 10:00–18:00 (за Києвом)" },
   replyTime: { en: "We reply within one business day", uk: "Відповідаємо протягом одного робочого дня" },
   instagramHandle: "@yarne.acc",

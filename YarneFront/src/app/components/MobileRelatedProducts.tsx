@@ -64,7 +64,7 @@ export function MobileRelatedProducts({ products }: MobileRelatedProductsProps) 
           lineHeight: 1.1,
         }}
       >
-        {t("product.relatedTitle", { defaultValue: "Complete the wardrobe" })}
+        {t("product.relatedTitle", { defaultValue: "Complete the look" })}
       </h2>
 
       <div

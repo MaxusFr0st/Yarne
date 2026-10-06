@@ -5,11 +5,6 @@
 const en = {
   common: {
     viewAll: "View All",
-    discover: "Discover",
-    explore: "Explore",
-    shopAll: "Shop All",
-    readStory: "Read our story",
-    arrow: "→",
     updateAvailable: "A new version of Yarné is available.",
     refresh: "Refresh",
   },
@@ -17,8 +12,6 @@ const en = {
     home: "Home",
     collection: "Collection",
     care: "Care",
-    journal: "Journal",
-    about: "About",
     admin: "Admin",
     myAccount: "My Account",
     signIn: "Sign in",
@@ -26,35 +19,23 @@ const en = {
     search: "Search",
     openMenu: "Open menu",
     closeMenu: "Close menu",
-    searchTitle: "Search The Knit Gallery",
-    searchPlaceholder: "Cashmere, turtleneck, bouclé...",
+    searchTitle: "Search Yarné",
+    searchPlaceholder: "Bag, clutch, hat, ivory...",
+    searchLabel: "Search the collection",
+    closeSearch: "Close search",
   },
   language: {
     label: "Language",
-    en: "English",
-    uk: "Ukrainian",
-    short: { en: "EN", uk: "UA" },
   },
   home: {
     hero: {
-      eyebrow: "New Collection — Spring 2026",
-      titleLine1: "Woven in",
-      titleAccent: "quiet luxury",
-      subtitle:
-        "Timeless knitwear crafted from the world's finest fibres. Each piece is made to outlast every season.",
+      eyebrow: "New Collection — Summer 2026",
+      titleLine1: "Your unique bag,",
+      titleAccent: "ma chérie!",
+      subtitle: "",
       ctaPrimary: "Explore Collection",
       ctaSecondary: "New Arrivals",
       scroll: "Scroll",
-    },
-    brandStrip: {
-      yarnOriginsLabel: "Yarn Origins",
-      yarnOriginsValue: "Scotland, Italy & Peru",
-      craftedSinceLabel: "Crafted Since",
-      craftedSinceValue: "2011",
-      materialsLabel: "Materials",
-      materialsValue: "100% Natural Fibres",
-      carbonLabel: "Carbon Neutral",
-      carbonValue: "Since 2023",
     },
     bestSellers: {
       eyebrow: "Most Loved",
@@ -65,11 +46,10 @@ const en = {
       titleLine1: "Every stitch tells",
       titleLine2: "a longer story",
       paragraph1:
-        "We source our yarns from family mills in the Scottish Highlands, the Peruvian altiplano, and the foothills of the Italian Alps. Each fibre is selected for its provenance, its handle, and its longevity.",
+        "For us, a bag is more than a functional object. It is the finishing accent of a look — the detail that draws attention without excess words.",
       paragraph2:
-        "A Yarné piece is not designed for one season. It is designed to be worn, reworn, and passed on — a small act of resistance against disposable fashion.",
+        "Every YARNÉ bag begins with a careful selection of yarn and ends with a piece in which every detail matters.",
       ourStory: "Our Story",
-      yearsLabel: "Years of craft",
     },
     why: {
       heading: "Why choose",
@@ -84,14 +64,14 @@ const en = {
         {
           word: "Cherie",
           caption: "Cherie — hand-knitted mini bag",
-          title: "Natural fibres, built to last",
-          body: "Sourced yarns chosen for durability over trend cycles.",
+          title: "100% cotton, easy to care for",
+          body: "A combination of versatility and a statement accent.",
         },
         {
-          word: "Dva Shopper",
-          caption: "Dva Shopper — knitted tote",
-          title: "Made to order, in days not months",
-          body: "No warehouse overstock — each order is knitted fresh.",
+          word: "Diva",
+          caption: "Diva — knitted bag",
+          title: "Made especially for you",
+          body: "No excess stock — every piece is made to order.",
         },
       ],
       care: {
@@ -99,7 +79,7 @@ const en = {
         title: "Yarné Care — we look after your bag once it's yours",
         items: [
           { title: "We re-knit it", body: "If it's damaged, we restore it stitch by stitch." },
-          { title: "We wash it", body: "Gentle wool washing in our own workshop." },
+          { title: "We wash it", body: "Gentle washing in our own workshop." },
           { title: "Free returns", body: "Not the right fit? We collect it at our cost." },
         ],
         linkLabel: "Care terms",
@@ -110,13 +90,11 @@ const en = {
     defaultEyebrow: "Featured Showcase",
     defaultTitle: "Editorial Picks",
     openProduct: "Open {{title}}",
-    railScrollHint: "Swipe",
   },
   product: {
     badgeNew: "NEW",
     badgeBestseller: "BESTSELLER",
     quickAdd: "Quick Add",
-    fromPrice: "From {{price}}",
     notFound: "Product not found.",
     back: "Back",
     description: "Description",
@@ -136,7 +114,7 @@ const en = {
       readMore: "Read more",
     },
     relatedEyebrow: "You may also like",
-    relatedTitle: "Complete the wardrobe",
+    relatedTitle: "Complete the look",
     relatedSlide: "Related product",
     galleryImage: "Image {{index}}",
     lace: {
@@ -231,7 +209,7 @@ const en = {
   auth: {
     closeSignInDialog: "Close sign in dialog",
     close: "Close",
-    brandTagline: "The Knit Gallery",
+    brandTagline: "Knitted by hand",
     welcomeBack: "Welcome back",
     createAccount: "Create account",
     signInTab: "Sign In",
@@ -285,10 +263,10 @@ const en = {
       collectionEyebrow: "The Collection",
       newArrivalsTitleLead: "New",
       newArrivalsTitleAccent: "Arrivals",
-      collectionTitleLead: "The",
-      collectionTitleAccent: "Knit Gallery",
-      pieceCount_one: "{{count}} piece — crafted from the world's finest natural fibres",
-      pieceCount_other: "{{count}} pieces — crafted from the world's finest natural fibres",
+      collectionTitleLead: "Our",
+      collectionTitleAccent: "Collection",
+      pieceCount_one: "{{count}} piece — handmade, made to order",
+      pieceCount_other: "{{count}} pieces — handmade, made to order",
     },
     filter: {
       button: "Filter",
@@ -378,7 +356,6 @@ const en = {
     orderRow: {
       itemCount_one: "{{count}} item",
       itemCount_other: "{{count}} items",
-      qty: "Qty {{count}}",
       estDelivery: "Est. delivery",
       total: "Total",
       openProduct: "Open {{name}}",
@@ -416,7 +393,7 @@ const en = {
       paragraphs: [
         "We ship orders within 2–4 business days. Standard delivery typically arrives in 3–7 business days depending on your location.",
         "Express shipping is available at checkout where offered. Once your order ships, you will receive a tracking link by email.",
-        "If something is not quite right, you may return unworn items with original tags within 14 days of delivery. Contact us at hello@yarne.acc to start a return.",
+        "If something is not quite right, you may return unworn items with original tags within 14 days of delivery. Contact us at {{email}} to start a return.",
         "This page is placeholder copy — update shipping windows, carriers, and return rules to match your store policy.",
       ],
     },
@@ -425,19 +402,18 @@ const en = {
       title: "Terms & Conditions",
       lastUpdated: "Last updated: July 2026",
       paragraphs: [
-        "By accessing yarne.acc and placing an order, you agree to these Terms & Conditions. If you do not agree, please do not use our website.",
+        "By accessing yarne-acc.com and placing an order, you agree to these Terms & Conditions. If you do not agree, please do not use our website.",
         "All product descriptions, prices, and availability are subject to change without notice. We reserve the right to refuse or cancel orders in cases of pricing errors, suspected fraud, or stock limitations.",
         "Payment is charged when your order is confirmed. You are responsible for providing accurate shipping and contact details.",
         "Risk of loss passes to you upon delivery to the carrier. Delivery times are estimates only and may vary due to customs, weather, or carrier delays.",
         "Returns are accepted only under the conditions stated on our Delivery & Returns page. Sale items and personalised goods may be excluded unless required by law.",
         "Content on this site — including images, copy, and branding — is owned by Yarné or its licensors and may not be reproduced without permission.",
         "To the fullest extent permitted by law, Yarné is not liable for indirect or consequential damages arising from use of the site or products. Nothing in these terms limits your statutory consumer rights.",
-        "These terms are governed by the laws applicable where Yarné operates. For questions, contact hello@yarne.acc.",
+        "These terms are governed by the laws applicable where Yarné operates. For questions, contact {{email}}.",
       ],
     },
   },
   care: {
-    eyebrow: "Help",
     title: "Yarné Care",
     tabTitle: { landing: "Care", guide: "{{name}} care" },
     search: {
@@ -601,6 +577,15 @@ const en = {
       reminderText: "Re-knitting, washing and repairs are free for covered care.",
     },
   },
+  // Tab titles of the pages that have none of their own; scripts/server.mjs stamps the same ones
+  // (PAGE_SEO) into the HTML for crawlers: keep the two in step.
+  seo: {
+    homeTitle: "Handmade knitted bags and accessories",
+    collectionTitle: "Shop handmade knitted bags, hats and sets",
+    ourHistoryTitle: "Our story: why we make knitted bags",
+    deliveryTitle: "Delivery in Ukraine by Nova Poshta and returns",
+    termsTitle: "Terms and conditions of use and ordering",
+  },
   notFound: {
     title: "Page not found",
     text: "The page you're looking for has moved, or perhaps it was never here to begin with.",
@@ -632,8 +617,8 @@ const en = {
         tiktok: "TikTok",
       },
     },
-    rights: "© {{year}} Yarné — The Knit Gallery. All rights reserved.",
-    legal: { privacy: "Privacy", terms: "Terms", cookies: "Cookies" },
+    rights: "© {{year}} Yarné. All rights reserved.",
+    legal: { terms: "Terms" },
   },
 } as const;
 

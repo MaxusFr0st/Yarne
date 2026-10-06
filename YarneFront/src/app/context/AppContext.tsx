@@ -16,6 +16,7 @@ import {
 } from "../api/auth";
 import { clearLegacyAuthStorage, tryRefreshSession } from "../api/client";
 import { ApiRequestError } from "../api/errors";
+import { SHOW_EUR_FOR_ENGLISH } from "../i18n/format";
 
 export interface CartItem {
   cartId: string;
@@ -23,7 +24,7 @@ export interface CartItem {
   name: string;
   subtitle?: string;
   price: number;
-  /** EUR equivalent, shown instead of price when the shopper is browsing in English. */
+  /** EUR equivalent, shown instead of price when the shopper is browsing in English and euros are on (SHOW_EUR_FOR_ENGLISH). */
   eurPrice?: number | null;
   color: string;
   colorId?: number;
@@ -49,7 +50,7 @@ interface CartContextType {
   updateQuantity: (cartId: string, qty: number) => void;
   clearCart: () => void;
   cartTotal: number;
-  /** Sum of eurPrice*quantity, or null if any cart item has no EUR price set. */
+  /** Sum of eurPrice*quantity, or null if any cart item has no EUR price set (or euros are switched off). */
   cartEurTotal: number | null;
   cartCount: number;
 }
@@ -248,7 +249,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, [cartItems]);
 
   const cartTotal = cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
-  const cartEurTotal = cartItems.length > 0 && cartItems.every((item) => item.eurPrice != null)
+  const cartEurTotal = SHOW_EUR_FOR_ENGLISH && cartItems.length > 0 && cartItems.every((item) => item.eurPrice != null)
     ? cartItems.reduce((sum, item) => sum + item.eurPrice! * item.quantity, 0)
     : null;
   const cartCount = cartItems.reduce((sum, item) => sum + item.quantity, 0);

@@ -1,6 +1,6 @@
 import type { CSSProperties } from "react";
 import type { Locale } from "../i18n/config";
-import { getHryvniaUnit, splitPriceCompact } from "../i18n/format";
+import { getHryvniaUnit, showsEur, splitPriceCompact } from "../i18n/format";
 import { useLocale } from "../i18n/useLocale";
 
 export type PriceTagVariant = "card" | "display" | "line" | "emphasis";
@@ -8,7 +8,7 @@ export type PriceTagTone = "dark" | "light";
 
 type PriceTagProps = {
   amount: number;
-  /** EUR equivalent, shown instead of `amount` when locale is "en". Null/undefined falls back to the UAH `amount`. */
+  /** EUR equivalent, shown instead of `amount` when locale is "en" and euros are switched on (SHOW_EUR_FOR_ENGLISH). Null/undefined falls back to the UAH `amount`. */
   eurAmount?: number | null;
   locale?: Locale;
   variant?: PriceTagVariant;
@@ -91,7 +91,7 @@ export function PriceTag({
 }: PriceTagProps) {
   const contextLocale = useLocale();
   const locale = localeProp ?? contextLocale;
-  const useEur = locale === "en" && eurAmount != null;
+  const useEur = showsEur(locale) && eurAmount != null;
   const displayAmount = useEur ? eurAmount : amount;
   const { symbol, value } = splitPriceCompact(displayAmount, locale, useEur ? "EUR" : "UAH");
   const unit = withUnit && locale === "uk" ? getHryvniaUnit(displayAmount) : null;

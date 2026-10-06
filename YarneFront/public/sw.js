@@ -55,7 +55,9 @@ self.addEventListener("fetch", (event) => {
     event.respondWith(
       fetch(request)
         .then((response) => {
-          if (response.ok) {
+          // Only a page: a visitor who opens /sitemap.xml, /robots.txt or /llms.txt in the tab must
+          // not leave that file behind as the offline page.
+          if (response.ok && (response.headers.get("content-type") || "").includes("text/html")) {
             const copy = response.clone();
             caches.open(CACHE_VERSION).then((cache) => cache.put("/index.html", copy));
           }

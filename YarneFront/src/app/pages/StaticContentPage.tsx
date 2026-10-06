@@ -1,5 +1,7 @@
 import { useTranslation } from "react-i18next";
 import { ScrollReveal, SectionEyebrow, SectionTitle } from "../components/ScrollReveal";
+import { usePageTitle } from "../hooks/usePageTitle";
+import { useContactContent } from "../hooks/useCareServiceContent";
 
 type StaticPageKey = "delivery" | "terms";
 
@@ -9,7 +11,10 @@ type Props = {
 
 export function StaticContentPage({ pageKey }: Props) {
   const { t } = useTranslation();
-  const paragraphs = t(`pages.${pageKey}.paragraphs`, { returnObjects: true }) as string[];
+  usePageTitle(t(`seo.${pageKey}Title`));
+  const { content: contact } = useContactContent();
+  // The contact address lives in one place (utils/contactContent.ts); the copy marks where it goes.
+  const paragraphs = t(`pages.${pageKey}.paragraphs`, { returnObjects: true, email: contact.email }) as string[];
 
   return (
     <main style={{ backgroundColor: "#F5F2ED", minHeight: "var(--app-svh)" }}>

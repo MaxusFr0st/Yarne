@@ -1598,7 +1598,7 @@ function ProductModal({
           <div className="grid grid-cols-2 gap-4">
             {[
               { label: "Product Name", key: "name" as const, placeholder: "e.g. Arles Cocoon Sweater" },
-              { label: "Subtitle / Material", key: "subtitle" as const, placeholder: "e.g. Merino Wool Blend" },
+              { label: "Subtitle / Material", key: "subtitle" as const, placeholder: "e.g. 100% cotton yarn" },
             ].map((field) => (
               <div key={field.key}>
                 <label

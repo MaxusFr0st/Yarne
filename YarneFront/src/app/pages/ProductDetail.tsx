@@ -19,6 +19,7 @@ import { ProductGuaranteeBlock } from "../components/ProductGuaranteeBlock";
 import { CareProductLink } from "../components/care/CareProductLink";
 import { resolveDisplayImages } from "../utils/variantImages";
 import { resolveDisplayPrice, resolveDisplayEurPrice } from "../utils/variantStock";
+import { buildCartLine, displaySizesFor } from "../utils/cartLine";
 import { scrollToPageTop } from "../utils/scrollToTop";
 import { dropPhotos, Priority, queuePhotos } from "../utils/photoQueue";
 import { productPagePhotos } from "../utils/productPhotos";
@@ -130,18 +131,7 @@ export function ProductDetail() {
     void loadProductGuaranteeContent().then(setGuaranteeContent);
   }, []);
 
-  const colorScopedSizes = product
-    ? Array.from(
-        new Set([
-          ...Object.keys(product.colors[activeColor]?.sizeImages ?? {}),
-          ...Object.keys(product.colors[activeColor]?.laceVariants ?? {}),
-        ])
-      )
-    : [];
-  const displaySizes =
-    colorScopedSizes.length > 0
-      ? colorScopedSizes
-      : (product?.sizes ?? []).map((s) => s.name);
+  const displaySizes = product ? displaySizesFor(product, product.colors[activeColor]) : [];
   // Worked out while rendering, not set by an effect afterwards: with no size yet a product has
   // no photos to show, so the page used to open with an empty gallery, and the photos then
   // arrived as a "change of photos" that waits for every one of them to download.
@@ -236,25 +226,17 @@ export function ProductDetail() {
       setTimeout(() => setSizeError(false), 2000);
       return;
     }
-    addToCart({
-      productId: product.id,
-      name: product.name,
-      subtitle: product.subtitle,
-      price: resolveDisplayPrice(selectedColor, activeLace, product.price),
-      eurPrice: resolveDisplayEurPrice(selectedColor, activeLace, product.eurPrice) ?? undefined,
-      color: selectedColor.name,
-      colorId: selectedColor.colorId,
-      colorHex: selectedColor.hex,
-      colorUk: selectedColor.nameUk,
-      furnitureColor: showFurniture ? selectedFurniture?.name : undefined,
-      furnitureColorHex: showFurniture ? selectedFurniture?.hex : undefined,
-      furnitureColorUk: showFurniture ? selectedFurniture?.nameUk : undefined,
-      size: activeSize,
-      sizeUk: product.sizes.find((s) => s.name === activeSize)?.nameUk,
-      withLace: product.lace ? activeLace : null,
-      quantity: 1,
-      image: images[0]?.src ?? selectedColor.image.src,
-    });
+    // Built in utils/cartLine.ts, shared with the collection card's quick add.
+    addToCart(
+      buildCartLine({
+        product,
+        color: selectedColor,
+        size: activeSize,
+        withLace: activeLace,
+        furniture: showFurniture ? selectedFurniture : undefined,
+        image: images[0]?.src,
+      }),
+    );
     setAddedToBag(true);
     setTimeout(() => setAddedToBag(false), 2500);
   };

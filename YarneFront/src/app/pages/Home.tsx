@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { motion, useReducedMotion, useScroll, useTransform } from "motion/react";
 import { ArrowRight, ChevronDown } from "lucide-react";
 import { BestSellersCarousel } from "../components/BestSellersCarousel";
@@ -11,10 +11,16 @@ import { useTouchMobileLayout } from "../hooks/useTouchMobileLayout";
 import { useHomeHero } from "../hooks/useHomeHero";
 import { Priority, queuePhotos } from "../utils/photoQueue";
 import { useLocale } from "../i18n/useLocale";
+import { usePageTitle } from "../hooks/usePageTitle";
+import { fetchStorefrontSetting, peekStorefrontSetting } from "../api/storefrontSettings";
+import { useTranslation } from "react-i18next";
 import { ScrollReveal, SECTION_REVEAL, SectionEyebrow, SectionTitle } from "../components/ScrollReveal";
 import { WhyYarneSection } from "../components/WhyYarneSection";
 
 const ease = [0.22, 1, 0.36, 1] as const;
+
+const SHARE_DEFAULT_KEY = "yarne.share.default.v1";
+const shareTitleOf = (value: { title?: string } | null | undefined) => value?.title?.trim() || "";
 
 /**
  * The page appears as soon as the hero is ready (useHomeHero). Each section below loads behind it
@@ -22,6 +28,29 @@ const ease = [0.22, 1, 0.36, 1] as const;
  * visitor has seen it (useFirstVisitReady, useSeenLock).
  */
 export function Home() {
+  const { t } = useTranslation();
+  // The admin's default share title (scripts/server.mjs stamps it into the HTML) names the tab too,
+  // so the tab and the share card agree; without one the page has its own title.
+  const [shareTitle, setShareTitle] = useState(() => shareTitleOf(peekStorefrontSetting<{ title?: string }>(SHARE_DEFAULT_KEY)?.value));
+  useEffect(() => {
+    let cancelled = false;
+    void fetchStorefrontSetting<{ title?: string }>(SHARE_DEFAULT_KEY)
+      .then((value) => {
+        if (!cancelled) setShareTitle(shareTitleOf(value));
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+  useEffect(() => {
+    if (!shareTitle) return;
+    document.title = shareTitle;
+    return () => {
+      document.title = "Yarné";
+    };
+  }, [shareTitle]);
+  usePageTitle(shareTitle ? null : t("seo.homeTitle"));
   const editorialRef = useRef<HTMLDivElement>(null);
   const touch = useTouchMobileLayout();
   const reducedMotion = useReducedMotion();

@@ -5,10 +5,33 @@ import { SlidersHorizontal, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useProducts } from "../hooks/useProducts";
 import { useLocale } from "../i18n/useLocale";
+import { showsEur } from "../i18n/format";
 import { PriceTag } from "../components/PriceTag";
 import { ProductCard } from "../components/ProductCard";
 import { Skeleton } from "../components/ui/skeleton";
+import { usePageTitle } from "../hooks/usePageTitle";
 import { fetchCollections, type CollectionDto } from "../api/collections";
+import type { Product } from "../types/product";
+
+/** Lower-cased and without accents, so "cherie" finds "Chérie". */
+function searchable(value: string | null | undefined): string {
+  return (value ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+}
+
+/** Every word of the search must appear somewhere in the piece's text, in either language. */
+function matchesSearch(product: Product, words: string[]): boolean {
+  const haystack = searchable(
+    [
+      product.name,
+      product.subtitle,
+      product.description,
+      product.category,
+      product.producerName,
+      ...product.colors.flatMap((color) => [color.name, color.nameUk]),
+    ].join(" "),
+  );
+  return words.every((word) => haystack.includes(word));
+}
 
 const SKELETON_COUNT = 6;
 const ALL_PRODUCTS_TAB = "all";
@@ -44,9 +67,12 @@ function CollectionCardSkeleton() {
 export function Collection() {
   const { t } = useTranslation();
   const locale = useLocale();
+  usePageTitle(t("seo.collectionTitle"));
   const [searchParams, setSearchParams] = useSearchParams();
   const filterParam = searchParams.get("filter");
   const collectionParam = searchParams.get("collection");
+  // The header's search sends shoppers here as ?q=<words>.
+  const searchWords = searchable(searchParams.get("q")).split(/\s+/).filter(Boolean);
   const collectionId = collectionParam ? Number.parseInt(collectionParam, 10) : undefined;
   const validCollectionId = collectionId && !Number.isNaN(collectionId) ? collectionId : undefined;
   const [collections, setCollections] = useState<CollectionDto[]>([]);
@@ -82,11 +108,12 @@ export function Collection() {
     [collections, validCollectionId],
   );
 
-  // English shoppers filter/sort by EUR, not hryvnia — a product with no EUR price set
-  // can't honestly sit on a €-labeled range, so it's left out of the bounds calculation
-  // and (once the slider is touched) out of the filtered results below.
+  // With euros switched on (SHOW_EUR_FOR_ENGLISH), English shoppers filter/sort by EUR, not
+  // hryvnia — a product with no EUR price set can't honestly sit on a €-labeled range, so it's
+  // left out of the bounds calculation and (once the slider is touched) out of the filtered
+  // results below. Switched off, everyone filters and sorts by hryvnia.
   const priceValue = (product: { price: number; eurPrice?: number }) =>
-    locale === "en" ? product.eurPrice ?? null : product.price;
+    showsEur(locale) ? product.eurPrice ?? null : product.price;
 
   const priceBounds = useMemo(() => {
     const values = products
@@ -130,6 +157,7 @@ export function Collection() {
 
   let filtered = products;
   if (filterParam === "new") filtered = filtered.filter((p) => p.isNew);
+  if (searchWords.length > 0) filtered = filtered.filter((p) => matchesSearch(p, searchWords));
   if (activeAvailability === "newOnly") filtered = filtered.filter((p) => p.isNew);
   if (activeAvailability === "bestsellers") filtered = filtered.filter((p) => p.isBestseller);
   if (priceFilterTouched) {
@@ -274,7 +302,7 @@ export function Collection() {
                   </p>
                   <div className="flex items-center gap-3">
                     <span className="text-[#2D241E] text-sm">
-                      <PriceTag amount={priceRange[0]} eurAmount={locale === "en" ? priceRange[0] : null} locale={locale} variant="card" />
+                      <PriceTag amount={priceRange[0]} eurAmount={showsEur(locale) ? priceRange[0] : null} locale={locale} variant="card" />
                     </span>
                     <input
                       type="range"
@@ -288,7 +316,7 @@ export function Collection() {
                       className="w-32 accent-[#4A0E0E]"
                     />
                     <span className="text-[#2D241E] text-sm">
-                      <PriceTag amount={priceRange[1]} eurAmount={locale === "en" ? priceRange[1] : null} locale={locale} variant="card" />
+                      <PriceTag amount={priceRange[1]} eurAmount={showsEur(locale) ? priceRange[1] : null} locale={locale} variant="card" />
                     </span>
                   </div>
                 </div>
