@@ -3369,13 +3369,21 @@ export function AdminPage() {
     cancelWaybill,
     markPaymentReceived,
     undoPaymentReceived,
+    resetPaymentChoice,
     setForeignDelivery,
     setManualTtn,
     addUser,
     refetchOrders,
   } = useAdminData();
 
-  const [activeTab, setActiveTab] = useState<AdminTab>("dashboard");
+  // The owner emails link to /admin?order=<id>: open the orders tab with that order expanded.
+  const deepLinkedOrder = useRef<number | null>(
+    (() => {
+      const value = Number(new URLSearchParams(typeof window === "undefined" ? "" : window.location.search).get("order"));
+      return Number.isInteger(value) && value > 0 ? value : null;
+    })(),
+  );
+  const [activeTab, setActiveTab] = useState<AdminTab>(deepLinkedOrder.current ? "orders" : "dashboard");
   const [productSearch, setProductSearch] = useState("");
   const [mobileProductsPage, setMobileProductsPage] = useState(1);
   const [userSearch, setUserSearch] = useState("");
@@ -3388,7 +3396,7 @@ export function AdminPage() {
   const [declineDraft, setDeclineDraft] = useState<{ orderId: number; estimatedDelivery: string | null } | null>(null);
   const [orderStatusDrafts, setOrderStatusDrafts] = useState<Record<number, OrderStatus>>({});
   const [orderDeliveryDrafts, setOrderDeliveryDrafts] = useState<Record<number, string>>({});
-  const [expandedOrders, setExpandedOrders] = useState<Record<number, boolean>>({});
+  const [expandedOrders, setExpandedOrders] = useState<Record<number, boolean>>(() => (deepLinkedOrder.current ? { [deepLinkedOrder.current]: true } : {}));
   const [carouselProductCodes, setCarouselProductCodes] = useState<string[]>([]);
   const [featuredShowcaseSelection, setFeaturedShowcaseSelectionState] =
     useState<FeaturedShowcaseSelection>(getDefaultFeaturedShowcaseSelection);
@@ -4185,6 +4193,7 @@ export function AdminPage() {
       busy={novaPoshtaBusyOrderId === order.id}
       onMarkPaid={(id) => void runOrderAction(id, () => markPaymentReceived(id), "Failed to mark the payment received.")}
       onUndoPaid={(id) => void runOrderAction(id, () => undoPaymentReceived(id), "Failed to undo.")}
+      onResetChoice={(id) => void runOrderAction(id, () => resetPaymentChoice(id), "Failed to reset the payment choice.")}
       onError={setOrderActionError}
       itemsNode={renderOrderItems(order)}
       waybillNode={

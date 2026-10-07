@@ -92,7 +92,7 @@ export function CheckoutField({
           id={id}
           aria-invalid={invalid || undefined}
           aria-errormessage={invalid ? `${id}-error` : undefined}
-          className="w-full rounded-[14px] py-3.5 outline-none transition-colors duration-200"
+          className="checkout-input w-full rounded-[14px] py-3.5 outline-none transition-colors duration-200"
           style={{
             backgroundColor: "rgba(245,242,237,0.14)",
             border: `1px solid ${invalid ? ERROR_LINE : "rgba(245,242,237,0.10)"}`,

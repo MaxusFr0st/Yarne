@@ -42,6 +42,7 @@ export interface OrderDto {
   isForeignDelivery?: boolean;
   paymentReceivedAt?: string | null;
   receiptUploadedAt?: string | null;
+  paymentClaimedAt?: string | null;
   deliveryCountryCode?: string | null;
   deliveryCountryName?: string | null;
   deliveryCarrier?: "NovaPost" | "Other" | null;
@@ -261,8 +262,10 @@ export interface PublicOrderStatus {
   paymentReceivedAt: string | null;
   /** When the customer uploaded a receipt; null when none. */
   receiptUploadedAt: string | null;
-  /** A receipt may be added or replaced. */
-  canUploadReceipt: boolean;
+  /** When the customer pressed "I have paid" (receipt attached). */
+  paymentClaimedAt: string | null;
+  /** "I have paid" is still open for this order. */
+  canClaimPayment: boolean;
   cancelReason: string | null;
   email: string | null;
   isAttachedToAccount: boolean;
@@ -281,11 +284,11 @@ export async function setOrderPaymentChoice(token: string, choice: PaymentChoice
   });
 }
 
-/** Adds or replaces the receipt image of a transfer payment. */
-export async function uploadOrderReceipt(token: string, file: File): Promise<PublicOrderStatus> {
+/** "I have paid": sends the receipt photo and records the claim, once. Nothing is stored before this. */
+export async function claimOrderPayment(token: string, file: File): Promise<PublicOrderStatus> {
   const form = new FormData();
   form.append("file", file, file.name);
-  return apiRequest<PublicOrderStatus>(`/api/orders/status/${encodeURIComponent(token)}/receipt`, { method: "POST", body: form });
+  return apiRequest<PublicOrderStatus>(`/api/orders/status/${encodeURIComponent(token)}/payment-claim`, { method: "POST", body: form });
 }
 
 export async function markOrderPaymentReceived(orderId: number): Promise<OrderDto> {
@@ -309,4 +312,9 @@ export async function setOrderForeignDelivery(orderId: number, isForeignDelivery
 
 export async function setOrderManualTtn(orderId: number, ttnNumber: string | null): Promise<OrderDto> {
   return apiRequest<OrderDto>(`/api/orders/${orderId}/manual-ttn`, { method: "PUT", body: JSON.stringify({ ttnNumber }) });
+}
+
+/** Lets the customer choose how to pay again (also removes the receipt and the claim). */
+export async function resetOrderPaymentChoice(orderId: number): Promise<OrderDto> {
+  return apiRequest<OrderDto>(`/api/orders/${orderId}/reset-payment-choice`, { method: "POST" });
 }

@@ -12,12 +12,12 @@ export type PaymentContent = {
   cardNumber: string;
   /** Optional. */
   iban: string;
-  /** What to write in the payment note ("призначення"); {{order}} becomes the order number. */
+  /** What to write in the payment note ("призначення"); {{order}} becomes the order number. Empty: no row. */
   reference: string;
 };
 
-/** Empty until the owner fills it in; an empty reference means just the order number. */
-export const PAYMENT_SEED: PaymentContent = { version: 1, recipient: "", cardNumber: "", iban: "", reference: "{{order}}" };
+/** Empty until the owner fills it in. An empty reference hides the row on the customer's page (the order number is at the top of it already). */
+export const PAYMENT_SEED: PaymentContent = { version: 1, recipient: "", cardNumber: "", iban: "", reference: "Оплата замовлення {{order}}" };
 
 export function normalizePaymentContent(value: unknown): PaymentContent {
   const source = asRecord(value);
@@ -27,7 +27,7 @@ export function normalizePaymentContent(value: unknown): PaymentContent {
     recipient: trimmedText(source.recipient, 120),
     cardNumber: trimmedText(source.cardNumber, 40),
     iban: trimmedText(source.iban, 40),
-    reference: reference || "{{order}}",
+    reference,
   };
 }
 

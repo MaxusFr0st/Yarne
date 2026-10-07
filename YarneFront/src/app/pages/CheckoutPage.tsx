@@ -15,7 +15,7 @@ import { cartItemsTotal, mergePlacedOrderDisplay } from "../utils/mergePlacedOrd
 import { NovaPoshtaPicker, type NovaPoshtaSelection } from "../components/NovaPoshtaPicker";
 import { DeliveryAbroadPicker, type AbroadChoice } from "../components/DeliveryAbroadPicker";
 import { DeliveryModeSwitch } from "../components/DeliveryModeSwitch";
-import { findCountry, isBlockedCountry, isInternationalPhone, isLatinName, countryName } from "../utils/deliveryCountries";
+import { findCountry, formatAbroadPhone, isBlockedCountry, isInternationalPhone, isLatinName, countryName, normalizeAbroadPhone } from "../utils/deliveryCountries";
 import { orderStatusKey } from "../utils/orderStatusKey";
 import { CheckoutField } from "../components/CheckoutField";
 import { useSessionState, clearSessionState } from "../hooks/useSessionState";
@@ -23,6 +23,36 @@ import { useDebouncedError } from "../hooks/useDebouncedError";
 import { formatUaPhone, formatUaSubscriber, inspectUaPhone, isCompleteUaPhone, toE164Ua } from "../utils/phoneUa";
 
 const easing = [0.25, 0.1, 0.25, 1] as const;
+
+/** The confirmation of the order just placed, kept so a reload of this page shows it again instead of an empty bag. */
+const PLACED_ORDER_KEY = "yarne.placedOrder.v1";
+const PLACED_ORDER_KEEP_MS = 30 * 24 * 60 * 60 * 1000;
+
+function readPlacedOrder(): OrderDto | null {
+  try {
+    const raw = window.localStorage.getItem(PLACED_ORDER_KEY);
+    if (!raw) return null;
+    const saved = JSON.parse(raw) as { savedAt?: number; order?: OrderDto };
+    if (!saved.order || typeof saved.savedAt !== "number" || Date.now() - saved.savedAt > PLACED_ORDER_KEEP_MS) {
+      window.localStorage.removeItem(PLACED_ORDER_KEY);
+      return null;
+    }
+    return saved.order;
+  } catch {
+    return null;
+  }
+}
+
+/** Only what the receipt shows: number, date, email, status, the status link's token and the lines. No phone, name or address. */
+function rememberPlacedOrder(order: OrderDto): void {
+  try {
+    const { recipientFirstName, recipientLastName, recipientPhone, customerPhoneNumber, deliveryCityRef, deliveryWarehouseRef, ...kept } = order;
+    void recipientFirstName; void recipientLastName; void recipientPhone; void customerPhoneNumber; void deliveryCityRef; void deliveryWarehouseRef;
+    window.localStorage.setItem(PLACED_ORDER_KEY, JSON.stringify({ savedAt: Date.now(), order: { ...kept, customerName: "" } }));
+  } catch {
+    /* private mode or quota: the receipt just will not survive a reload */
+  }
+}
 /** Nova Poshta delivers within Ukraine — the recipient name a courier reads must be Cyrillic. */
 const CYRILLIC_NAME_PATTERN = /^[Ѐ-ӿ'ʼ’\- ]*$/;
 function isCyrillicName(value: string): boolean {
@@ -156,7 +186,17 @@ export function CheckoutPage() {
   const [touched, setTouched] = useState({ email: false, firstName: false, lastName: false, phone: false });
   const [placingOrder, setPlacingOrder] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [placedOrder, setPlacedOrder] = useState<OrderDto | null>(null);
+  // A reload shows the receipt of the order just placed (an empty bag means that order was placed); a new bag starts afresh.
+  const [placedOrder, setPlacedOrder] = useState<OrderDto | null>(() => (cartItems.length === 0 ? readPlacedOrder() : null));
+  useEffect(() => {
+    if (cartItems.length > 0) {
+      try {
+        window.localStorage.removeItem(PLACED_ORDER_KEY);
+      } catch {
+        /* nothing to clear */
+      }
+    }
+  }, [cartItems.length]);
   const [orderSnapshot, setOrderSnapshot] = useState<CartItem[]>([]);
   const [snapshotTotal, setSnapshotTotal] = useState(0);
   const reduceMotion = useReducedMotion();
@@ -340,6 +380,11 @@ export function CheckoutPage() {
     setRecipientLastName((current) => (current.trim().length > 0 ? current : rest.join(" ")));
   }, [user?.name]);
 
+  // A country change (or an autofill that landed before it) re-reads the number: the dial code is the prefix, never part of the value.
+  useEffect(() => {
+    setAbroadPhone((current) => formatAbroadPhone(normalizeAbroadPhone(current, abroadDial)));
+  }, [abroadDial]);
+
   const abroadFullPhone = `${abroadDial === "+" ? "+" : abroadDial}${abroadPhone.replace(/\D/g, "")}`;
 
   const placeOrder = async () => {
@@ -401,6 +446,7 @@ export function CheckoutPage() {
         })),
       });
       setPlacedOrder(order);
+      rememberPlacedOrder(order);
       clearCart();
       // The order exists server-side now — keeping the recipient's details in storage would
       // only pre-fill someone else's next visit on a shared device.
@@ -702,7 +748,7 @@ export function CheckoutPage() {
                     error={touched.phone && abroadPhone && !isInternationalPhone(abroadDial, abroadPhone) ? t("checkout.abroad.errorPhone") : null}
                     onBlur={() => setTouched((s) => ({ ...s, phone: true }))}
                     onChange={(e) => {
-                      setAbroadPhone(e.target.value.replace(/[^\d\s()-]/g, "").slice(0, 18));
+                      setAbroadPhone(formatAbroadPhone(normalizeAbroadPhone(e.target.value, abroadDial)));
                       if (error) setError(null);
                     }}
                     placeholder={t("checkout.phonePlaceholder")}

@@ -112,6 +112,7 @@ export function DeliverySheet({
   headerIcon,
   headerLeading,
   onEntered,
+  wide: wideRequested = false,
   children,
 }: {
   open: boolean;
@@ -122,10 +123,14 @@ export function DeliverySheet({
   /** Replaces the title in the header (a back control, say) while keeping the icon and the close button. */
   headerLeading?: ReactNode;
   onEntered?: () => void;
+  /** On touch tablets, a larger dialog (the abroad picker's search, list and map need the room). Phones keep the bottom sheet; laptops keep the regular dialog. */
+  wide?: boolean;
   children: ReactNode;
 }) {
   const reduceMotion = useReducedMotion();
   const compact = useCompactViewport();
+  // Touch is what separates an iPad from a small laptop of the same width.
+  const wide = wideRequested && typeof window !== "undefined" && window.matchMedia("(pointer: coarse)").matches;
   const dragControls = useDragControls();
   useBodyScrollLock(open);
 
@@ -190,14 +195,15 @@ export function DeliverySheet({
             role="dialog"
             aria-modal="true"
             aria-label={title}
-            className="relative w-full sm:max-w-[560px] flex flex-col overflow-hidden rounded-t-[26px] sm:rounded-[24px]"
+            className={`relative w-full ${wide ? "" : "sm:max-w-[560px]"} flex flex-col overflow-hidden rounded-t-[26px] sm:rounded-[24px]`}
             style={{
               backgroundColor: "#F3EFE8",
               // 92svh, not 86: Nova Poshta's widget is built for a full-height container and
               // its branch list is the tallest thing in the flow, so every point we take off
               // the sheet comes straight out of visible addresses. Still short of the top so
               // it reads as a sheet with the page behind it.
-              height: compact ? "calc(var(--app-svh) * 0.92)" : "min(calc(var(--app-svh) * 0.78), 700px)",
+              height: compact ? "calc(var(--app-svh) * 0.92)" : wide ? "min(calc(var(--app-svh) * 0.9), 860px)" : "min(calc(var(--app-svh) * 0.78), 700px)",
+              ...(wide && !compact ? { width: "min(94vw, 980px)" } : {}),
               boxShadow: "0 -12px 48px rgba(45,36,30,0.28)",
             }}
             {...panelMotion}

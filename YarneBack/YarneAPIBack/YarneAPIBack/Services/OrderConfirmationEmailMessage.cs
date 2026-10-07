@@ -22,6 +22,9 @@ public class OrderConfirmationEmailMessage
     /// <summary>{site}/{locale}/order/{token}: where the email's button leads. Empty for orders without a token.</summary>
     public string StatusUrl { get; set; } = string.Empty;
 
+    /// <summary>The admin's orders screen with this order opened: the main button of every owner notice.</summary>
+    public string AdminUrl { get; set; } = string.Empty;
+
     public string? TtnNumber { get; set; }
 
     public string? CancelReason { get; set; }

@@ -41,9 +41,37 @@ export function isLatinName(value: string): boolean {
   return /^[\p{Script=Latin}'’.\- ]*$/u.test(value);
 }
 
-/** An international number: the dial code plus 6 to 12 digits (E.164 allows 15 in all). */
+const NATIONAL_MIN = 6;
+const NATIONAL_MAX = 14;
+
+/**
+ * The national part of a phone number as the field should hold it: digits only. A pasted or autofilled value that starts with
+ * "+", "00" or the chosen country's dial code has that code stripped (so it is never doubled by the prefix the field shows).
+ * With no country ("+" only), the whole number is kept, since the shopper types the code themselves.
+ */
+export function normalizeAbroadPhone(raw: string, dial: string): string {
+  const trimmed = raw.trim();
+  let digits = trimmed.replace(/\D/g, "");
+  const code = dial.replace(/\D/g, "");
+  let international = trimmed.startsWith("+");
+  if (!international && digits.startsWith("00")) {
+    digits = digits.slice(2);
+    international = true;
+  }
+  if (code) {
+    if (digits.startsWith(code) && (international || digits.length - code.length >= NATIONAL_MIN)) digits = digits.slice(code.length);
+  }
+  return digits.slice(0, NATIONAL_MAX);
+}
+
+/** Light grouping as the shopper types, 3-3-2-2 then the rest, the same for every country. */
+export function formatAbroadPhone(digits: string): string {
+  const d = digits.replace(/\D/g, "").slice(0, NATIONAL_MAX);
+  return [d.slice(0, 3), d.slice(3, 6), d.slice(6, 8), d.slice(8, 10), d.slice(10)].filter(Boolean).join(" ");
+}
+
+/** An international number: the dial code plus 6 to 14 national digits (E.164 allows 15 in all). */
 export function isInternationalPhone(dial: string, local: string): boolean {
   const digits = local.replace(/\D/g, "");
-  const total = dial.replace(/\D/g, "").length + digits.length;
-  return digits.length >= 6 && total <= 15;
+  return digits.length >= NATIONAL_MIN && digits.length <= NATIONAL_MAX && dial.replace(/\D/g, "").length + digits.length <= 15;
 }

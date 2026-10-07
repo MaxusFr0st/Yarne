@@ -100,6 +100,9 @@ public partial class Order
     public string? DeliveryAddress { get; set; }
 
     /// <summary>Set when the owner has seen the bank transfer arrive. A mark, not a status; only for orders paid by transfer.</summary>
+    /// <summary>When the customer pressed "I have paid" (with the receipt attached). One claim per order; the admin's reset reopens it.</summary>
+    public DateTime? PaymentClaimedAt { get; set; }
+
     public DateTime? PaymentReceivedAt { get; set; }
 
     /// <summary>Private storage key of the receipt image the customer uploaded; never a public URL. Cleared when the file is deleted.</summary>

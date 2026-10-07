@@ -397,3 +397,17 @@ html[data-restoring-scroll] .route-return {
 @media (prefers-reduced-motion: reduce) {
   .img-fade-in { animation: none; }
 }
+
+/* Checkout fields look the same filled in by hand or by the browser: Chrome's autofill tint is painted over with the field's own
+   colour (cream at 14% on the ink card) and the text keeps its colour. */
+.checkout-input:-webkit-autofill,
+.checkout-input:-webkit-autofill:hover,
+.checkout-input:-webkit-autofill:focus {
+  -webkit-text-fill-color: #F5F2ED;
+  caret-color: #F5F2ED;
+  box-shadow: 0 0 0 1000px rgb(73, 65, 59) inset;
+  transition: background-color 9999s ease-out 0s;
+}
+.checkout-input[aria-invalid="true"]:-webkit-autofill {
+  -webkit-text-fill-color: #F2B8B8;
+}

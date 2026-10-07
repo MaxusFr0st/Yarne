@@ -31,7 +31,7 @@ public static class OrderConfirmationEmailBuilder
             OrderEmailEvent.InternalPlacedNotification => $"Нове замовлення {number}",
             OrderEmailEvent.PaymentConfirmed => $"Оплату замовлення {number} підтверджено",
             OrderEmailEvent.InternalPaymentChosen => $"Покупець обрав оплату: замовлення {number}",
-            OrderEmailEvent.InternalReceiptUploaded => $"Квитанція до замовлення {number}",
+            OrderEmailEvent.InternalReceiptUploaded => $"Покупець оплатив: замовлення {number}",
             _ => $"Замовлення {number}",
         };
     }
@@ -47,21 +47,31 @@ public static class OrderConfirmationEmailBuilder
             _ => BuildCustomerHtml(message),
         };
 
+    /// <summary>The main button of an owner notice opens the admin's orders screen; the customer's status page is only a small line under it.</summary>
+    private static string OwnerLinks(OrderConfirmationEmailMessage message)
+    {
+        var admin = string.IsNullOrWhiteSpace(message.AdminUrl)
+            ? ""
+            : $"""<p style="margin:18px 0 0;"><a href="{WebUtility.HtmlEncode(message.AdminUrl)}" style="display:inline-block;padding:12px 18px;border-radius:12px;background:#111827;color:#ffffff;text-decoration:none;font-size:14px;">Відкрити в адмінці</a></p>""";
+        var status = string.IsNullOrWhiteSpace(message.StatusUrl)
+            ? ""
+            : $"""<p style="margin:12px 0 0;font-size:12px;color:#6b7280;">Сторінка замовлення для покупця: <a href="{WebUtility.HtmlEncode(message.StatusUrl)}" style="color:#6b7280;">статус</a></p>""";
+        return admin + status;
+    }
+
     /// <summary>A short note to the owner: a customer chose how to pay, or uploaded a receipt.</summary>
     private static string BuildOwnerNoticeHtml(OrderConfirmationEmailMessage message)
     {
         var number = WebUtility.HtmlEncode(FormatOrderNumber(message));
         var what = message.Event == OrderEmailEvent.InternalReceiptUploaded
-            ? "Покупець додав квитанцію про оплату переказом."
+            ? "Покупець каже, що оплатив переказом, і додав квитанцію. Перевірте надходження та позначте оплату в замовленні."
             : message.PaymentChoice switch
             {
                 "Transfer" => "Покупець обрав оплату: переказ на картку.",
                 "Pickup" => "Покупець обрав оплату: при отриманні.",
                 _ => "Покупець змінив спосіб оплати.",
             };
-        var link = string.IsNullOrWhiteSpace(message.StatusUrl)
-            ? ""
-            : $"""<p style="margin:16px 0 0;font-size:14px;"><a href="{WebUtility.HtmlEncode(message.StatusUrl)}">Статус замовлення</a></p>""";
+        var link = OwnerLinks(message);
         return $"""
             <!doctype html>
             <html lang="uk">
@@ -371,14 +381,8 @@ public static class OrderConfirmationEmailBuilder
                             <p style="margin:0 0 8px;font-size:14px;"><strong>Оплата:</strong> {{(paymentChoice ?? "очікуємо вибір покупця")}}</p>
                             <p style="margin:0 0 16px;font-size:14px;"><strong>Разом:</strong> {{total}}</p>
 
-                            {{(statusUrl == null ? "" : $"""
-                              <div style="margin:0 0 16px;">
-                                <a href="{WebUtility.HtmlEncode(statusUrl)}"
-                                   style="display:inline-block;padding:12px 16px;border-radius:12px;background:#111827;color:#ffffff;text-decoration:none;font-size:14px;">
-                                  Статус замовлення
-                                </a>
-                              </div>
-                            """)}}
+                            {{OwnerLinks(message)}}
+                            <div style="height:16px;"></div>
 
                             <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;font-size:13px;">
                               <thead>

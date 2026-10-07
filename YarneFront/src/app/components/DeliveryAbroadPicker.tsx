@@ -125,8 +125,6 @@ export function DeliveryAbroadPicker({
           country,
           locale,
           onSelect: (payload) => {
-            // Logged once so the payload's real shape can be checked against readNovaPostSelection.
-            console.info("[NovaPost] onSelect", payload);
             const picked = readNovaPostSelection(payload);
             if (!picked) return;
             onChange({ kind: "branch", countryCode: country, ...picked });
@@ -196,10 +194,11 @@ export function DeliveryAbroadPicker({
           ) : undefined
         }
         onEntered={() => setEntered(true)}
+        wide
       >
         {step === "country" ? (
           <div className="flex-1 min-h-0 flex flex-col" style={{ backgroundColor: SHEET_BG, fontFamily: "'DM Sans', sans-serif" }}>
-            <div className="shrink-0 px-4 pt-3 pb-2">
+            <div className="shrink-0 px-4 pt-3 pb-2 w-full max-w-[560px] mx-auto">
               <label htmlFor="abroad-country-search" className="sr-only">
                 {t("checkout.abroad.search")}
               </label>
@@ -215,6 +214,7 @@ export function DeliveryAbroadPicker({
             </div>
             {/* Room under the last row: the browser's bottom toolbar and the home indicator must never cover it. */}
             <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-2" style={{ paddingBottom: "calc(24px + env(safe-area-inset-bottom))" }}>
+             <div className="w-full max-w-[560px] mx-auto">
               {countries.length > 0 && (
                 <p className="px-3 pt-1 pb-1 uppercase text-[0.65rem] tracking-[0.12em] text-[#2D241E]/55">{t("checkout.abroad.groupNovaPost")}</p>
               )}
@@ -249,6 +249,7 @@ export function DeliveryAbroadPicker({
                 </button>
               )}
               {countries.length === 0 && !showOther && <p className="px-3 py-4 text-[0.85rem] text-[#2D241E]/55">{t("checkout.abroad.noCountries")}</p>}
+             </div>
             </div>
           </div>
         ) : (

@@ -18,6 +18,7 @@ export type AdminOrderDetailsOrder = {
   paymentChoice: "Transfer" | "Pickup" | null;
   paymentReceivedAt: string | null;
   receiptUploadedAt: string | null;
+  paymentClaimedAt: string | null;
   itemCount: number;
 };
 
@@ -60,6 +61,7 @@ export function AdminOrderDetails({
   busy,
   onMarkPaid,
   onUndoPaid,
+  onResetChoice,
   onError,
   itemsNode,
   waybillNode,
@@ -68,6 +70,8 @@ export function AdminOrderDetails({
   busy: boolean;
   onMarkPaid: (orderId: number) => void;
   onUndoPaid: (orderId: number) => void;
+  /** Lets the customer choose how to pay again. */
+  onResetChoice: (orderId: number) => void;
   onError: (message: string) => void;
   itemsNode: ReactNode;
   waybillNode: ReactNode;
@@ -120,9 +124,23 @@ export function AdminOrderDetails({
         <div className="rounded-[18px] p-3 space-y-2" style={PANEL}>
           <p className={LABEL_CLASS} style={{ ...SANS, letterSpacing: "0.1em" }}>Payment</p>
           <Row label="Customer chose">
-            <span className="inline-block px-2.5 py-0.5 rounded-full text-xs" style={{ backgroundColor: "rgba(45,36,30,0.06)" }}>{choiceLabel}</span>
+            <span className="inline-flex items-center gap-2">
+              <span className="inline-block px-2.5 py-0.5 rounded-full text-xs" style={{ backgroundColor: "rgba(45,36,30,0.06)" }}>{choiceLabel}</span>
+              {order.paymentChoice && !order.paymentReceivedAt && (
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() => {
+                    if (window.confirm("Let the customer choose how to pay again? A receipt they sent will be deleted.")) onResetChoice(order.id);
+                  }}
+                  className="text-xs text-[#4A0E0E] underline underline-offset-2 disabled:opacity-50 cursor-pointer"
+                >
+                  Reset choice
+                </button>
+              )}
+            </span>
           </Row>
-          <Row label="To collect">{order.paymentChoice === "Pickup" ? <PriceTag amount={order.total} locale="uk" variant="line" /> : "—"}</Row>
+          {order.paymentChoice === "Pickup" && <Row label="Customer pays on pickup"><PriceTag amount={order.total} locale="uk" variant="line" /></Row>}
           <Row label="Declared value"><PriceTag amount={order.total} locale="uk" variant="line" /></Row>
           {order.paymentChoice === "Transfer" && (
             <>
@@ -138,6 +156,9 @@ export function AdminOrderDetails({
                   <span className="text-[#2D241E]/45">Not uploaded</span>
                 )}
               </Row>
+              {order.paymentClaimedAt && !order.paymentReceivedAt && (
+                <Row label="Customer says paid">{new Date(order.paymentClaimedAt).toLocaleString()}</Row>
+              )}
               {order.paymentReceivedAt ? (
                 <div className="flex items-center justify-between gap-2 pt-1">
                   <span className="inline-flex items-center gap-1.5 text-sm text-[#2D241E]" style={SANS}>

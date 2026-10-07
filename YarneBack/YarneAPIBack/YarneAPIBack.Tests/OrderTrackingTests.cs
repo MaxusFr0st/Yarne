@@ -206,7 +206,7 @@ public class OrderTrackingTests : IDisposable
     }
 
     [Fact]
-    public async Task PaymentChoice_IsIdempotent_AndCanBeChanged()
+    public async Task PaymentChoice_IsMadeOnce_TheSameChoiceIsIdempotent_ADifferentOneIsRefused()
     {
         var order = NewOrder(token: OrderPublicIdentifiers.NewStatusToken());
         order.Status = "Accepted";
@@ -215,13 +215,13 @@ public class OrderTrackingTests : IDisposable
 
         await _controller.SetPaymentChoice(order.StatusToken!, new SetPaymentChoiceRequest { Choice = "transfer" });
         var firstAt = (await _db.Orders.AsNoTracking().SingleAsync()).PaymentChoiceAt;
-        await _controller.SetPaymentChoice(order.StatusToken!, new SetPaymentChoiceRequest { Choice = " Transfer " });
+        Assert.IsType<OkObjectResult>((await _controller.SetPaymentChoice(order.StatusToken!, new SetPaymentChoiceRequest { Choice = " Transfer " })).Result);
         Assert.Equal(firstAt, (await _db.Orders.AsNoTracking().SingleAsync()).PaymentChoiceAt);
 
-        await _controller.SetPaymentChoice(order.StatusToken!, new SetPaymentChoiceRequest { Choice = "pickup" });
-        var changed = await _db.Orders.AsNoTracking().SingleAsync();
-        Assert.Equal("Pickup", changed.PaymentChoice);
-        Assert.NotEqual(firstAt, changed.PaymentChoiceAt);
+        var other = await _controller.SetPaymentChoice(order.StatusToken!, new SetPaymentChoiceRequest { Choice = "pickup" });
+        var conflict = Assert.IsType<ConflictObjectResult>(other.Result);
+        Assert.Contains("write to us", conflict.Value!.ToString());
+        Assert.Equal("Transfer", (await _db.Orders.AsNoTracking().SingleAsync()).PaymentChoice);
     }
 
     [Fact]
@@ -256,19 +256,24 @@ public class OrderTrackingTests : IDisposable
         Assert.Equal("UA00 0000", transfer.TransferDetails.Iban);
         Assert.Equal("Оплата Y071026-3", transfer.TransferDetails.Reference);
 
+        // A pay-on-pickup order never shows the bank details.
+        var other = NewOrder(token: OrderPublicIdentifiers.NewStatusToken());
+        other.Status = "Accepted";
+        _db.Orders.Add(other);
+        await _db.SaveChangesAsync();
         var pickup = (PublicOrderStatusDto)Assert.IsType<OkObjectResult>(
-            (await _controller.SetPaymentChoice(order.StatusToken!, new SetPaymentChoiceRequest { Choice = "pickup" })).Result).Value!;
+            (await _controller.SetPaymentChoice(other.StatusToken!, new SetPaymentChoiceRequest { Choice = "pickup" })).Result).Value!;
         Assert.Null(pickup.TransferDetails);
     }
 
     [Fact]
-    public void TransferDetails_AreNullByDefault_AndTheReferenceDefaultsToTheOrderNumber()
+    public void TransferDetails_AreNullByDefault_AndAnEmptyReferenceStaysEmpty()
     {
         Assert.Null(OrderStatusController.ExtractTransferDetails(null, "Y1-1"));
         Assert.Null(OrderStatusController.ExtractTransferDetails("{}", "Y1-1"));
         Assert.Null(OrderStatusController.ExtractTransferDetails("not json", "Y1-1"));
         var details = OrderStatusController.ExtractTransferDetails("""{"recipient":"A","cardNumber":"1","reference":""}""", "Y1-1")!;
-        Assert.Equal("Y1-1", details.Reference);
+        Assert.Equal("", details.Reference); // an empty reference means no row at all
         Assert.Equal("", details.Iban);
     }
 

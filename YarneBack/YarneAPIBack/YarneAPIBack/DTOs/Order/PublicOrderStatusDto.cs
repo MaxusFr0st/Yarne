@@ -50,8 +50,11 @@ public class PublicOrderStatusDto
     /// <summary>When the customer uploaded a receipt; null when none (or it has been deleted).</summary>
     public DateTime? ReceiptUploadedAt { get; set; }
 
-    /// <summary>A receipt may be added or replaced: the choice is Transfer, the order is not finished and payment is not yet confirmed.</summary>
-    public bool CanUploadReceipt { get; set; }
+    /// <summary>When the customer pressed "I have paid" with a receipt attached.</summary>
+    public DateTime? PaymentClaimedAt { get; set; }
+
+    /// <summary>"I have paid" is still open: the choice is Transfer, the order is not finished, and there is no claim or confirmation yet.</summary>
+    public bool CanClaimPayment { get; set; }
 
     /// <summary>null, "Transfer" or "Pickup".</summary>
     public string? PaymentChoice { get; set; }

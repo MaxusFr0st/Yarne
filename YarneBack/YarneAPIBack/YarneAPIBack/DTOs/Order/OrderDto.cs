@@ -19,6 +19,9 @@ public class OrderDto
 
     public string? CancelReason { get; set; }
 
+    /// <summary>When the customer said they paid (receipt attached); the owner then checks the bank and marks it received.</summary>
+    public DateTime? PaymentClaimedAt { get; set; }
+
     public DateTime? PaymentReceivedAt { get; set; }
 
     /// <summary>When the customer uploaded a receipt (the file itself is fetched by the admin through GET /api/orders/{id}/receipt).</summary>

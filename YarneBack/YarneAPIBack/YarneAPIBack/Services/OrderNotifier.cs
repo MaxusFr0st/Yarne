@@ -35,6 +35,7 @@ public class OrderNotifier
             CustomerEmail = order.Customer?.Email ?? order.GuestEmail ?? string.Empty,
             ToEmail = to,
             StatusUrl = OrderLinks.StatusUrl(_configuration, order) ?? string.Empty,
+            AdminUrl = OrderLinks.AdminUrl(_configuration, order),
             PaymentChoice = order.PaymentChoice,
             OrderDateUtc = order.OrderDate,
             Total = order.TotalCents / 100m,

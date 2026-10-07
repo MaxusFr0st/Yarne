@@ -359,8 +359,13 @@ function DeliveryPageEditor({ locale, onError }: Props & { locale: Locale }) {
       >
         {(section, update, index) => (
           <>
-            <L10nField label={`Heading ${index + 1}`} value={section.heading} locale={locale} maxLength={DELIVERY_LIMITS.heading} onChange={(heading) => update({ ...section, heading })} />
-            <L10nField label="Text" value={section.body} locale={locale} rows={5} maxLength={DELIVERY_LIMITS.body} onChange={(body) => update({ ...section, body })} />
+            {/* Both languages at once: the page is read in either, so neither is left to a language switch. */}
+            {(["uk", "en"] as const).map((lang) => (
+              <div key={lang} className="grid md:grid-cols-[minmax(0,1fr)_minmax(0,2fr)] gap-2">
+                <L10nField label={`Heading ${index + 1} (${lang})`} value={section.heading} locale={lang} maxLength={DELIVERY_LIMITS.heading} onChange={(heading) => update({ ...section, heading })} />
+                <L10nField label={`Text (${lang})`} value={section.body} locale={lang} rows={5} maxLength={DELIVERY_LIMITS.body} onChange={(body) => update({ ...section, body })} />
+              </div>
+            ))}
           </>
         )}
       </RowList>
@@ -383,7 +388,7 @@ function PaymentDetailsEditor({ locale, onError }: Props & { locale: Locale }) {
             ["Recipient name", "recipient", "ФОП Коваль А.", undefined],
             ["Card number", "cardNumber", "4441 1111 1111 1111", undefined],
             ["IBAN", "iban", "UA00 0000 0000 0000 0000 0000 00000", "Optional: leave empty to show only the card."],
-            ["Payment reference", "reference", "{{order}}", "What the customer writes in the payment note. {{order}} becomes the order number; empty means just the order number."],
+            ["Payment reference (призначення платежу)", "reference", "Оплата замовлення {{order}}", "Write {{order}} where the order number should appear. Leave empty to show no reference at all."],
           ] as const
         ).map(([label, key, placeholder, hint]) => (
           <div key={key}>

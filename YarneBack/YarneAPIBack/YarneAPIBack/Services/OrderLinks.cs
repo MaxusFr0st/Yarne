@@ -22,6 +22,9 @@ public static class OrderLinks
         return string.Join(", ", parts.Where(p => !string.IsNullOrWhiteSpace(p)));
     }
 
+    /// <summary>The admin orders screen with this order opened ({site origin}/admin?order={id}); the sign-in shows first when needed.</summary>
+    public static string AdminUrl(IConfiguration configuration, Order order) => $"{FrontendBase(configuration)}/admin?order={order.Id}";
+
     /// <summary>{site origin}/{locale}/order/{token}, or null for an order without a token (placed by hand in the admin).</summary>
     public static string? StatusUrl(IConfiguration configuration, Order order) =>
         string.IsNullOrWhiteSpace(order.StatusToken)

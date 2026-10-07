@@ -609,6 +609,13 @@ public class OrdersController : ControllerBase
             return NotFound();
 
         order.IsForeignDelivery = request.IsForeignDelivery;
+        // Abroad there is only the bank transfer: a pay-on-pickup choice made before the switch no longer stands.
+        if (request.IsForeignDelivery && order.PaymentChoice == "Pickup" && order.PaymentReceivedAt == null)
+        {
+            order.PaymentChoice = null;
+            order.PaymentChoiceAt = null;
+        }
+
         order.UpdatedAt = DateTime.UtcNow;
         await _context.SaveChangesAsync(ct);
 
@@ -670,6 +677,40 @@ public class OrdersController : ControllerBase
         var updated = await BuildOrderQuery().FirstOrDefaultAsync(o => o.Id == id, ct);
         if (firstTime)
             QueueOrderStatusEmail(updated!, OrderEmailEvent.PaymentConfirmed);
+        return Ok(MapOrder(updated!));
+    }
+
+    /// <summary>
+    /// Lets the customer choose how to pay again: clears the choice, the "I have paid" claim and the receipt file.
+    /// Not possible once the payment is marked received (undo that first).
+    /// </summary>
+    [HttpPost("{id:int}/reset-payment-choice")]
+    [Authorize(Roles = "Admin")]
+    [ProducesResponseType(typeof(OrderDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<OrderDto>> ResetPaymentChoice(int id, CancellationToken ct = default)
+    {
+        var order = await _context.Orders.FirstOrDefaultAsync(o => o.Id == id, ct);
+        if (order == null)
+            return NotFound();
+        if (order.PaymentReceivedAt != null)
+            return BadRequest(new { message = "The payment is marked received: undo that first." });
+
+        var receiptKey = order.ReceiptKey;
+        order.PaymentChoice = null;
+        order.PaymentChoiceAt = null;
+        order.PaymentClaimedAt = null;
+        order.ReceiptKey = null;
+        order.ReceiptContentType = null;
+        order.ReceiptUploadedAt = null;
+        order.UpdatedAt = DateTime.UtcNow;
+        await _context.SaveChangesAsync(ct);
+
+        if (!string.IsNullOrEmpty(receiptKey))
+            await _receiptStorage.DeletePrivateAsync(receiptKey, ct);
+
+        var updated = await BuildOrderQuery().FirstOrDefaultAsync(o => o.Id == id, ct);
         return Ok(MapOrder(updated!));
     }
 
@@ -1021,6 +1062,7 @@ public class OrdersController : ControllerBase
             PaymentChoiceAt = order.PaymentChoiceAt,
             CancelReason = order.CancelReason,
             IsForeignDelivery = order.IsForeignDelivery,
+            PaymentClaimedAt = order.PaymentClaimedAt,
             PaymentReceivedAt = order.PaymentReceivedAt,
             ReceiptUploadedAt = order.ReceiptKey == null ? null : order.ReceiptUploadedAt,
             DeliveryCountryCode = order.DeliveryCountryCode,
@@ -1196,6 +1238,7 @@ public class OrdersController : ControllerBase
             OrderId = order.Id,
             OrderNumber = order.OrderNumber,
             StatusUrl = OrderLinks.StatusUrl(_configuration, order) ?? string.Empty,
+            AdminUrl = OrderLinks.AdminUrl(_configuration, order),
             TtnNumber = order.TtnNumber,
             CancelReason = order.CancelReason,
             PaymentChoice = order.PaymentChoice,
@@ -1259,6 +1302,7 @@ public class OrdersController : ControllerBase
             OrderId = source.OrderId,
             OrderNumber = source.OrderNumber,
             StatusUrl = source.StatusUrl,
+            AdminUrl = source.AdminUrl,
             TtnNumber = source.TtnNumber,
             CancelReason = source.CancelReason,
             PaymentChoice = source.PaymentChoice,

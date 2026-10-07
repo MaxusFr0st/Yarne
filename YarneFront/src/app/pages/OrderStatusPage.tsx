@@ -3,7 +3,8 @@ import { useParams, useSearchParams } from "react-router";
 import { motion, useReducedMotion } from "motion/react";
 import { Check, Copy } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { fetchOrderStatus, setOrderPaymentChoice, uploadOrderReceipt, type PaymentChoice, type PublicOrderStatus } from "../api/orders";
+import { claimOrderPayment, fetchOrderStatus, setOrderPaymentChoice, type PaymentChoice, type PublicOrderStatus } from "../api/orders";
+import { useContactContent } from "../hooks/useCareServiceContent";
 import { ApiRequestError } from "../api/errors";
 import { FOCUS_RING, LABEL, PILL, PILL_INK, PILL_OUTLINE, SANS, SERIF } from "../components/care/careUi";
 import { PriceTag } from "../components/PriceTag";
@@ -62,12 +63,11 @@ export function OrderStatusPage() {
   const locale = useLocale();
   const reduceMotion = useReducedMotion();
   const { token = "" } = useParams<{ token: string }>();
-  const [searchParams, setSearchParams] = useSearchParams();
+  const [searchParams] = useSearchParams();
   const { user } = useAuth();
   usePageTitle(t("orderStatus.tabTitle"));
 
   const [state, setState] = useState<LoadState>({ kind: "loading" });
-  const payParamHandled = useRef(false);
 
   const load = useCallback(
     async (quiet = false) => {
@@ -85,7 +85,6 @@ export function OrderStatusPage() {
   );
 
   useEffect(() => {
-    payParamHandled.current = false;
     void load();
   }, [load]);
 
@@ -113,24 +112,31 @@ export function OrderStatusPage() {
     [token],
   );
 
-  // Receipt: one optional image of the transfer, replaceable until the owner confirms the payment.
-  const [receiptState, setReceiptState] = useState<"idle" | "uploading" | "type" | "size" | "error">("idle");
+  // "I have paid": the receipt photo is chosen here and only sent, once, with the button. Nothing is stored before that.
+  const [receiptFile, setReceiptFile] = useState<File | null>(null);
+  const [claimState, setClaimState] = useState<"idle" | "sending" | "type" | "size" | "error">("idle");
   const fileInput = useRef<HTMLInputElement>(null);
-  const sendReceipt = async (file: File | undefined) => {
+  const chooseReceipt = (file: File | undefined) => {
     if (!file) return;
-    if (file.size > 5 * 1024 * 1024) {
-      setReceiptState("size");
-      return;
-    }
-    setReceiptState("uploading");
-    try {
-      setState({ kind: "ready", order: await uploadOrderReceipt(token, file) });
-      setReceiptState("idle");
-    } catch (error) {
-      setReceiptState(error instanceof ApiRequestError && error.status === 400 ? "type" : "error");
-    }
-    if (fileInput.current) fileInput.current.value = "";
+    setClaimState(file.size > 5 * 1024 * 1024 ? "size" : "idle");
+    setReceiptFile(file.size > 5 * 1024 * 1024 ? null : file);
   };
+  const sendClaim = async () => {
+    if (!receiptFile || claimState === "sending") return;
+    setClaimState("sending");
+    try {
+      setState({ kind: "ready", order: await claimOrderPayment(token, receiptFile) });
+      setClaimState("idle");
+      setReceiptFile(null);
+    } catch (error) {
+      setClaimState(error instanceof ApiRequestError && error.status === 400 ? "type" : "error");
+    }
+  };
+
+  // The way of paying is chosen once. An email button (?pay=transfer|pickup) only pre-selects it: nothing is saved on load,
+  // because mail scanners open links on their own. The customer confirms with a button.
+  const [picked, setPicked] = useState<PaymentChoice | null>(() => readPayParam(searchParams.get("pay")));
+  const { content: contact } = useContactContent();
 
   // "Copied" for two seconds on the button that was pressed.
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
@@ -154,18 +160,6 @@ export function OrderStatusPage() {
     window.clearTimeout(copyTimer.current);
     copyTimer.current = window.setTimeout(() => setCopiedKey(null), 2000);
   };
-
-  useEffect(() => {
-    if (!order || payParamHandled.current) return;
-    payParamHandled.current = true;
-    const fromEmail = readPayParam(searchParams.get("pay"));
-    if (searchParams.has("pay")) {
-      const next = new URLSearchParams(searchParams);
-      next.delete("pay");
-      setSearchParams(next, { replace: true });
-    }
-    if (fromEmail && order.canChoosePayment && order.paymentChoice !== fromEmail) void choosePayment(fromEmail);
-  }, [order, searchParams, setSearchParams, choosePayment]);
 
   // Account offer.
   const [password, setPassword] = useState("");
@@ -283,17 +277,17 @@ export function OrderStatusPage() {
     </div>
   );
 
+  const choosing = data.paymentChoice === null;
+  const effectivePick = data.paymentChoice ?? (data.isForeignDelivery ? "Transfer" : picked);
   const payOption = (choice: PaymentChoice, label: string) => {
-    const selected = data.paymentChoice === choice;
+    const selected = effectivePick === choice;
     return (
       <button
         type="button"
         role="radio"
         aria-checked={selected}
         disabled={paySaving}
-        onClick={() => {
-          if (!selected) void choosePayment(choice);
-        }}
+        onClick={() => setPicked(choice)}
         className={`${PILL} h-12 px-5 justify-center w-full disabled:opacity-60 ${selected ? PILL_INK : PILL_OUTLINE}`}
       >
         {selected && <Check size={15} strokeWidth={2} aria-hidden />}
@@ -423,11 +417,40 @@ export function OrderStatusPage() {
             {t("orderStatus.pay.title")}
           </h2>
           <p className="text-[0.9rem] text-[#2D241E]/70">{t("orderStatus.pay.amount", { total: formatPrice(data.total, locale) })}</p>
-          <div role="radiogroup" aria-label={t("orderStatus.pay.title")} className={`grid gap-2.5 ${data.isForeignDelivery ? "" : "sm:grid-cols-2"}`}>
-            {payOption("Transfer", t("orderStatus.pay.transfer"))}
-            {!data.isForeignDelivery && payOption("Pickup", t("orderStatus.pay.pickup"))}
-          </div>
-          {!data.isForeignDelivery && <p className="text-[0.8rem] text-[#2D241E]/65">{t("orderStatus.pay.fee")}</p>}
+          {choosing ? (
+            <>
+              <div role="radiogroup" aria-label={t("orderStatus.pay.title")} className={`grid gap-2.5 ${data.isForeignDelivery ? "" : "sm:grid-cols-2"}`}>
+                {payOption("Transfer", t("orderStatus.pay.transfer"))}
+                {!data.isForeignDelivery && payOption("Pickup", t("orderStatus.pay.pickup"))}
+              </div>
+              {!data.isForeignDelivery && <p className="text-[0.8rem] text-[#2D241E]/65">{t("orderStatus.pay.fee")}</p>}
+              <button
+                type="button"
+                disabled={!effectivePick || paySaving}
+                onClick={() => effectivePick && void choosePayment(effectivePick)}
+                className={`${PILL} ${PILL_INK} h-12 px-5 justify-center w-full disabled:opacity-60`}
+              >
+                {paySaving
+                  ? t("orderStatus.pay.saving")
+                  : effectivePick === "Transfer"
+                    ? t("orderStatus.pay.confirmTransfer")
+                    : effectivePick === "Pickup"
+                      ? t("orderStatus.pay.confirmPickup")
+                      : t("orderStatus.pay.confirm")}
+              </button>
+              <p className="text-[0.8rem] text-[#2D241E]/65" aria-live="polite">
+                {payError ? t("orderStatus.pay.error") : t("orderStatus.pay.once")}
+              </p>
+            </>
+          ) : (
+            <>
+              <p className="inline-flex items-center gap-2 text-[0.95rem] text-[#2D241E]">
+                <Check size={15} strokeWidth={2} aria-hidden />
+                {data.paymentChoice === "Transfer" ? t("orderStatus.pay.transfer") : t("orderStatus.pay.pickup")}
+              </p>
+              {data.paymentChoice === "Pickup" && <p className="text-[0.8rem] text-[#2D241E]/65">{t("orderStatus.pay.fee")}</p>}
+            </>
+          )}
           {data.paymentChoice === "Transfer" && (
             <div className="rounded-[12px] p-3.5 text-[0.9rem] text-[#2D241E] bg-[#F5F2ED] flex flex-col gap-2.5">
               <p className={`${LABEL} text-[10.5px] text-[#2D241E]/65`}>{t("orderStatus.pay.detailsTitle")}</p>
@@ -462,48 +485,48 @@ export function OrderStatusPage() {
               )}
             </div>
           )}
-          {data.paymentChoice === "Transfer" && data.canUploadReceipt && (
+          {data.paymentChoice === "Transfer" && data.paymentClaimedAt && (
+            <p className="text-[0.9rem] text-[#2D241E]" role="status">{t("orderStatus.receipt.thanks")}</p>
+          )}
+          {data.paymentChoice === "Transfer" && data.canClaimPayment && (
             <div className="flex flex-col gap-2">
-              {data.receiptUploadedAt ? (
-                <p className="text-[0.9rem] text-[#2D241E]" role="status">{t("orderStatus.receipt.received")}</p>
-              ) : (
-                <p className="text-[0.8rem] text-[#2D241E]/65">{t("orderStatus.receipt.optional")}</p>
-              )}
               <input
                 ref={fileInput}
                 id="order-receipt-file"
                 type="file"
                 accept="image/jpeg,image/png,image/webp,image/heic,image/heif,.heic"
                 className="sr-only"
-                onChange={(event) => void sendReceipt(event.target.files?.[0])}
+                onChange={(event) => chooseReceipt(event.target.files?.[0])}
               />
               <label
                 htmlFor="order-receipt-file"
-                className={`${PILL} ${PILL_OUTLINE} h-12 px-5 justify-center w-full focus-within:ring-2 ${receiptState === "uploading" ? "opacity-60 pointer-events-none" : ""}`}
+                className={`${PILL} ${PILL_OUTLINE} h-12 px-5 justify-center w-full focus-within:ring-2 ${claimState === "sending" ? "opacity-60 pointer-events-none" : ""}`}
               >
-                {receiptState === "uploading" ? t("orderStatus.receipt.uploading") : data.receiptUploadedAt ? t("orderStatus.receipt.replace") : t("orderStatus.receipt.add")}
+                {receiptFile ? t("orderStatus.receipt.replace") : t("orderStatus.receipt.add")}
               </label>
+              {receiptFile && (
+                <p className="text-[0.85rem] text-[#2D241E] break-all" aria-live="polite">{receiptFile.name}</p>
+              )}
+              <button
+                type="button"
+                disabled={!receiptFile || claimState === "sending"}
+                onClick={() => void sendClaim()}
+                className={`${PILL} ${PILL_INK} h-12 px-5 justify-center w-full disabled:opacity-60`}
+              >
+                {claimState === "sending" ? t("orderStatus.receipt.uploading") : t("orderStatus.receipt.paid")}
+              </button>
+              {!receiptFile && <p className="text-[0.8rem] text-[#2D241E]/65">{t("orderStatus.receipt.required")}</p>}
               <p className="text-[0.75rem] text-[#2D241E]/60">{t("orderStatus.receipt.privacy")}</p>
-              {(receiptState === "type" || receiptState === "size" || receiptState === "error") && (
+              {(claimState === "type" || claimState === "size" || claimState === "error") && (
                 <p className="text-[0.85rem]" role="alert" style={{ color: "#8A1C1C" }}>
-                  {receiptState === "type" ? t("orderStatus.receipt.errorType") : receiptState === "size" ? t("orderStatus.receipt.errorSize") : t("orderStatus.receipt.error")}
+                  {claimState === "type" ? t("orderStatus.receipt.errorType") : claimState === "size" ? t("orderStatus.receipt.errorSize") : t("orderStatus.receipt.error")}
                 </p>
               )}
             </div>
           )}
-          {data.paymentChoice === "Transfer" && !data.isForeignDelivery && (
-            <button
-              type="button"
-              disabled={paySaving}
-              onClick={() => void choosePayment("Pickup")}
-              className={`self-start min-h-11 text-[0.85rem] text-[#2D241E] underline underline-offset-2 cursor-pointer ${FOCUS_RING}`}
-            >
-              {t("orderStatus.receipt.changeMind")}
-            </button>
+          {!choosing && (
+            <p className="text-[0.8rem] text-[#2D241E]/65">{t("orderStatus.pay.changeByEmail", { email: contact.email })}</p>
           )}
-          <p className="text-[0.8rem] text-[#2D241E]/65" aria-live="polite">
-            {paySaving ? t("orderStatus.pay.saving") : payError ? t("orderStatus.pay.error") : paySaved ? t("orderStatus.pay.saved") : t("orderStatus.pay.changeable")}
-          </p>
         </section>
       )}
 

@@ -136,7 +136,33 @@ public class ForeignAndReceiptTests : IDisposable
     }
 
     [Fact]
-    public async Task Receipt_IsStoredPrivately_ReplacedAndRefusedWhenNotAllowed()
+    public async Task Claim_StoresTheReceiptPrivately_Once_AndNeverReplacedByTheCustomer()
+    {
+        var order = NewOrder();
+        order.PaymentChoice = "Transfer";
+        order.Status = "Accepted";
+        _db.Orders.Add(order);
+        await _db.SaveChangesAsync();
+        Assert.Empty(_storage.Files); // nothing is stored before the claim
+
+        var first = await _controller.ClaimPayment(order.StatusToken!, Upload(Jpeg(), "receipt.jpg"));
+        var dto = (PublicOrderStatusDto)Assert.IsType<OkObjectResult>(first.Result).Value!;
+        Assert.NotNull(dto.PaymentClaimedAt);
+        Assert.NotNull(dto.ReceiptUploadedAt);
+        Assert.False(dto.CanClaimPayment);
+        var saved = await _db.Orders.AsNoTracking().SingleAsync();
+        Assert.StartsWith("receipts/", saved.ReceiptKey);
+        Assert.DoesNotContain("http", saved.ReceiptKey);
+        Assert.Single(_storage.Files);
+
+        // One claim per order: a second one (a replacement, a repeat) is refused and stores nothing.
+        Assert.IsType<ConflictObjectResult>((await _controller.ClaimPayment(order.StatusToken!, Upload(Jpeg(), "again.jpg"))).Result);
+        Assert.Single(_storage.Files);
+        Assert.Equal(0, _storage.Deleted);
+    }
+
+    [Fact]
+    public async Task Claim_RefusesAMissingPhoto_ANonImage_ATooLargeFile_AndOrdersThatAreNotWaiting()
     {
         var order = NewOrder();
         order.PaymentChoice = "Transfer";
@@ -144,36 +170,113 @@ public class ForeignAndReceiptTests : IDisposable
         _db.Orders.Add(order);
         await _db.SaveChangesAsync();
 
-        var first = await _controller.UploadReceipt(order.StatusToken!, Upload(Jpeg(), "receipt.jpg"));
-        var dto = (PublicOrderStatusDto)Assert.IsType<OkObjectResult>(first.Result).Value!;
-        Assert.NotNull(dto.ReceiptUploadedAt);
-        Assert.True(dto.CanUploadReceipt);
-        var saved = await _db.Orders.AsNoTracking().SingleAsync();
-        Assert.StartsWith("receipts/", saved.ReceiptKey);
-        Assert.DoesNotContain("http", saved.ReceiptKey);
-        Assert.Single(_storage.Files);
+        Assert.IsType<BadRequestObjectResult>((await _controller.ClaimPayment(order.StatusToken!, null)).Result);
+        Assert.IsType<BadRequestObjectResult>((await _controller.ClaimPayment(order.StatusToken!, Upload("%PDF-1.4"u8.ToArray(), "scan.jpg"))).Result);
+        Assert.IsType<BadRequestObjectResult>((await _controller.ClaimPayment(order.StatusToken!, Upload(new byte[(int)ReceiptImage.MaxBytes + 1], "big.jpg"))).Result);
+        Assert.Empty(_storage.Files);
 
-        // A second upload replaces the first file.
-        await _controller.UploadReceipt(order.StatusToken!, Upload(Jpeg(), "again.jpg"));
-        Assert.Single(_storage.Files);
-        Assert.Equal(1, _storage.Deleted);
-
-        // Not an image, whatever its name says; too large; wrong order state.
-        Assert.IsType<BadRequestObjectResult>((await _controller.UploadReceipt(order.StatusToken!, Upload("%PDF-1.4"u8.ToArray(), "scan.jpg"))).Result);
-        Assert.IsType<BadRequestObjectResult>((await _controller.UploadReceipt(order.StatusToken!, Upload(new byte[(int)ReceiptImage.MaxBytes + 1], "big.jpg"))).Result);
-
-        var tracked = await _db.Orders.SingleAsync();
-        tracked.PaymentReceivedAt = DateTime.UtcNow;
-        await _db.SaveChangesAsync();
-        Assert.IsType<ConflictObjectResult>((await _controller.UploadReceipt(order.StatusToken!, Upload(Jpeg(), "late.jpg"))).Result);
+        foreach (var status in new[] { "Shipped", "Received", "Canceled" })
+        {
+            var o = NewOrder();
+            o.PaymentChoice = "Transfer";
+            o.Status = status;
+            _db.Orders.Add(o);
+            await _db.SaveChangesAsync();
+            Assert.IsType<ConflictObjectResult>((await _controller.ClaimPayment(o.StatusToken!, Upload(Jpeg(), "x.jpg"))).Result);
+        }
 
         var pickup = NewOrder();
         pickup.PaymentChoice = "Pickup";
         pickup.Status = "Accepted";
         _db.Orders.Add(pickup);
         await _db.SaveChangesAsync();
-        Assert.IsType<ConflictObjectResult>((await _controller.UploadReceipt(pickup.StatusToken!, Upload(Jpeg(), "x.jpg"))).Result);
-        Assert.IsType<NotFoundResult>((await _controller.UploadReceipt(OrderPublicIdentifiers.NewStatusToken(), Upload(Jpeg(), "x.jpg"))).Result);
+        Assert.IsType<ConflictObjectResult>((await _controller.ClaimPayment(pickup.StatusToken!, Upload(Jpeg(), "x.jpg"))).Result);
+        Assert.IsType<NotFoundResult>((await _controller.ClaimPayment(OrderPublicIdentifiers.NewStatusToken(), Upload(Jpeg(), "x.jpg"))).Result);
+        Assert.Empty(_storage.Files);
+    }
+
+    [Theory]
+    [InlineData("Shipped")]
+    [InlineData("Received")]
+    [InlineData("Canceled")]
+    public async Task PaymentChoice_IsRefusedOnceTheOrderHasLeftTheChoosingStage(string status)
+    {
+        var order = NewOrder();
+        order.Status = status;
+        _db.Orders.Add(order);
+        await _db.SaveChangesAsync();
+        Assert.IsType<ConflictObjectResult>((await _controller.SetPaymentChoice(order.StatusToken!, new SetPaymentChoiceRequest { Choice = "transfer" })).Result);
+        Assert.Null((await _db.Orders.AsNoTracking().SingleAsync()).PaymentChoice);
+    }
+
+    [Theory]
+    [InlineData("Оплата замовлення {{order}}", "Оплата замовлення Y1-1")]
+    [InlineData("{{ ORDER }} / дякуємо", "Y1-1 / дякуємо")]
+    [InlineData("Order {{order}} {{unknown}} {{ x y }}", "Order Y1-1")]
+    [InlineData("{{unknown}}", "")]
+    [InlineData("", "")]
+    [InlineData("   ", "")]
+    public void Reference_PutsTheOrderNumberIn_StripsOtherPlaceholders_AndEmptyMeansNoRow(string template, string expected)
+        => Assert.Equal(expected, OrderStatusController.ResolveReference(template, "Y1-1"));
+
+    [Fact]
+    public async Task OwnerIsEmailedOncePerClaim_AndOncePerChoice()
+    {
+        Environment.SetEnvironmentVariable("ORDER_RECEIVED_NOTIFY_EMAIL", "owner@example.com");
+        try
+        {
+            var mail = new CountingEmail();
+            var cfg = new ConfigurationBuilder().Build();
+            var controller = new OrderStatusController(_db, new NoSettings(), cfg, new OrderNotifier(mail, cfg, NullLogger<OrderNotifier>.Instance), _storage)
+            {
+                ControllerContext = new ControllerContext { HttpContext = new DefaultHttpContext() },
+            };
+            var order = NewOrder();
+            order.Status = "Accepted";
+            _db.Orders.Add(order);
+            await _db.SaveChangesAsync();
+
+            await controller.SetPaymentChoice(order.StatusToken!, new SetPaymentChoiceRequest { Choice = "transfer" });
+            await controller.SetPaymentChoice(order.StatusToken!, new SetPaymentChoiceRequest { Choice = "transfer" }); // idempotent: no second email
+            await controller.SetPaymentChoice(order.StatusToken!, new SetPaymentChoiceRequest { Choice = "pickup" }); // refused: no email
+            await controller.ClaimPayment(order.StatusToken!, Upload(Jpeg(), "r.jpg"));
+            await controller.ClaimPayment(order.StatusToken!, Upload(Jpeg(), "r2.jpg")); // refused: no email
+            await Task.Delay(300);
+
+            Assert.Equal(new[] { OrderEmailEvent.InternalPaymentChosen, OrderEmailEvent.InternalReceiptUploaded }, mail.Events.OrderBy(e => (int)e).ToArray());
+            Assert.All(mail.Messages, m => Assert.Contains("/admin?order=", m.AdminUrl));
+
+            // The owner resets the choice (as the admin endpoint does); a new choice notifies again.
+            var tracked = await _db.Orders.SingleAsync();
+            tracked.PaymentChoice = null;
+            tracked.PaymentClaimedAt = null;
+            await _db.SaveChangesAsync();
+            await controller.SetPaymentChoice(order.StatusToken!, new SetPaymentChoiceRequest { Choice = "pickup" });
+            await Task.Delay(300);
+            Assert.Equal(2, mail.Events.Count(e => e == OrderEmailEvent.InternalPaymentChosen));
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("ORDER_RECEIVED_NOTIFY_EMAIL", null);
+        }
+    }
+
+    [Fact]
+    public void OwnerNotices_OpenTheAdmin_WithTheStatusLinkOnlyAsASmallLine()
+    {
+        var message = new OrderConfirmationEmailMessage
+        {
+            OrderId = 5, OrderNumber = "Y1-1", Event = OrderEmailEvent.InternalReceiptUploaded, CustomerName = "A", CustomerEmail = "a@b.c", Total = 10m,
+            AdminUrl = "https://yarne-acc.com/admin?order=5", StatusUrl = "https://yarne-acc.com/uk/order/SECRETTOKEN",
+        };
+        foreach (var e in new[] { OrderEmailEvent.InternalReceiptUploaded, OrderEmailEvent.InternalPaymentChosen, OrderEmailEvent.InternalPlacedNotification })
+        {
+            message.Event = e;
+            var html = OrderConfirmationEmailBuilder.BuildHtml(message);
+            Assert.Contains("href=\"https://yarne-acc.com/admin?order=5\"", html);
+            Assert.True(html.IndexOf("/admin?order=5", StringComparison.Ordinal) < html.IndexOf("SECRETTOKEN", StringComparison.Ordinal));
+            Assert.Contains("Відкрити в адмінці", html);
+        }
     }
 
     [Fact]
@@ -188,7 +291,7 @@ public class ForeignAndReceiptTests : IDisposable
 
         var dto = (PublicOrderStatusDto)Assert.IsType<OkObjectResult>((await _controller.Get(order.StatusToken!)).Result).Value!;
         Assert.Equal(order.PaymentReceivedAt, dto.PaymentReceivedAt);
-        Assert.False(dto.CanUploadReceipt);
+        Assert.False(dto.CanClaimPayment);
         Assert.IsType<ConflictObjectResult>((await _controller.SetPaymentChoice(order.StatusToken!, new SetPaymentChoiceRequest { Choice = "pickup" })).Result);
     }
 
@@ -237,6 +340,14 @@ public class ForeignAndReceiptTests : IDisposable
         public bool IsAllowedKey(string key) => true;
         public Task<string?> GetValueJsonAsync(string key, CancellationToken ct = default) => Task.FromResult<string?>(null);
         public Task<string> UpsertValueJsonAsync(string key, string valueJson, CancellationToken ct = default) => Task.FromResult(valueJson);
+    }
+
+    internal sealed class CountingEmail : IEmailService
+    {
+        public List<OrderConfirmationEmailMessage> Messages { get; } = [];
+        public IEnumerable<OrderEmailEvent> Events => Messages.Select(m => m.Event);
+        public Task SendOrderConfirmationAsync(OrderConfirmationEmailMessage message, CancellationToken ct = default) { lock (Messages) Messages.Add(message); return Task.CompletedTask; }
+        public Task SendOrderReceiptAsync(OrderConfirmationEmailMessage message, CancellationToken ct = default) => Task.CompletedTask;
     }
 
     internal sealed class NoEmail : IEmailService

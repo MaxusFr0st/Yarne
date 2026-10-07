@@ -81,21 +81,21 @@ public class OrderStatusController : ControllerBase
 
         var choice = NormalizeChoice(request?.Choice);
         if (choice == null)
-            return BadRequest(new { message = "Choice must be \"transfer\" or \"pickup\"." });
+            return BadRequest(new { message = "Please choose how you would like to pay." });
 
         if (!PaymentChoiceStatuses.Contains(order.Status))
-            return Conflict(new { message = "The payment choice can no longer be changed for this order." });
+            return Conflict(new { message = "The payment method can no longer be chosen for this order." });
 
         // Abroad there is no pay-on-pickup: only a bank transfer, paid in advance.
         if (order.IsForeignDelivery && choice == "Pickup")
             return BadRequest(new { message = "Orders delivered abroad are paid by bank transfer." });
 
-        // Once the owner has confirmed the transfer, the way of paying is settled.
-        if (order.PaymentReceivedAt != null && !string.Equals(order.PaymentChoice, choice, StringComparison.Ordinal))
-            return Conflict(new { message = "The payment has already been confirmed." });
+        // The choice is made once. The same one again changes nothing (and sends nothing); a different one is refused,
+        // until the owner resets it from the admin.
+        if (order.PaymentChoice != null && !string.Equals(order.PaymentChoice, choice, StringComparison.Ordinal))
+            return Conflict(new { message = "The payment method has already been chosen. To change it, please write to us." });
 
-        // The same choice again changes nothing, including when it was made.
-        if (!string.Equals(order.PaymentChoice, choice, StringComparison.Ordinal))
+        if (order.PaymentChoice == null)
         {
             order.PaymentChoice = choice;
             order.PaymentChoiceAt = DateTime.UtcNow;
@@ -108,10 +108,10 @@ public class OrderStatusController : ControllerBase
     }
 
     /// <summary>
-    /// The customer's optional receipt for a bank transfer: one image (JPEG, PNG, WebP or HEIC, at most 5 MB, recognised by its
-    /// content), stored privately. It can be replaced until the owner has confirmed the payment.
+    /// "I have paid": the receipt image (JPEG, PNG, WebP or HEIC, at most 5 MB, recognised by its content) sent with the claim, stored
+    /// privately. One claim per order and no replacement afterwards; the admin's reset reopens it. Nothing is stored before this call.
     /// </summary>
-    [HttpPost("{token}/receipt")]
+    [HttpPost("{token}/payment-claim")]
     [EnableRateLimiting("order-receipt")]
     [RequestSizeLimit(6 * 1024 * 1024)]
     [ProducesResponseType(typeof(PublicOrderStatusDto), StatusCodes.Status200OK)]
@@ -119,21 +119,23 @@ public class OrderStatusController : ControllerBase
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     [ProducesResponseType(StatusCodes.Status409Conflict)]
     [ProducesResponseType(StatusCodes.Status503ServiceUnavailable)]
-    public async Task<ActionResult<PublicOrderStatusDto>> UploadReceipt(string token, IFormFile? file, CancellationToken ct = default)
+    public async Task<ActionResult<PublicOrderStatusDto>> ClaimPayment(string token, IFormFile? file, CancellationToken ct = default)
     {
         var order = await FindAsync(token, asNoTracking: false, ct);
         if (order == null)
             return NotFound();
 
         if (order.PaymentChoice != "Transfer" || !PaymentChoiceStatuses.Contains(order.Status) || order.PaymentReceivedAt != null)
-            return Conflict(new { message = "A receipt cannot be added to this order now." });
+            return Conflict(new { message = "This order is not waiting for a payment receipt." });
+        if (order.PaymentClaimedAt != null)
+            return Conflict(new { message = "We already have your receipt and will confirm the payment soon." });
 
         if (file == null || file.Length == 0)
-            return BadRequest(new { message = "No file uploaded." });
+            return BadRequest(new { message = "Please attach a photo of the receipt." });
         if (file.Length > ReceiptImage.MaxBytes)
-            return BadRequest(new { message = "The file is larger than 5 MB." });
+            return BadRequest(new { message = "The photo is too large: 5 MB at most." });
         if (!_storage.IsConfigured)
-            return StatusCode(StatusCodes.Status503ServiceUnavailable, new { message = "File storage is not available." });
+            return StatusCode(StatusCodes.Status503ServiceUnavailable, new { message = "We can't take the receipt right now. Please try again later." });
 
         var head = new byte[16];
         int read;
@@ -142,22 +144,20 @@ public class OrderStatusController : ControllerBase
 
         var kind = ReceiptImage.Sniff(head.AsSpan(0, read));
         if (kind == null)
-            return BadRequest(new { message = "Upload a photo or screenshot (JPEG, PNG, WebP or HEIC)." });
+            return BadRequest(new { message = "Please attach a photo or screenshot (JPEG, PNG, WebP or HEIC)." });
 
         var key = $"receipts/{order.Id}-{Guid.NewGuid():N}{kind.Value.Extension}";
         await using (var content = file.OpenReadStream())
             await _storage.PutPrivateAsync(content, kind.Value.ContentType, key, ct);
 
-        var previous = order.ReceiptKey;
         order.ReceiptKey = key;
         order.ReceiptContentType = kind.Value.ContentType;
         order.ReceiptUploadedAt = DateTime.UtcNow;
+        order.PaymentClaimedAt = DateTime.UtcNow;
         order.UpdatedAt = DateTime.UtcNow;
         await _context.SaveChangesAsync(ct);
 
-        if (!string.IsNullOrEmpty(previous))
-            await _storage.DeletePrivateAsync(previous, ct);
-
+        // Exactly one owner email per claim: a second call is refused above.
         _notifier.NotifyOwner(order, OrderEmailEvent.InternalReceiptUploaded);
         return Ok(await MapAsync(order, ct));
     }
@@ -237,7 +237,8 @@ public class OrderStatusController : ControllerBase
             DeliveryAddress = order.DeliveryAddress,
             PaymentReceivedAt = order.PaymentReceivedAt,
             ReceiptUploadedAt = order.ReceiptKey == null ? null : order.ReceiptUploadedAt,
-            CanUploadReceipt = order.PaymentChoice == "Transfer" && PaymentChoiceStatuses.Contains(order.Status) && order.PaymentReceivedAt == null,
+            PaymentClaimedAt = order.PaymentClaimedAt,
+            CanClaimPayment = order.PaymentChoice == "Transfer" && PaymentChoiceStatuses.Contains(order.Status) && order.PaymentReceivedAt == null && order.PaymentClaimedAt == null,
             PaymentChoice = order.PaymentChoice,
             PaymentChoiceAt = order.PaymentChoiceAt,
             CanChoosePayment = CanChoosePayment(order.Status),
@@ -301,19 +302,32 @@ public class OrderStatusController : ControllerBase
             if (recipient.Length == 0 && card.Length == 0)
                 return null;
 
-            var template = Text("reference");
             return new TransferDetailsDto
             {
                 Recipient = recipient,
                 CardNumber = card,
                 Iban = Text("iban"),
-                Reference = template.Length == 0 ? orderNumber : template.Replace("{{order}}", orderNumber),
+                Reference = ResolveReference(Text("reference"), orderNumber),
             };
         }
         catch (JsonException)
         {
             return null;
         }
+    }
+
+    /// <summary>
+    /// The payment note the customer is told to write: the owner's text with the order number put where {{order}} stands (in any
+    /// spacing or letter case). Anything else in double braces never reaches the customer. Empty text means no row at all.
+    /// </summary>
+    public static string ResolveReference(string? template, string orderNumber)
+    {
+        if (string.IsNullOrWhiteSpace(template))
+            return string.Empty;
+
+        var filled = System.Text.RegularExpressions.Regex.Replace(template, @"\{\{\s*order\s*\}\}", orderNumber.Replace("$", "$$"), System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+        filled = System.Text.RegularExpressions.Regex.Replace(filled, @"\{\{[^}]*\}\}", string.Empty);
+        return System.Text.RegularExpressions.Regex.Replace(filled, @"\s+", " ").Trim();
     }
 
     private string ResolvePublicApiBaseUrl()

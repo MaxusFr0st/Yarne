@@ -34,7 +34,7 @@ import {
   type UserDto,
 } from "../api/admin";
 import { register } from "../api/auth";
-import { fetchAdminOrders, fetchAdminOrdersSummary, updateOrderStatus, createOrderWaybill, refreshOrderTracking, cancelOrderWaybill, markOrderPaymentReceived, undoOrderPaymentReceived, setOrderForeignDelivery, setOrderManualTtn, type OrderDto, type AdminOrdersSummaryDto, type OrderItemDto, type OrderStatus, type CreateWaybillRequest } from "../api/orders";
+import { fetchAdminOrders, fetchAdminOrdersSummary, updateOrderStatus, createOrderWaybill, refreshOrderTracking, cancelOrderWaybill, markOrderPaymentReceived, undoOrderPaymentReceived, resetOrderPaymentChoice, setOrderForeignDelivery, setOrderManualTtn, type OrderDto, type AdminOrdersSummaryDto, type OrderItemDto, type OrderStatus, type CreateWaybillRequest } from "../api/orders";
 import { ApiRequestError } from "../api/errors";
 import type { Product } from "../types/product";
 import { normalizeLaceVariants } from "../utils/variantStock";
@@ -147,6 +147,7 @@ function mapOrderDtoToAdminOrder(o: OrderDto): {
   paymentChoice: "Transfer" | "Pickup" | null;
   paymentReceivedAt: string | null;
   receiptUploadedAt: string | null;
+  paymentClaimedAt: string | null;
   cancelReason: string | null;
   isForeignDelivery: boolean;
   deliveryCountryName: string | null;
@@ -182,6 +183,7 @@ function mapOrderDtoToAdminOrder(o: OrderDto): {
     paymentChoice: o.paymentChoice ?? null,
     paymentReceivedAt: o.paymentReceivedAt ?? null,
     receiptUploadedAt: o.receiptUploadedAt ?? null,
+    paymentClaimedAt: o.paymentClaimedAt ?? null,
     cancelReason: o.cancelReason ?? null,
     isForeignDelivery: o.isForeignDelivery ?? false,
     deliveryCountryName: o.deliveryCountryName ?? null,
@@ -493,6 +495,7 @@ export function useAdminData() {
     return updated;
   }, []);
   const markPaymentReceived = useCallback((id: number) => applyOrderUpdate(() => markOrderPaymentReceived(id)), [applyOrderUpdate]);
+  const resetPaymentChoice = useCallback((id: number) => applyOrderUpdate(() => resetOrderPaymentChoice(id)), [applyOrderUpdate]);
   const undoPaymentReceived = useCallback((id: number) => applyOrderUpdate(() => undoOrderPaymentReceived(id)), [applyOrderUpdate]);
   const setForeignDelivery = useCallback((id: number, on: boolean) => applyOrderUpdate(() => setOrderForeignDelivery(id, on)), [applyOrderUpdate]);
   const setManualTtn = useCallback((id: number, ttn: string | null) => applyOrderUpdate(() => setOrderManualTtn(id, ttn)), [applyOrderUpdate]);
@@ -518,6 +521,7 @@ export function useAdminData() {
     cancelWaybill,
     markPaymentReceived,
     undoPaymentReceived,
+    resetPaymentChoice,
     setForeignDelivery,
     setManualTtn,
     addProduct,
