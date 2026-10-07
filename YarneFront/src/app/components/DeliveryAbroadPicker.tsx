@@ -17,7 +17,7 @@ export type AbroadChoice =
 type NovaPostWidgetInstance = { destroy: () => void };
 type NovaPostWidgetConfig = {
   container: string | HTMLElement;
-  variant: "map";
+  variant: "map" | "widget";
   viewMode: "container";
   autoShow: boolean;
   country: string;
@@ -119,7 +119,7 @@ export function DeliveryAbroadPicker({
         if (cancelled || !container.current || !window.NovaPostWidget) return;
         instance = new window.NovaPostWidget.NovaPostWidget({
           container: container.current,
-          variant: "map",
+          variant: "widget",
           viewMode: "container",
           autoShow: true,
           country,
