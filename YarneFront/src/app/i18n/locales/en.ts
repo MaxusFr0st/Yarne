@@ -229,7 +229,7 @@ const en = {
       noteOther: "We will choose a carrier for your country and email you the cost before you pay.",
       pay: "Nothing to pay now. Once the order is accepted we'll email the bank transfer details. Payment on pickup is not available abroad. Your country may charge import tax.",
     },
-    eurReferenceNote: "Charged in ₴ — € shown for reference.",
+    eurReferenceNote: "The order is paid in ₴. The € price is shown for reference.",
     errorEmail: "Check this email",
     errorNameTooLong: "Too long",
     errorNameCyrillicOnly: "Cyrillic letters only",

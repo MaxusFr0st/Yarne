@@ -14,11 +14,11 @@ export type PriceCurrency = "UAH" | "EUR";
 
 /**
  * The one switch for euros. Off: prices show in hryvnia everywhere, the English site included
- * (the owner's decision for now). On: shoppers browsing in English see the € price wherever one
+ * (it was off until October 2026). On: shoppers browsing in English see the € price wherever one
  * is set: cards, the product page, the collection price filter and sort, the bag, checkout and
  * the account. All the € data is still carried, so turning it on needs no other change.
  */
-export const SHOW_EUR_FOR_ENGLISH = false;
+export const SHOW_EUR_FOR_ENGLISH = true;
 
 /** Whether prices are shown (and filtered, sorted, totalled) in euros for this language. */
 export function showsEur(locale: Locale): boolean {
