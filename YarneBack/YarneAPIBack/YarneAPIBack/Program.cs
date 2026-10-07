@@ -68,6 +68,7 @@ builder.Services.Configure<R2Settings>(options =>
     options.SecretAccessKey = Environment.GetEnvironmentVariable("R2_SECRET_ACCESS_KEY") ?? options.SecretAccessKey;
     options.BucketName = Environment.GetEnvironmentVariable("R2_BUCKET_NAME") ?? options.BucketName;
     options.PublicUrl = Environment.GetEnvironmentVariable("R2_PUBLIC_URL") ?? options.PublicUrl;
+    options.PrivateBucketName = Environment.GetEnvironmentVariable("R2_PRIVATE_BUCKET_NAME") ?? options.PrivateBucketName;
 });
 builder.Services.AddSingleton<IR2ImageStorageService, R2ImageStorageService>();
 var jwtSettings = builder.Configuration.GetSection(JwtSettings.SectionName).Get<JwtSettings>()
@@ -133,6 +134,34 @@ builder.Services.AddRateLimiter(options =>
                 AutoReplenishment = true,
             });
     });
+    // The public order status page: a token is unguessable, but a limit still stops anyone hammering the lookup.
+    options.AddPolicy("order-status", context =>
+    {
+        var key = context.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+        return RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: key,
+            factory: _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 30,
+                Window = TimeSpan.FromMinutes(1),
+                QueueLimit = 0,
+                AutoReplenishment = true,
+            });
+    });
+    // Receipt uploads are heavy: a few a minute is plenty for a customer.
+    options.AddPolicy("order-receipt", context =>
+    {
+        var key = context.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+        return RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: key,
+            factory: _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 5,
+                Window = TimeSpan.FromMinutes(1),
+                QueueLimit = 0,
+                AutoReplenishment = true,
+            });
+    });
     options.AddPolicy("auth-login", context =>
     {
         var key = context.Connection.RemoteIpAddress?.ToString() ?? "unknown";
@@ -153,6 +182,8 @@ builder.Services.AddHttpClient();
 builder.Services.AddScoped<IAccessTokenIssuer, AccessTokenIssuer>();
 builder.Services.AddScoped<IRefreshTokenService, RefreshTokenService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
+builder.Services.AddScoped<OrderNotifier>();
+builder.Services.AddHostedService<ReceiptCleanupService>();
 builder.Services.AddScoped<IOAuthService, OAuthService>();
 builder.Services.AddScoped<IProductService, ProductService>();
 builder.Services.AddScoped<IStorefrontSettingsService, StorefrontSettingsService>();

@@ -40,6 +40,7 @@ public class OrdersController : ControllerBase
     private readonly ILogger<OrdersController> _logger;
     private readonly IConfiguration _configuration;
     private readonly ISalesAccountingService _salesAccountingService;
+    private readonly IR2ImageStorageService _receiptStorage;
 
     public OrdersController(
         YarneDbContext context,
@@ -48,8 +49,10 @@ public class OrdersController : ControllerBase
         INovaPoshtaService novaPoshta,
         IConfiguration configuration,
         ILogger<OrdersController> logger,
-        ISalesAccountingService salesAccountingService)
+        ISalesAccountingService salesAccountingService,
+        IR2ImageStorageService receiptStorage)
     {
+        _receiptStorage = receiptStorage;
         _context = context;
         _activityLogs = activityLogs;
         _emailService = emailService;
@@ -130,6 +133,8 @@ public class OrdersController : ControllerBase
         var orderId = order.Id;
         try
         {
+            if (order.IsForeignDelivery)
+                return Ok(MapOrder(order));
             var status = await _novaPoshta.GetTrackingStatusAsync(order.TtnNumber!, ct);
             if (status != null)
             {
@@ -248,8 +253,23 @@ public class OrdersController : ControllerBase
         var deliveryCityName = request.DeliveryCityName.Trim();
         var deliveryWarehouseRef = request.DeliveryWarehouseRef.Trim();
         var deliveryWarehouseName = request.DeliveryWarehouseName.Trim();
-        if (string.IsNullOrWhiteSpace(deliveryCityRef) || string.IsNullOrWhiteSpace(deliveryWarehouseRef))
+        string? foreignCode = null, foreignName = null, foreignCarrier = null;
+        if (request.IsForeignDelivery)
+        {
+            // Abroad: no Nova Poshta (Ukraine) checks. Russia and Belarus are refused here whatever the page sent.
+            var (foreignError, code, name, carrier) = ForeignDelivery.Validate(
+                request.DeliveryCountryCode, request.DeliveryCountryName, request.DeliveryCarrier,
+                deliveryWarehouseRef, deliveryCityName, request.DeliveryAddress);
+            if (foreignError != null)
+                return BadRequest(new { message = foreignError });
+            foreignCode = code;
+            foreignName = name;
+            foreignCarrier = carrier;
+        }
+        else if (string.IsNullOrWhiteSpace(deliveryCityRef) || string.IsNullOrWhiteSpace(deliveryWarehouseRef) || string.IsNullOrWhiteSpace(deliveryWarehouseName))
+        {
             return BadRequest(new { message = "A Nova Poshta delivery point is required." });
+        }
 
         if (request.ShippingAddrId.HasValue)
         {
@@ -374,6 +394,8 @@ public class OrdersController : ControllerBase
         var orderTotalCents = orderItems.Sum(i => checked(i.ListedPriceCents * i.Quantity));
         var order = new Order
         {
+            OrderNumber = await OrderPublicIdentifiers.NewOrderNumberAsync(_context, now, ct),
+            StatusToken = OrderPublicIdentifiers.NewStatusToken(),
             CustomerId = customerId,
             GuestEmail = guestEmail,
             PaymentMethodId = paymentMethodId,
@@ -385,6 +407,12 @@ public class OrdersController : ControllerBase
             DeliveryCityName = deliveryCityName,
             DeliveryWarehouseRef = deliveryWarehouseRef,
             DeliveryWarehouseName = deliveryWarehouseName,
+            IsForeignDelivery = request.IsForeignDelivery,
+            DeliveryCountryCode = foreignCode,
+            DeliveryCountryName = foreignName,
+            DeliveryCarrier = foreignCarrier,
+            DeliveryPostalCode = request.IsForeignDelivery ? NormalizeOptional(request.DeliveryPostalCode) : null,
+            DeliveryAddress = request.IsForeignDelivery ? NormalizeOptional(request.DeliveryAddress) : null,
             ChannelId = null,
             ChannelFeeCents = 0,
             IsChannelFeeOverridden = false,
@@ -406,7 +434,22 @@ public class OrdersController : ControllerBase
             _context.Entry(customer).Property(c => c.PhoneNumber).IsModified = true;
         }
         _context.Orders.Add(order);
-        await _context.SaveChangesAsync(ct);
+        // Two orders placed at the same moment can pick the same day-count; the unique index rejects the second, which then takes the next one.
+        for (var attempt = 1; ; attempt++)
+        {
+            try
+            {
+                await _context.SaveChangesAsync(ct);
+                break;
+            }
+            catch (DbUpdateException)
+            {
+                if (attempt >= 6 || !await OrderPublicIdentifiers.IsNumberTakenAsync(_context, order.OrderNumber, ct))
+                    throw;
+
+                order.OrderNumber = await OrderPublicIdentifiers.NewOrderNumberAsync(_context, now, ct);
+            }
+        }
 
         var createdOrder = await BuildOrderQuery().FirstOrDefaultAsync(o => o.Id == order.Id, ct);
         if (createdOrder == null)
@@ -472,6 +515,10 @@ public class OrdersController : ControllerBase
 
             previousStatus = lockedOrder.Status;
             lockedOrder.Status = canonicalStatus;
+            lockedOrder.CancelReason = string.Equals(canonicalStatus, "Canceled", StringComparison.Ordinal)
+                ? NormalizeOptional(request.CancelReason)
+                : null;
+            lockedOrder.FinalizedAt = canonicalStatus is "Received" or "Canceled" ? lockedOrder.FinalizedAt ?? DateTime.UtcNow : null;
             lockedOrder.EstimatedDelivery = request.EstimatedDelivery;
             lockedOrder.UpdatedAt = DateTime.UtcNow;
             await _context.SaveChangesAsync(ct);
@@ -485,7 +532,8 @@ public class OrdersController : ControllerBase
             && !string.Equals(previousStatus, "Shipped", StringComparison.OrdinalIgnoreCase))
         {
             var defaultSenderId = _novaPoshta.DefaultSenderProfile?.Id;
-            if (defaultSenderId != null)
+            var goesAbroad = await _context.Orders.AsNoTracking().AnyAsync(o => o.Id == id && o.IsForeignDelivery, ct);
+            if (defaultSenderId != null && !goesAbroad)
                 await CreateWaybillForOrderAsync(id, defaultSenderId, senderAddressOverride: null, ct);
         }
 
@@ -549,6 +597,120 @@ public class OrdersController : ControllerBase
         return Ok(MapOrder(updatedOrder));
     }
 
+    /// <summary>Marks an order as going abroad (or back to Ukraine). Foreign orders never get an automatic Nova Poshta waybill.</summary>
+    [HttpPatch("{id:int}/foreign-delivery")]
+    [Authorize(Roles = "Admin")]
+    [ProducesResponseType(typeof(OrderDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<OrderDto>> SetForeignDelivery(int id, [FromBody] SetForeignDeliveryRequest request, CancellationToken ct = default)
+    {
+        var order = await _context.Orders.FirstOrDefaultAsync(o => o.Id == id, ct);
+        if (order == null)
+            return NotFound();
+
+        order.IsForeignDelivery = request.IsForeignDelivery;
+        order.UpdatedAt = DateTime.UtcNow;
+        await _context.SaveChangesAsync(ct);
+
+        var updated = await BuildOrderQuery().FirstOrDefaultAsync(o => o.Id == id, ct);
+        return Ok(MapOrder(updated!));
+    }
+
+    /// <summary>Sets or clears the tracking number typed in by hand on a foreign order, without calling Nova Poshta.</summary>
+    [HttpPut("{id:int}/manual-ttn")]
+    [Authorize(Roles = "Admin")]
+    [ProducesResponseType(typeof(OrderDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<OrderDto>> SetManualTtn(int id, [FromBody] SetManualTtnRequest request, CancellationToken ct = default)
+    {
+        var order = await _context.Orders.FirstOrDefaultAsync(o => o.Id == id, ct);
+        if (order == null)
+            return NotFound();
+        if (!order.IsForeignDelivery)
+            return BadRequest(new { message = "A tracking number can be typed in by hand only on an order marked as going abroad." });
+        if (!string.IsNullOrWhiteSpace(order.TtnRef))
+            return BadRequest(new { message = "This order has a Nova Poshta waybill; cancel it first." });
+
+        var number = NormalizeOptional(request.TtnNumber);
+        order.TtnNumber = number;
+        order.TtnCreatedAt = number == null ? null : DateTime.UtcNow;
+        order.TrackingStatus = null;
+        order.TrackingStatusCode = null;
+        order.TrackingCheckedAt = null;
+        order.UpdatedAt = DateTime.UtcNow;
+        await _context.SaveChangesAsync(ct);
+
+        var updated = await BuildOrderQuery().FirstOrDefaultAsync(o => o.Id == id, ct);
+        return Ok(MapOrder(updated!));
+    }
+
+    /// <summary>Marks the bank transfer as received (a mark, not a status) and tells the customer. Only for orders the customer chose to pay by transfer.</summary>
+    [HttpPost("{id:int}/payment-received")]
+    [Authorize(Roles = "Admin")]
+    [ProducesResponseType(typeof(OrderDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<OrderDto>> MarkPaymentReceived(int id, CancellationToken ct = default)
+    {
+        var order = await _context.Orders.FirstOrDefaultAsync(o => o.Id == id, ct);
+        if (order == null)
+            return NotFound();
+        if (order.PaymentChoice != "Transfer")
+            return BadRequest(new { message = "Payment can be marked received only when the customer chose to pay by transfer." });
+
+        var firstTime = order.PaymentReceivedAt == null;
+        if (firstTime)
+        {
+            order.PaymentReceivedAt = DateTime.UtcNow;
+            order.UpdatedAt = DateTime.UtcNow;
+            await _context.SaveChangesAsync(ct);
+        }
+
+        var updated = await BuildOrderQuery().FirstOrDefaultAsync(o => o.Id == id, ct);
+        if (firstTime)
+            QueueOrderStatusEmail(updated!, OrderEmailEvent.PaymentConfirmed);
+        return Ok(MapOrder(updated!));
+    }
+
+    /// <summary>Undoes "payment received" (a mistake): the customer may then replace the receipt again.</summary>
+    [HttpDelete("{id:int}/payment-received")]
+    [Authorize(Roles = "Admin")]
+    [ProducesResponseType(typeof(OrderDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<OrderDto>> UndoPaymentReceived(int id, CancellationToken ct = default)
+    {
+        var order = await _context.Orders.FirstOrDefaultAsync(o => o.Id == id, ct);
+        if (order == null)
+            return NotFound();
+
+        order.PaymentReceivedAt = null;
+        order.UpdatedAt = DateTime.UtcNow;
+        await _context.SaveChangesAsync(ct);
+
+        var updated = await BuildOrderQuery().FirstOrDefaultAsync(o => o.Id == id, ct);
+        return Ok(MapOrder(updated!));
+    }
+
+    /// <summary>The receipt image the customer uploaded, streamed to the signed-in admin. The file has no public address.</summary>
+    [HttpGet("{id:int}/receipt")]
+    [Authorize(Roles = "Admin")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetReceipt(int id, CancellationToken ct = default)
+    {
+        var order = await _context.Orders.AsNoTracking().FirstOrDefaultAsync(o => o.Id == id, ct);
+        if (order?.ReceiptKey == null)
+            return NotFound();
+
+        var file = await _receiptStorage.GetPrivateAsync(order.ReceiptKey, ct);
+        if (file == null)
+            return NotFound();
+
+        Response.Headers["Cache-Control"] = "private, no-store";
+        return File(file.Value.Content, order.ReceiptContentType ?? file.Value.ContentType);
+    }
+
     [HttpGet("nova-poshta/senders")]
     [Authorize(Roles = "Admin")]
     [ProducesResponseType(typeof(IEnumerable<NovaPoshtaSenderProfileDto>), StatusCodes.Status200OK)]
@@ -581,6 +743,8 @@ public class OrdersController : ControllerBase
         var order = await _context.Orders.FirstOrDefaultAsync(o => o.Id == id, ct);
         if (order == null)
             return NotFound();
+        if (order.IsForeignDelivery)
+            return BadRequest(new { message = "This order is going abroad: enter its tracking number by hand instead of creating a Nova Poshta waybill." });
         if (!string.IsNullOrWhiteSpace(order.TtnNumber))
             return BadRequest(new { message = "This order already has a waybill." });
 
@@ -698,6 +862,10 @@ public class OrdersController : ControllerBase
         if (string.IsNullOrWhiteSpace(order.TtnNumber))
             return BadRequest(new { message = "This order has no waybill yet." });
 
+        // A foreign order's number is not a Nova Poshta one: there is nothing to look up.
+        if (order.IsForeignDelivery)
+            return Ok(MapOrder((await BuildOrderQuery().FirstOrDefaultAsync(o => o.Id == id, ct))!));
+
         try
         {
             var status = await _novaPoshta.GetTrackingStatusAsync(order.TtnNumber, ct);
@@ -735,6 +903,8 @@ public class OrdersController : ControllerBase
         var order = await _context.Orders.FirstOrDefaultAsync(o => o.Id == orderId, ct);
         if (order == null || !string.IsNullOrWhiteSpace(order.TtnNumber))
             return (true, null);
+        if (order.IsForeignDelivery)
+            return (false, "Foreign-delivery orders never get an automatic waybill.");
 
         if (string.IsNullOrWhiteSpace(order.DeliveryCityRef)
             || string.IsNullOrWhiteSpace(order.DeliveryWarehouseRef)
@@ -824,7 +994,7 @@ public class OrdersController : ControllerBase
         return int.TryParse(customerIdRaw, out var customerId) ? customerId : null;
     }
 
-    private static OrderDto MapOrder(Order order)
+    private OrderDto MapOrder(Order order)
     {
         var customer = order.Customer;
         string customerName;
@@ -844,6 +1014,21 @@ public class OrdersController : ControllerBase
         return new OrderDto
         {
             Id = order.Id,
+            OrderNumber = order.OrderNumber,
+            StatusToken = order.StatusToken,
+            StatusUrl = OrderLinks.StatusUrl(_configuration, order),
+            PaymentChoice = order.PaymentChoice,
+            PaymentChoiceAt = order.PaymentChoiceAt,
+            CancelReason = order.CancelReason,
+            IsForeignDelivery = order.IsForeignDelivery,
+            PaymentReceivedAt = order.PaymentReceivedAt,
+            ReceiptUploadedAt = order.ReceiptKey == null ? null : order.ReceiptUploadedAt,
+            DeliveryCountryCode = order.DeliveryCountryCode,
+            DeliveryCountryName = order.DeliveryCountryName,
+            DeliveryCarrier = order.DeliveryCarrier,
+            DeliveryPostalCode = order.DeliveryPostalCode,
+            DeliveryAddress = order.DeliveryAddress,
+            Locale = order.Locale,
             CustomerId = order.CustomerId,
             CustomerName = customerName,
             CustomerEmail = customer?.Email ?? order.GuestEmail ?? string.Empty,
@@ -880,7 +1065,7 @@ public class OrdersController : ControllerBase
                     ColorName = i.ColorName,
                     FurnitureColorName = i.FurnitureColorName,
                     SizeName = i.SizeName,
-                    WithLace = i.WithLace,
+                    WithLace = OrderItemSnapshotHelper.ResolveWithLace(i),
                     Quantity = i.Quantity,
                     UnitPrice = i.UnitPrice,
                     LineTotal = i.UnitPrice * i.Quantity,
@@ -990,16 +1175,32 @@ public class OrdersController : ControllerBase
             customerEmail = order.GuestEmail ?? throw new InvalidOperationException("Guest order is missing an email.");
         }
 
-        var frontendBase = (_configuration["FRONTEND_BASE_URL"]
-            ?? Environment.GetEnvironmentVariable("FRONTEND_BASE_URL")
-            ?? "https://yarne-acc.com").Trim().TrimEnd('/');
+        var frontendBase = OrderLinks.FrontendBase(_configuration);
         var accountUrl = $"{frontendBase}/account";
 
         var apiBase = ResolvePublicApiBaseUrl().TrimEnd('/');
 
+        // The line keeps the English names it was ordered with; the email is Ukrainian, so look the Ukrainian ones up.
+        var colorNames = order.OrderItems.Select(i => i.ColorName).Where(n => !string.IsNullOrWhiteSpace(n)).Distinct().ToList();
+        var sizeNames = order.OrderItems.Select(i => i.SizeName).Where(n => !string.IsNullOrWhiteSpace(n)).Distinct().ToList();
+        var furnitureNames = order.OrderItems.Select(i => i.FurnitureColorName).Where(n => !string.IsNullOrWhiteSpace(n)).Distinct().ToList();
+        var colorUk = _context.Colors.AsNoTracking().Where(c => colorNames.Contains(c.Name) && c.NameUk != null)
+            .ToDictionary(c => c.Name, c => c.NameUk!);
+        var sizeUk = _context.Sizes.AsNoTracking().Where(sz => sizeNames.Contains(sz.Name) && sz.NameUk != null)
+            .ToDictionary(sz => sz.Name, sz => sz.NameUk!);
+        var furnitureUk = _context.FurnitureColors.AsNoTracking().Where(f => furnitureNames.Contains(f.Name) && f.NameUk != null)
+            .ToDictionary(f => f.Name, f => f.NameUk!);
+
         return new OrderConfirmationEmailMessage
         {
             OrderId = order.Id,
+            OrderNumber = order.OrderNumber,
+            StatusUrl = OrderLinks.StatusUrl(_configuration, order) ?? string.Empty,
+            TtnNumber = order.TtnNumber,
+            CancelReason = order.CancelReason,
+            PaymentChoice = order.PaymentChoice,
+            IsForeignDelivery = order.IsForeignDelivery,
+            DeliverySummary = OrderLinks.DeliverySummary(order),
             Event = emailEvent,
             CustomerName = customerName,
             CustomerEmail = customerEmail,
@@ -1023,9 +1224,12 @@ public class OrdersController : ControllerBase
                     ProductImageUrl = ResolveAbsoluteImageUrl(OrderItemSnapshotHelper.ResolveProductImageUrl(i), apiBase),
                     ProductSubtitle = i.ProductSubtitle,
                     ColorName = i.ColorName,
+                    ColorNameUk = i.ColorName != null && colorUk.TryGetValue(i.ColorName, out var cu) ? cu : null,
                     SizeName = i.SizeName,
+                    SizeNameUk = i.SizeName != null && sizeUk.TryGetValue(i.SizeName, out var su) ? su : null,
                     FurnitureColorName = i.FurnitureColorName,
-                    WithLace = i.WithLace,
+                    FurnitureColorNameUk = i.FurnitureColorName != null && furnitureUk.TryGetValue(i.FurnitureColorName, out var fu) ? fu : null,
+                    WithLace = OrderItemSnapshotHelper.ResolveWithLace(i),
                     Quantity = i.Quantity,
                     UnitPrice = i.UnitPrice,
                     EurUnitPrice = i.EurUnitPrice,
@@ -1053,6 +1257,11 @@ public class OrdersController : ControllerBase
         return new OrderConfirmationEmailMessage
         {
             OrderId = source.OrderId,
+            OrderNumber = source.OrderNumber,
+            StatusUrl = source.StatusUrl,
+            TtnNumber = source.TtnNumber,
+            CancelReason = source.CancelReason,
+            PaymentChoice = source.PaymentChoice,
             Event = source.Event,
             CustomerName = source.CustomerName,
             CustomerEmail = source.CustomerEmail,
@@ -1069,8 +1278,11 @@ public class OrdersController : ControllerBase
                     ProductImageUrl = i.ProductImageUrl,
                     ProductSubtitle = i.ProductSubtitle,
                     ColorName = i.ColorName,
+                    ColorNameUk = i.ColorNameUk,
                     SizeName = i.SizeName,
+                    SizeNameUk = i.SizeNameUk,
                     FurnitureColorName = i.FurnitureColorName,
+                    FurnitureColorNameUk = i.FurnitureColorNameUk,
                     WithLace = i.WithLace,
                     Quantity = i.Quantity,
                     UnitPrice = i.UnitPrice,

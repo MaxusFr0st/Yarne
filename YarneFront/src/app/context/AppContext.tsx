@@ -69,9 +69,9 @@ interface AuthContextType {
   authHydrated: boolean;
   user: { name: string; email: string; role: string } | null;
   isAdmin: boolean;
-  login: (email: string, password: string) => Promise<{ ok: boolean; error?: string }>;
+  login: (email: string, password: string, statusToken?: string) => Promise<{ ok: boolean; error?: string }>;
   loginWithOAuth: (idToken: string, provider: "google") => Promise<{ ok: boolean; error?: string }>;
-  register: (data: { firstName: string; lastName: string; userName: string; email: string; password: string }) => Promise<{ ok: boolean; error?: string }>;
+  register: (data: { firstName?: string; lastName?: string; userName?: string; email: string; password: string; statusToken?: string }) => Promise<{ ok: boolean; error?: string }>;
   logout: () => void;
 }
 
@@ -310,9 +310,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setCartItems([]);
   }, []);
 
-  const login = useCallback(async (email: string, password: string): Promise<{ ok: boolean; error?: string }> => {
+  const login = useCallback(async (email: string, password: string, statusToken?: string): Promise<{ ok: boolean; error?: string }> => {
     try {
-      const res = await apiLogin({ email, password });
+      const res = await apiLogin({ email, password, statusToken });
       const role = res.role ?? "Customer";
       clearLegacyAuthStorage();
       setUser({ name: res.fullName, email: res.email, role });
@@ -345,7 +345,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  const register = useCallback(async (data: { firstName: string; lastName: string; userName: string; email: string; password: string }): Promise<{ ok: boolean; error?: string }> => {
+  const register = useCallback(async (data: { firstName?: string; lastName?: string; userName?: string; email: string; password: string; statusToken?: string }): Promise<{ ok: boolean; error?: string }> => {
     try {
       const res = await apiRegister(data);
       const role = res.role ?? "Customer";

@@ -34,7 +34,7 @@ import {
   type UserDto,
 } from "../api/admin";
 import { register } from "../api/auth";
-import { fetchAdminOrders, fetchAdminOrdersSummary, updateOrderStatus, createOrderWaybill, refreshOrderTracking, cancelOrderWaybill, type OrderDto, type AdminOrdersSummaryDto, type OrderItemDto, type OrderStatus, type CreateWaybillRequest } from "../api/orders";
+import { fetchAdminOrders, fetchAdminOrdersSummary, updateOrderStatus, createOrderWaybill, refreshOrderTracking, cancelOrderWaybill, markOrderPaymentReceived, undoOrderPaymentReceived, setOrderForeignDelivery, setOrderManualTtn, type OrderDto, type AdminOrdersSummaryDto, type OrderItemDto, type OrderStatus, type CreateWaybillRequest } from "../api/orders";
 import { ApiRequestError } from "../api/errors";
 import type { Product } from "../types/product";
 import { normalizeLaceVariants } from "../utils/variantStock";
@@ -140,6 +140,19 @@ function mapUserDtoToAdminUser(u: UserDto): {
 
 function mapOrderDtoToAdminOrder(o: OrderDto): {
   id: number;
+  orderNumber: string | null;
+  statusUrl: string | null;
+  customerId: number | null;
+  locale: string | null;
+  paymentChoice: "Transfer" | "Pickup" | null;
+  paymentReceivedAt: string | null;
+  receiptUploadedAt: string | null;
+  cancelReason: string | null;
+  isForeignDelivery: boolean;
+  deliveryCountryName: string | null;
+  deliveryCarrier: "NovaPost" | "Other" | null;
+  deliveryPostalCode: string | null;
+  deliveryAddress: string | null;
   customerName: string;
   customerEmail: string;
   customerPhoneNumber: string | null;
@@ -162,6 +175,19 @@ function mapOrderDtoToAdminOrder(o: OrderDto): {
 } {
   return {
     id: o.id,
+    orderNumber: o.orderNumber ?? null,
+    statusUrl: o.statusUrl ?? null,
+    customerId: o.customerId ?? null,
+    locale: o.locale ?? null,
+    paymentChoice: o.paymentChoice ?? null,
+    paymentReceivedAt: o.paymentReceivedAt ?? null,
+    receiptUploadedAt: o.receiptUploadedAt ?? null,
+    cancelReason: o.cancelReason ?? null,
+    isForeignDelivery: o.isForeignDelivery ?? false,
+    deliveryCountryName: o.deliveryCountryName ?? null,
+    deliveryCarrier: o.deliveryCarrier ?? null,
+    deliveryPostalCode: o.deliveryPostalCode ?? null,
+    deliveryAddress: o.deliveryAddress ?? null,
     customerName: o.customerName,
     customerEmail: o.customerEmail,
     customerPhoneNumber: o.customerPhoneNumber ?? null,
@@ -438,8 +464,8 @@ export function useAdminData() {
     return res;
   }, [load]);
 
-  const setOrderStatus = useCallback(async (id: number, status: OrderStatus, estimatedDelivery?: string | null) => {
-    const updated = await updateOrderStatus(id, { status, estimatedDelivery });
+  const setOrderStatus = useCallback(async (id: number, status: OrderStatus, estimatedDelivery?: string | null, cancelReason?: string | null) => {
+    const updated = await updateOrderStatus(id, { status, estimatedDelivery, cancelReason });
     const mapped = mapOrderDtoToAdminOrder(updated);
     setOrders((prev) => prev.map((o) => (o.id === id ? mapped : o)));
     return updated;
@@ -458,6 +484,18 @@ export function useAdminData() {
     setOrders((prev) => prev.map((o) => (o.id === id ? mapped : o)));
     return updated;
   }, []);
+
+  /** Runs an order action that returns the updated order, and puts it in the list. */
+  const applyOrderUpdate = useCallback(async (action: () => Promise<OrderDto>) => {
+    const updated = await action();
+    const mapped = mapOrderDtoToAdminOrder(updated);
+    setOrders((prev) => prev.map((o) => (o.id === updated.id ? mapped : o)));
+    return updated;
+  }, []);
+  const markPaymentReceived = useCallback((id: number) => applyOrderUpdate(() => markOrderPaymentReceived(id)), [applyOrderUpdate]);
+  const undoPaymentReceived = useCallback((id: number) => applyOrderUpdate(() => undoOrderPaymentReceived(id)), [applyOrderUpdate]);
+  const setForeignDelivery = useCallback((id: number, on: boolean) => applyOrderUpdate(() => setOrderForeignDelivery(id, on)), [applyOrderUpdate]);
+  const setManualTtn = useCallback((id: number, ttn: string | null) => applyOrderUpdate(() => setOrderManualTtn(id, ttn)), [applyOrderUpdate]);
 
   const cancelWaybill = useCallback(async (id: number) => {
     const updated = await cancelOrderWaybill(id);
@@ -478,6 +516,10 @@ export function useAdminData() {
     createWaybill,
     refreshTracking,
     cancelWaybill,
+    markPaymentReceived,
+    undoPaymentReceived,
+    setForeignDelivery,
+    setManualTtn,
     addProduct,
     editProduct,
     removeProduct,

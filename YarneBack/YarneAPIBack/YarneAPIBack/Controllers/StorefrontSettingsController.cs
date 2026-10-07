@@ -25,7 +25,15 @@ public class StorefrontSettingsController : ControllerBase
             ["yarne.care.v1"] = "Yarné Care guide",
             ["yarne.guarantee.terms.v1"] = "Guarantee terms",
             ["yarne.contact.v1"] = "Contact details",
+            ["yarne.payment.v1"] = "Payment details",
+            ["yarne.delivery.v1"] = "Delivery and returns page",
         };
+
+    /// <summary>Settings only the admin may read: the public order status page serves them to the customer who chose them.</summary>
+    private static readonly IReadOnlySet<string> AdminOnlyKeys = new HashSet<string>(StringComparer.Ordinal)
+    {
+        "yarne.payment.v1",
+    };
 
     private readonly IStorefrontSettingsService _settings;
     private readonly IAdminActivityLogService _activityLogs;
@@ -66,6 +74,10 @@ public class StorefrontSettingsController : ControllerBase
     public async Task<ActionResult<object>> Get(string key, CancellationToken ct = default)
     {
         if (!_settings.IsAllowedKey(key))
+            return NotFound();
+
+        // The bank details are not public: only an order's status page shows them, to its own customer.
+        if (AdminOnlyKeys.Contains(key) && !User.IsInRole("Admin"))
             return NotFound();
 
         var valueJson = await _settings.GetValueJsonAsync(key, ct);

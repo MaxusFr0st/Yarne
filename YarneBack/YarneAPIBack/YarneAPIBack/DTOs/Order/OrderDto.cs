@@ -4,6 +4,41 @@ public class OrderDto
 {
     public int Id { get; set; }
 
+    /// <summary>The public number the customer quotes ("Y071026-3"); null for an order placed by hand in the admin.</summary>
+    public string? OrderNumber { get; set; }
+
+    /// <summary>Opens the public status page; handed to the customer who placed the order and to the admin.</summary>
+    public string? StatusToken { get; set; }
+
+    public string? StatusUrl { get; set; }
+
+    /// <summary>null, "Transfer" or "Pickup".</summary>
+    public string? PaymentChoice { get; set; }
+
+    public DateTime? PaymentChoiceAt { get; set; }
+
+    public string? CancelReason { get; set; }
+
+    public DateTime? PaymentReceivedAt { get; set; }
+
+    /// <summary>When the customer uploaded a receipt (the file itself is fetched by the admin through GET /api/orders/{id}/receipt).</summary>
+    public DateTime? ReceiptUploadedAt { get; set; }
+
+    public string? DeliveryCountryCode { get; set; }
+
+    public string? DeliveryCountryName { get; set; }
+
+    public string? DeliveryCarrier { get; set; }
+
+    public string? DeliveryPostalCode { get; set; }
+
+    public string? DeliveryAddress { get; set; }
+
+    public string? Locale { get; set; }
+
+    /// <summary>Going abroad: no automatic waybill, TTN typed by hand.</summary>
+    public bool IsForeignDelivery { get; set; }
+
     public int? CustomerId { get; set; }
 
     public string CustomerName { get; set; } = string.Empty;

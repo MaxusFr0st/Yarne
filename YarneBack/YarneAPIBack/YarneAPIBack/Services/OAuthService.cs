@@ -118,7 +118,8 @@ public class OAuthService : IOAuthService
         var givenName = root.TryGetProperty("given_name", out var gnEl) ? gnEl.GetString() ?? "" : "";
         var familyName = root.TryGetProperty("family_name", out var fnEl) ? fnEl.GetString() ?? "" : "";
 
-        return await FindOrCreateCustomerAsync(email, "google", sub, givenName, familyName, ct);
+        // Google has just confirmed the email (email_verified is checked above): proof enough to attach guest orders.
+        return await FindOrCreateCustomerAsync(email, "google", sub, givenName, familyName, emailVerified: true, ct);
     }
 
     public async Task<AuthResponse> HandleAppleAsync(string idToken, CancellationToken ct = default)
@@ -165,7 +166,10 @@ public class OAuthService : IOAuthService
             .FirstOrDefault(c => c.Type == "email")?.Value
             ?? throw new UnauthorizedAccessException("Apple token does not contain an email claim.");
 
-        return await FindOrCreateCustomerAsync(email, "apple", subject, "", "", ct);
+        // Apple's email claim is verified; honour an explicit "false" all the same.
+        var appleEmailVerified = validatedToken.Claims.FirstOrDefault(c => c.Type == "email_verified")?.Value;
+        var emailVerified = !string.Equals(appleEmailVerified, "false", StringComparison.OrdinalIgnoreCase);
+        return await FindOrCreateCustomerAsync(email, "apple", subject, "", "", emailVerified, ct);
     }
 
     private async Task<IList<JsonWebKey>> GetApplePublicKeysAsync(CancellationToken ct)
@@ -200,6 +204,7 @@ public class OAuthService : IOAuthService
         string providerId,
         string firstName,
         string lastName,
+        bool emailVerified,
         CancellationToken ct)
     {
         // Find by email first (account linking), then by provider+providerId
@@ -249,6 +254,9 @@ public class OAuthService : IOAuthService
             customer.OAuthProviderId = providerId;
             await _context.SaveChangesAsync(ct);
         }
+
+        if (emailVerified)
+            await GuestOrderAttachment.AttachAllByEmailAsync(_context, customer, email, ct);
 
         return await IssueSessionAsync(customer, ct);
     }

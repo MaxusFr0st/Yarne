@@ -36,19 +36,36 @@ public class CreateOrderRequest
     [StringLength(32, MinimumLength = 8)]
     public string RecipientPhone { get; set; } = string.Empty;
 
-    [Required]
-    [StringLength(64, MinimumLength = 1)]
+    // Ukrainian orders need all four (the controller checks); foreign ones may leave the refs and the branch name empty.
+    [StringLength(64)]
     public string DeliveryCityRef { get; set; } = string.Empty;
 
     [Required]
     [StringLength(200, MinimumLength = 1)]
     public string DeliveryCityName { get; set; } = string.Empty;
 
-    [Required]
-    [StringLength(64, MinimumLength = 1)]
+    [StringLength(64)]
     public string DeliveryWarehouseRef { get; set; } = string.Empty;
 
-    [Required]
-    [StringLength(500, MinimumLength = 1)]
+    [StringLength(500)]
     public string DeliveryWarehouseName { get; set; } = string.Empty;
+
+    /// <summary>Delivery abroad: no Nova Poshta (Ukraine) validation, no automatic waybill, payment by transfer only.</summary>
+    public bool IsForeignDelivery { get; set; }
+
+    [StringLength(2)]
+    public string? DeliveryCountryCode { get; set; }
+
+    [StringLength(100)]
+    public string? DeliveryCountryName { get; set; }
+
+    /// <summary>"NovaPost" (branch id in DeliveryWarehouseRef, its description in DeliveryWarehouseName) or "Other" (typed address).</summary>
+    [StringLength(16)]
+    public string? DeliveryCarrier { get; set; }
+
+    [StringLength(20)]
+    public string? DeliveryPostalCode { get; set; }
+
+    [StringLength(500)]
+    public string? DeliveryAddress { get; set; }
 }

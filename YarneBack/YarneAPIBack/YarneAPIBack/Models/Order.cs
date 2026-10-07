@@ -69,6 +69,49 @@ public partial class Order
     /// <summary>Which Nova Poshta sender profile created the waybill -- needed to cancel it later, since Nova Poshta only lets the creating account delete its own documents.</summary>
     public string? TtnSenderProfileId { get; set; }
 
+    /// <summary>Public order number shown to the customer: "Y" + DDMMYY (the order's day in Kyiv) + "-" + that day's running count, e.g. "Y071026-3". Unique. Null only until the startup backfill has numbered an order placed before this existed.</summary>
+    public string? OrderNumber { get; set; }
+
+    /// <summary>Unguessable URL-safe token that opens the order's public status page (/{locale}/order/{token}).</summary>
+    public string? StatusToken { get; set; }
+
+    /// <summary>How the customer chose to pay: null (not yet), "Transfer" or "Pickup" (paid to Nova Poshta on collection).</summary>
+    public string? PaymentChoice { get; set; }
+
+    public DateTime? PaymentChoiceAt { get; set; }
+
+    /// <summary>Why the order was canceled, shown to the customer on the status page and in the cancellation email.</summary>
+    public string? CancelReason { get; set; }
+
+    /// <summary>The order goes abroad: it never gets an automatic Nova Poshta waybill, and its TTN is typed in by hand.</summary>
+    public bool IsForeignDelivery { get; set; }
+
+    /// <summary>Foreign delivery (IsForeignDelivery): ISO 3166 alpha-2 code and name of the destination country.</summary>
+    public string? DeliveryCountryCode { get; set; }
+
+    public string? DeliveryCountryName { get; set; }
+
+    /// <summary>"NovaPost" (a Nova Post branch, id in DeliveryWarehouseRef) or "Other" (a typed address). Null for Ukrainian orders.</summary>
+    public string? DeliveryCarrier { get; set; }
+
+    public string? DeliveryPostalCode { get; set; }
+
+    /// <summary>The typed street, house and apartment of a foreign address delivery.</summary>
+    public string? DeliveryAddress { get; set; }
+
+    /// <summary>Set when the owner has seen the bank transfer arrive. A mark, not a status; only for orders paid by transfer.</summary>
+    public DateTime? PaymentReceivedAt { get; set; }
+
+    /// <summary>Private storage key of the receipt image the customer uploaded; never a public URL. Cleared when the file is deleted.</summary>
+    public string? ReceiptKey { get; set; }
+
+    public string? ReceiptContentType { get; set; }
+
+    public DateTime? ReceiptUploadedAt { get; set; }
+
+    /// <summary>When the order became Received or Canceled: receipt files are deleted 30 days later.</summary>
+    public DateTime? FinalizedAt { get; set; }
+
     public string? TrackingStatus { get; set; }
 
     public string? TrackingStatusCode { get; set; }

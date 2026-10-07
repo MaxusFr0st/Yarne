@@ -14,6 +14,13 @@ public static class OrderItemSnapshotHelper
             : ResolvePrimaryImageUrl(product);
     }
 
+    /// <summary>
+    /// The strap choice to show: only a product that offers a strap has a "without strap" choice to speak of, so for the
+    /// others false becomes null (nothing is printed). An old line whose product is gone keeps only a "with strap".
+    /// </summary>
+    public static bool? ResolveWithLace(OrderItem item) =>
+        item.WithLace == true ? true : item.Product?.Lace == true ? item.WithLace : null;
+
     public static string ResolveProductName(OrderItem item) =>
         !string.IsNullOrWhiteSpace(item.ProductName)
             ? item.ProductName

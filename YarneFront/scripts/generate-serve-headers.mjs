@@ -15,6 +15,9 @@ function apiOrigin(raw) {
   }
 }
 
+// Nova Post's official delivery-abroad picker (checkout): its script, the frame it may use and the services it talks to.
+const NOVA_POST_ORIGINS = ["https://integration-widget.novapost.com", "https://*.novapost.com"];
+
 const connectSrc = new Set([
   "'self'",
   "https://ipwho.is",
@@ -26,17 +29,18 @@ const connectSrc = new Set([
 ]);
 const api = apiOrigin(process.env.VITE_API_URL);
 if (api) connectSrc.add(api);
+for (const origin of NOVA_POST_ORIGINS) connectSrc.add(origin);
 connectSrc.add("http://localhost:8080");
 connectSrc.add("http://localhost:5000");
 
 const csp = [
   "default-src 'self'",
-  "script-src 'self' https://accounts.google.com https://static.cloudflareinsights.com",
-  "style-src 'self' 'unsafe-inline' https://accounts.google.com",
+  `script-src 'self' https://accounts.google.com https://static.cloudflareinsights.com ${NOVA_POST_ORIGINS.join(" ")}`,
+  `style-src 'self' 'unsafe-inline' https://accounts.google.com ${NOVA_POST_ORIGINS.join(" ")}`,
   "img-src 'self' https: data: blob:",
   `connect-src ${[...connectSrc].join(" ")}`,
-  "font-src 'self' data:",
-  "frame-src https://accounts.google.com https://widget.novapost.com",
+  `font-src 'self' data: ${NOVA_POST_ORIGINS.join(" ")}`,
+  `frame-src https://accounts.google.com https://widget.novapost.com ${NOVA_POST_ORIGINS.join(" ")}`,
   "frame-ancestors 'none'",
   "base-uri 'self'",
   "form-action 'self'",

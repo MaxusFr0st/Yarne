@@ -3,6 +3,8 @@ import { ArrowDown, ArrowUp, ExternalLink, Plus, X } from "lucide-react";
 import type { Locale } from "../../i18n/config";
 import { emptyL10n, type L10n } from "../../utils/careContent";
 import { CONTACT_SEED, loadContactContent, persistContactContent, type ContactContent } from "../../utils/contactContent";
+import { loadPaymentContent, PAYMENT_SEED, persistPaymentContent } from "../../utils/paymentContent";
+import { DELIVERY_LIMITS, DELIVERY_SEED, loadDeliveryContent, persistDeliveryContent } from "../../utils/deliveryContent";
 import {
   GUARANTEE_ICONS,
   GUARANTEE_LIMITS,
@@ -73,8 +75,8 @@ function useSettingDraft<T>(load: () => Promise<T | null>, persist: (value: T) =
 type EditorCardProps = {
   title: string;
   note: string;
-  /** The page on the site this card edits. */
-  path: string;
+  /** The page on the site this card edits; none when it feeds a page that is opened with a private link. */
+  path?: string;
   locale: Locale;
   state: { isDirty: boolean; published: boolean; loading: boolean; saving: boolean; save: () => Promise<void> };
   children: ReactNode;
@@ -94,15 +96,17 @@ function EditorCard({ title, note, path, locale, state, children }: EditorCardPr
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-3 shrink-0">
-          <a
-            href={`/${locale}${path}`}
-            target="_blank"
-            rel="noreferrer"
-            className="inline-flex items-center gap-1.5 text-xs text-[#2D241E]/70 hover:text-[#2D241E] underline underline-offset-2"
-            style={DM_SANS}
-          >
-            Open on site <ExternalLink size={12} />
-          </a>
+          {path ? (
+            <a
+              href={`/${locale}${path}`}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center gap-1.5 text-xs text-[#2D241E]/70 hover:text-[#2D241E] underline underline-offset-2"
+              style={DM_SANS}
+            >
+              Open on site <ExternalLink size={12} />
+            </a>
+          ) : null}
           <span className={`text-xs ${state.isDirty ? "text-[#9B6B2E]" : "text-[#2D241E]/45"}`} style={DM_SANS}>
             {state.isDirty ? "Unsaved changes" : "Saved"}
           </span>
@@ -334,6 +338,73 @@ function ContactDetailsEditor({ locale, onError }: Props & { locale: Locale }) {
   );
 }
 
+function DeliveryPageEditor({ locale, onError }: Props & { locale: Locale }) {
+  const state = useSettingDraft(loadDeliveryContent, persistDeliveryContent, DELIVERY_SEED, onError, "Failed to save the Delivery & Returns page to the server.");
+  const { draft } = state;
+  return (
+    <EditorCard
+      title="Delivery & Returns page"
+      note="The page's sections in order, each a heading and a text. Separate paragraphs with a blank line; {{email}} becomes the contact email."
+      path="/pages/delivery"
+      locale={locale}
+      state={state}
+    >
+      <RowList
+        title="Sections"
+        items={draft.sections}
+        onChange={(sections) => state.setDraft((prev) => ({ ...prev, sections }))}
+        max={DELIVERY_LIMITS.sections}
+        addLabel="Add section"
+        create={() => ({ heading: emptyL10n(), body: emptyL10n() })}
+      >
+        {(section, update, index) => (
+          <>
+            <L10nField label={`Heading ${index + 1}`} value={section.heading} locale={locale} maxLength={DELIVERY_LIMITS.heading} onChange={(heading) => update({ ...section, heading })} />
+            <L10nField label="Text" value={section.body} locale={locale} rows={5} maxLength={DELIVERY_LIMITS.body} onChange={(body) => update({ ...section, body })} />
+          </>
+        )}
+      </RowList>
+    </EditorCard>
+  );
+}
+
+function PaymentDetailsEditor({ locale, onError }: Props & { locale: Locale }) {
+  const state = useSettingDraft(loadPaymentContent, persistPaymentContent, PAYMENT_SEED, onError, "Failed to save the payment details to the server.");
+  return (
+    <EditorCard
+      title="Payment details"
+      note="Bank-transfer details a customer sees on their order's status page after choosing to pay by transfer. Visible only to the customer who placed the order. Empty: the page says the details will be sent by email."
+      locale={locale}
+      state={state}
+    >
+      <div className="grid md:grid-cols-2 gap-4">
+        {(
+          [
+            ["Recipient name", "recipient", "ФОП Коваль А.", undefined],
+            ["Card number", "cardNumber", "4441 1111 1111 1111", undefined],
+            ["IBAN", "iban", "UA00 0000 0000 0000 0000 0000 00000", "Optional: leave empty to show only the card."],
+            ["Payment reference", "reference", "{{order}}", "What the customer writes in the payment note. {{order}} becomes the order number; empty means just the order number."],
+          ] as const
+        ).map(([label, key, placeholder, hint]) => (
+          <div key={key}>
+            <Label>{label}</Label>
+            <input
+              type="text"
+              value={state.draft[key]}
+              placeholder={placeholder}
+              maxLength={key === "reference" ? 200 : 120}
+              onChange={(e) => state.setDraft((prev) => ({ ...prev, [key]: e.target.value }))}
+              className={`${INPUT_CLASS} placeholder:text-[#2D241E]/30`}
+              style={INPUT_STYLE}
+            />
+            {hint ? <Hint>{hint}</Hint> : null}
+          </div>
+        ))}
+      </div>
+    </EditorCard>
+  );
+}
+
 /** Admin → Care, under the materials: the Guarantee terms page and the contact details of Request care. */
 export function AdminCareServiceEditors({ onError }: Props) {
   const [locale, setLocale] = useState<Locale>("uk");
@@ -350,6 +421,8 @@ export function AdminCareServiceEditors({ onError }: Props) {
       </div>
       <GuaranteeTermsEditor locale={locale} onError={onError} />
       <ContactDetailsEditor locale={locale} onError={onError} />
+      <DeliveryPageEditor locale={locale} onError={onError} />
+      <PaymentDetailsEditor locale={locale} onError={onError} />
     </div>
   );
 }

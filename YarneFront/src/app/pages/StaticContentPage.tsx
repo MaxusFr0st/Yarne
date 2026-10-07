@@ -1,7 +1,9 @@
 import { useTranslation } from "react-i18next";
 import { ScrollReveal, SectionEyebrow, SectionTitle } from "../components/ScrollReveal";
 import { usePageTitle } from "../hooks/usePageTitle";
-import { useContactContent } from "../hooks/useCareServiceContent";
+import { useContactContent, useDeliveryContent } from "../hooks/useCareServiceContent";
+import { careText } from "../utils/careContent";
+import { useLocale } from "../i18n/useLocale";
 
 type StaticPageKey = "delivery" | "terms";
 
@@ -14,7 +16,21 @@ export function StaticContentPage({ pageKey }: Props) {
   usePageTitle(t(`seo.${pageKey}Title`));
   const { content: contact } = useContactContent();
   // The contact address lives in one place (utils/contactContent.ts); the copy marks where it goes.
-  const paragraphs = t(`pages.${pageKey}.paragraphs`, { returnObjects: true, email: contact.email }) as string[];
+  const locale = useLocale();
+  const { content: delivery } = useDeliveryContent();
+  const fill = (text: string) => text.split("{{email}}").join(contact.email);
+  // Terms come from the locale files; Delivery & Returns is edited in the admin (the seed is the same text).
+  const paragraphs =
+    pageKey === "delivery"
+      ? delivery.sections.flatMap((section) => [
+          ...(careText(section.heading, locale) ? [{ heading: true, text: careText(section.heading, locale) }] : []),
+          ...fill(careText(section.body, locale))
+            .split(/\n\s*\n/)
+            .map((text) => text.trim())
+            .filter(Boolean)
+            .map((text) => ({ heading: false, text })),
+        ])
+      : (t(`pages.${pageKey}.paragraphs`, { returnObjects: true, email: contact.email }) as string[]).map((text) => ({ heading: false, text }));
 
   return (
     <main style={{ backgroundColor: "#F5F2ED", minHeight: "var(--app-svh)" }}>
@@ -28,10 +44,10 @@ export function StaticContentPage({ pageKey }: Props) {
                 paragraphs.map((paragraph, index) => (
                   <p
                     key={index}
-                    className="text-[#2D241E]/68 text-[0.95rem] leading-[1.85]"
+                    className={`${paragraph.heading ? "text-[#2D241E] font-medium" : "text-[#2D241E]/68"} text-[0.95rem] leading-[1.85]`}
                     style={{ fontFamily: "'DM Sans', sans-serif" }}
                   >
-                    {paragraph}
+                    {paragraph.text}
                   </p>
                 ))}
             </div>

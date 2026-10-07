@@ -92,6 +92,8 @@ export const router = createBrowserRouter([
           { path: "pages/care/request", lazy: async () => ({ Component: (await import("./pages/CareRequestPage")).CareRequestPage }) },
           { path: "pages/care/:materialSlug", lazy: async () => ({ Component: (await import("./pages/CareMaterialPage")).CareMaterialPage }) },
           { path: "pages/terms", lazy: () => staticPage("terms") },
+          // A customer's own order, opened with the token in the emails: unlisted (scripts/server.mjs marks it noindex).
+          { path: "order/:token", lazy: async () => ({ Component: (await import("./pages/OrderStatusPage")).OrderStatusPage }) },
           // /en/admin → canonical /admin (admin has no locale prefix).
           { path: "admin", loader: () => redirect("/admin") },
           // Unknown path under a valid locale → 404 (don't redirect-loop).

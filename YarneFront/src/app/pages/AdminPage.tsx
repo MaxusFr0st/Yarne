@@ -117,6 +117,7 @@ import { AdminAccountingTab } from "../components/admin/AdminAccountingTab";
 import { formatPriceCompact } from "../i18n/format";
 import { PriceTag } from "../components/PriceTag";
 import { OrderLineDetails, orderItemDtoToLineDetails } from "../components/OrderLineDetails";
+import { AdminOrderDetails } from "../components/admin/AdminOrderDetails";
 
 const easing = [0.25, 0.1, 0.25, 1] as const;
 const CONTENTS_CROP_META_ID = "admin-contents";
@@ -372,9 +373,16 @@ function NovaPoshtaOrderPanel({
   onOpenWaybillDialog,
   onRefreshTracking,
   onCancelWaybill,
+  onSetForeign,
+  onSetManualTtn,
 }: {
   order: {
     id: number;
+    isForeignDelivery: boolean;
+    deliveryCountryName: string | null;
+    deliveryCarrier: "NovaPost" | "Other" | null;
+    deliveryPostalCode: string | null;
+    deliveryAddress: string | null;
     recipientFirstName: string | null;
     recipientLastName: string | null;
     recipientPhone: string | null;
@@ -389,8 +397,11 @@ function NovaPoshtaOrderPanel({
   onOpenWaybillDialog: (orderId: number) => void;
   onRefreshTracking: (orderId: number) => void;
   onCancelWaybill: (orderId: number) => void;
+  onSetForeign: (orderId: number, on: boolean) => void;
+  onSetManualTtn: (orderId: number, ttn: string | null) => void;
 }) {
-  if (!order.deliveryWarehouseName && !order.recipientFirstName) return null;
+  const [manualTtn, setManualTtnDraft] = useState(order.ttnNumber ?? "");
+  if (!order.deliveryWarehouseName && !order.recipientFirstName && !order.isForeignDelivery) return null;
 
   return (
     <div
@@ -405,13 +416,45 @@ function NovaPoshtaOrderPanel({
           {order.recipientFirstName} {order.recipientLastName} · {order.recipientPhone}
         </p>
       )}
-      {order.deliveryWarehouseName && (
+      {order.isForeignDelivery ? (
         <p className="text-sm text-[#2D241E]/70" style={{ fontFamily: "'DM Sans', sans-serif" }}>
-          {order.deliveryWarehouseName}
-          {order.deliveryCityName ? `, ${order.deliveryCityName}` : ""}
+          {[order.deliveryCountryName, order.deliveryCityName, order.deliveryCarrier === "NovaPost" ? order.deliveryWarehouseName : order.deliveryAddress, order.deliveryPostalCode].filter(Boolean).join(", ")}
+          <span className="block text-xs text-[#2D241E]/45">{order.deliveryCarrier === "NovaPost" ? "Nova Post" : "Other carrier"}</span>
         </p>
+      ) : (
+        order.deliveryWarehouseName && (
+          <p className="text-sm text-[#2D241E]/70" style={{ fontFamily: "'DM Sans', sans-serif" }}>
+            {order.deliveryWarehouseName}
+            {order.deliveryCityName ? `, ${order.deliveryCityName}` : ""}
+          </p>
+        )
       )}
-      {order.ttnNumber ? (
+      <label className="flex items-center gap-2 text-sm text-[#2D241E] cursor-pointer" style={{ fontFamily: "'DM Sans', sans-serif" }}>
+        <input type="checkbox" role="switch" checked={order.isForeignDelivery} disabled={busy} onChange={(e) => onSetForeign(order.id, e.target.checked)} />
+        Foreign address, I create the waybill myself
+      </label>
+      {order.isForeignDelivery ? (
+        <div className="flex items-center gap-2 pt-1">
+          <input
+            type="text"
+            value={manualTtn}
+            onChange={(e) => setManualTtnDraft(e.target.value)}
+            placeholder="Tracking number"
+            maxLength={32}
+            className="flex-1 min-w-0 px-3 py-1.5 rounded-full border bg-transparent text-[#2D241E] focus:outline-none"
+            style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "0.8rem", borderColor: "rgba(45,36,30,0.2)" }}
+          />
+          <button
+            type="button"
+            disabled={busy || manualTtn.trim() === (order.ttnNumber ?? "")}
+            onClick={() => onSetManualTtn(order.id, manualTtn.trim() || null)}
+            className="px-2.5 py-1.5 rounded-full text-[#F5F2ED] disabled:opacity-50"
+            style={{ backgroundColor: "#2D241E", fontFamily: "'DM Sans', sans-serif", fontSize: "0.68rem", letterSpacing: "0.06em" }}
+          >
+            Save
+          </button>
+        </div>
+      ) : order.ttnNumber ? (
         <div className="flex items-center justify-between gap-2 pt-1">
           <p className="text-sm text-[#2D241E]" style={{ fontFamily: "'DM Sans', sans-serif" }}>
             ТТН <span className="font-medium">{order.ttnNumber}</span>
@@ -443,7 +486,7 @@ function NovaPoshtaOrderPanel({
           </div>
         </div>
       ) : (
-        order.deliveryWarehouseName && (
+        !order.isForeignDelivery && order.deliveryWarehouseName && (
           <button
             type="button"
             onClick={() => onOpenWaybillDialog(order.id)}
@@ -662,6 +705,71 @@ function CreateWaybillModal({
             style={{ backgroundColor: "#2D241E", fontFamily: "'DM Sans', sans-serif", fontSize: "0.8rem" }}
           >
             {submitting ? "Creating…" : "Create waybill"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** Asks for the reason before an order is declined: it goes into the customer's email and onto their status page. */
+function DeclineOrderModal({
+  onClose,
+  onConfirm,
+}: {
+  onClose: () => void;
+  onConfirm: (reason: string | null) => void;
+}) {
+  const [reason, setReason] = useState("");
+  useBodyScrollLock(true);
+
+  return (
+    <div
+      className="fixed inset-0 z-[60] flex items-center justify-center p-4"
+      style={{ backgroundColor: "rgba(45,36,30,0.45)", backdropFilter: "blur(6px)" }}
+      onClick={onClose}
+    >
+      <div
+        role="dialog"
+        aria-modal="true"
+        className="w-full max-w-[440px] rounded-[24px] p-6 space-y-4"
+        style={{ backgroundColor: "#F5F2ED", border: "1px solid rgba(45,36,30,0.1)", boxShadow: "0 24px 64px rgba(45,36,30,0.25)" }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div>
+          <h3 className="text-[#2D241E]" style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "1.3rem", fontWeight: 400 }}>
+            Decline order
+          </h3>
+          <p className="text-xs text-[#2D241E]/45 mt-1" style={{ fontFamily: "'DM Sans', sans-serif" }}>
+            The customer sees this reason in their email and on their order page.
+          </p>
+        </div>
+        <textarea
+          value={reason}
+          onChange={(e) => setReason(e.target.value)}
+          rows={3}
+          maxLength={500}
+          autoFocus
+          placeholder="For example: this colour is out of stock"
+          className="w-full px-3 py-2.5 rounded-[14px] border bg-white text-[#2D241E] focus:outline-none resize-none"
+          style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "0.9rem", borderColor: "rgba(45,36,30,0.2)" }}
+        />
+        <div className="flex justify-end gap-2 pt-1">
+          <button
+            type="button"
+            onClick={onClose}
+            className="px-4 py-2.5 rounded-full border text-[#2D241E] transition-all"
+            style={{ borderColor: "rgba(45,36,30,0.2)", fontFamily: "'DM Sans', sans-serif", fontSize: "0.8rem" }}
+          >
+            Back
+          </button>
+          <button
+            type="button"
+            onClick={() => onConfirm(reason.trim() || null)}
+            className="px-4 py-2.5 rounded-full text-[#F5F2ED] transition-all"
+            style={{ backgroundColor: "#4A0E0E", fontFamily: "'DM Sans', sans-serif", fontSize: "0.8rem" }}
+          >
+            Decline order
           </button>
         </div>
       </div>
@@ -3259,6 +3367,10 @@ export function AdminPage() {
     createWaybill,
     refreshTracking,
     cancelWaybill,
+    markPaymentReceived,
+    undoPaymentReceived,
+    setForeignDelivery,
+    setManualTtn,
     addUser,
     refetchOrders,
   } = useAdminData();
@@ -3273,6 +3385,7 @@ export function AdminPage() {
   const [savingOrderId, setSavingOrderId] = useState<number | null>(null);
   const [novaPoshtaBusyOrderId, setNovaPoshtaBusyOrderId] = useState<number | null>(null);
   const [waybillDialogOrderId, setWaybillDialogOrderId] = useState<number | null>(null);
+  const [declineDraft, setDeclineDraft] = useState<{ orderId: number; estimatedDelivery: string | null } | null>(null);
   const [orderStatusDrafts, setOrderStatusDrafts] = useState<Record<number, OrderStatus>>({});
   const [orderDeliveryDrafts, setOrderDeliveryDrafts] = useState<Record<number, string>>({});
   const [expandedOrders, setExpandedOrders] = useState<Record<number, boolean>>({});
@@ -4006,11 +4119,11 @@ export function AdminPage() {
   const adminDisplayEmail = user?.email || "admin@yarne.local";
   const adminDisplayRole = user?.role || "Admin";
 
-  const handleUpdateOrderStatus = async (orderId: number, nextStatus: OrderStatus, estimatedDelivery: string | null) => {
+  const handleUpdateOrderStatus = async (orderId: number, nextStatus: OrderStatus, estimatedDelivery: string | null, cancelReason?: string | null) => {
     setOrderActionError(null);
     setSavingOrderId(orderId);
     try {
-      await setOrderStatus(orderId, nextStatus, estimatedDelivery);
+      await setOrderStatus(orderId, nextStatus, estimatedDelivery, cancelReason);
       setOrderStatusDrafts((prev) => {
         const next = { ...prev };
         delete next[orderId];
@@ -4027,6 +4140,66 @@ export function AdminPage() {
       setSavingOrderId(null);
     }
   };
+
+  // Declining asks for a short reason first: it goes into the customer's email and onto their status page.
+  const handleDeclineOrder = (orderId: number, estimatedDelivery: string | null) => {
+    setDeclineDraft({ orderId, estimatedDelivery });
+  };
+
+  const runOrderAction = async (orderId: number, action: () => Promise<unknown>, failed: string) => {
+    setOrderActionError(null);
+    setNovaPoshtaBusyOrderId(orderId);
+    try {
+      await action();
+    } catch (e) {
+      setOrderActionError(e instanceof Error ? e.message : failed);
+    } finally {
+      setNovaPoshtaBusyOrderId(null);
+    }
+  };
+
+  const renderOrderItems = (order: (typeof orders)[number]) => (
+    <div className="space-y-3">
+      {order.items.map((item) => {
+        const img = item.productImageUrl ? resolveMediaUrl(item.productImageUrl) : "";
+        return (
+          <div key={`order-${order.id}-item-${item.id}`} className="flex gap-3">
+            <div className="w-[58px] h-[58px] rounded-[14px] overflow-hidden shrink-0" style={{ backgroundColor: "rgba(45,36,30,0.06)" }}>
+              {img ? <img src={img} alt="" className="w-full h-full object-contain" /> : null}
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-[#2D241E] text-sm mb-1" style={{ fontFamily: "'DM Sans', sans-serif", fontWeight: 500 }}>
+                {item.productName}
+              </p>
+              <OrderLineDetails line={orderItemDtoToLineDetails(item)} locale="uk" />
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+
+  const renderOrderDetails = (order: (typeof orders)[number]) => (
+    <AdminOrderDetails
+      order={order}
+      busy={novaPoshtaBusyOrderId === order.id}
+      onMarkPaid={(id) => void runOrderAction(id, () => markPaymentReceived(id), "Failed to mark the payment received.")}
+      onUndoPaid={(id) => void runOrderAction(id, () => undoPaymentReceived(id), "Failed to undo.")}
+      onError={setOrderActionError}
+      itemsNode={renderOrderItems(order)}
+      waybillNode={
+        <NovaPoshtaOrderPanel
+          order={order}
+          busy={novaPoshtaBusyOrderId === order.id}
+          onOpenWaybillDialog={setWaybillDialogOrderId}
+          onRefreshTracking={handleRefreshTracking}
+          onCancelWaybill={handleCancelWaybill}
+          onSetForeign={(id, on) => void runOrderAction(id, () => setForeignDelivery(id, on), "Failed to change the delivery type.")}
+          onSetManualTtn={(id, ttn) => void runOrderAction(id, () => setManualTtn(id, ttn), "Failed to save the tracking number.")}
+        />
+      }
+    />
+  );
 
   const handleConfirmWaybill = async (orderId: number, payload: CreateWaybillRequest) => {
     await createWaybill(orderId, payload);
@@ -5456,6 +5629,7 @@ export function AdminPage() {
                           <div>
                             <p className="text-[#2D241E]" style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "1.15rem" }}>
                               Order #{order.id}
+                              {order.orderNumber && <span className="text-[#2D241E]/45 text-xs"> · {order.orderNumber}</span>}
                             </p>
                             <p className="text-[#2D241E]/45 text-xs mt-0.5" style={{ fontFamily: "'DM Sans', sans-serif" }}>
                               {new Date(order.orderDate).toLocaleDateString()} · {order.itemCount} items
@@ -5501,38 +5675,7 @@ export function AdminPage() {
                           )}
                         </div>
 
-                        {isExpanded && order.items.length > 0 && (
-                          <div
-                            className="rounded-[18px] p-3 space-y-3"
-                            style={{ border: "1px solid rgba(45,36,30,0.08)", backgroundColor: "rgba(255,255,255,0.55)" }}
-                          >
-                            {order.items.map((item) => {
-                              const img = item.productImageUrl ? resolveMediaUrl(item.productImageUrl) : "";
-                              return (
-                                <div
-                                  key={`mobile-order-${order.id}-item-${item.id}`}
-                                  className="flex gap-3"
-                                  style={{ borderBottom: "1px solid rgba(45,36,30,0.06)", paddingBottom: 12, marginBottom: 12 }}
-                                >
-                                  <div className="w-[58px] h-[58px] rounded-[14px] overflow-hidden shrink-0" style={{ backgroundColor: "rgba(45,36,30,0.06)" }}>
-                                    {img ? <img src={img} alt="" className="w-full h-full object-contain" /> : null}
-                                  </div>
-                                  <div className="flex-1 min-w-0">
-                                    <OrderLineDetails line={orderItemDtoToLineDetails(item)} locale="uk" />
-                                  </div>
-                                </div>
-                              );
-                            })}
-                          </div>
-                        )}
-
-                        <NovaPoshtaOrderPanel
-                          order={order}
-                          busy={novaPoshtaBusyOrderId === order.id}
-                          onOpenWaybillDialog={setWaybillDialogOrderId}
-                          onRefreshTracking={handleRefreshTracking}
-                          onCancelWaybill={handleCancelWaybill}
-                        />
+                        {isExpanded && renderOrderDetails(order)}
 
                         <div className="space-y-2">
                           <select
@@ -5577,6 +5720,17 @@ export function AdminPage() {
                               Confirm Changes
                             </span>
                           </button>
+                          {currentStatus !== "Canceled" && currentStatus !== "Received" && currentStatus !== "Shipped" && (
+                            <button
+                              type="button"
+                              onClick={() => handleDeclineOrder(order.id, draftDeliveryDate || null)}
+                              disabled={savingOrderId === order.id}
+                              className="w-full py-2.5 rounded-full border text-[#4A0E0E] uppercase tracking-widest transition-all duration-300 disabled:opacity-45"
+                              style={{ borderColor: "rgba(74,14,14,0.3)", fontFamily: "'DM Sans', sans-serif", fontSize: "0.72rem", letterSpacing: "0.1em" }}
+                            >
+                              Decline
+                            </button>
+                          )}
                         </div>
                       </div>
                     );
@@ -5642,6 +5796,11 @@ export function AdminPage() {
                               </button>
                               <span className="text-[#2D241E]" style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "1rem" }}>
                                 #{order.id}
+                                {order.orderNumber && (
+                                  <span className="block text-[#2D241E]/45 text-[10px] tracking-wide" style={{ fontFamily: "'DM Sans', sans-serif" }}>
+                                    {order.orderNumber}
+                                  </span>
+                                )}
                               </span>
                             </div>
                             <div className="min-w-0">
@@ -5723,42 +5882,22 @@ export function AdminPage() {
                                 Confirm
                               </span>
                             </button>
+                            {currentStatus !== "Canceled" && currentStatus !== "Received" && currentStatus !== "Shipped" && (
+                              <button
+                                type="button"
+                                onClick={() => handleDeclineOrder(order.id, draftDeliveryDate || null)}
+                                disabled={savingOrderId === order.id}
+                                className="px-2.5 py-1.5 rounded-full border text-[#4A0E0E] uppercase tracking-widest transition-all duration-300 disabled:opacity-45"
+                                style={{ borderColor: "rgba(74,14,14,0.3)", fontFamily: "'DM Sans', sans-serif", fontSize: "0.6rem", letterSpacing: "0.09em" }}
+                                title="Decline this order"
+                              >
+                                Decline
+                              </button>
+                            )}
                           </div>
                           </div>
 
-                          {isExpanded && (
-                            <div className="px-6 pb-5 space-y-4">
-                              <NovaPoshtaOrderPanel
-                                order={order}
-                                busy={novaPoshtaBusyOrderId === order.id}
-                                onOpenWaybillDialog={setWaybillDialogOrderId}
-                                onRefreshTracking={handleRefreshTracking}
-                                onCancelWaybill={handleCancelWaybill}
-                              />
-                              {order.items.length > 0 && (
-                                <div
-                                  className="rounded-[20px] p-4"
-                                  style={{ border: "1px solid rgba(45,36,30,0.08)", backgroundColor: "rgba(245,242,237,0.7)" }}
-                                >
-                                  <div className="grid gap-4" style={{ gridTemplateColumns: "repeat(2, minmax(0, 1fr))" }}>
-                                    {order.items.map((item) => {
-                                      const img = item.productImageUrl ? resolveMediaUrl(item.productImageUrl) : "";
-                                      return (
-                                        <div key={`order-${order.id}-item-${item.id}`} className="flex gap-4">
-                                          <div className="w-[72px] h-[72px] rounded-[18px] overflow-hidden shrink-0" style={{ backgroundColor: "rgba(45,36,30,0.06)" }}>
-                                            {img ? <img src={img} alt="" className="w-full h-full object-contain" /> : null}
-                                          </div>
-                                          <div className="flex-1 min-w-0">
-                                            <OrderLineDetails line={orderItemDtoToLineDetails(item)} locale="uk" />
-                                          </div>
-                                        </div>
-                                      );
-                                    })}
-                                  </div>
-                                </div>
-                              )}
-                            </div>
-                          )}
+                          {isExpanded && <div className="px-6 pb-5">{renderOrderDetails(order)}</div>}
                         </div>
                       );
                     })
@@ -6295,6 +6434,16 @@ export function AdminPage() {
               focalY: fy,
             });
             setShowcaseFocalEditor(null);
+          }}
+        />
+      )}
+      {declineDraft && (
+        <DeclineOrderModal
+          onClose={() => setDeclineDraft(null)}
+          onConfirm={(reason) => {
+            const { orderId, estimatedDelivery } = declineDraft;
+            setDeclineDraft(null);
+            void handleUpdateOrderStatus(orderId, "Canceled", estimatedDelivery, reason);
           }}
         />
       )}

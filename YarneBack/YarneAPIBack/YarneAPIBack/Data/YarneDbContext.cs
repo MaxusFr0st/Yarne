@@ -326,6 +326,21 @@ public partial class YarneDbContext : DbContext
             entity.Property(e => e.TrackingStatusCode).HasMaxLength(16);
             entity.Property(e => e.GuestEmail).HasMaxLength(320);
             entity.Property(e => e.Locale).HasMaxLength(8);
+            entity.Property(e => e.StatusToken).HasMaxLength(64);
+            entity.Property(e => e.OrderNumber).HasMaxLength(16);
+            entity.Property(e => e.DeliveryCountryCode).HasMaxLength(2);
+            entity.Property(e => e.DeliveryCountryName).HasMaxLength(100);
+            entity.Property(e => e.DeliveryCarrier).HasMaxLength(16);
+            entity.Property(e => e.DeliveryPostalCode).HasMaxLength(20);
+            entity.Property(e => e.DeliveryAddress).HasMaxLength(500);
+            entity.Property(e => e.ReceiptKey).HasMaxLength(200);
+            entity.Property(e => e.ReceiptContentType).HasMaxLength(50);
+            entity.Property(e => e.PaymentChoice).HasMaxLength(16);
+            entity.Property(e => e.CancelReason).HasMaxLength(500);
+            entity.Property(e => e.IsForeignDelivery).HasDefaultValue(false);
+
+            entity.HasIndex(e => e.OrderNumber).IsUnique();
+            entity.HasIndex(e => e.StatusToken).IsUnique();
 
             entity.HasOne(d => d.Customer).WithMany(p => p.Orders)
                 .HasForeignKey(d => d.CustomerId)

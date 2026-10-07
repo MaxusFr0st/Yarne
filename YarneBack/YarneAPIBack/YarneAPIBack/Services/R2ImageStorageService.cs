@@ -75,6 +75,48 @@ public sealed class R2ImageStorageService : IR2ImageStorageService
         }
     }
 
+    // Customer files live in PrivateBucketName when there is one, otherwise under "private/" in the main bucket.
+    private string PrivateBucket => string.IsNullOrWhiteSpace(_settings.PrivateBucketName) ? _settings.BucketName : _settings.PrivateBucketName;
+
+    private string PrivateKey(string key) => string.IsNullOrWhiteSpace(_settings.PrivateBucketName) ? $"private/{key}" : key;
+
+    public async Task PutPrivateAsync(Stream content, string contentType, string key, CancellationToken ct = default)
+    {
+        if (_client == null)
+            throw new InvalidOperationException("R2 storage is not configured.");
+
+        await _client.PutObjectAsync(new PutObjectRequest
+        {
+            BucketName = PrivateBucket,
+            Key = PrivateKey(key),
+            InputStream = content,
+            ContentType = contentType,
+            DisableDefaultChecksumValidation = true,
+            DisablePayloadSigning = true,
+        }, ct);
+    }
+
+    public async Task<(Stream Content, string ContentType)?> GetPrivateAsync(string key, CancellationToken ct = default)
+    {
+        if (_client == null || string.IsNullOrWhiteSpace(key)) return null;
+
+        try
+        {
+            var response = await _client.GetObjectAsync(PrivateBucket, PrivateKey(key), ct);
+            return (response.ResponseStream, response.Headers.ContentType ?? "application/octet-stream");
+        }
+        catch (AmazonS3Exception ex) when (ex.StatusCode == System.Net.HttpStatusCode.NotFound)
+        {
+            return null;
+        }
+    }
+
+    public async Task DeletePrivateAsync(string key, CancellationToken ct = default)
+    {
+        if (_client == null || string.IsNullOrWhiteSpace(key)) return;
+        await _client.DeleteObjectAsync(PrivateBucket, PrivateKey(key), ct);
+    }
+
     public string BuildPublicUrl(string key) => $"{_settings.PublicUrl.TrimEnd('/')}/{key}";
 
     public async Task DeleteAsync(string? publicUrl, CancellationToken ct = default)

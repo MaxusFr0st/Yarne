@@ -13,6 +13,9 @@ import { PriceTag } from "../components/PriceTag";
 import { OrderLineDetails, cartItemToLineDetails } from "../components/OrderLineDetails";
 import { cartItemsTotal, mergePlacedOrderDisplay } from "../utils/mergePlacedOrderItems";
 import { NovaPoshtaPicker, type NovaPoshtaSelection } from "../components/NovaPoshtaPicker";
+import { DeliveryAbroadPicker, type AbroadChoice } from "../components/DeliveryAbroadPicker";
+import { DeliveryModeSwitch } from "../components/DeliveryModeSwitch";
+import { findCountry, isBlockedCountry, isInternationalPhone, isLatinName, countryName } from "../utils/deliveryCountries";
 import { orderStatusKey } from "../utils/orderStatusKey";
 import { CheckoutField } from "../components/CheckoutField";
 import { useSessionState, clearSessionState } from "../hooks/useSessionState";
@@ -135,6 +138,14 @@ export function CheckoutPage() {
   const [recipientLastName, setRecipientLastName] = useSessionState(S.lastName, "");
   const [recipientPhone, setRecipientPhone] = useSessionState(S.phone, "");
   const [delivery, setDelivery] = useSessionState<NovaPoshtaSelection | null>(S.delivery, null);
+  // Delivery abroad: Ukraine is the default for Ukrainian visitors, abroad for English ones. Ukraine mode is the page as it always was.
+  const [abroad, setAbroad] = useState(locale === "en");
+  const [abroadChoice, setAbroadChoice] = useState<AbroadChoice | null>(null);
+  const [abroadCountryName, setAbroadCountryName] = useState("");
+  const [abroadCity, setAbroadCity] = useState("");
+  const [abroadZip, setAbroadZip] = useState("");
+  const [abroadAddress, setAbroadAddress] = useState("");
+  const [abroadPhone, setAbroadPhone] = useState("");
   const [shippingEstimate, setShippingEstimate] = useState<number | null>(null);
   const [shippingEstimateLoading, setShippingEstimateLoading] = useState(false);
   // Raw keystrokes, kept only so "letters typed" can be reported before we reformat away
@@ -245,11 +256,11 @@ export function CheckoutPage() {
 
   const firstNameCyrillic = useDebouncedError(
     recipientFirstName,
-    (v) => (v.trim() && !isCyrillicName(v) ? "invalid" : null)
+    (v) => (v.trim() && !(abroad ? isLatinName(v) : isCyrillicName(v)) ? "invalid" : null)
   );
   const lastNameCyrillic = useDebouncedError(
     recipientLastName,
-    (v) => (v.trim() && !isCyrillicName(v) ? "invalid" : null)
+    (v) => (v.trim() && !(abroad ? isLatinName(v) : isCyrillicName(v)) ? "invalid" : null)
   );
 
   const isRecipientValid =
@@ -260,10 +271,30 @@ export function CheckoutPage() {
     isCompleteUaPhone(recipientPhone);
   const isDeliveryValid = delivery !== null;
 
+  // Abroad: Latin names, an international number with the country's dial code, and a branch or a typed address.
+  const abroadCountry = abroadChoice && abroadChoice.kind !== "other" ? findCountry(abroadChoice.countryCode) : undefined;
+  const abroadDial = abroadCountry?.dial ?? "+";
+  const abroadBlocked = abroadChoice?.kind === "other" && isBlockedCountry(abroadCountryName);
+  const isAbroadRecipientValid =
+    recipientFirstName.trim().length > 0 &&
+    isLatinName(recipientFirstName) &&
+    recipientLastName.trim().length > 0 &&
+    isLatinName(recipientLastName) &&
+    isInternationalPhone(abroadDial, abroadPhone);
+  const isAbroadDeliveryValid =
+    abroadChoice !== null &&
+    (abroadChoice.kind === "branch" ||
+      (abroadCity.trim().length > 0 &&
+        abroadAddress.trim().length > 0 &&
+        (abroadChoice.kind === "courier" || (abroadCountryName.trim().length > 0 && !abroadBlocked))));
+  const recipientOk = abroad ? isAbroadRecipientValid : isRecipientValid;
+  const deliveryOk = abroad ? isAbroadDeliveryValid : isDeliveryValid;
+
   // Informational only — Nova Poshta collects this from the recipient in cash on pickup, it
   // is never added to what we charge, so a failed estimate just means the row stays hidden.
   useEffect(() => {
-    if (!delivery || cartTotal <= 0) {
+    // No estimate abroad: Nova Post's cost is emailed before payment.
+    if (abroad || !delivery || cartTotal <= 0) {
       setShippingEstimate(null);
       return;
     }
@@ -282,7 +313,7 @@ export function CheckoutPage() {
     return () => {
       cancelled = true;
     };
-  }, [delivery, cartTotal]);
+  }, [delivery, cartTotal, abroad]);
 
   useEffect(() => {
     if (!isLoggedIn) return;
@@ -309,18 +340,20 @@ export function CheckoutPage() {
     setRecipientLastName((current) => (current.trim().length > 0 ? current : rest.join(" ")));
   }, [user?.name]);
 
+  const abroadFullPhone = `${abroadDial === "+" ? "+" : abroadDial}${abroadPhone.replace(/\D/g, "")}`;
+
   const placeOrder = async () => {
     if (cartItems.length === 0 || placingOrder) return;
     if (!isEmailValid) {
       setError(t(normalizedEmail.length === 0 ? "checkout.emailRequired" : "checkout.emailInvalid"));
       return;
     }
-    if (!isRecipientValid) {
+    if (!recipientOk) {
       setError(t("checkout.recipientRequired"));
       return;
     }
-    if (!isDeliveryValid || !delivery) {
-      setError(t("checkout.deliveryRequired"));
+    if (abroad ? !isAbroadDeliveryValid : !isDeliveryValid || !delivery) {
+      setError(abroad ? t("checkout.abroad.deliveryRequired") : t("checkout.deliveryRequired"));
       return;
     }
     setPlacingOrder(true);
@@ -332,15 +365,30 @@ export function CheckoutPage() {
     try {
       const order = await createOrder({
         locale,
-        phoneNumber: normalizedRecipientPhone,
+        phoneNumber: abroad ? abroadFullPhone : normalizedRecipientPhone,
         email: isLoggedIn ? undefined : normalizedEmail,
         recipientFirstName: recipientFirstName.trim(),
         recipientLastName: recipientLastName.trim(),
-        recipientPhone: normalizedRecipientPhone,
-        deliveryCityRef: delivery.cityRef,
-        deliveryCityName: delivery.cityName,
-        deliveryWarehouseRef: delivery.warehouseRef,
-        deliveryWarehouseName: delivery.warehouseName,
+        recipientPhone: abroad ? abroadFullPhone : normalizedRecipientPhone,
+        ...(abroad && abroadChoice
+          ? {
+              isForeignDelivery: true,
+              deliveryCountryCode: abroadChoice.kind === "other" ? "" : abroadChoice.countryCode,
+              deliveryCountryName: abroadChoice.kind === "other" ? abroadCountryName.trim() : abroadCountry ? countryName(abroadCountry, "en") : "",
+              deliveryCarrier: abroadChoice.kind === "branch" ? ("NovaPost" as const) : ("Other" as const),
+              deliveryCityRef: "",
+              deliveryCityName: abroadChoice.kind === "branch" ? abroadChoice.city || abroadCountryName : abroadCity.trim(),
+              deliveryWarehouseRef: abroadChoice.kind === "branch" ? abroadChoice.branchId : "",
+              deliveryWarehouseName: abroadChoice.kind === "branch" ? abroadChoice.branchName : "",
+              deliveryPostalCode: abroadChoice.kind === "branch" ? undefined : abroadZip.trim() || undefined,
+              deliveryAddress: abroadChoice.kind === "branch" ? undefined : abroadAddress.trim(),
+            }
+          : {
+              deliveryCityRef: delivery!.cityRef,
+              deliveryCityName: delivery!.cityName,
+              deliveryWarehouseRef: delivery!.warehouseRef,
+              deliveryWarehouseName: delivery!.warehouseName,
+            }),
         items: snapshot.map((item) => ({
           productIdOrCode: item.productId,
           quantity: item.quantity,
@@ -418,7 +466,7 @@ export function CheckoutPage() {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: SEAL.line, delay: beat(SEAL.receiptDelay), ease: glide }}
               >
-                {t("checkout.placedMessage", { id: placedOrder.id })}
+                {t("checkout.placedMessage", { id: placedOrder.orderNumber ?? placedOrder.id })}
               </motion.p>
             )}
           </motion.div>
@@ -592,7 +640,7 @@ export function CheckoutPage() {
                 <div className="grid grid-cols-1 min-[420px]:grid-cols-2 gap-2.5">
                   <CheckoutField
                     id="checkout-recipient-first-name"
-                    label={t("checkout.recipientFirstName")}
+                    label={abroad ? t("checkout.abroad.firstNameLatin") : t("checkout.recipientFirstName")}
                     type="text"
                     autoComplete="given-name"
                     maxLength={NAME_MAX}
@@ -601,7 +649,7 @@ export function CheckoutPage() {
                       touched.firstName && recipientFirstName.length >= NAME_MAX
                         ? t("checkout.errorNameTooLong")
                         : firstNameCyrillic.error
-                          ? t("checkout.errorNameCyrillicOnly")
+                          ? (abroad ? t("checkout.abroad.errorNameLatin") : t("checkout.errorNameCyrillicOnly"))
                           : null
                     }
                     onBlur={() => {
@@ -612,11 +660,11 @@ export function CheckoutPage() {
                       setRecipientFirstName(e.target.value.slice(0, NAME_MAX));
                       if (error) setError(null);
                     }}
-                    placeholder={t("checkout.recipientFirstName")}
+                    placeholder={abroad ? t("checkout.abroad.firstNameLatin") : t("checkout.recipientFirstName")}
                   />
                   <CheckoutField
                     id="checkout-recipient-last-name"
-                    label={t("checkout.recipientLastName")}
+                    label={abroad ? t("checkout.abroad.lastNameLatin") : t("checkout.recipientLastName")}
                     type="text"
                     autoComplete="family-name"
                     maxLength={NAME_MAX}
@@ -625,7 +673,7 @@ export function CheckoutPage() {
                       touched.lastName && recipientLastName.length >= NAME_MAX
                         ? t("checkout.errorNameTooLong")
                         : lastNameCyrillic.error
-                          ? t("checkout.errorNameCyrillicOnly")
+                          ? (abroad ? t("checkout.abroad.errorNameLatin") : t("checkout.errorNameCyrillicOnly"))
                           : null
                     }
                     onBlur={() => {
@@ -636,12 +684,30 @@ export function CheckoutPage() {
                       setRecipientLastName(e.target.value.slice(0, NAME_MAX));
                       if (error) setError(null);
                     }}
-                    placeholder={t("checkout.recipientLastName")}
+                    placeholder={abroad ? t("checkout.abroad.lastNameLatin") : t("checkout.recipientLastName")}
                   />
                 </div>
                 {/* inputMode="tel" keeps the phone keypad on mobile; the value is reformatted
                     on every keystroke so the field always reads +380 XX XXX XX XX. Letters are
                     reported rather than silently dropped, so a wrong keyboard is obvious. */}
+                {abroad ? (
+                  <CheckoutField
+                    id="checkout-recipient-phone"
+                    label={t("checkout.recipientPhone")}
+                    type="tel"
+                    inputMode="tel"
+                    autoComplete="tel-national"
+                    prefix={abroadDial}
+                    value={abroadPhone}
+                    error={touched.phone && abroadPhone && !isInternationalPhone(abroadDial, abroadPhone) ? t("checkout.abroad.errorPhone") : null}
+                    onBlur={() => setTouched((s) => ({ ...s, phone: true }))}
+                    onChange={(e) => {
+                      setAbroadPhone(e.target.value.replace(/[^\d\s()-]/g, "").slice(0, 18));
+                      if (error) setError(null);
+                    }}
+                    placeholder={t("checkout.phonePlaceholder")}
+                  />
+                ) : (
                 <CheckoutField
                   id="checkout-recipient-phone"
                   label={t("checkout.recipientPhone")}
@@ -667,6 +733,7 @@ export function CheckoutPage() {
                   }}
                   placeholder={t("checkout.phonePlaceholder")}
                 />
+                )}
               </div>
 
               <div className="mt-5">
@@ -676,6 +743,15 @@ export function CheckoutPage() {
                 >
                   {t("checkout.delivery")}
                 </p>
+                <DeliveryModeSwitch
+                  abroad={abroad}
+                  onChange={(next) => {
+                    setAbroad(next);
+                    if (error) setError(null);
+                  }}
+                />
+                {!abroad && (
+                <>
                 <NovaPoshtaPicker
                   value={delivery}
                   onSelect={(selection) => {
@@ -699,6 +775,77 @@ export function CheckoutPage() {
                     )}
                   </div>
                 )}
+                {delivery && (
+                  <p className="mt-2" style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "0.68rem", color: "rgba(245,242,237,0.4)" }}>
+                    {t("checkout.payLater")}
+                  </p>
+                )}
+                </>
+                )}
+                {abroad && (
+                  <>
+                    <DeliveryAbroadPicker value={abroadChoice} onChange={setAbroadChoice} tone="dark" />
+                    {abroadChoice && abroadChoice.kind !== "branch" && (
+                      <div className="mt-2.5 space-y-2.5">
+                        {abroadChoice.kind === "other" && (
+                          <CheckoutField
+                            id="checkout-abroad-country"
+                            label={t("checkout.abroad.fieldCountry")}
+                            type="text"
+                            autoComplete="country-name"
+                            maxLength={100}
+                            value={abroadCountryName}
+                            error={abroadBlocked ? t("checkout.abroad.errorBlocked") : null}
+                            onChange={(e) => setAbroadCountryName(e.target.value)}
+                            placeholder={t("checkout.abroad.fieldCountry")}
+                          />
+                        )}
+                        <div className="grid grid-cols-2 gap-2.5">
+                          <CheckoutField
+                            id="checkout-abroad-city"
+                            label={t("checkout.abroad.fieldCity")}
+                            type="text"
+                            autoComplete="address-level2"
+                            maxLength={100}
+                            value={abroadCity}
+                            onChange={(e) => setAbroadCity(e.target.value)}
+                            placeholder={t("checkout.abroad.fieldCity")}
+                          />
+                          <CheckoutField
+                            id="checkout-abroad-zip"
+                            label={t("checkout.abroad.fieldZip")}
+                            type="text"
+                            autoComplete="postal-code"
+                            maxLength={20}
+                            value={abroadZip}
+                            onChange={(e) => setAbroadZip(e.target.value)}
+                            placeholder={t("checkout.abroad.fieldZip")}
+                          />
+                        </div>
+                        <CheckoutField
+                          id="checkout-abroad-address"
+                          label={t("checkout.abroad.fieldAddress")}
+                          type="text"
+                          autoComplete="street-address"
+                          maxLength={300}
+                          value={abroadAddress}
+                          onChange={(e) => setAbroadAddress(e.target.value)}
+                          placeholder={t("checkout.abroad.fieldAddress")}
+                        />
+                      </div>
+                    )}
+                    {abroadChoice && (
+                      <p className="mt-2" style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "0.68rem", color: "rgba(245,242,237,0.4)" }}>
+                        {abroadChoice.kind === "other" ? t("checkout.abroad.noteOther") : t("checkout.abroad.noteNovaPost")}
+                      </p>
+                    )}
+                    {abroadChoice && (
+                      <p className="mt-2" style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "0.68rem", color: "rgba(245,242,237,0.4)" }}>
+                        {t("checkout.abroad.pay")}
+                      </p>
+                    )}
+                  </>
+                )}
               </div>
 
               {/* The button leaves with the fields it submits — left in its own branch it
@@ -710,7 +857,7 @@ export function CheckoutPage() {
               )}
               <button
                 onClick={placeOrder}
-                disabled={placingOrder || cartItems.length === 0 || !isEmailValid || !isRecipientValid || !isDeliveryValid}
+                disabled={placingOrder || cartItems.length === 0 || !isEmailValid || !recipientOk || !deliveryOk}
                 className="mt-6 w-full h-[52px] rounded-[26px] uppercase transition-opacity duration-300 disabled:opacity-60 cursor-pointer"
                 style={{ backgroundColor: "#F5F2ED", color: "#4A0E0E", fontFamily: "'DM Sans', sans-serif", fontSize: "0.75rem", letterSpacing: "0.14em" }}
               >
@@ -742,7 +889,16 @@ export function CheckoutPage() {
                   animate={{ opacity: 1 }}
                   transition={{ duration: SEAL.line, delay: beat(SEAL.tick), ease: glide }}
                 >
-                  #{placedOrder.id} · {toDisplayDate(placedOrder.orderDate, locale)}
+                  {placedOrder.orderNumber ?? `#${placedOrder.id}`} · {toDisplayDate(placedOrder.orderDate, locale)}
+                </motion.p>
+                <motion.p
+                  className="text-sm mt-2"
+                  style={{ fontFamily: "'DM Sans', sans-serif", color: "rgba(245,242,237,0.65)" }}
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ duration: SEAL.line, delay: beat(SEAL.tick), ease: glide }}
+                >
+                  {t("checkout.detailsSentTo", { email: placedOrder.customerEmail })}
                 </motion.p>
               </div>
               {/* Payment method line removed — the store bills one way, so naming it here
@@ -758,12 +914,13 @@ export function CheckoutPage() {
                 <p style={{ color: "rgba(245,242,237,0.65)" }}>{t("checkout.status")}: <span style={{ color: "#F5F2ED" }}>{t(`account.status.${orderStatusKey(placedOrder.status)}`)}</span></p>
                 <p style={{ color: "rgba(245,242,237,0.65)" }}>{t("checkout.itemsInOrder")}: <span style={{ color: "#F5F2ED" }}>{placedOrder.items.length}</span></p>
               </motion.div>
+              {/* A guest has no account to open: their link is the order's own status page. */}
               <LangLink
-                to="/account"
+                to={!isLoggedIn && placedOrder.statusToken ? `/order/${placedOrder.statusToken}` : "/account"}
                 className="mt-6 inline-flex items-center gap-2 hover:opacity-80 transition-opacity text-sm"
                 style={{ fontFamily: "'DM Sans', sans-serif", color: "#F5F2ED" }}
               >
-                {t("checkout.viewInAccount")}
+                {!isLoggedIn && placedOrder.statusToken ? t("checkout.checkStatus") : t("checkout.viewInAccount")}
                 <ArrowRight size={14} />
               </LangLink>
             </motion.div>

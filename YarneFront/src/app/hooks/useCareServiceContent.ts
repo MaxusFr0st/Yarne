@@ -8,6 +8,7 @@ import {
   loadGuaranteeContent,
   type GuaranteeContent,
 } from "../utils/guaranteeContent";
+import { DELIVERY_CONTENT_KEY, DELIVERY_SEED, getInitialDeliveryContent, loadDeliveryContent, type DeliveryContent } from "../utils/deliveryContent";
 import { useFirstVisitReady } from "./useFirstVisitReady";
 
 /**
@@ -43,4 +44,8 @@ export function useGuaranteeContent(): { content: GuaranteeContent; ready: boole
 
 export function useContactContent(): { content: ContactContent; ready: boolean } {
   return useStoredContent(CONTACT_CONTENT_KEY, getInitialContactContent, loadContactContent, CONTACT_SEED);
+}
+
+export function useDeliveryContent(): { content: DeliveryContent; ready: boolean } {
+  return useStoredContent(DELIVERY_CONTENT_KEY, getInitialDeliveryContent, loadDeliveryContent, DELIVERY_SEED);
 }

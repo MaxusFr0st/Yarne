@@ -18,17 +18,22 @@ export interface AuthSessionResponse {
 }
 
 export interface RegisterRequest {
-  firstName: string;
-  lastName: string;
-  userName: string;
+  /** Left out only when registering from an order's status page, which knows the recipient's name. */
+  firstName?: string;
+  lastName?: string;
+  userName?: string;
   email: string;
   phoneNumber?: string;
   password: string;
+  /** The status page's token: attaches this email's guest orders to the new account. */
+  statusToken?: string;
 }
 
 export interface LoginRequest {
   email: string;
   password: string;
+  /** The status page's token: attaches this email's guest orders to the account that signs in. */
+  statusToken?: string;
 }
 
 export interface CustomerProfileResponse {

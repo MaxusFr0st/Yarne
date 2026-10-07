@@ -184,6 +184,7 @@ public sealed class SalesAccountingService : ISalesAccountingService
 
             order.IsVoid = true;
             order.Status = "Canceled";
+            order.FinalizedAt ??= now;
             order.UpdatedAt = now;
             await _db.SaveChangesAsync(ct);
             await transaction.CommitAsync(ct);

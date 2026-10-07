@@ -26,7 +26,24 @@ public class AuthService : IAuthService
         if (await _context.Customers.AnyAsync(c => c.Email == request.Email, ct))
             return null;
 
-        if (await _context.Customers.AnyAsync(c => c.UserName == request.UserName, ct))
+        var firstName = request.FirstName?.Trim();
+        var lastName = request.LastName?.Trim();
+        var userName = request.UserName?.Trim();
+        if (string.IsNullOrEmpty(firstName) || string.IsNullOrEmpty(lastName) || string.IsNullOrEmpty(userName))
+        {
+            // Only the status page's own sign-up may leave these out, and only for the email the order was placed with.
+            var order = await GuestOrderAttachment.FindGuestOrderAsync(_context, request.StatusToken, request.Email, ct);
+            if (order == null)
+                return null;
+
+            firstName = string.IsNullOrEmpty(firstName) ? order.RecipientFirstName?.Trim() : firstName;
+            lastName = string.IsNullOrEmpty(lastName) ? order.RecipientLastName?.Trim() : lastName;
+            userName = string.IsNullOrEmpty(userName) ? await UniqueUserNameFromEmailAsync(request.Email, ct) : userName;
+            if (string.IsNullOrEmpty(firstName) || firstName.Length < 2 || string.IsNullOrEmpty(lastName) || lastName.Length < 2)
+                return null;
+        }
+
+        if (await _context.Customers.AnyAsync(c => c.UserName == userName, ct))
             return null;
 
         var salt = BCrypt.Net.BCrypt.GenerateSalt(12);
@@ -34,9 +51,9 @@ public class AuthService : IAuthService
 
         var customer = new Models.Customer
         {
-            FirstName = request.FirstName,
-            LastName = request.LastName,
-            UserName = request.UserName,
+            FirstName = firstName,
+            LastName = lastName,
+            UserName = userName,
             Email = request.Email,
             PhoneNumber = request.PhoneNumber,
             PasswordHash = hash,
@@ -57,6 +74,9 @@ public class AuthService : IAuthService
             });
             await _context.SaveChangesAsync(ct);
         }
+
+        // Only with the order's status link in hand: a plain registration proves nothing about the email.
+        await GuestOrderAttachment.AttachWithStatusTokenAsync(_context, customer, request.StatusToken, ct);
 
         return await IssueSessionAsync(customer, ct);
     }
@@ -85,7 +105,23 @@ public class AuthService : IAuthService
             return null;
         }
 
+        await GuestOrderAttachment.AttachWithStatusTokenAsync(_context, customer, request.StatusToken, ct);
+
         return await IssueSessionAsync(customer, ct);
+    }
+
+    private async Task<string> UniqueUserNameFromEmailAsync(string email, CancellationToken ct)
+    {
+        var local = email.Split('@')[0];
+        var sanitized = new string(local.Where(c => char.IsAsciiLetterOrDigit(c) || c is '_' or '.' or '-').ToArray());
+        if (sanitized.Length < 3)
+            sanitized = "user" + sanitized;
+
+        var candidate = sanitized;
+        var suffix = 1;
+        while (await _context.Customers.AnyAsync(c => c.UserName == candidate, ct))
+            candidate = $"{sanitized}{suffix++}";
+        return candidate;
     }
 
     private async Task<AuthResponse> IssueSessionAsync(Models.Customer customer, CancellationToken ct)

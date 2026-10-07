@@ -20,6 +20,14 @@ public interface IR2ImageStorageService
     /// <summary>Builds the public URL for a key without uploading.</summary>
     string BuildPublicUrl(string key);
 
+    /// <summary>Stores a customer's file where it can only be read through this service (never a public URL).</summary>
+    Task PutPrivateAsync(Stream content, string contentType, string key, CancellationToken ct = default);
+
+    /// <summary>Reads a privately stored file, or null when it is gone.</summary>
+    Task<(Stream Content, string ContentType)?> GetPrivateAsync(string key, CancellationToken ct = default);
+
+    Task DeletePrivateAsync(string key, CancellationToken ct = default);
+
     /// <summary>Deletes the object for a previously returned public URL, if it belongs to this bucket.</summary>
     Task DeleteAsync(string? publicUrl, CancellationToken ct = default);
 }

@@ -10,6 +10,9 @@ public sealed class R2Settings
     public string BucketName { get; set; } = string.Empty;
     public string PublicUrl { get; set; } = string.Empty;
 
+    /// <summary>Optional second bucket with no public access, for files customers upload (payment receipts). Empty: the public bucket is used, under the "private/" key prefix.</summary>
+    public string PrivateBucketName { get; set; } = string.Empty;
+
     public bool IsConfigured =>
         !string.IsNullOrWhiteSpace(AccountId)
         && !string.IsNullOrWhiteSpace(AccessKeyId)

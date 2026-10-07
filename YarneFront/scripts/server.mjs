@@ -151,6 +151,7 @@ const GUARANTEE_CONTENT_KEY = "yarne.guarantee.terms.v1";
 const PRODUCT_GUARANTEE_KEY = "yarne.product.guarantee.v1";
 const STATIC_PAGES_KEY = "yarne.staticPages.v1";
 const CONTACT_CONTENT_KEY = "yarne.contact.v1";
+const DELIVERY_CONTENT_KEY = "yarne.delivery.v1";
 const CACHE_TTL_MS = 5 * 60 * 1000;
 // A product that does not exist is remembered for less: it may be added a minute later.
 const MISSING_TTL_MS = 60 * 1000;
@@ -280,6 +281,7 @@ function matchPage(rest, lang) {
     return { kind: a === "admin" ? "admin" : a, lang };
   }
   if (rest.length === 2 && a === "product") return { kind: "product", lang, id: rest[1] };
+  if (rest.length === 2 && a === "order") return { kind: "order", lang };
   if (a === "pages" && rest.length === 2 && Object.hasOwn(STATIC_PAGE_KINDS, b)) return { kind: STATIC_PAGE_KINDS[b], lang };
   if (a === "pages" && b === "care") {
     if (rest.length === 2) return { kind: "care", lang };
@@ -409,6 +411,7 @@ const WORDS = {
     delivery: "Доставка та повернення",
     terms: "Умови використання",
     checkout: "Оформлення замовлення",
+    order: "Статус замовлення",
     account: "Мій кабінет",
     admin: "Адмін",
     allPieces: "Усі вироби",
@@ -470,6 +473,7 @@ const WORDS = {
     delivery: "Delivery & Returns",
     terms: "Terms & Conditions",
     checkout: "Checkout",
+    order: "Order status",
     account: "My Account",
     admin: "Admin",
     allPieces: "All pieces",
@@ -803,6 +807,7 @@ async function describePage(route, reqUrl) {
 
     case "checkout":
     case "account":
+    case "order":
     case "admin":
       return privatePage(lang, w[route.kind]);
 
@@ -844,7 +849,28 @@ async function describePage(route, reqUrl) {
       };
     }
 
-    case "delivery":
+    case "delivery": {
+      // The text the owner edits in the admin (the page falls back to its built-in text, which this summary stands in for).
+      const [delivery, contact] = await Promise.all([getSetting(DELIVERY_CONTENT_KEY), getSetting(CONTACT_CONTENT_KEY)]);
+      const sections = Array.isArray(delivery?.sections) ? delivery.sections : [];
+      const email = contactEmail(contact);
+      const body = sections
+        .map((section) => {
+          const heading = localized(section?.heading, lang);
+          const text = localized(section?.body, lang).split("{{email}}").join(email);
+          return (heading ? `<h2>${escapeHtml(heading)}</h2>` : "") + paragraphsOf(text).map(para).join("");
+        })
+        .join("");
+      return {
+        status: 200,
+        lang,
+        title: withSiteName(seo.delivery.title),
+        description: seo.delivery.description,
+        suffix: "/pages/delivery",
+        content: contentBlock(`<h1>${escapeHtml(w.delivery)}</h1>${body || para(w.deliverySummary)}${siteLinks(lang)}`),
+      };
+    }
+
     case "terms":
       return {
         status: 200,
@@ -1065,7 +1091,7 @@ async function buildSitemap() {
 }
 
 const AI_CRAWLERS = ["GPTBot", "OAI-SearchBot", "ChatGPT-User", "ClaudeBot", "Claude-SearchBot", "Claude-User", "PerplexityBot", "Perplexity-User", "Google-Extended", "Bingbot"];
-const PRIVATE_PATHS = ["/admin", "/*/checkout", "/*/account"];
+const PRIVATE_PATHS = ["/admin", "/*/checkout", "/*/account", "/*/order"];
 
 // A crawler with a group of its own ignores the "*" group, so the private paths repeat in each.
 function buildRobots() {

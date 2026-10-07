@@ -11,7 +11,7 @@ public class OrderConfirmationEmailBuilderTests
 
         var subject = OrderConfirmationEmailBuilder.BuildSubject(message);
 
-        Assert.Equal("Замовлення №42 отримано", subject);
+        Assert.Equal("Замовлення #42 отримано", subject);
     }
 
     [Fact]
@@ -42,11 +42,16 @@ public class OrderConfirmationEmailBuilderTests
 
         var html = OrderConfirmationEmailBuilder.BuildHtml(message);
 
-        Assert.Contains("A&amp;B", html);
         Assert.Contains("&quot;Knit&quot; &lt;test&gt;", html);
         Assert.Contains("99,50 гривень", html);
+        Assert.Contains("× 2", html);
         Assert.Contains(HryvniaPriceFormatter.Sign, html);
-        Assert.Contains("199,00 гривень", html);
+
+        // The owner's internal notice still carries the code and the line total.
+        message.Event = OrderEmailEvent.InternalPlacedNotification;
+        var internalHtml = OrderConfirmationEmailBuilder.BuildHtml(message);
+        Assert.Contains("A&amp;B", internalHtml);
+        Assert.Contains("199,00 гривень", internalHtml);
     }
 
     [Fact]
@@ -70,7 +75,7 @@ public class OrderConfirmationEmailBuilderTests
 
         var html = OrderConfirmationEmailBuilder.BuildHtml(message);
 
-        Assert.Contains("Фурнітура", html);
+        Assert.Contains("фурнітура: Gold", html);
         Assert.Contains("Brownie", html);
         Assert.Contains("One Size", html);
         Assert.Contains("Gold", html);
@@ -87,6 +92,155 @@ public class OrderConfirmationEmailBuilderTests
         Assert.Contains("250,00 гривень", html);
         Assert.Contains(HryvniaPriceFormatter.Sign, html);
         Assert.Contains("lang=\"uk\"", html);
+    }
+
+    [Fact]
+    public void BuildSubject_UsesThePublicOrderNumber_NotTheId()
+    {
+        var message = SampleMessage(orderId: 42);
+        message.OrderNumber = "Y071026-3";
+
+        foreach (var (emailEvent, word) in new[]
+                 {
+                     (OrderEmailEvent.Received, "отримано"),
+                     (OrderEmailEvent.Confirmed, "прийнято"),
+                     (OrderEmailEvent.Shipped, "відправлено"),
+                     (OrderEmailEvent.Canceled, "скасовано"),
+                 })
+        {
+            message.Event = emailEvent;
+            Assert.Equal($"Замовлення Y071026-3 {word}", OrderConfirmationEmailBuilder.BuildSubject(message));
+        }
+
+        message.Event = OrderEmailEvent.InternalPlacedNotification;
+        Assert.Equal("Нове замовлення Y071026-3", OrderConfirmationEmailBuilder.BuildSubject(message));
+        Assert.DoesNotContain("#42", OrderConfirmationEmailBuilder.BuildHtml(message));
+    }
+
+    [Fact]
+    public void CustomerEmail_ShowsTheNumberUpTop_AndEachItemAsABlockNotATable()
+    {
+        var message = SampleMessage();
+        message.OrderNumber = "Y071026-3";
+        message.StatusUrl = "https://yarne-acc.com/uk/order/abc";
+        message.Items =
+        [
+            new OrderConfirmationEmailItem
+            {
+                ProductCode = "YRN-1111",
+                ProductName = "Cherie",
+                ProductImageUrl = "https://media.example/p.webp",
+                ColorName = "Pink",
+                ColorNameUk = "Рожевий",
+                SizeName = "One Size",
+                WithLace = true,
+                FurnitureColorName = "Gold",
+                FurnitureColorNameUk = "золото",
+                Quantity = 2,
+                UnitPrice = 1150m,
+            },
+        ];
+
+        var html = OrderConfirmationEmailBuilder.BuildHtml(message);
+
+        Assert.True(html.IndexOf("Y071026-3", StringComparison.Ordinal) < html.IndexOf("Cherie", StringComparison.Ordinal));
+        Assert.Contains(System.Net.WebUtility.HtmlEncode("Рожевий · One Size · з ремінцем · фурнітура: золото"), html);
+        Assert.Contains("× 2", html);
+        Assert.Contains("https://media.example/p.webp", html);
+        Assert.DoesNotContain("<thead>", html);
+        Assert.Contains("#F5F2ED", html);
+        Assert.Contains("#2D241E", html);
+        Assert.Contains("#4A0E0E", html);
+        Assert.Contains("Georgia", html);
+    }
+
+    [Fact]
+    public void DetailsLine_NamesStrapAndLeavesOutWhatIsNotThere()
+    {
+        Assert.Equal("Pink · One Size · без ремінця", OrderConfirmationEmailBuilder.BuildDetailsLine(
+            new OrderConfirmationEmailItem { ColorName = "Pink", SizeName = "One Size", WithLace = false }));
+        Assert.Equal("Slonova", OrderConfirmationEmailBuilder.BuildDetailsLine(
+            new OrderConfirmationEmailItem { ColorName = "Slonova" }));
+    }
+
+    [Fact]
+    public void ReceivedEmail_HasOneStatusButton()
+    {
+        var message = SampleMessage();
+        message.Event = OrderEmailEvent.Received;
+        message.StatusUrl = "https://yarne-acc.com/uk/order/abc";
+
+        var html = OrderConfirmationEmailBuilder.BuildHtml(message);
+
+        Assert.Contains("href=\"https://yarne-acc.com/uk/order/abc\"", html);
+        Assert.Contains("Статус замовлення", html);
+        Assert.DoesNotContain("pay=transfer", html);
+    }
+
+    [Fact]
+    public void AcceptedEmail_AsksHowToPay_WithTwoButtonsAndTheFeeNote()
+    {
+        var message = SampleMessage(total: 1150m);
+        message.Event = OrderEmailEvent.Confirmed;
+        message.StatusUrl = "https://yarne-acc.com/uk/order/abc";
+
+        var html = OrderConfirmationEmailBuilder.BuildHtml(message);
+
+        Assert.Contains("Оберіть, як вам зручніше оплатити", html);
+        Assert.Contains("href=\"https://yarne-acc.com/uk/order/abc?pay=transfer\"", html);
+        Assert.Contains("href=\"https://yarne-acc.com/uk/order/abc?pay=pickup\"", html);
+        Assert.Contains("Переказ на картку", html);
+        Assert.Contains("Оплата при отриманні", html);
+        Assert.Contains("Нова пошта бере комісію за переказ коштів", html);
+    }
+
+    [Fact]
+    public void ShippedEmail_ShowsTheTtn_AndCanceledEmail_TheReason()
+    {
+        var shipped = SampleMessage();
+        shipped.Event = OrderEmailEvent.Shipped;
+        shipped.TtnNumber = "20450000000000";
+        shipped.StatusUrl = "https://yarne-acc.com/uk/order/abc";
+        Assert.Contains("20450000000000", OrderConfirmationEmailBuilder.BuildHtml(shipped));
+
+        var canceled = SampleMessage();
+        canceled.Event = OrderEmailEvent.Canceled;
+        canceled.CancelReason = "Немає пряжі <цього> кольору";
+        var html = OrderConfirmationEmailBuilder.BuildHtml(canceled);
+        Assert.Contains("Причина:", html);
+        Assert.Contains("Немає пряжі &lt;цього&gt; кольору", html);
+
+        canceled.CancelReason = null;
+        Assert.DoesNotContain("Причина:", OrderConfirmationEmailBuilder.BuildHtml(canceled));
+    }
+
+    [Fact]
+    public void InternalNotice_KeepsTheFullTable_AndShowsNumberPaymentChoiceAndStatusLink()
+    {
+        var message = SampleMessage();
+        message.Event = OrderEmailEvent.InternalPlacedNotification;
+        message.OrderNumber = "Y071026-3";
+        message.StatusUrl = "https://yarne-acc.com/uk/order/abc";
+
+        var html = OrderConfirmationEmailBuilder.BuildHtml(message);
+        Assert.Contains("<thead>", html);
+        Assert.Contains("Y071026-3", html);
+        Assert.Contains("очікуємо вибір покупця", html);
+        Assert.Contains("href=\"https://yarne-acc.com/uk/order/abc\"", html);
+
+        message.PaymentChoice = "Pickup";
+        Assert.Contains("Оплата при отриманні", OrderConfirmationEmailBuilder.BuildHtml(message));
+    }
+
+    [Fact]
+    public void CustomerEmail_StillShowsEurOnlyForEnglishOrders()
+    {
+        var message = SampleMessage(total: 1000m);
+        message.EurTotal = 25m;
+        Assert.DoesNotContain("€", OrderConfirmationEmailBuilder.BuildHtml(message));
+
+        message.Locale = "en";
+        Assert.Contains("(€25.00)", OrderConfirmationEmailBuilder.BuildHtml(message));
     }
 
     private static OrderConfirmationEmailMessage SampleMessage(

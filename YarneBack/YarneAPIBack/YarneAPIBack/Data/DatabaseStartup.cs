@@ -23,6 +23,7 @@ public static class DatabaseStartup
                 await CatalogSchemaPatches.EnsureAsync(db, logger, cancellationToken);
                 await RefreshTokenSchemaPatches.EnsureTablesAsync(db, logger, cancellationToken);
                 await FocalPointSchemaPatches.EnsureAsync(db, logger, cancellationToken);
+                await OrderTrackingSchemaPatches.EnsureAsync(db, logger, cancellationToken);
                 return;
             }
             catch (Exception ex) when (attempt < maxAttempts)

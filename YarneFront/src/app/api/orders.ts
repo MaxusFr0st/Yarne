@@ -1,4 +1,5 @@
 import { apiRequest } from "./client";
+import { buildApiUrl, resolveApiBase } from "./base";
 
 export interface OrderItemDto {
   id: number;
@@ -31,6 +32,22 @@ export function orderEurTotal(order: { items: OrderItemDto[] }): number | null {
 
 export interface OrderDto {
   id: number;
+  /** The public number the customer quotes ("Y071026-3"); null for an order placed by hand in the admin. */
+  orderNumber?: string | null;
+  /** Opens the order's public status page (/order/{token}). */
+  statusToken?: string | null;
+  statusUrl?: string | null;
+  paymentChoice?: "Transfer" | "Pickup" | null;
+  cancelReason?: string | null;
+  isForeignDelivery?: boolean;
+  paymentReceivedAt?: string | null;
+  receiptUploadedAt?: string | null;
+  deliveryCountryCode?: string | null;
+  deliveryCountryName?: string | null;
+  deliveryCarrier?: "NovaPost" | "Other" | null;
+  deliveryPostalCode?: string | null;
+  deliveryAddress?: string | null;
+  locale?: string | null;
   customerId: number | null;
   customerName: string;
   customerEmail: string;
@@ -90,6 +107,14 @@ export interface CreateOrderRequest {
   deliveryCityName: string;
   deliveryWarehouseRef: string;
   deliveryWarehouseName: string;
+  /** Delivery abroad: no Nova Poshta checks, payment by transfer only. */
+  isForeignDelivery?: boolean;
+  deliveryCountryCode?: string;
+  deliveryCountryName?: string;
+  /** "NovaPost" (branch id in deliveryWarehouseRef) or "Other" (typed address). */
+  deliveryCarrier?: "NovaPost" | "Other";
+  deliveryPostalCode?: string;
+  deliveryAddress?: string;
 }
 
 export type OrderStatus =
@@ -104,6 +129,8 @@ export type OrderStatus =
 export interface UpdateOrderStatusRequest {
   status: OrderStatus;
   estimatedDelivery?: string | null;
+  /** Shown to the customer when declining (moving to Canceled). */
+  cancelReason?: string | null;
 }
 
 export async function fetchMyOrders(): Promise<OrderDto[]> {
@@ -175,4 +202,111 @@ export async function fetchNovaPoshtaShippingPrice(cityRef: string, cost: number
   return apiRequest<number>(
     `/api/orders/nova-poshta/shipping-price?cityRef=${encodeURIComponent(cityRef)}&cost=${encodeURIComponent(cost)}`,
   );
+}
+
+export type PaymentChoice = "Transfer" | "Pickup";
+
+export interface TransferDetails {
+  recipient: string;
+  cardNumber: string;
+  iban: string;
+  /** What to write in the payment note, the order number already in it. */
+  reference: string;
+}
+
+export interface PublicOrderStatusItem {
+  productCode: string;
+  productName: string;
+  productImageUrl: string | null;
+  colorName: string | null;
+  colorNameUk: string | null;
+  sizeName: string | null;
+  sizeNameUk: string | null;
+  withLace: boolean | null;
+  furnitureColorName: string | null;
+  furnitureColorNameUk: string | null;
+  quantity: number;
+  unitPrice: number;
+  lineTotal: number;
+  eurUnitPrice: number | null;
+  eurLineTotal: number | null;
+}
+
+/** What the public status page may know about an order: no phone and no last name. */
+export interface PublicOrderStatus {
+  orderNumber: string | null;
+  orderDate: string;
+  status: string;
+  currencyCode: string;
+  total: number;
+  eurTotal: number | null;
+  locale: string | null;
+  recipientFirstName: string | null;
+  deliveryCityName: string | null;
+  deliveryWarehouseName: string | null;
+  ttnNumber: string | null;
+  trackingStatus: string | null;
+  isForeignDelivery: boolean;
+  paymentChoice: PaymentChoice | null;
+  paymentChoiceAt: string | null;
+  canChoosePayment: boolean;
+  /** Only while the choice is "Transfer": the owner's bank details, or null when none are set yet. */
+  transferDetails: TransferDetails | null;
+  deliveryCountryName: string | null;
+  /** "NovaPost" or "Other" for a foreign order. */
+  deliveryCarrier: "NovaPost" | "Other" | null;
+  deliveryPostalCode: string | null;
+  deliveryAddress: string | null;
+  /** When the owner confirmed the bank transfer arrived. */
+  paymentReceivedAt: string | null;
+  /** When the customer uploaded a receipt; null when none. */
+  receiptUploadedAt: string | null;
+  /** A receipt may be added or replaced. */
+  canUploadReceipt: boolean;
+  cancelReason: string | null;
+  email: string | null;
+  isAttachedToAccount: boolean;
+  accountExistsForEmail: boolean;
+  items: PublicOrderStatusItem[];
+}
+
+export async function fetchOrderStatus(token: string): Promise<PublicOrderStatus> {
+  return apiRequest<PublicOrderStatus>(`/api/orders/status/${encodeURIComponent(token)}`);
+}
+
+export async function setOrderPaymentChoice(token: string, choice: PaymentChoice): Promise<PublicOrderStatus> {
+  return apiRequest<PublicOrderStatus>(`/api/orders/status/${encodeURIComponent(token)}/payment-choice`, {
+    method: "POST",
+    body: JSON.stringify({ choice: choice.toLowerCase() }),
+  });
+}
+
+/** Adds or replaces the receipt image of a transfer payment. */
+export async function uploadOrderReceipt(token: string, file: File): Promise<PublicOrderStatus> {
+  const form = new FormData();
+  form.append("file", file, file.name);
+  return apiRequest<PublicOrderStatus>(`/api/orders/status/${encodeURIComponent(token)}/receipt`, { method: "POST", body: form });
+}
+
+export async function markOrderPaymentReceived(orderId: number): Promise<OrderDto> {
+  return apiRequest<OrderDto>(`/api/orders/${orderId}/payment-received`, { method: "POST" });
+}
+
+export async function undoOrderPaymentReceived(orderId: number): Promise<OrderDto> {
+  return apiRequest<OrderDto>(`/api/orders/${orderId}/payment-received`, { method: "DELETE" });
+}
+
+/** The customer's receipt image, fetched with the admin's session (it has no public address). Returns an object URL to open. */
+export async function fetchOrderReceiptObjectUrl(orderId: number): Promise<string> {
+  const res = await fetch(buildApiUrl(resolveApiBase(), `/api/orders/${orderId}/receipt`), { credentials: "include" });
+  if (!res.ok) throw new Error("The receipt could not be loaded.");
+  return URL.createObjectURL(await res.blob());
+}
+
+export async function setOrderForeignDelivery(orderId: number, isForeignDelivery: boolean): Promise<OrderDto> {
+  return apiRequest<OrderDto>(`/api/orders/${orderId}/foreign-delivery`, { method: "PATCH", body: JSON.stringify({ isForeignDelivery }) });
+}
+
+export async function setOrderManualTtn(orderId: number, ttnNumber: string | null): Promise<OrderDto> {
+  return apiRequest<OrderDto>(`/api/orders/${orderId}/manual-ttn`, { method: "PUT", body: JSON.stringify({ ttnNumber }) });
 }
