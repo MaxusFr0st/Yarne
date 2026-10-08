@@ -406,6 +406,36 @@ function PaymentDetailsEditor({ locale, onError }: Props & { locale: Locale }) {
           </div>
         ))}
       </div>
+      <p className="text-[#2D241E] uppercase tracking-widest text-xs pt-2" style={{ ...DM_SANS, letterSpacing: "0.12em" }}>
+        For customers abroad (EUR)
+      </p>
+      <div className="grid md:grid-cols-2 gap-4">
+        {(
+          [
+            ["Recipient name (Latin letters)", "recipient", "Anna Kowal", undefined],
+            ["IBAN", "iban", "DE89 3704 0044 0532 0130 00", undefined],
+            ["SWIFT/BIC", "swift", "COBADEFF", undefined],
+            ["Bank name", "bankName", "Commerzbank", undefined],
+            ["Bank address", "bankAddress", "", "Optional."],
+            ["Payment reference", "reference", "Order {{order}}", "Write {{order}} where the order number should appear. Leave empty to show no reference at all."],
+            ["Note for the customer", "note", "", "Optional, e.g. who pays the bank's fees."],
+          ] as const
+        ).map(([label, key, placeholder, hint]) => (
+          <div key={`eur-${key}`}>
+            <Label>{label}</Label>
+            <input
+              type="text"
+              value={state.draft.eur[key]}
+              placeholder={placeholder}
+              maxLength={key === "note" ? 600 : 200}
+              onChange={(e) => state.setDraft((prev) => ({ ...prev, eur: { ...prev.eur, [key]: e.target.value } }))}
+              className={`${INPUT_CLASS} placeholder:text-[#2D241E]/30`}
+              style={INPUT_STYLE}
+            />
+            {hint ? <Hint>{hint}</Hint> : null}
+          </div>
+        ))}
+      </div>
     </EditorCard>
   );
 }

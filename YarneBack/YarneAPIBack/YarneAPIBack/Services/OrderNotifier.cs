@@ -39,6 +39,8 @@ public class OrderNotifier
             PaymentChoice = order.PaymentChoice,
             OrderDateUtc = order.OrderDate,
             Total = order.TotalCents / 100m,
+            EurTotal = order.EurTotalCents.HasValue ? order.EurTotalCents.Value / 100m : null,
+            PaymentCurrency = order.PaymentCurrency,
             IsForeignDelivery = order.IsForeignDelivery,
         };
 

@@ -41,6 +41,7 @@ public class OrdersController : ControllerBase
     private readonly IConfiguration _configuration;
     private readonly ISalesAccountingService _salesAccountingService;
     private readonly IR2ImageStorageService _receiptStorage;
+    private readonly MakingPhotoUploads _makingPhotoUploads;
 
     public OrdersController(
         YarneDbContext context,
@@ -50,8 +51,10 @@ public class OrdersController : ControllerBase
         IConfiguration configuration,
         ILogger<OrdersController> logger,
         ISalesAccountingService salesAccountingService,
-        IR2ImageStorageService receiptStorage)
+        IR2ImageStorageService receiptStorage,
+        MakingPhotoUploads makingPhotoUploads)
     {
+        _makingPhotoUploads = makingPhotoUploads;
         _receiptStorage = receiptStorage;
         _context = context;
         _activityLogs = activityLogs;
@@ -392,8 +395,21 @@ public class OrdersController : ControllerBase
         }
 
         var orderTotalCents = orderItems.Sum(i => checked(i.ListedPriceCents * i.Quantity));
+
+        // Delivery abroad is paid in euro, from the per-product € prices read here (never from anything the page sent).
+        long? eurTotalCents = null;
+        if (request.IsForeignDelivery)
+        {
+            var (eurError, cents) = ForeignDelivery.EurTotalCents(orderItems);
+            if (eurError != null)
+                return BadRequest(new { message = eurError });
+            eurTotalCents = cents;
+        }
+
         var order = new Order
         {
+            PaymentCurrency = request.IsForeignDelivery ? "EUR" : "UAH",
+            EurTotalCents = eurTotalCents,
             OrderNumber = await OrderPublicIdentifiers.NewOrderNumberAsync(_context, now, ct),
             StatusToken = OrderPublicIdentifiers.NewStatusToken(),
             CustomerId = customerId,
@@ -515,6 +531,7 @@ public class OrdersController : ControllerBase
 
             previousStatus = lockedOrder.Status;
             lockedOrder.Status = canonicalStatus;
+            ForeignDelivery.ApplyAutoTransfer(lockedOrder);
             lockedOrder.CancelReason = string.Equals(canonicalStatus, "Canceled", StringComparison.Ordinal)
                 ? NormalizeOptional(request.CancelReason)
                 : null;
@@ -527,6 +544,13 @@ public class OrdersController : ControllerBase
 
         if (orderDisappeared)
             return NotFound();
+
+        // The making-of photos are only for while the order is being made: gone as soon as it is Received or Canceled.
+        if (canonicalStatus is "Received" or "Canceled")
+        {
+            try { await MakingPhotos.DeleteForOrderAsync(_context, _receiptStorage, id, ct); }
+            catch (Exception ex) { _logger.LogError(ex, "Could not delete the making-of photos of order #{OrderId}; the daily cleanup will retry.", id); }
+        }
 
         if (string.Equals(canonicalStatus, "Shipped", StringComparison.OrdinalIgnoreCase)
             && !string.Equals(previousStatus, "Shipped", StringComparison.OrdinalIgnoreCase))
@@ -616,6 +640,7 @@ public class OrdersController : ControllerBase
             order.PaymentChoiceAt = null;
         }
 
+        ForeignDelivery.ApplyAutoTransfer(order);
         order.UpdatedAt = DateTime.UtcNow;
         await _context.SaveChangesAsync(ct);
 
@@ -712,6 +737,124 @@ public class OrdersController : ControllerBase
 
         var updated = await BuildOrderQuery().FirstOrDefaultAsync(o => o.Id == id, ct);
         return Ok(MapOrder(updated!));
+    }
+
+    /// <summary>
+    /// The owner sets how the customer pays (for example after they wrote asking to change it). Allowed until the payment is marked
+    /// received. Moving away from the transfer removes the "I have paid" claim and the receipt file. Nobody is emailed.
+    /// </summary>
+    [HttpPost("{id:int}/payment-choice")]
+    [Authorize(Roles = "Admin")]
+    [ProducesResponseType(typeof(OrderDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<OrderDto>> SetPaymentChoice(int id, [FromBody] SetPaymentChoiceRequest request, CancellationToken ct = default)
+    {
+        var order = await _context.Orders.FirstOrDefaultAsync(o => o.Id == id, ct);
+        if (order == null)
+            return NotFound();
+        if (order.PaymentReceivedAt != null)
+            return BadRequest(new { message = "The payment is marked received: undo that first." });
+
+        var choice = OrderStatusController.NormalizeChoice(request?.Choice);
+        if (choice == null)
+            return BadRequest(new { message = "Choice must be transfer or pickup." });
+        if (order.IsForeignDelivery && choice == "Pickup")
+            return BadRequest(new { message = "Orders delivered abroad are paid by bank transfer only." });
+
+        if (!string.Equals(order.PaymentChoice, choice, StringComparison.Ordinal))
+        {
+            string? deleteKey = null;
+            if (choice != "Transfer")
+            {
+                deleteKey = order.ReceiptKey;
+                order.PaymentClaimedAt = null;
+                order.ReceiptKey = null;
+                order.ReceiptContentType = null;
+                order.ReceiptUploadedAt = null;
+            }
+
+            order.PaymentChoice = choice;
+            order.PaymentChoiceAt = DateTime.UtcNow;
+            order.UpdatedAt = DateTime.UtcNow;
+            await _context.SaveChangesAsync(ct);
+            if (!string.IsNullOrEmpty(deleteKey))
+                await _receiptStorage.DeletePrivateAsync(deleteKey, ct);
+        }
+
+        var updated = await BuildOrderQuery().FirstOrDefaultAsync(o => o.Id == id, ct);
+        return Ok(MapOrder(updated!));
+    }
+
+    /// <summary>The making-of photos of an order (admin).</summary>
+    [HttpGet("{id:int}/making-photos")]
+    [Authorize(Roles = "Admin")]
+    public async Task<ActionResult<MakingPhotosDto>> GetMakingPhotos(int id, CancellationToken ct = default)
+    {
+        var order = await _context.Orders.AsNoTracking().FirstOrDefaultAsync(o => o.Id == id, ct);
+        if (order == null)
+            return NotFound();
+        var photos = await _context.OrderMakingPhotos.AsNoTracking().Where(p => p.OrderId == id).OrderBy(p => p.CreatedAt).ThenBy(p => p.Id).ToListAsync(ct);
+        return Ok(new MakingPhotosDto
+        {
+            RequestedAt = order.PhotosRequestedAt,
+            Photos = photos.Select(p => new MakingPhotoDto { Id = p.Id, CreatedAt = p.CreatedAt }).ToList(),
+        });
+    }
+
+    /// <summary>
+    /// Uploads making-of photos (multipart "files", up to 5 per order in total). The first upload after the customer asked sends them
+    /// one email; later uploads send none, and neither does an upload nobody asked for.
+    /// </summary>
+    [HttpPost("{id:int}/making-photos")]
+    [Authorize(Roles = "Admin")]
+    [RequestSizeLimit(45 * 1024 * 1024)]
+    [RequestFormLimits(MultipartBodyLengthLimit = 45 * 1024 * 1024)]
+    public async Task<ActionResult<MakingPhotosDto>> UploadMakingPhotos(int id, [FromForm] List<IFormFile>? files, CancellationToken ct = default)
+    {
+        var order = await _context.Orders.FirstOrDefaultAsync(o => o.Id == id, ct);
+        if (order == null)
+            return NotFound();
+
+        var result = await _makingPhotoUploads.AddAsync(order, files ?? [], ct);
+        if (result.Error != null)
+            return BadRequest(new { message = result.Error });
+
+        if (result.NotifyCustomer)
+        {
+            var full = await BuildOrderQuery().FirstOrDefaultAsync(o => o.Id == id, ct);
+            if (full != null)
+                QueueOrderStatusEmail(full, OrderEmailEvent.PhotosReady);
+        }
+
+        return await GetMakingPhotos(id, ct);
+    }
+
+    [HttpDelete("{id:int}/making-photos/{photoId:int}")]
+    [Authorize(Roles = "Admin")]
+    public async Task<ActionResult<MakingPhotosDto>> DeleteMakingPhoto(int id, int photoId, CancellationToken ct = default)
+    {
+        var photo = await _context.OrderMakingPhotos.FirstOrDefaultAsync(p => p.Id == photoId && p.OrderId == id, ct);
+        if (photo == null)
+            return NotFound();
+        await _receiptStorage.DeletePrivateAsync(photo.StorageKey, ct);
+        _context.OrderMakingPhotos.Remove(photo);
+        await _context.SaveChangesAsync(ct);
+        return await GetMakingPhotos(id, ct);
+    }
+
+    [HttpGet("{id:int}/making-photos/{photoId:int}/image")]
+    [Authorize(Roles = "Admin")]
+    public async Task<IActionResult> GetMakingPhotoImage(int id, int photoId, CancellationToken ct = default)
+    {
+        var photo = await _context.OrderMakingPhotos.AsNoTracking().FirstOrDefaultAsync(p => p.Id == photoId && p.OrderId == id, ct);
+        if (photo == null)
+            return NotFound();
+        var file = await _receiptStorage.GetPrivateAsync(photo.StorageKey, ct);
+        if (file == null)
+            return NotFound();
+        Response.Headers.CacheControl = "private, no-store";
+        return File(file.Value.Content, file.Value.ContentType);
     }
 
     /// <summary>Undoes "payment received" (a mistake): the customer may then replace the receipt again.</summary>
@@ -991,6 +1134,7 @@ public class OrdersController : ControllerBase
         return _context.Orders
             .AsNoTracking()
             .AsSplitQuery()
+            .Include(o => o.MakingPhotos)
             .Include(o => o.Customer)
             .Include(o => o.PaymentMethod)
             .Include(o => o.OrderItems)
@@ -1063,6 +1207,10 @@ public class OrdersController : ControllerBase
             CancelReason = order.CancelReason,
             IsForeignDelivery = order.IsForeignDelivery,
             PaymentClaimedAt = order.PaymentClaimedAt,
+            PhotosRequestedAt = order.PhotosRequestedAt,
+            MakingPhotoCount = order.MakingPhotos.Count,
+            PaymentCurrency = order.PaymentCurrency == "EUR" ? "EUR" : "UAH",
+            EurTotal = order.EurTotalCents.HasValue ? order.EurTotalCents.Value / 100m : null,
             PaymentReceivedAt = order.PaymentReceivedAt,
             ReceiptUploadedAt = order.ReceiptKey == null ? null : order.ReceiptUploadedAt,
             DeliveryCountryCode = order.DeliveryCountryCode,
@@ -1255,9 +1403,12 @@ public class OrdersController : ControllerBase
             Locale = order.Locale,
             // Only show a EUR total when every line has a EUR snapshot — a partial total would
             // silently understate the order (same convention as the storefront's order history).
-            EurTotal = order.OrderItems.Any(i => !i.EurUnitPrice.HasValue)
-                ? null
-                : order.OrderItems.Sum(i => i.EurUnitPrice!.Value * i.Quantity),
+            EurTotal = order.EurTotalCents.HasValue
+                ? order.EurTotalCents.Value / 100m
+                : order.OrderItems.Any(i => !i.EurUnitPrice.HasValue)
+                    ? null
+                    : order.OrderItems.Sum(i => i.EurUnitPrice!.Value * i.Quantity),
+            PaymentCurrency = order.PaymentCurrency,
             Items = order.OrderItems
                 .OrderBy(i => i.Id)
                 .Select(i => new OrderConfirmationEmailItem
@@ -1314,6 +1465,8 @@ public class OrdersController : ControllerBase
             AccountUrl = source.AccountUrl,
             OrderDateUtc = source.OrderDateUtc,
             Total = source.Total,
+            EurTotal = source.EurTotal,
+            PaymentCurrency = source.PaymentCurrency,
             Items = source.Items
                 .Select(i => new OrderConfirmationEmailItem
                 {

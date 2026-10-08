@@ -119,3 +119,19 @@ export async function apiRequest<T>(
   }
   return res.json();
 }
+
+/** Fetches a file (an image) with the session cookie, for showing it through an object URL. Never cached by the browser. */
+export async function apiBlob(endpoint: string): Promise<Blob> {
+  let res: Response;
+  try {
+    res = await fetch(buildApiUrl(resolveApiBase(), endpoint), {
+      credentials: "include",
+      cache: "no-store",
+      signal: AbortSignal.timeout(30_000),
+    });
+  } catch {
+    throw new Error("Failed to reach API.");
+  }
+  if (!res.ok) throw new ApiRequestError(`Request failed: ${res.status}`, res.status, {});
+  return res.blob();
+}

@@ -19,22 +19,38 @@ public static class OrderConfirmationEmailBuilder
     public static string FormatOrderNumber(OrderConfirmationEmailMessage message)
         => message.OrderNumber ?? $"#{message.OrderId}";
 
+    /// <summary>
+    /// The subject is the same for every email about one order, so mail apps fold them into one conversation: the customer's
+    /// "Yarné · Замовлення Y071026-3", the owner's "[Адмін] Замовлення Y071026-3". What happened is in the preheader and heading.
+    /// </summary>
     public static string BuildSubject(OrderConfirmationEmailMessage message)
     {
         var number = FormatOrderNumber(message);
-        return message.Event switch
-        {
-            OrderEmailEvent.Received => $"Замовлення {number} отримано",
-            OrderEmailEvent.Confirmed => $"Замовлення {number} прийнято",
-            OrderEmailEvent.Shipped => $"Замовлення {number} відправлено",
-            OrderEmailEvent.Canceled => $"Замовлення {number} скасовано",
-            OrderEmailEvent.InternalPlacedNotification => $"Нове замовлення {number}",
-            OrderEmailEvent.PaymentConfirmed => $"Оплату замовлення {number} підтверджено",
-            OrderEmailEvent.InternalPaymentChosen => $"Покупець обрав оплату: замовлення {number}",
-            OrderEmailEvent.InternalReceiptUploaded => $"Покупець оплатив: замовлення {number}",
-            _ => $"Замовлення {number}",
-        };
+        if (IsOwnerEvent(message.Event))
+            return $"[Адмін] Замовлення {number}";
+        return message.Locale == "en" ? $"Yarné · Order {number}" : $"Yarné · Замовлення {number}";
     }
+
+    public static bool IsOwnerEvent(OrderEmailEvent emailEvent) =>
+        emailEvent is OrderEmailEvent.InternalPlacedNotification or OrderEmailEvent.InternalPaymentChosen or OrderEmailEvent.InternalReceiptUploaded;
+
+    /// <summary>The line mail apps show next to the subject; hidden in the email itself (the heading says the same).</summary>
+    public static string BuildPreheader(OrderConfirmationEmailMessage message) => message.Event switch
+    {
+        OrderEmailEvent.Received => "Замовлення отримано",
+        OrderEmailEvent.Confirmed => "Замовлення прийнято",
+        OrderEmailEvent.Shipped => "Замовлення відправлено",
+        OrderEmailEvent.Canceled => "Замовлення скасовано",
+        OrderEmailEvent.PaymentConfirmed => "Оплату підтверджено",
+        OrderEmailEvent.PhotosReady => "Фото вашого виробу готові",
+        OrderEmailEvent.InternalPlacedNotification => "Нове замовлення",
+        OrderEmailEvent.InternalPaymentChosen => message.PaymentChoice == "Pickup" ? "Обрано спосіб оплати: при отриманні" : "Обрано спосіб оплати: переказ",
+        OrderEmailEvent.InternalReceiptUploaded => "Покупець каже, що оплатив",
+        _ => "Оновлення замовлення",
+    };
+
+    private static string PreheaderHtml(OrderConfirmationEmailMessage message) =>
+        $"""<div style="display:none;max-height:0;overflow:hidden;opacity:0;mso-hide:all;">{WebUtility.HtmlEncode(BuildPreheader(message))}</div>""";
 
     /// <summary>Said in the accepted email and on the status page: every piece is made by hand to order.</summary>
     public const string ShipsWithinText = "Кожен виріб виготовляємо вручну на замовлення, тому відправка займає до 5 робочих днів після підтвердження.";
@@ -76,11 +92,12 @@ public static class OrderConfirmationEmailBuilder
             <!doctype html>
             <html lang="uk">
               <body style="margin:0;padding:24px;background:#f7f7f8;font-family:Arial,sans-serif;color:#111827;">
+                {PreheaderHtml(message)}
                 <div style="max-width:560px;background:#ffffff;border-radius:10px;padding:24px;">
-                  <h1 style="margin:0 0 12px;font-size:20px;">Замовлення {number}</h1>
+                  <h1 style="margin:0 0 12px;font-size:20px;">Замовлення {number}: {WebUtility.HtmlEncode(BuildPreheader(message).ToLowerInvariant())}</h1>
                   <p style="margin:0 0 8px;font-size:14px;">{what}</p>
                   <p style="margin:0 0 8px;font-size:14px;"><strong>Клієнт:</strong> {WebUtility.HtmlEncode(message.CustomerName)} ({WebUtility.HtmlEncode(message.CustomerEmail)})</p>
-                  <p style="margin:0;font-size:14px;"><strong>Разом:</strong> {WebUtility.HtmlEncode(FormatPrice(message.Total))}</p>
+                  <p style="margin:0;font-size:14px;"><strong>Разом:</strong> {WebUtility.HtmlEncode(message.PaymentCurrency == "EUR" ? $"{FormatEuro(message.EurTotal ?? 0m)} (EUR, за кордон)" : FormatPrice(message.Total))}</p>
                   {link}
                 </div>
               </body>
@@ -96,7 +113,8 @@ public static class OrderConfirmationEmailBuilder
     {
         var safeName = WebUtility.HtmlEncode(message.CustomerName);
         var showEur = message.Locale == "en";
-        var total = FormatPrice(message.Total, showEur ? message.EurTotal : null);
+        var eurOrder = message.PaymentCurrency == "EUR";
+        var total = eurOrder ? FormatEuro(message.EurTotal ?? 0m) : FormatPrice(message.Total, showEur ? message.EurTotal : null);
         var statusUrl = string.IsNullOrWhiteSpace(message.StatusUrl) ? null : message.StatusUrl.Trim();
         var fallbackUrl = statusUrl ?? (string.IsNullOrWhiteSpace(message.AccountUrl) ? null : message.AccountUrl.Trim());
 
@@ -105,6 +123,7 @@ public static class OrderConfirmationEmailBuilder
             OrderEmailEvent.Received => ("Дякуємо за замовлення", "Ми переглянемо замовлення і напишемо вам найближчим часом."),
             OrderEmailEvent.Confirmed => ("Ми беремося за ваше замовлення", $"Ваше замовлення прийнято. {ShipsWithinText}"),
             OrderEmailEvent.PaymentConfirmed => ("Оплату підтверджено", "Дякуємо! Ми отримали вашу оплату й продовжуємо роботу над замовленням."),
+            OrderEmailEvent.PhotosReady => ("Фото вашого виробу готові", "Ми додали фото того, як створюється ваш виріб. Увійдіть у свій акаунт і відкрийте сторінку замовлення, щоб їх побачити."),
             OrderEmailEvent.Shipped => ("Замовлення відправлено", "Ваше замовлення відправлено."),
             OrderEmailEvent.Canceled => ("Замовлення скасовано", "Ваше замовлення було скасовано."),
             _ => ("Оновлення замовлення", "Статус вашого замовлення оновлено."),
@@ -137,7 +156,7 @@ public static class OrderConfirmationEmailBuilder
         // The items, then what to do next.
         var items = new StringBuilder();
         foreach (var item in message.Items)
-            items.Append(BuildItemBlock(item, showEur));
+            items.Append(BuildItemBlock(item, showEur, eurOrder));
 
         var action = new StringBuilder();
         switch (message.Event)
@@ -165,6 +184,11 @@ public static class OrderConfirmationEmailBuilder
                     action.Append($"""<p style="margin:12px 0 0;font-family:{SansStack};font-size:12px;line-height:1.5;color:#6b6259;">При отриманні Нова пошта бере комісію за переказ коштів.</p>""");
                 break;
 
+            case OrderEmailEvent.PhotosReady:
+                if (fallbackUrl != null)
+                    action.Append(Button("Переглянути фото", fallbackUrl, primary: true));
+                break;
+
             default:
                 if (fallbackUrl != null)
                     action.Append(Button("Статус замовлення", fallbackUrl, primary: true));
@@ -179,6 +203,7 @@ public static class OrderConfirmationEmailBuilder
                 <meta name="viewport" content="width=device-width, initial-scale=1" />
               </head>
               <body style="margin:0;padding:0;background:{{Cream}};font-family:{{SansStack}};color:{{Ink}};">
+                {{PreheaderHtml(message)}}
                 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:{{Cream}};">
                   <tr>
                     <td align="center" style="padding:20px 12px;">
@@ -230,14 +255,14 @@ public static class OrderConfirmationEmailBuilder
             """;
     }
 
-    private static string BuildItemBlock(OrderConfirmationEmailItem item, bool showEur)
+    private static string BuildItemBlock(OrderConfirmationEmailItem item, bool showEur, bool eurOrder)
     {
         var name = WebUtility.HtmlEncode(item.ProductName);
         var image = string.IsNullOrWhiteSpace(item.ProductImageUrl)
             ? ""
             : $"<img src=\"{WebUtility.HtmlEncode(item.ProductImageUrl)}\" alt=\"\" width=\"72\" height=\"72\" style=\"display:block;width:72px;height:72px;border-radius:12px;object-fit:cover;background:#EDE9E2;\" />";
         var details = WebUtility.HtmlEncode(BuildDetailsLine(item));
-        var price = WebUtility.HtmlEncode(FormatPrice(item.UnitPrice, showEur ? item.EurUnitPrice : null));
+        var price = WebUtility.HtmlEncode(eurOrder ? FormatEuro(item.EurUnitPrice ?? 0m) : FormatPrice(item.UnitPrice, showEur ? item.EurUnitPrice : null));
         var quantity = item.Quantity > 1 ? $" × {item.Quantity}" : "";
 
         return $"""
@@ -313,7 +338,8 @@ public static class OrderConfirmationEmailBuilder
         var safeCustomerEmail = WebUtility.HtmlEncode(message.CustomerEmail);
         var orderDate = message.OrderDateUtc.ToLocalTime().ToString("dd.MM.yyyy HH:mm", UkrainianCulture);
         var showEur = message.Locale == "en";
-        var total = FormatPrice(message.Total, showEur ? message.EurTotal : null);
+        var eurOrder = message.PaymentCurrency == "EUR";
+        var total = eurOrder ? FormatEuro(message.EurTotal ?? 0m) : FormatPrice(message.Total, showEur ? message.EurTotal : null);
         var statusUrl = string.IsNullOrWhiteSpace(message.StatusUrl) ? null : message.StatusUrl.Trim();
         var paymentChoice = message.PaymentChoice switch
         {
@@ -334,8 +360,8 @@ public static class OrderConfirmationEmailBuilder
             var safeFurnitureColor = WebUtility.HtmlEncode(item.FurnitureColorName ?? "—");
             var laceLabel = FormatLaceLabel(item.WithLace);
             var eurLineTotal = showEur && item.EurUnitPrice.HasValue ? item.EurUnitPrice.Value * item.Quantity : (decimal?)null;
-            var lineTotal = FormatPrice(item.UnitPrice * item.Quantity, eurLineTotal);
-            var unitPrice = FormatPrice(item.UnitPrice, showEur ? item.EurUnitPrice : null);
+            var lineTotal = eurOrder ? FormatEuro((item.EurUnitPrice ?? 0m) * item.Quantity) : FormatPrice(item.UnitPrice * item.Quantity, eurLineTotal);
+            var unitPrice = eurOrder ? FormatEuro(item.EurUnitPrice ?? 0m) : FormatPrice(item.UnitPrice, showEur ? item.EurUnitPrice : null);
 
             rowsBuilder.AppendLine($"""
                     <tr>
@@ -360,6 +386,7 @@ public static class OrderConfirmationEmailBuilder
             <!doctype html>
             <html lang="uk">
               <body style="margin:0;padding:0;background:#f7f7f8;font-family:Arial,sans-serif;color:#111827;">
+                {{PreheaderHtml(message)}}
                 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="padding:24px;">
                   <tr>
                     <td align="center">
@@ -379,7 +406,7 @@ public static class OrderConfirmationEmailBuilder
                             <p style="margin:0 0 8px;font-size:14px;"><strong>Номер замовлення:</strong> {{WebUtility.HtmlEncode(FormatOrderNumber(message))}}</p>
                             <p style="margin:0 0 8px;font-size:14px;"><strong>Дата:</strong> {{orderDate}}</p>
                             <p style="margin:0 0 8px;font-size:14px;"><strong>Оплата:</strong> {{(paymentChoice ?? "очікуємо вибір покупця")}}</p>
-                            <p style="margin:0 0 16px;font-size:14px;"><strong>Разом:</strong> {{total}}</p>
+                            <p style="margin:0 0 16px;font-size:14px;"><strong>Разом:</strong> {{total}}{{(eurOrder ? " (EUR, за кордон)" : "")}}</p>
 
                             {{OwnerLinks(message)}}
                             <div style="height:16px;"></div>
@@ -422,6 +449,9 @@ public static class OrderConfirmationEmailBuilder
             false => "Без ремінця",
             _ => "—",
         };
+
+    /// <summary>The amount of an order paid in euro (delivered abroad): "€25.00", and only that, never alongside a hryvnia figure.</summary>
+    private static string FormatEuro(decimal amount) => $"€{amount.ToString("N2", CultureInfo.InvariantCulture)}";
 
     /// <summary>Hryvnia is always the primary figure (that's what the card is charged) — a EUR
     /// amount, when given, is appended in parentheses for reference only.</summary>

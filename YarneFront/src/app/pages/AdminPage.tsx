@@ -336,6 +336,31 @@ function toOrderStatus(value: string): OrderStatus {
   return aliases[normalized] ?? "Pending";
 }
 
+/** Admin-only note beside the status: the customer says they paid / the payment is received. Not an order status. */
+function OrderPaymentChip({ order }: { order: { paymentClaimedAt: string | null; paymentReceivedAt: string | null; photosRequestedAt: string | null; makingPhotoCount: number } }) {
+  const photosChip = order.photosRequestedAt && order.makingPhotoCount === 0 ? (
+    <span
+      className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs"
+      style={{ backgroundColor: "rgba(155,107,46,0.1)", color: "#9B6B2E", fontFamily: "'DM Sans', sans-serif" }}
+    >
+      Photos requested
+    </span>
+  ) : null;
+  if (!order.paymentReceivedAt && !order.paymentClaimedAt) return photosChip;
+  const received = Boolean(order.paymentReceivedAt);
+  return (
+    <>
+    <span
+      className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs"
+      style={{ backgroundColor: received ? "rgba(45,106,79,0.1)" : "rgba(155,107,46,0.1)", color: received ? "#2D6A4F" : "#9B6B2E", fontFamily: "'DM Sans', sans-serif" }}
+    >
+      {received ? "Paid" : "Says paid"}
+    </span>
+    {photosChip}
+    </>
+  );
+}
+
 function OrderStatusPill({ status }: { status: string }) {
   const normalized = status.trim().toLowerCase().replace(/\s+/g, "");
   const styleByStatus: Record<string, { color: string; bg: string }> = {
@@ -3370,6 +3395,8 @@ export function AdminPage() {
     markPaymentReceived,
     undoPaymentReceived,
     resetPaymentChoice,
+    setPaymentChoice,
+    setOrderPhotoCount,
     setForeignDelivery,
     setManualTtn,
     addUser,
@@ -4194,6 +4221,8 @@ export function AdminPage() {
       onMarkPaid={(id) => void runOrderAction(id, () => markPaymentReceived(id), "Failed to mark the payment received.")}
       onUndoPaid={(id) => void runOrderAction(id, () => undoPaymentReceived(id), "Failed to undo.")}
       onResetChoice={(id) => void runOrderAction(id, () => resetPaymentChoice(id), "Failed to reset the payment choice.")}
+      onSetChoice={(id, choice) => void runOrderAction(id, () => setPaymentChoice(id, choice), "Failed to set the payment method.")}
+      onPhotosChanged={(id, count) => setOrderPhotoCount(id, count)}
       onError={setOrderActionError}
       itemsNode={renderOrderItems(order)}
       waybillNode={
@@ -5659,13 +5688,14 @@ export function AdminPage() {
                               {isExpanded ? <ChevronUp size={16} style={{ color: "#2D241E", opacity: 0.6 }} /> : <ChevronDown size={16} style={{ color: "#2D241E", opacity: 0.6 }} />}
                             </button>
                             <OrderStatusPill status={order.status} />
+                            <OrderPaymentChip order={order} />
                           </div>
                         </div>
 
                         <div className="grid grid-cols-2 gap-2 text-sm" style={{ fontFamily: "'DM Sans', sans-serif" }}>
                           <p className="text-[#2D241E]/60 truncate">{order.customerName}</p>
                           <div className="text-right">
-                            <PriceTag amount={order.total} locale="uk" />
+                            <PriceTag amount={order.total} eurAmount={order.eurTotal} currency={order.paymentCurrency} locale="uk" />
                           </div>
                           <p className="text-[#2D241E]/45 text-xs col-span-2 truncate">{order.customerEmail}</p>
                           {order.customerPhoneNumber ? (
@@ -5835,7 +5865,7 @@ export function AdminPage() {
                               )}
                             </div>
                             <div>
-                              <PriceTag amount={order.total} locale="uk" />
+                              <PriceTag amount={order.total} eurAmount={order.eurTotal} currency={order.paymentCurrency} locale="uk" />
                             </div>
                             <span className="text-[#2D241E]/60 text-sm" style={{ fontFamily: "'DM Sans', sans-serif" }}>
                               {order.itemCount}
@@ -5843,8 +5873,9 @@ export function AdminPage() {
                             <span className="text-[#2D241E]/60 text-sm" style={{ fontFamily: "'DM Sans', sans-serif" }}>
                               {new Date(order.orderDate).toLocaleDateString()}
                             </span>
-                            <div className="pr-4">
+                            <div className="pr-4 flex flex-wrap items-center gap-1.5">
                               <OrderStatusPill status={order.status} />
+                              <OrderPaymentChip order={order} />
                             </div>
                             <div className="flex items-center justify-end gap-2 pl-3 border-l border-[#2D241E]/10">
                             <select

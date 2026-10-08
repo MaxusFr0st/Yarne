@@ -41,6 +41,8 @@ public partial class YarneDbContext : DbContext
 
     public virtual DbSet<ProductImage> ProductImages { get; set; }
 
+    public virtual DbSet<OrderMakingPhoto> OrderMakingPhotos { get; set; }
+
     public virtual DbSet<ProductColor> ProductColors { get; set; }
 
     public virtual DbSet<ProductColorImage> ProductColorImages { get; set; }
@@ -334,6 +336,7 @@ public partial class YarneDbContext : DbContext
             entity.Property(e => e.DeliveryPostalCode).HasMaxLength(20);
             entity.Property(e => e.DeliveryAddress).HasMaxLength(500);
             entity.Property(e => e.ReceiptKey).HasMaxLength(200);
+            entity.Property(e => e.PaymentCurrency).HasMaxLength(3);
             entity.Property(e => e.ReceiptContentType).HasMaxLength(50);
             entity.Property(e => e.PaymentChoice).HasMaxLength(16);
             entity.Property(e => e.CancelReason).HasMaxLength(500);
@@ -393,6 +396,20 @@ public partial class YarneDbContext : DbContext
             entity.HasIndex(e => e.Name, "UQ__PaymentM__737584F6CFDF02D1").IsUnique();
 
             entity.Property(e => e.Name).HasMaxLength(100);
+        });
+
+        modelBuilder.Entity<OrderMakingPhoto>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+
+            entity.ToTable("OrderMakingPhoto");
+
+            entity.Property(e => e.StorageKey).HasMaxLength(200);
+            entity.Property(e => e.ContentType).HasMaxLength(50);
+
+            entity.HasOne(d => d.Order).WithMany(o => o.MakingPhotos)
+                .HasForeignKey(d => d.OrderId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
 
         modelBuilder.Entity<ProductImage>(entity =>

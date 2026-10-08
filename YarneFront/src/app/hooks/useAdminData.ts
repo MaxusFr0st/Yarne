@@ -34,7 +34,7 @@ import {
   type UserDto,
 } from "../api/admin";
 import { register } from "../api/auth";
-import { fetchAdminOrders, fetchAdminOrdersSummary, updateOrderStatus, createOrderWaybill, refreshOrderTracking, cancelOrderWaybill, markOrderPaymentReceived, undoOrderPaymentReceived, resetOrderPaymentChoice, setOrderForeignDelivery, setOrderManualTtn, type OrderDto, type AdminOrdersSummaryDto, type OrderItemDto, type OrderStatus, type CreateWaybillRequest } from "../api/orders";
+import { fetchAdminOrders, fetchAdminOrdersSummary, updateOrderStatus, createOrderWaybill, refreshOrderTracking, cancelOrderWaybill, markOrderPaymentReceived, undoOrderPaymentReceived, resetOrderPaymentChoice, setOrderPaymentChoiceAdmin, setOrderForeignDelivery, setOrderManualTtn, type OrderDto, type AdminOrdersSummaryDto, type OrderItemDto, type OrderStatus, type CreateWaybillRequest } from "../api/orders";
 import { ApiRequestError } from "../api/errors";
 import type { Product } from "../types/product";
 import { normalizeLaceVariants } from "../utils/variantStock";
@@ -148,6 +148,10 @@ function mapOrderDtoToAdminOrder(o: OrderDto): {
   paymentReceivedAt: string | null;
   receiptUploadedAt: string | null;
   paymentClaimedAt: string | null;
+  photosRequestedAt: string | null;
+  makingPhotoCount: number;
+  paymentCurrency: "UAH" | "EUR";
+  eurTotal: number | null;
   cancelReason: string | null;
   isForeignDelivery: boolean;
   deliveryCountryName: string | null;
@@ -184,6 +188,10 @@ function mapOrderDtoToAdminOrder(o: OrderDto): {
     paymentReceivedAt: o.paymentReceivedAt ?? null,
     receiptUploadedAt: o.receiptUploadedAt ?? null,
     paymentClaimedAt: o.paymentClaimedAt ?? null,
+    photosRequestedAt: o.photosRequestedAt ?? null,
+    makingPhotoCount: o.makingPhotoCount ?? 0,
+    paymentCurrency: o.paymentCurrency === "EUR" ? "EUR" : "UAH",
+    eurTotal: o.eurTotal ?? null,
     cancelReason: o.cancelReason ?? null,
     isForeignDelivery: o.isForeignDelivery ?? false,
     deliveryCountryName: o.deliveryCountryName ?? null,
@@ -494,8 +502,12 @@ export function useAdminData() {
     setOrders((prev) => prev.map((o) => (o.id === updated.id ? mapped : o)));
     return updated;
   }, []);
+  const setOrderPhotoCount = useCallback((id: number, count: number) => {
+    setOrders((prev) => prev.map((o) => (o.id === id ? { ...o, makingPhotoCount: count } : o)));
+  }, []);
   const markPaymentReceived = useCallback((id: number) => applyOrderUpdate(() => markOrderPaymentReceived(id)), [applyOrderUpdate]);
   const resetPaymentChoice = useCallback((id: number) => applyOrderUpdate(() => resetOrderPaymentChoice(id)), [applyOrderUpdate]);
+  const setPaymentChoice = useCallback((id: number, choice: "Transfer" | "Pickup") => applyOrderUpdate(() => setOrderPaymentChoiceAdmin(id, choice)), [applyOrderUpdate]);
   const undoPaymentReceived = useCallback((id: number) => applyOrderUpdate(() => undoOrderPaymentReceived(id)), [applyOrderUpdate]);
   const setForeignDelivery = useCallback((id: number, on: boolean) => applyOrderUpdate(() => setOrderForeignDelivery(id, on)), [applyOrderUpdate]);
   const setManualTtn = useCallback((id: number, ttn: string | null) => applyOrderUpdate(() => setOrderManualTtn(id, ttn)), [applyOrderUpdate]);
@@ -522,6 +534,8 @@ export function useAdminData() {
     markPaymentReceived,
     undoPaymentReceived,
     resetPaymentChoice,
+    setPaymentChoice,
+    setOrderPhotoCount,
     setForeignDelivery,
     setManualTtn,
     addProduct,

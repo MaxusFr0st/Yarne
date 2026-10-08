@@ -1,4 +1,4 @@
-import { apiRequest } from "./client";
+import { apiBlob, apiRequest } from "./client";
 import { buildApiUrl, resolveApiBase } from "./base";
 
 export interface OrderItemDto {
@@ -43,6 +43,11 @@ export interface OrderDto {
   paymentReceivedAt?: string | null;
   receiptUploadedAt?: string | null;
   paymentClaimedAt?: string | null;
+  photosRequestedAt?: string | null;
+  makingPhotoCount?: number;
+  /** "EUR" for an order delivered abroad (paid in euro); `total` stays the hryvnia figure. */
+  paymentCurrency?: "UAH" | "EUR";
+  eurTotal?: number | null;
   deliveryCountryCode?: string | null;
   deliveryCountryName?: string | null;
   deliveryCarrier?: "NovaPost" | "Other" | null;
@@ -213,6 +218,13 @@ export interface TransferDetails {
   iban: string;
   /** What to write in the payment note, the order number already in it. */
   reference: string;
+  /** "UAH" (a card) or "EUR" (a euro bank account). */
+  currency: "UAH" | "EUR";
+  /** Euro details only. */
+  swift: string;
+  bankName: string;
+  bankAddress: string;
+  note: string;
 }
 
 export interface PublicOrderStatusItem {
@@ -241,6 +253,8 @@ export interface PublicOrderStatus {
   currencyCode: string;
   total: number;
   eurTotal: number | null;
+  /** "EUR" for an order delivered abroad: paid in euro to a euro account. */
+  paymentCurrency: "UAH" | "EUR";
   locale: string | null;
   recipientFirstName: string | null;
   deliveryCityName: string | null;
@@ -266,6 +280,10 @@ export interface PublicOrderStatus {
   paymentClaimedAt: string | null;
   /** "I have paid" is still open for this order. */
   canClaimPayment: boolean;
+  /** The order is being made and photos have not been asked for yet. */
+  canRequestPhotos: boolean;
+  photosRequested: boolean;
+  photoCount: number;
   cancelReason: string | null;
   email: string | null;
   isAttachedToAccount: boolean;
@@ -317,4 +335,50 @@ export async function setOrderManualTtn(orderId: number, ttnNumber: string | nul
 /** Lets the customer choose how to pay again (also removes the receipt and the claim). */
 export async function resetOrderPaymentChoice(orderId: number): Promise<OrderDto> {
   return apiRequest<OrderDto>(`/api/orders/${orderId}/reset-payment-choice`, { method: "POST" });
+}
+
+/** The owner sets how the customer pays (until the payment is received). Nobody is emailed. */
+export async function setOrderPaymentChoiceAdmin(orderId: number, choice: "Transfer" | "Pickup"): Promise<OrderDto> {
+  return apiRequest<OrderDto>(`/api/orders/${orderId}/payment-choice`, { method: "POST", body: JSON.stringify({ choice }) });
+}
+
+export interface MakingPhotoItem {
+  id: number;
+  createdAt: string;
+}
+
+export interface MakingPhotosList {
+  requestedAt: string | null;
+  photos: MakingPhotoItem[];
+}
+
+/** Signed-in owner only (403 for anyone else). */
+export async function fetchMakingPhotos(token: string): Promise<MakingPhotosList> {
+  return apiRequest<MakingPhotosList>(`/api/orders/status/${encodeURIComponent(token)}/photos`);
+}
+
+export async function requestMakingPhotos(token: string): Promise<MakingPhotosList> {
+  return apiRequest<MakingPhotosList>(`/api/orders/status/${encodeURIComponent(token)}/photos/request`, { method: "POST" });
+}
+
+export function fetchMakingPhotoBlob(token: string, photoId: number): Promise<Blob> {
+  return apiBlob(`/api/orders/status/${encodeURIComponent(token)}/photos/${photoId}`);
+}
+
+export async function fetchAdminMakingPhotos(orderId: number): Promise<MakingPhotosList> {
+  return apiRequest<MakingPhotosList>(`/api/orders/${orderId}/making-photos`);
+}
+
+export async function uploadAdminMakingPhotos(orderId: number, files: File[]): Promise<MakingPhotosList> {
+  const body = new FormData();
+  for (const file of files) body.append("files", file);
+  return apiRequest<MakingPhotosList>(`/api/orders/${orderId}/making-photos`, { method: "POST", body });
+}
+
+export async function deleteAdminMakingPhoto(orderId: number, photoId: number): Promise<MakingPhotosList> {
+  return apiRequest<MakingPhotosList>(`/api/orders/${orderId}/making-photos/${photoId}`, { method: "DELETE" });
+}
+
+export function fetchAdminMakingPhotoBlob(orderId: number, photoId: number): Promise<Blob> {
+  return apiBlob(`/api/orders/${orderId}/making-photos/${photoId}/image`);
 }

@@ -34,6 +34,14 @@ public sealed class ReceiptCleanupService : BackgroundService
                     stoppingToken);
                 if (removed > 0)
                     _logger.LogInformation("Deleted {Count} expired payment receipts.", removed);
+
+                // Safety net: making-of photos of finished orders that were missed when the order was finished.
+                var photos = await MakingPhotos.DeleteForFinishedOrdersAsync(
+                    scope.ServiceProvider.GetRequiredService<YarneDbContext>(),
+                    scope.ServiceProvider.GetRequiredService<IR2ImageStorageService>(),
+                    stoppingToken);
+                if (photos > 0)
+                    _logger.LogInformation("Deleted {Count} leftover making-of photos.", photos);
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {

@@ -11,6 +11,11 @@ type PriceTagProps = {
   /** EUR equivalent, shown instead of `amount` when locale is "en" and euros are switched on (SHOW_EUR_FOR_ENGLISH). Null/undefined falls back to the UAH `amount`. */
   eurAmount?: number | null;
   locale?: Locale;
+  /**
+   * Forces the currency: "EUR" for something paid in euro (an order delivered abroad), whatever the site language. Left out, the
+   * language decides, as before (SHOW_EUR_FOR_ENGLISH).
+   */
+  currency?: "UAH" | "EUR";
   variant?: PriceTagVariant;
   /** On photo overlays use `light` (white type). Default `dark` for cream/white UI. */
   tone?: PriceTagTone;
@@ -83,6 +88,7 @@ function ink(opacity: number, tone: PriceTagTone): string {
 export function PriceTag({
   amount,
   eurAmount,
+  currency,
   locale: localeProp,
   variant = "card",
   tone = "dark",
@@ -91,10 +97,10 @@ export function PriceTag({
 }: PriceTagProps) {
   const contextLocale = useLocale();
   const locale = localeProp ?? contextLocale;
-  const useEur = showsEur(locale) && eurAmount != null;
+  const useEur = (currency ? currency === "EUR" : showsEur(locale)) && eurAmount != null;
   const displayAmount = useEur ? eurAmount : amount;
   const { symbol, value } = splitPriceCompact(displayAmount, locale, useEur ? "EUR" : "UAH");
-  const unit = withUnit && locale === "uk" ? getHryvniaUnit(displayAmount) : null;
+  const unit = withUnit && locale === "uk" && !useEur ? getHryvniaUnit(displayAmount) : null;
   const v = VARIANT_STYLES[variant];
 
   const rootStyle: CSSProperties = {

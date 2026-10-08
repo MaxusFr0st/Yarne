@@ -10,6 +10,7 @@ public enum OrderEmailEvent
     PaymentConfirmed,
     InternalPaymentChosen,
     InternalReceiptUploaded,
+    PhotosReady,
 }
 
 public class OrderConfirmationEmailMessage
@@ -24,6 +25,9 @@ public class OrderConfirmationEmailMessage
 
     /// <summary>The admin's orders screen with this order opened: the main button of every owner notice.</summary>
     public string AdminUrl { get; set; } = string.Empty;
+
+    /// <summary>"EUR": the order is paid in euro, so its amounts are shown in € only. Anything else is hryvnia, as always.</summary>
+    public string? PaymentCurrency { get; set; }
 
     public string? TtnNumber { get; set; }
 

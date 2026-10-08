@@ -11,7 +11,7 @@ public class OrderConfirmationEmailBuilderTests
 
         var subject = OrderConfirmationEmailBuilder.BuildSubject(message);
 
-        Assert.Equal("Замовлення #42 отримано", subject);
+        Assert.Equal("Yarné · Замовлення #42", subject);
     }
 
     [Fact]
@@ -100,7 +100,7 @@ public class OrderConfirmationEmailBuilderTests
         var message = SampleMessage(orderId: 42);
         message.OrderNumber = "Y071026-3";
 
-        foreach (var (emailEvent, word) in new[]
+        foreach (var (emailEvent, _) in new[]
                  {
                      (OrderEmailEvent.Received, "отримано"),
                      (OrderEmailEvent.Confirmed, "прийнято"),
@@ -109,11 +109,11 @@ public class OrderConfirmationEmailBuilderTests
                  })
         {
             message.Event = emailEvent;
-            Assert.Equal($"Замовлення Y071026-3 {word}", OrderConfirmationEmailBuilder.BuildSubject(message));
+            Assert.Equal("Yarné · Замовлення Y071026-3", OrderConfirmationEmailBuilder.BuildSubject(message));
         }
 
         message.Event = OrderEmailEvent.InternalPlacedNotification;
-        Assert.Equal("Нове замовлення Y071026-3", OrderConfirmationEmailBuilder.BuildSubject(message));
+        Assert.Equal("[Адмін] Замовлення Y071026-3", OrderConfirmationEmailBuilder.BuildSubject(message));
         Assert.DoesNotContain("#42", OrderConfirmationEmailBuilder.BuildHtml(message));
     }
 

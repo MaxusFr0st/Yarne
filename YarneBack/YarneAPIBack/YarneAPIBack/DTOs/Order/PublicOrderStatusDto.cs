@@ -15,6 +15,9 @@ public class PublicOrderStatusDto
 
     public string CurrencyCode { get; set; } = "UAH";
 
+    /// <summary>The currency the customer pays in: "EUR" for an order delivered abroad, otherwise "UAH".</summary>
+    public string PaymentCurrency { get; set; } = "UAH";
+
     public decimal Total { get; set; }
 
     /// <summary>Null unless every line has a EUR snapshot, like the order history.</summary>
@@ -68,6 +71,15 @@ public class PublicOrderStatusDto
     public TransferDetailsDto? TransferDetails { get; set; }
 
     public string? CancelReason { get; set; }
+
+    /// <summary>The order is being made and the customer has not asked for photos yet.</summary>
+    public bool CanRequestPhotos { get; set; }
+
+    /// <summary>The customer asked for photos.</summary>
+    public bool PhotosRequested { get; set; }
+
+    /// <summary>How many photos there are. The photos themselves are only for the signed-in owner of the order.</summary>
+    public int PhotoCount { get; set; }
 
     /// <summary>The email the order was placed with (the account's email once attached).</summary>
     public string? Email { get; set; }
@@ -125,4 +137,17 @@ public class TransferDetailsDto
 
     /// <summary>What to write in the payment note ("призначення"): the owner's text with {{order}} replaced by this order's number.</summary>
     public string Reference { get; set; } = string.Empty;
+
+    /// <summary>"UAH" (a card) or "EUR" (a euro bank account).</summary>
+    public string Currency { get; set; } = "UAH";
+
+    /// <summary>EUR details only.</summary>
+    public string Swift { get; set; } = string.Empty;
+
+    public string BankName { get; set; } = string.Empty;
+
+    public string BankAddress { get; set; } = string.Empty;
+
+    /// <summary>EUR details only: the owner's free note (about fees, say).</summary>
+    public string Note { get; set; } = string.Empty;
 }

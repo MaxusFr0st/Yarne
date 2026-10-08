@@ -57,9 +57,16 @@ public class OrderStatusController : ControllerBase
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
     public async Task<ActionResult<PublicOrderStatusDto>> Get(string token, CancellationToken ct = default)
     {
-        var order = await FindAsync(token, asNoTracking: true, ct);
+        var order = await FindAsync(token, asNoTracking: false, ct);
         if (order == null)
             return NotFound();
+
+        // An accepted foreign order that has not got its (only) payment method yet gets it now, quietly.
+        if (ForeignDelivery.ApplyAutoTransfer(order))
+        {
+            order.UpdatedAt = DateTime.UtcNow;
+            await _context.SaveChangesAsync(ct);
+        }
 
         return Ok(await MapAsync(order, ct));
     }
@@ -157,8 +164,7 @@ public class OrderStatusController : ControllerBase
         order.UpdatedAt = DateTime.UtcNow;
         await _context.SaveChangesAsync(ct);
 
-        // Exactly one owner email per claim: a second call is refused above.
-        _notifier.NotifyOwner(order, OrderEmailEvent.InternalReceiptUploaded);
+        // No email to the owner: the admin's order list shows "Says paid" instead.
         return Ok(await MapAsync(order, ct));
     }
 
@@ -223,7 +229,10 @@ public class OrderStatusController : ControllerBase
             Status = order.Status,
             CurrencyCode = order.CurrencyCode,
             Total = order.TotalCents / 100m,
-            EurTotal = lines.Any(i => !i.EurUnitPrice.HasValue) ? null : lines.Sum(i => i.EurUnitPrice!.Value * i.Quantity),
+            PaymentCurrency = order.PaymentCurrency == "EUR" ? "EUR" : "UAH",
+            EurTotal = order.EurTotalCents.HasValue
+                ? order.EurTotalCents.Value / 100m
+                : lines.Any(i => !i.EurUnitPrice.HasValue) ? null : lines.Sum(i => i.EurUnitPrice!.Value * i.Quantity),
             Locale = order.Locale,
             RecipientFirstName = order.RecipientFirstName,
             DeliveryCityName = order.DeliveryCityName,
@@ -244,6 +253,9 @@ public class OrderStatusController : ControllerBase
             CanChoosePayment = CanChoosePayment(order.Status),
             TransferDetails = order.PaymentChoice == "Transfer" ? await ReadTransferDetailsAsync(order, ct) : null,
             CancelReason = order.CancelReason,
+            CanRequestPhotos = MakingPhotos.IsMakingStage(order.Status) && order.PhotosRequestedAt == null,
+            PhotosRequested = order.PhotosRequestedAt != null,
+            PhotoCount = await _context.OrderMakingPhotos.CountAsync(p => p.OrderId == order.Id, ct),
             Email = email,
             IsAttachedToAccount = order.CustomerId != null,
             AccountExistsForEmail = accountExists,
@@ -274,14 +286,14 @@ public class OrderStatusController : ControllerBase
     private async Task<TransferDetailsDto?> ReadTransferDetailsAsync(Order order, CancellationToken ct)
     {
         var json = await _settings.GetValueJsonAsync(PaymentSettingKey, ct);
-        return ExtractTransferDetails(json, order.OrderNumber ?? $"#{order.Id}");
+        return ExtractTransferDetails(json, order.OrderNumber ?? $"#{order.Id}", order.PaymentCurrency == "EUR");
     }
 
     /// <summary>
     /// Reads { "recipient", "cardNumber", "iban", "reference" }. The reference is the owner's text with {{order}} replaced by the order
     /// number; empty text means just the order number. Null when there is neither a recipient nor a card number.
     /// </summary>
-    public static TransferDetailsDto? ExtractTransferDetails(string? valueJson, string orderNumber)
+    public static TransferDetailsDto? ExtractTransferDetails(string? valueJson, string orderNumber, bool eur = false)
     {
         if (string.IsNullOrWhiteSpace(valueJson))
             return null;
@@ -292,10 +304,37 @@ public class OrderStatusController : ControllerBase
             if (doc.RootElement.ValueKind != JsonValueKind.Object)
                 return null;
 
+            // Euro orders read the "eur" group (a euro bank account); a missing group is empty, so old saved settings keep working.
+            var scope = doc.RootElement;
+            if (eur)
+            {
+                if (!doc.RootElement.TryGetProperty("eur", out scope) || scope.ValueKind != JsonValueKind.Object)
+                    return null;
+            }
+
             string Text(string key) =>
-                doc.RootElement.TryGetProperty(key, out var el) && el.ValueKind == JsonValueKind.String
+                scope.TryGetProperty(key, out var el) && el.ValueKind == JsonValueKind.String
                     ? el.GetString()?.Trim() ?? string.Empty
                     : string.Empty;
+
+            if (eur)
+            {
+                var holder = Text("recipient");
+                var iban = Text("iban");
+                if (holder.Length == 0 && iban.Length == 0)
+                    return null;
+                return new TransferDetailsDto
+                {
+                    Currency = "EUR",
+                    Recipient = holder,
+                    Iban = iban,
+                    Swift = Text("swift"),
+                    BankName = Text("bankName"),
+                    BankAddress = Text("bankAddress"),
+                    Reference = ResolveReference(Text("reference"), orderNumber),
+                    Note = Text("note"),
+                };
+            }
 
             var recipient = Text("recipient");
             var card = Text("cardNumber");

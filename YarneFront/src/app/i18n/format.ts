@@ -79,3 +79,9 @@ export function formatPriceFromPrefix(
 ): string {
   return `${prefix} ${formatPrice(amount, locale)}`.trim();
 }
+
+/** "€25" or "€25.50" as running text, in the language's number style. */
+export function formatEuro(amount: number, locale: Locale): string {
+  const safe = Number.isFinite(amount) ? amount : 0;
+  return `${EURO_SIGN}${formatAmountNumber(safe, locale)}`;
+}

@@ -41,7 +41,7 @@ public class SmtpEmailService : IEmailService
 
         var subject = OrderConfirmationEmailBuilder.BuildSubject(message);
         var htmlBody = OrderConfirmationEmailBuilder.BuildHtml(message);
-        await SendHtmlEmailAsync(message.ToEmail, subject, htmlBody, message.BccEmails, ct);
+        await SendHtmlEmailAsync(message.ToEmail, subject, htmlBody, message.BccEmails, EmailThreading.For(message, _emailFrom), ct);
     }
 
     public Task SendOrderReceiptAsync(OrderConfirmationEmailMessage message, CancellationToken ct = default)
@@ -76,7 +76,7 @@ public class SmtpEmailService : IEmailService
         return false;
     }
 
-    private async Task SendHtmlEmailAsync(string toEmail, string subject, string htmlBody, List<string> bccEmails, CancellationToken ct)
+    private async Task SendHtmlEmailAsync(string toEmail, string subject, string htmlBody, List<string> bccEmails, EmailThreading.Headers threading, CancellationToken ct)
     {
         using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
         timeoutCts.CancelAfter(DefaultSmtpTimeout);
@@ -90,6 +90,12 @@ public class SmtpEmailService : IEmailService
             foreach (var bcc in bccEmails.Where(e => !string.IsNullOrWhiteSpace(e)))
                 mailMessage.Bcc.Add(MailboxAddress.Parse(bcc));
             mailMessage.Subject = subject;
+            // One conversation per order in the recipient's mail app.
+            mailMessage.MessageId = threading.MessageId.Trim('<', '>');
+            if (threading.InReplyTo != null)
+                mailMessage.InReplyTo = threading.InReplyTo.Trim('<', '>');
+            if (threading.References != null)
+                mailMessage.References.Add(threading.References.Trim('<', '>'));
             mailMessage.Body = new TextPart("html") { Text = htmlBody };
 
             using var client = new SmtpClient();

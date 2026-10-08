@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using YarneAPIBack.Data;
@@ -11,9 +12,11 @@ using YarneAPIBack.Data;
 namespace YarneAPIBack.Data.Migrations
 {
     [DbContext(typeof(YarneDbContext))]
-    partial class YarneDbContextModelSnapshot : ModelSnapshot
+    [Migration("20261009120000_AddEurPayment")]
+    partial class AddEurPayment
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -2064,12 +2067,6 @@ namespace YarneAPIBack.Data.Migrations
                     b.Property<DateTime?>("PaymentReceivedAt")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<DateTime?>("PhotosNotifiedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<DateTime?>("PhotosRequestedAt")
-                        .HasColumnType("timestamp with time zone");
-
                     b.Property<string>("ReceiptContentType")
                         .HasMaxLength(50)
                         .HasColumnType("character varying(50)");
@@ -2250,37 +2247,6 @@ namespace YarneAPIBack.Data.Migrations
                     b.HasIndex("ShippingAddrId");
 
                     b.ToTable("Order", (string)null);
-                });
-
-            modelBuilder.Entity("YarneAPIBack.Models.OrderMakingPhoto", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
-
-                    b.Property<string>("ContentType")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<int>("OrderId")
-                        .HasColumnType("integer");
-
-                    b.Property<string>("StorageKey")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("character varying(200)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("OrderId");
-
-                    b.ToTable("OrderMakingPhoto", (string)null);
                 });
 
             modelBuilder.Entity("YarneAPIBack.Models.OrderItem", b =>
@@ -3580,22 +3546,9 @@ namespace YarneAPIBack.Data.Migrations
 
             modelBuilder.Entity("YarneAPIBack.Models.Order", b =>
                 {
-                    b.Navigation("MakingPhotos");
-
                     b.Navigation("OrderItems");
 
                     b.Navigation("ReturnOrders");
-                });
-
-            modelBuilder.Entity("YarneAPIBack.Models.OrderMakingPhoto", b =>
-                {
-                    b.HasOne("YarneAPIBack.Models.Order", "Order")
-                        .WithMany("MakingPhotos")
-                        .HasForeignKey("OrderId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Order");
                 });
 
             modelBuilder.Entity("YarneAPIBack.Models.OrderItem", b =>

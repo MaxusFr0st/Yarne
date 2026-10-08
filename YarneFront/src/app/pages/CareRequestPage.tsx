@@ -125,12 +125,20 @@ export function CareRequestPage() {
         <span className={`hidden md:block ${LABEL} text-[11.5px] ${card.ink ? "opacity-80" : "text-[#2D241E]/72"}`}>{card.label}</span>
         <a
           href={card.href}
-          className={`self-start py-1.5 -my-1.5 text-[32px] md:text-[clamp(32px,3.3vw,48px)] leading-none break-all rounded-sm ${
+          className={`self-start py-1.5 -my-1.5 ${card.value.includes("@") ? "text-[clamp(22px,7vw,32px)] md:text-[clamp(24px,2.4vw,40px)]" : "text-[32px] md:text-[clamp(32px,3.3vw,48px)] break-all"} leading-none rounded-sm ${
             card.ink ? `text-[#F5F2ED] ${FOCUS_RING_ON_INK}` : `text-[#2D241E] hover:text-[#4A0E0E] ${FOCUS_RING}`
           }`}
           style={SERIF}
         >
-          {card.value}
+          {card.value.includes("@") ? (
+            <>
+              {card.value.slice(0, card.value.indexOf("@"))}
+              <wbr />
+              {card.value.slice(card.value.indexOf("@"))}
+            </>
+          ) : (
+            card.value
+          )}
         </a>
         {card.note && (
           <span className={`inline-flex items-center gap-2 text-[13px] md:text-sm ${card.ink ? "opacity-85" : "text-[#2D241E]/72"}`}>

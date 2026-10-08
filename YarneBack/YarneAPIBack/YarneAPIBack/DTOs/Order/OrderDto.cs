@@ -22,6 +22,17 @@ public class OrderDto
     /// <summary>When the customer said they paid (receipt attached); the owner then checks the bank and marks it received.</summary>
     public DateTime? PaymentClaimedAt { get; set; }
 
+    /// <summary>Admin: when the customer asked for making-of photos.</summary>
+    public DateTime? PhotosRequestedAt { get; set; }
+
+    public int MakingPhotoCount { get; set; }
+
+    /// <summary>"EUR" for an order delivered abroad (paid in euro), otherwise "UAH". Total stays the hryvnia figure.</summary>
+    public string PaymentCurrency { get; set; } = "UAH";
+
+    /// <summary>The euro total of a EUR order (snapshot taken when it was placed).</summary>
+    public decimal? EurTotal { get; set; }
+
     public DateTime? PaymentReceivedAt { get; set; }
 
     /// <summary>When the customer uploaded a receipt (the file itself is fetched by the admin through GET /api/orders/{id}/receipt).</summary>

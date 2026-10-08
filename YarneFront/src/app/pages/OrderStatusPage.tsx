@@ -1,19 +1,21 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { useParams, useSearchParams } from "react-router";
 import { motion, useReducedMotion } from "motion/react";
-import { Check, Copy } from "lucide-react";
+import { Check, Copy, Instagram } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { claimOrderPayment, fetchOrderStatus, setOrderPaymentChoice, type PaymentChoice, type PublicOrderStatus } from "../api/orders";
 import { useContactContent } from "../hooks/useCareServiceContent";
 import { ApiRequestError } from "../api/errors";
 import { FOCUS_RING, LABEL, PILL, PILL_INK, PILL_OUTLINE, SANS, SERIF } from "../components/care/careUi";
 import { PriceTag } from "../components/PriceTag";
+import { MakingPhotosBlock, isMakingPhotosVisible } from "../components/MakingPhotosBlock";
 import { Skeleton } from "../components/ui/skeleton";
 import { useAuth } from "../context/AppContext";
 import { usePageTitle } from "../hooks/usePageTitle";
 import { LangLink } from "../i18n/LangLink";
-import { formatPrice } from "../i18n/format";
+import { formatEuro, formatPrice } from "../i18n/format";
 import { useLocale } from "../i18n/useLocale";
+import { mailtoHref } from "../utils/contactContent";
 import { orderStatusKey } from "../utils/orderStatusKey";
 import { localizedCatalogName } from "../utils/localizedName";
 
@@ -277,6 +279,10 @@ export function OrderStatusPage() {
     </div>
   );
 
+  // Delivered abroad: everything is paid, and shown, in euro.
+  const eurOrder = data.paymentCurrency === "EUR";
+  const currency = eurOrder ? ("EUR" as const) : undefined;
+  const money = (amount: number) => (eurOrder ? formatEuro(data.eurTotal ?? 0, locale) : formatPrice(amount, locale));
   const choosing = data.paymentChoice === null;
   const effectivePick = data.paymentChoice ?? (data.isForeignDelivery ? "Transfer" : picked);
   const payOption = (choice: PaymentChoice, label: string) => {
@@ -362,7 +368,7 @@ export function OrderStatusPage() {
                 {details.length > 0 && <p className="text-[0.85rem] text-[#2D241E]/65">{details.join(" · ")}</p>}
               </div>
               <div className="text-right">
-                <PriceTag amount={item.unitPrice} eurAmount={item.eurUnitPrice} locale={locale} variant="line" />
+                <PriceTag amount={item.unitPrice} eurAmount={item.eurUnitPrice} currency={currency} locale={locale} variant="line" />
                 {item.quantity > 1 && <p className="text-[0.8rem] text-[#2D241E]/65">{t("orderStatus.quantity", { count: item.quantity })}</p>}
               </div>
             </li>
@@ -372,7 +378,7 @@ export function OrderStatusPage() {
 
       <div className="flex items-baseline justify-between gap-4" style={SANS}>
         <span className="text-[0.9rem] text-[#2D241E]/65">{t("orderStatus.total")}</span>
-        <PriceTag amount={data.total} eurAmount={data.eurTotal} locale={locale} variant="emphasis" withUnit />
+        <PriceTag amount={data.total} eurAmount={data.eurTotal} currency={currency} locale={locale} variant="emphasis" withUnit />
       </div>
 
       <dl className="flex flex-col gap-3" style={SANS}>
@@ -405,7 +411,7 @@ export function OrderStatusPage() {
             {t("orderStatus.paid.title")}
           </h2>
           <p className="text-[0.9rem] text-[#2D241E]/75">
-            {t("orderStatus.paid.amount")}: {formatPrice(data.total, locale)} · {t("orderStatus.paid.date")}:{" "}
+            {t("orderStatus.paid.amount")}: {money(data.total)} · {t("orderStatus.paid.date")}:{" "}
             {new Intl.DateTimeFormat(locale === "uk" ? "uk-UA" : "en-GB", { day: "numeric", month: "long", year: "numeric" }).format(new Date(data.paymentReceivedAt))}
           </p>
         </section>
@@ -416,13 +422,15 @@ export function OrderStatusPage() {
           <h2 id="order-pay-title" className="text-[#2D241E]" style={{ ...SERIF, fontSize: "1.4rem", fontWeight: 600, lineHeight: 1.15 }}>
             {t("orderStatus.pay.title")}
           </h2>
-          <p className="text-[0.9rem] text-[#2D241E]/70">{t("orderStatus.pay.amount", { total: formatPrice(data.total, locale) })}</p>
+          <p className="text-[0.9rem] text-[#2D241E]/70">{t("orderStatus.pay.amount", { total: money(data.total) })}</p>
           {choosing ? (
             <>
-              <div role="radiogroup" aria-label={t("orderStatus.pay.title")} className={`grid gap-2.5 ${data.isForeignDelivery ? "" : "sm:grid-cols-2"}`}>
-                {payOption("Transfer", t("orderStatus.pay.transfer"))}
-                {!data.isForeignDelivery && payOption("Pickup", t("orderStatus.pay.pickup"))}
-              </div>
+              {!data.isForeignDelivery && (
+                <div role="radiogroup" aria-label={t("orderStatus.pay.title")} className="grid gap-2.5 sm:grid-cols-2">
+                  {payOption("Transfer", t("orderStatus.pay.transfer"))}
+                  {payOption("Pickup", t("orderStatus.pay.pickup"))}
+                </div>
+              )}
               {!data.isForeignDelivery && <p className="text-[0.8rem] text-[#2D241E]/65">{t("orderStatus.pay.fee")}</p>}
               <button
                 type="button"
@@ -460,6 +468,9 @@ export function OrderStatusPage() {
                     ["recipient", t("orderStatus.pay.recipient"), data.transferDetails.recipient],
                     ["card", t("orderStatus.pay.card"), data.transferDetails.cardNumber],
                     ["iban", t("orderStatus.pay.iban"), data.transferDetails.iban],
+                    ["swift", t("orderStatus.pay.swift"), data.transferDetails.swift],
+                    ["bank", t("orderStatus.pay.bank"), data.transferDetails.bankName],
+                    ["bankAddress", t("orderStatus.pay.bankAddress"), data.transferDetails.bankAddress],
                     ["reference", t("orderStatus.pay.reference"), data.transferDetails.reference],
                   ] as const
                 )
@@ -483,6 +494,7 @@ export function OrderStatusPage() {
               ) : (
                 <p>{t("orderStatus.pay.detailsPending")}</p>
               )}
+              {data.transferDetails?.note && <p className="text-[0.85rem] text-[#2D241E]/75 whitespace-pre-line">{data.transferDetails.note}</p>}
             </div>
           )}
           {data.paymentChoice === "Transfer" && data.paymentClaimedAt && (
@@ -525,9 +537,45 @@ export function OrderStatusPage() {
             </div>
           )}
           {!choosing && (
-            <p className="text-[0.8rem] text-[#2D241E]/65">{t("orderStatus.pay.changeByEmail", { email: contact.email })}</p>
+            <div className="flex flex-col gap-2.5 rounded-2xl bg-[#F5F2ED] p-4 text-[0.8rem] text-[#2D241E]/75">
+              <p>{t("orderStatus.pay.changeIntro")}</p>
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+                <a
+                  href={mailtoHref(contact.email, t("orderStatus.pay.changeSubject", { number }), t("orderStatus.pay.changeMessage", { number }))}
+                  className={`${PILL} ${PILL_OUTLINE} h-11 px-4`}
+                >
+                  {t("orderStatus.pay.changeWrite")}
+                </a>
+                <span className="select-text break-all text-[#2D241E]">{contact.email}</span>
+              </div>
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+                {contact.instagramHandle && contact.instagramUrl && (
+                  <a
+                    href={contact.instagramUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className={`inline-flex min-h-11 items-center gap-2 rounded-sm text-[#2D241E] ${FOCUS_RING}`}
+                  >
+                    <Instagram size={17} strokeWidth={1.5} className="shrink-0" aria-hidden />
+                    <span className="underline underline-offset-2">{contact.instagramHandle}</span>
+                  </a>
+                )}
+                <button
+                  type="button"
+                  onClick={() => void copyValue("changeMessage", t("orderStatus.pay.changeMessage", { number }))}
+                  className={`shrink-0 h-11 px-3.5 inline-flex items-center gap-1.5 rounded-full border border-[#2D241E]/25 text-[0.75rem] text-[#2D241E] cursor-pointer hover:bg-[#2D241E]/5 transition-colors ${FOCUS_RING}`}
+                >
+                  {copiedKey === "changeMessage" ? <Check size={14} strokeWidth={2} aria-hidden /> : <Copy size={14} strokeWidth={1.5} aria-hidden />}
+                  <span aria-live="polite">{copiedKey === "changeMessage" ? t("orderStatus.pay.copied") : t("orderStatus.pay.changeCopy")}</span>
+                </button>
+              </div>
+            </div>
           )}
         </section>
+      )}
+
+      {isMakingPhotosVisible(data) && (
+        <MakingPhotosBlock token={token} data={data} signedIn={!!user} accountBlockVisible={showAccountOffer} locale={locale} />
       )}
 
       {showAccountOffer && (

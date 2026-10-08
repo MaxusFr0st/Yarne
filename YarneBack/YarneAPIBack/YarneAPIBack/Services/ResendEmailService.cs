@@ -35,7 +35,7 @@ public class ResendEmailService : IEmailService
 
         var subject = OrderConfirmationEmailBuilder.BuildSubject(message);
         var htmlBody = OrderConfirmationEmailBuilder.BuildHtml(message);
-        await SendHtmlEmailAsync(message.ToEmail, subject, htmlBody, message.BccEmails, ct);
+        await SendHtmlEmailAsync(message.ToEmail, subject, htmlBody, message.BccEmails, EmailThreading.For(message, _emailFrom), ct);
     }
 
     public Task SendOrderReceiptAsync(OrderConfirmationEmailMessage message, CancellationToken ct = default)
@@ -66,15 +66,22 @@ public class ResendEmailService : IEmailService
         return false;
     }
 
-    private async Task SendHtmlEmailAsync(string toEmail, string subject, string htmlBody, List<string> bccEmails, CancellationToken ct)
+    private async Task SendHtmlEmailAsync(string toEmail, string subject, string htmlBody, List<string> bccEmails, EmailThreading.Headers threading, CancellationToken ct)
     {
         try
         {
             var client = _httpClientFactory.CreateClient();
             client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", _apiKey);
 
+            // Threading headers; Resend may replace Message-ID with its own, in which case the matching subject and
+            // In-Reply-To/References still group the emails.
+            var headers = new Dictionary<string, string> { ["Message-ID"] = threading.MessageId };
+            if (threading.InReplyTo != null) headers["In-Reply-To"] = threading.InReplyTo;
+            if (threading.References != null) headers["References"] = threading.References;
+
             var payload = new
             {
+                headers,
                 from = _emailFrom,
                 to = new[] { toEmail },
                 bcc = bccEmails.Count > 0 ? bccEmails : null,

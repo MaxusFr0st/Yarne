@@ -100,10 +100,24 @@ public partial class Order
     public string? DeliveryAddress { get; set; }
 
     /// <summary>Set when the owner has seen the bank transfer arrive. A mark, not a status; only for orders paid by transfer.</summary>
+    /// <summary>The currency the customer pays in: "EUR" for orders delivered abroad (to a euro IBAN), otherwise "UAH" (null on old orders). The accounting currency (CurrencyCode) and TotalCents stay hryvnia either way.</summary>
+    public string? PaymentCurrency { get; set; }
+
+    /// <summary>For a EUR order: the total in euro cents, a snapshot of the per-product € prices taken when it was placed.</summary>
+    public long? EurTotalCents { get; set; }
+
     /// <summary>When the customer pressed "I have paid" (with the receipt attached). One claim per order; the admin's reset reopens it.</summary>
     public DateTime? PaymentClaimedAt { get; set; }
 
     public DateTime? PaymentReceivedAt { get; set; }
+
+    /// <summary>When the signed-in customer asked to see photos of the order being made.</summary>
+    public DateTime? PhotosRequestedAt { get; set; }
+
+    /// <summary>When the customer was emailed that the photos are ready (once per order).</summary>
+    public DateTime? PhotosNotifiedAt { get; set; }
+
+    public virtual ICollection<OrderMakingPhoto> MakingPhotos { get; set; } = new List<OrderMakingPhoto>();
 
     /// <summary>Private storage key of the receipt image the customer uploaded; never a public URL. Cleared when the file is deleted.</summary>
     public string? ReceiptKey { get; set; }

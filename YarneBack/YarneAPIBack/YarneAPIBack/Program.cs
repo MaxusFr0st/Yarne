@@ -183,6 +183,7 @@ builder.Services.AddScoped<IAccessTokenIssuer, AccessTokenIssuer>();
 builder.Services.AddScoped<IRefreshTokenService, RefreshTokenService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<OrderNotifier>();
+builder.Services.AddScoped<MakingPhotoUploads>();
 builder.Services.AddHostedService<ReceiptCleanupService>();
 builder.Services.AddScoped<IOAuthService, OAuthService>();
 builder.Services.AddScoped<IProductService, ProductService>();

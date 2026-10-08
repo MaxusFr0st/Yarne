@@ -1,5 +1,6 @@
 import { useState, type ReactNode } from "react";
 import { Check, ChevronDown, ChevronUp, Copy } from "lucide-react";
+import { AdminMakingPhotos } from "./AdminMakingPhotos";
 import { fetchOrderReceiptObjectUrl } from "../../api/orders";
 import { PriceTag } from "../PriceTag";
 
@@ -19,6 +20,11 @@ export type AdminOrderDetailsOrder = {
   paymentReceivedAt: string | null;
   receiptUploadedAt: string | null;
   paymentClaimedAt: string | null;
+  paymentCurrency: "UAH" | "EUR";
+  eurTotal: number | null;
+  isForeignDelivery: boolean;
+  photosRequestedAt: string | null;
+  makingPhotoCount: number;
   itemCount: number;
 };
 
@@ -32,7 +38,7 @@ function Row({ label, children }: { label: string; children: ReactNode }) {
 }
 
 /** A section that opens on its chevron and starts closed, like the order rows themselves. */
-function Collapsible({ title, children }: { title: string; children: ReactNode }) {
+function Collapsible({ title, children, badge }: { title: string; children: ReactNode; badge?: string }) {
   const [open, setOpen] = useState(false);
   return (
     <div className="rounded-[18px]" style={PANEL}>
@@ -42,8 +48,15 @@ function Collapsible({ title, children }: { title: string; children: ReactNode }
         aria-expanded={open}
         className="w-full flex items-center justify-between gap-3 px-3 py-2.5 cursor-pointer"
       >
-        <span className={LABEL_CLASS} style={{ ...SANS, letterSpacing: "0.1em" }}>
-          {title}
+        <span className="inline-flex items-center gap-2">
+          <span className={LABEL_CLASS} style={{ ...SANS, letterSpacing: "0.1em" }}>
+            {title}
+          </span>
+          {badge && (
+            <span className="px-2.5 py-0.5 rounded-full text-xs" style={{ ...SANS, backgroundColor: "rgba(155,107,46,0.1)", color: "#9B6B2E" }}>
+              {badge}
+            </span>
+          )}
         </span>
         {open ? <ChevronUp size={16} style={{ color: "#2D241E", opacity: 0.6 }} /> : <ChevronDown size={16} style={{ color: "#2D241E", opacity: 0.6 }} />}
       </button>
@@ -62,6 +75,8 @@ export function AdminOrderDetails({
   onMarkPaid,
   onUndoPaid,
   onResetChoice,
+  onSetChoice,
+  onPhotosChanged,
   onError,
   itemsNode,
   waybillNode,
@@ -72,6 +87,8 @@ export function AdminOrderDetails({
   onUndoPaid: (orderId: number) => void;
   /** Lets the customer choose how to pay again. */
   onResetChoice: (orderId: number) => void;
+  onSetChoice: (orderId: number, choice: "Transfer" | "Pickup") => void;
+  onPhotosChanged: (orderId: number, count: number) => void;
   onError: (message: string) => void;
   itemsNode: ReactNode;
   waybillNode: ReactNode;
@@ -126,22 +143,54 @@ export function AdminOrderDetails({
           <Row label="Customer chose">
             <span className="inline-flex items-center gap-2">
               <span className="inline-block px-2.5 py-0.5 rounded-full text-xs" style={{ backgroundColor: "rgba(45,36,30,0.06)" }}>{choiceLabel}</span>
-              {order.paymentChoice && !order.paymentReceivedAt && (
-                <button
-                  type="button"
-                  disabled={busy}
-                  onClick={() => {
-                    if (window.confirm("Let the customer choose how to pay again? A receipt they sent will be deleted.")) onResetChoice(order.id);
-                  }}
-                  className="text-xs text-[#4A0E0E] underline underline-offset-2 disabled:opacity-50 cursor-pointer"
-                >
-                  Reset choice
-                </button>
+              {!order.paymentReceivedAt && (
+                <span className="inline-flex flex-wrap items-center gap-x-3 gap-y-1">
+                  {order.paymentChoice !== "Transfer" && (
+                    <button
+                      type="button"
+                      disabled={busy}
+                      onClick={() => onSetChoice(order.id, "Transfer")}
+                      className="text-xs text-[#4A0E0E] underline underline-offset-2 disabled:opacity-50 cursor-pointer"
+                    >
+                      Set: Card transfer
+                    </button>
+                  )}
+                  {!order.isForeignDelivery && order.paymentChoice !== "Pickup" && (
+                    <button
+                      type="button"
+                      disabled={busy}
+                      onClick={() => {
+                        if (!order.paymentChoice || window.confirm("Set this order to pay on pickup? A receipt they sent will be deleted.")) onSetChoice(order.id, "Pickup");
+                      }}
+                      className="text-xs text-[#4A0E0E] underline underline-offset-2 disabled:opacity-50 cursor-pointer"
+                    >
+                      Set: On pickup
+                    </button>
+                  )}
+                  {order.paymentChoice && (
+                    <button
+                      type="button"
+                      disabled={busy}
+                      onClick={() => {
+                        if (window.confirm("Let the customer choose how to pay again? A receipt they sent will be deleted.")) onResetChoice(order.id);
+                      }}
+                      className="text-xs text-[#4A0E0E] underline underline-offset-2 disabled:opacity-50 cursor-pointer"
+                    >
+                      Reset
+                    </button>
+                  )}
+                </span>
               )}
             </span>
           </Row>
-          {order.paymentChoice === "Pickup" && <Row label="Customer pays on pickup"><PriceTag amount={order.total} locale="uk" variant="line" /></Row>}
-          <Row label="Declared value"><PriceTag amount={order.total} locale="uk" variant="line" /></Row>
+          {order.paymentChoice === "Pickup" && order.paymentCurrency !== "EUR" && <Row label="Customer pays on pickup"><PriceTag amount={order.total} locale="uk" variant="line" /></Row>}
+          {order.paymentCurrency === "EUR" ? (
+            <Row label="Customer pays">
+              <PriceTag amount={order.total} eurAmount={order.eurTotal} currency="EUR" locale="uk" variant="line" /> (EUR, abroad)
+            </Row>
+          ) : (
+            <Row label="Declared value"><PriceTag amount={order.total} locale="uk" variant="line" /></Row>
+          )}
           {order.paymentChoice === "Transfer" && (
             <>
               <Row label="Receipt">
@@ -191,6 +240,9 @@ export function AdminOrderDetails({
       </div>
 
       {order.itemCount > 0 && <Collapsible title={`Items (${order.itemCount})`}>{itemsNode}</Collapsible>}
+      <Collapsible title="Making-of photos" badge={order.photosRequestedAt && order.makingPhotoCount === 0 ? "Requested" : undefined}>
+        <AdminMakingPhotos orderId={order.id} onChanged={(count) => onPhotosChanged(order.id, count)} onError={onError} />
+      </Collapsible>
       <Collapsible title="Nova Poshta">{waybillNode}</Collapsible>
     </div>
   );

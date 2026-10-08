@@ -90,11 +90,13 @@ type OrderLineDetailsProps = {
   line: OrderLineDetailsData;
   locale: Locale;
   className?: string;
+  /** "EUR" for a line paid in euro (delivery abroad); left out, the site language decides. */
+  currency?: "UAH" | "EUR";
   /** `compact` folds code/colour/size/lace/qty/price into one line — used on checkout's order card. */
   variant?: "stacked" | "compact";
 };
 
-export function OrderLineDetails({ line, locale, className = "", variant = "stacked" }: OrderLineDetailsProps) {
+export function OrderLineDetails({ line, locale, className = "", variant = "stacked", currency }: OrderLineDetailsProps) {
   const { t } = useTranslation();
 
   const laceLabel =
@@ -148,7 +150,7 @@ export function OrderLineDetails({ line, locale, className = "", variant = "stac
             ×{line.quantity}
           </span>
         </div>
-        <PriceTag amount={line.unitPrice} eurAmount={line.eurUnitPrice} locale={locale} variant="line" className="shrink-0" />
+        <PriceTag amount={line.unitPrice} eurAmount={line.eurUnitPrice} currency={currency} locale={locale} variant="line" className="shrink-0" />
       </div>
     );
   }
@@ -167,11 +169,11 @@ export function OrderLineDetails({ line, locale, className = "", variant = "stac
       <DetailRow label={t("checkout.quantity")} value={String(line.quantity)} />
       <div className="flex items-start justify-between gap-4 text-xs pt-1" style={{ fontFamily: "'DM Sans', sans-serif" }}>
         <span className="text-[#2D241E]/50 shrink-0">{t("checkout.unitPrice")}</span>
-        <PriceTag amount={line.unitPrice} eurAmount={line.eurUnitPrice} locale={locale} variant="line" />
+        <PriceTag amount={line.unitPrice} eurAmount={line.eurUnitPrice} currency={currency} locale={locale} variant="line" />
       </div>
       <div className="flex items-start justify-between gap-4 text-xs" style={{ fontFamily: "'DM Sans', sans-serif" }}>
         <span className="text-[#2D241E]/70 shrink-0">{t("checkout.lineTotal")}</span>
-        <PriceTag amount={lineTotal} eurAmount={eurLineTotal} locale={locale} variant="line" />
+        <PriceTag amount={lineTotal} eurAmount={eurLineTotal} currency={currency} locale={locale} variant="line" />
       </div>
     </div>
   );

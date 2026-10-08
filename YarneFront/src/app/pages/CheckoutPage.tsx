@@ -4,6 +4,7 @@ import { ArrowRight, Package } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { createOrder, fetchNovaPoshtaShippingPrice, orderEurTotal, type OrderDto } from "../api/orders";
 import { fetchCustomerProfile } from "../api/auth";
+import { ApiRequestError } from "../api/errors";
 import { useApp, type CartItem } from "../context/AppContext";
 import { ImageWithFallback } from "../components/figma/ImageWithFallback";
 import { LangLink } from "../i18n/LangLink";
@@ -11,6 +12,7 @@ import { useLocale } from "../i18n/useLocale";
 import { showsEur } from "../i18n/format";
 import { PriceTag } from "../components/PriceTag";
 import { OrderLineDetails, cartItemToLineDetails } from "../components/OrderLineDetails";
+import { useContactContent } from "../hooks/useCareServiceContent";
 import { cartItemsTotal, mergePlacedOrderDisplay } from "../utils/mergePlacedOrderItems";
 import { NovaPoshtaPicker, type NovaPoshtaSelection } from "../components/NovaPoshtaPicker";
 import { DeliveryAbroadPicker, type AbroadChoice } from "../components/DeliveryAbroadPicker";
@@ -221,8 +223,14 @@ export function CheckoutPage() {
 
   const displaySubtotal = placedOrder ? Number(placedOrder.total) || snapshotTotal : cartTotal;
   const displayTotal = displaySubtotal;
-  const displaySubtotalEur = placedOrder ? orderEurTotal(placedOrder) : cartEurTotal;
+  const displaySubtotalEur = placedOrder ? (placedOrder.eurTotal ?? orderEurTotal(placedOrder)) : cartEurTotal;
   const displayTotalEur = displaySubtotalEur;
+  // Delivery abroad is paid in euro whatever the site language; within Ukraine the language decides what is shown (and hryvnia is paid).
+  const payInEuro = placedOrder ? placedOrder.paymentCurrency === "EUR" : abroad;
+  const priceCurrency = payInEuro ? ("EUR" as const) : undefined;
+  const { content: contactContent } = useContactContent();
+  // A line with no € price cannot be ordered for delivery abroad: say so before the order is placed, not after it fails.
+  const abroadMissingEuro = abroad && !placedOrder && cartEurTotal == null;
 
   // The list holds every line, but only VISIBLE_ORDER_ITEMS of them before it turns into a
   // scroll region. The cap is measured from the real rows rather than hardcoded in px: row
@@ -452,7 +460,7 @@ export function CheckoutPage() {
       // only pre-fill someone else's next visit on a shared device.
       clearSessionState(...Object.values(S));
     } catch (e) {
-      setError(e instanceof Error ? e.message : t("checkout.errors.unableToPlaceOrder"));
+      setError(abroad && e instanceof ApiRequestError && e.status === 400 && /euro price/i.test(e.message) ? t("checkout.abroad.noEuroPrice", { email: contactContent.email }) : e instanceof Error ? e.message : t("checkout.errors.unableToPlaceOrder"));
     } finally {
       setPlacingOrder(false);
     }
@@ -579,6 +587,7 @@ export function CheckoutPage() {
                     <OrderLineDetails
                       line={cartItemToLineDetails(item)}
                       locale={locale}
+                      currency={priceCurrency}
                       variant="compact"
                       className="mt-1"
                     />
@@ -612,16 +621,16 @@ export function CheckoutPage() {
           <div className="space-y-3 pb-4 border-b" style={{ borderColor: "rgba(245,242,237,0.15)" }}>
             <div className="flex items-center justify-between text-sm" style={{ fontFamily: "'DM Sans', sans-serif" }}>
               <span style={{ color: "rgba(245,242,237,0.65)" }}>{t("checkout.subtotal")}</span>
-              <PriceTag amount={displaySubtotal} eurAmount={displaySubtotalEur} locale={locale} variant="line" tone="light" withUnit />
+              <PriceTag amount={displaySubtotal} eurAmount={displaySubtotalEur} currency={priceCurrency} locale={locale} variant="line" tone="light" withUnit />
             </div>
           </div>
           <div className="flex items-center justify-between mt-4">
             <span className="uppercase" style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "0.68rem", letterSpacing: "0.1em", color: "rgba(245,242,237,0.65)" }}>
               {t("checkout.total")}
             </span>
-            <PriceTag amount={displayTotal} eurAmount={displayTotalEur} locale={locale} variant="emphasis" tone="light" withUnit />
+            <PriceTag amount={displayTotal} eurAmount={displayTotalEur} currency={priceCurrency} locale={locale} variant="emphasis" tone="light" withUnit />
           </div>
-          {showsEur(locale) && displayTotalEur != null && (
+          {showsEur(locale) && !payInEuro && displayTotalEur != null && (
             <p
               className="mt-1.5 text-right"
               style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "0.68rem", color: "rgba(245,242,237,0.4)" }}
@@ -885,6 +894,11 @@ export function CheckoutPage() {
                         {abroadChoice.kind === "other" ? t("checkout.abroad.noteOther") : t("checkout.abroad.noteNovaPost")}
                       </p>
                     )}
+                    {abroadMissingEuro && (
+                      <p className="mt-2" role="alert" style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "0.78rem", color: "#F2B8B8" }}>
+                        {t("checkout.abroad.noEuroPrice", { email: contactContent.email })}
+                      </p>
+                    )}
                     {abroadChoice && (
                       <p className="mt-2" style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "0.68rem", color: "rgba(245,242,237,0.4)" }}>
                         {t("checkout.abroad.pay")}
@@ -903,7 +917,7 @@ export function CheckoutPage() {
               )}
               <button
                 onClick={placeOrder}
-                disabled={placingOrder || cartItems.length === 0 || !isEmailValid || !recipientOk || !deliveryOk}
+                disabled={placingOrder || cartItems.length === 0 || !isEmailValid || !recipientOk || !deliveryOk || abroadMissingEuro}
                 className="mt-6 w-full h-[52px] rounded-[26px] uppercase transition-opacity duration-300 disabled:opacity-60 cursor-pointer"
                 style={{ backgroundColor: "#F5F2ED", color: "#4A0E0E", fontFamily: "'DM Sans', sans-serif", fontSize: "0.75rem", letterSpacing: "0.14em" }}
               >

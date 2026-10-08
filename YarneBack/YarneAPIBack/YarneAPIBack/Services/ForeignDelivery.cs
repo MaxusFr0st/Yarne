@@ -45,6 +45,39 @@ public static class ForeignDelivery
         return n.Length > 0 && BlockedNameParts.Any(part => part == "рф" ? n == part : n.Contains(part));
     }
 
+    /// <summary>
+    /// The euro total (in cents) of a foreign order, from the € unit prices snapshotted on its lines. An error when any line has no
+    /// € price: such an order cannot be paid in euro.
+    /// </summary>
+    public static (string? Error, long Cents) EurTotalCents(IEnumerable<YarneAPIBack.Models.OrderItem> items)
+    {
+        long total = 0;
+        foreach (var item in items)
+        {
+            if (!item.EurUnitPrice.HasValue || item.EurUnitPrice.Value <= 0)
+                return ("One of the items has no euro price yet, so it cannot be ordered for delivery abroad. Please write to us.", 0);
+            total = checked(total + (long)decimal.Round(item.EurUnitPrice.Value * 100m, 0, MidpointRounding.AwayFromZero) * item.Quantity);
+        }
+
+        return (null, total);
+    }
+
+    /// <summary>
+    /// An order delivered abroad has one way of paying (the bank transfer), so there is nothing to choose: once it is accepted
+    /// its choice is set to Transfer on its own (no email to anyone). Returns whether it changed the order.
+    /// </summary>
+    public static bool ApplyAutoTransfer(YarneAPIBack.Models.Order order)
+    {
+        if (!order.IsForeignDelivery || order.PaymentChoice != null)
+            return false;
+        if (order.Status is not ("Accepted" or "InProduction" or "Made"))
+            return false;
+
+        order.PaymentChoice = "Transfer";
+        order.PaymentChoiceAt = DateTime.UtcNow;
+        return true;
+    }
+
     public static Country? Find(string? code) =>
         NovaPostCountries.FirstOrDefault(c => string.Equals(c.Code, code?.Trim(), StringComparison.OrdinalIgnoreCase));
 

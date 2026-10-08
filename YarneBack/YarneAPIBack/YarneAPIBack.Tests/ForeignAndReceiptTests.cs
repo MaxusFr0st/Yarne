@@ -105,6 +105,95 @@ public class ForeignAndReceiptTests : IDisposable
         Assert.Equal("Poland, Warsaw, Branch 5", OrderLinks.DeliverySummary(order));
     }
 
+    // ---- euro payment (delivery abroad) --------------------------------------------------------
+
+    [Fact]
+    public void EurTotal_IsSummedFromTheLinesEuroSnapshots_AndRefusedWhenAnyLineHasNone()
+    {
+        var items = new[]
+        {
+            new OrderItem { EurUnitPrice = 25m, Quantity = 2, UnitPrice = 1150m },
+            new OrderItem { EurUnitPrice = 49.99m, Quantity = 1, UnitPrice = 2400m },
+        };
+        var ok = ForeignDelivery.EurTotalCents(items);
+        Assert.Null(ok.Error);
+        Assert.Equal(9999L, ok.Cents);
+
+        Assert.NotNull(ForeignDelivery.EurTotalCents(new[] { new OrderItem { EurUnitPrice = null, Quantity = 1 } }).Error);
+        Assert.NotNull(ForeignDelivery.EurTotalCents(new[] { new OrderItem { EurUnitPrice = 0m, Quantity = 1 } }).Error);
+    }
+
+    [Fact]
+    public async Task StatusDto_ForAnEurOrder_ShowsEuroAmountsAndTheEurDetails_OrNoneWhenTheyAreNotFilledIn()
+    {
+        var settings = new NoSettings();
+        var order = NewOrder(foreign: true);
+        order.PaymentCurrency = "EUR";
+        order.EurTotalCents = 2500;
+        order.TotalCents = 115000;
+        order.PaymentChoice = "Transfer";
+        order.Status = "Accepted";
+        order.OrderNumber = "Y1-1";
+        _db.Orders.Add(order);
+        await _db.SaveChangesAsync();
+
+        var dto = (PublicOrderStatusDto)Assert.IsType<OkObjectResult>((await _controller.Get(order.StatusToken!)).Result).Value!;
+        Assert.Equal("EUR", dto.PaymentCurrency);
+        Assert.Equal(25m, dto.EurTotal);
+        Assert.Null(dto.TransferDetails); // no euro details saved yet: the page says they will be emailed
+
+        const string json = """
+            {"recipient":"УАН","cardNumber":"4441","reference":"Оплата {{order}}",
+             "eur":{"recipient":"Anna Kowal","iban":"DE89 3704 0044 0532 0130 00","swift":"COBADEFF","bankName":"Commerzbank","bankAddress":"","reference":"Order {{order}} {{x}}","note":"Fees are on you"}}
+            """;
+        var eur = OrderStatusController.ExtractTransferDetails(json, "Y1-1", eur: true)!;
+        Assert.Equal("EUR", eur.Currency);
+        Assert.Equal("Anna Kowal", eur.Recipient);
+        Assert.Equal("DE89 3704 0044 0532 0130 00", eur.Iban);
+        Assert.Equal("COBADEFF", eur.Swift);
+        Assert.Equal("Commerzbank", eur.BankName);
+        Assert.Equal("Order Y1-1", eur.Reference);
+        Assert.Equal("Fees are on you", eur.Note);
+        Assert.Equal("", eur.CardNumber); // never the hryvnia card
+
+        // A saved setting with no euro group (every old one) simply has no euro details; the UAH details are untouched.
+        Assert.Null(OrderStatusController.ExtractTransferDetails("""{"recipient":"A","cardNumber":"1"}""", "Y1-1", eur: true));
+        Assert.Equal("1", OrderStatusController.ExtractTransferDetails("""{"recipient":"A","cardNumber":"1"}""", "Y1-1")!.CardNumber);
+        _ = settings;
+    }
+
+    [Fact]
+    public void EurEmails_ShowEuroOnly_AndUahEmailsStayInHryvnia()
+    {
+        var uah = new OrderConfirmationEmailMessage
+        {
+            OrderId = 1, OrderNumber = "Y1-1", Event = OrderEmailEvent.Confirmed, CustomerName = "A", Total = 1150m, EurTotal = 25m,
+            Items = [new OrderConfirmationEmailItem { ProductName = "Bag", UnitPrice = 1150m, EurUnitPrice = 25m, Quantity = 1 }],
+        };
+        var uahHtml = OrderConfirmationEmailBuilder.BuildHtml(uah);
+        Assert.Contains(HryvniaPriceFormatter.Sign, uahHtml);
+        Assert.DoesNotContain("€", uahHtml); // Ukrainian-language UAH order: unchanged
+
+        var eur = new OrderConfirmationEmailMessage
+        {
+            OrderId = 1, OrderNumber = "Y1-1", Event = OrderEmailEvent.Confirmed, CustomerName = "A", Total = 1150m, EurTotal = 25m, PaymentCurrency = "EUR", IsForeignDelivery = true,
+            Items = [new OrderConfirmationEmailItem { ProductName = "Bag", UnitPrice = 1150m, EurUnitPrice = 25m, Quantity = 1 }],
+        };
+        foreach (var e in new[] { OrderEmailEvent.Received, OrderEmailEvent.Confirmed, OrderEmailEvent.PaymentConfirmed })
+        {
+            eur.Event = e;
+            var html = OrderConfirmationEmailBuilder.BuildHtml(eur);
+            Assert.Contains("€25.00", html);
+            Assert.DoesNotContain(HryvniaPriceFormatter.Sign, html);
+        }
+
+        eur.Event = OrderEmailEvent.InternalReceiptUploaded;
+        eur.CustomerEmail = "a@b.c";
+        Assert.Contains("€25.00 (EUR, за кордон)", OrderConfirmationEmailBuilder.BuildHtml(eur));
+        eur.Event = OrderEmailEvent.InternalPlacedNotification;
+        Assert.Contains("(EUR, за кордон)", OrderConfirmationEmailBuilder.BuildHtml(eur));
+    }
+
     // ---- strap ---------------------------------------------------------------------------
 
     [Fact]
@@ -220,6 +309,53 @@ public class ForeignAndReceiptTests : IDisposable
         => Assert.Equal(expected, OrderStatusController.ResolveReference(template, "Y1-1"));
 
     [Fact]
+    public void ForeignOrder_GetsTransferAutomatically_WhenAccepted_NotBefore_NotForDomestic()
+    {
+        var o = NewOrder();
+        o.IsForeignDelivery = true;
+        o.Status = "Pending";
+        Assert.False(ForeignDelivery.ApplyAutoTransfer(o));
+        o.Status = "Accepted";
+        Assert.True(ForeignDelivery.ApplyAutoTransfer(o));
+        Assert.Equal("Transfer", o.PaymentChoice);
+        Assert.False(ForeignDelivery.ApplyAutoTransfer(o));
+
+        var home = NewOrder();
+        home.Status = "Accepted";
+        Assert.False(ForeignDelivery.ApplyAutoTransfer(home));
+        Assert.Null(home.PaymentChoice);
+    }
+
+    [Fact]
+    public async Task StatusPage_SetsTransferQuietlyForAnAcceptedForeignOrder()
+    {
+        var o = NewOrder();
+        o.IsForeignDelivery = true;
+        o.Status = "Accepted";
+        _db.Orders.Add(o);
+        await _db.SaveChangesAsync();
+        await _controller.Get(o.StatusToken!);
+        Assert.Equal("Transfer", (await _db.Orders.SingleAsync()).PaymentChoice);
+    }
+
+    [Fact]
+    public void EmailThreading_FirstEmailHasStableId_LaterOnesReplyToIt_OwnerIsSeparate()
+    {
+        var first = new OrderConfirmationEmailMessage { OrderId = 7, OrderNumber = "Y1-1", Event = OrderEmailEvent.Received };
+        var later = new OrderConfirmationEmailMessage { OrderId = 7, OrderNumber = "Y1-1", Event = OrderEmailEvent.Shipped };
+        var owner = new OrderConfirmationEmailMessage { OrderId = 7, OrderNumber = "Y1-1", Event = OrderEmailEvent.InternalPlacedNotification };
+        var a = EmailThreading.For(first, "Yarné <shop@yarne-acc.com>");
+        var b = EmailThreading.For(later, "Yarné <shop@yarne-acc.com>");
+        var c = EmailThreading.For(owner, "Yarné <shop@yarne-acc.com>");
+        Assert.Equal("<order-7-customer-root@yarne-acc.com>", a.MessageId);
+        Assert.Null(a.InReplyTo);
+        Assert.Equal(a.MessageId, b.InReplyTo);
+        Assert.Equal(a.MessageId, b.References);
+        Assert.NotEqual(a.MessageId, c.MessageId);
+        Assert.Equal("[Адмін] Замовлення Y1-1", OrderConfirmationEmailBuilder.BuildSubject(owner));
+    }
+
+    [Fact]
     public async Task OwnerIsEmailedOncePerClaim_AndOncePerChoice()
     {
         Environment.SetEnvironmentVariable("ORDER_RECEIVED_NOTIFY_EMAIL", "owner@example.com");
@@ -243,7 +379,7 @@ public class ForeignAndReceiptTests : IDisposable
             await controller.ClaimPayment(order.StatusToken!, Upload(Jpeg(), "r2.jpg")); // refused: no email
             await Task.Delay(300);
 
-            Assert.Equal(new[] { OrderEmailEvent.InternalPaymentChosen, OrderEmailEvent.InternalReceiptUploaded }, mail.Events.OrderBy(e => (int)e).ToArray());
+            Assert.Equal(new[] { OrderEmailEvent.InternalPaymentChosen }, mail.Events.OrderBy(e => (int)e).ToArray());
             Assert.All(mail.Messages, m => Assert.Contains("/admin?order=", m.AdminUrl));
 
             // The owner resets the choice (as the admin endpoint does); a new choice notifies again.
