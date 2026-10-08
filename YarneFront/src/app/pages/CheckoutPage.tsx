@@ -160,6 +160,22 @@ function OrderSealMark({ still }: { still: boolean }) {
   );
 }
 
+type MissingField = "email" | "firstName" | "lastName" | "phone" | "delivery" | "abroadCountry" | "abroadCity" | "abroadAddress";
+
+const MISSING_FIELD_IDS: Record<MissingField, string> = {
+  email: "checkout-email",
+  firstName: "checkout-recipient-first-name",
+  lastName: "checkout-recipient-last-name",
+  phone: "checkout-recipient-phone",
+  delivery: "checkout-delivery-picker",
+  abroadCountry: "checkout-abroad-country",
+  abroadCity: "checkout-abroad-city",
+  abroadAddress: "checkout-abroad-address",
+};
+
+/** Same line colour CheckoutField uses for an invalid input. */
+const MISSING_OUTLINE = { boxShadow: "0 0 0 1px rgba(242,184,184,0.85)" } as const;
+
 export function CheckoutPage() {
   const { t } = useTranslation();
   const locale = useLocale();
@@ -186,6 +202,8 @@ export function CheckoutPage() {
   // Errors appear on blur, not on the first keystroke — flagging a field the user has not
   // finished filling reads as nagging.
   const [touched, setTouched] = useState({ email: false, firstName: false, lastName: false, phone: false });
+  /** The first thing still missing when Place order was pressed; it is outlined until it is put right. */
+  const [missing, setMissing] = useState<MissingField | null>(null);
   const [placingOrder, setPlacingOrder] = useState(false);
   const [error, setError] = useState<string | null>(null);
   // A reload shows the receipt of the order just placed (an empty bag means that order was placed); a new bag starts afresh.
@@ -395,20 +413,37 @@ export function CheckoutPage() {
 
   const abroadFullPhone = `${abroadDial === "+" ? "+" : abroadDial}${abroadPhone.replace(/\D/g, "")}`;
 
+  // In the order the form is read, so the first gap is the one pointed at.
+  const nameOk = (v: string) => v.trim().length > 0 && (abroad ? isLatinName(v) : isCyrillicName(v));
+  const phoneOk = abroad ? isInternationalPhone(abroadDial, abroadPhone) : isCompleteUaPhone(recipientPhone);
+  const firstMissing = (): MissingField | null => {
+    if (!isEmailValid) return "email";
+    if (!nameOk(recipientFirstName)) return "firstName";
+    if (!nameOk(recipientLastName)) return "lastName";
+    if (!phoneOk) return "phone";
+    if (!abroad) return isDeliveryValid ? null : "delivery";
+    if (!abroadChoice) return "delivery";
+    if (abroadChoice.kind === "branch") return null;
+    if (abroadChoice.kind === "other" && (abroadCountryName.trim().length === 0 || abroadBlocked)) return "abroadCountry";
+    if (abroadCity.trim().length === 0) return "abroadCity";
+    if (abroadAddress.trim().length === 0) return "abroadAddress";
+    return null;
+  };
+  // Shown on a field only while it is the one pointed at and still empty.
+  const requiredError = (field: MissingField, empty: boolean) => (missing === field && empty ? t("checkout.errorRequired") : null);
+
   const placeOrder = async () => {
     if (cartItems.length === 0 || placingOrder) return;
-    if (!isEmailValid) {
-      setError(t(normalizedEmail.length === 0 ? "checkout.emailRequired" : "checkout.emailInvalid"));
+    const gap = firstMissing();
+    if (gap) {
+      setMissing(gap);
+      setError(null);
+      const target = document.getElementById(MISSING_FIELD_IDS[gap]);
+      target?.scrollIntoView({ block: "center", behavior: reduceMotion ? "auto" : "smooth" });
+      target?.focus({ preventScroll: true });
       return;
     }
-    if (!recipientOk) {
-      setError(t("checkout.recipientRequired"));
-      return;
-    }
-    if (abroad ? !isAbroadDeliveryValid : !isDeliveryValid || !delivery) {
-      setError(abroad ? t("checkout.abroad.deliveryRequired") : t("checkout.deliveryRequired"));
-      return;
-    }
+    setMissing(null);
     setPlacingOrder(true);
     setError(null);
     const snapshot = [...cartItems];
@@ -460,7 +495,9 @@ export function CheckoutPage() {
       // only pre-fill someone else's next visit on a shared device.
       clearSessionState(...Object.values(S));
     } catch (e) {
-      setError(abroad && e instanceof ApiRequestError && e.status === 400 && /euro price/i.test(e.message) ? t("checkout.abroad.noEuroPrice", { email: contactContent.email }) : e instanceof Error ? e.message : t("checkout.errors.unableToPlaceOrder"));
+      // Only a 4xx carries a sentence written for the customer; anything else is the server failing.
+      const refused = e instanceof ApiRequestError && e.status >= 400 && e.status < 500;
+      setError(abroad && refused && /euro price/i.test(e.message) ? t("checkout.abroad.noEuroPrice", { email: contactContent.email }) : refused ? e.message : t("checkout.errors.unableToPlaceOrder"));
     } finally {
       setPlacingOrder(false);
     }
@@ -671,7 +708,7 @@ export function CheckoutPage() {
                     autoComplete="email"
                     maxLength={254}
                     value={email}
-                    error={touched.email && email.trim() && !isEmailValid ? t("checkout.errorEmail") : null}
+                    error={requiredError("email", !email.trim()) ?? ((touched.email || missing === "email") && email.trim() && !isEmailValid ? t("checkout.errorEmail") : null)}
                     onBlur={() => setTouched((s) => ({ ...s, email: true }))}
                     onChange={(e) => {
                       setEmail(e.target.value);
@@ -701,11 +738,11 @@ export function CheckoutPage() {
                     maxLength={NAME_MAX}
                     value={recipientFirstName}
                     error={
-                      touched.firstName && recipientFirstName.length >= NAME_MAX
+                      requiredError("firstName", !recipientFirstName.trim()) ?? (touched.firstName && recipientFirstName.length >= NAME_MAX
                         ? t("checkout.errorNameTooLong")
-                        : firstNameCyrillic.error
+                        : firstNameCyrillic.error || (missing === "firstName" && !nameOk(recipientFirstName))
                           ? (abroad ? t("checkout.abroad.errorNameLatin") : t("checkout.errorNameCyrillicOnly"))
-                          : null
+                          : null)
                     }
                     onBlur={() => {
                       setTouched((s) => ({ ...s, firstName: true }));
@@ -725,11 +762,11 @@ export function CheckoutPage() {
                     maxLength={NAME_MAX}
                     value={recipientLastName}
                     error={
-                      touched.lastName && recipientLastName.length >= NAME_MAX
+                      requiredError("lastName", !recipientLastName.trim()) ?? (touched.lastName && recipientLastName.length >= NAME_MAX
                         ? t("checkout.errorNameTooLong")
-                        : lastNameCyrillic.error
+                        : lastNameCyrillic.error || (missing === "lastName" && !nameOk(recipientLastName))
                           ? (abroad ? t("checkout.abroad.errorNameLatin") : t("checkout.errorNameCyrillicOnly"))
-                          : null
+                          : null)
                     }
                     onBlur={() => {
                       setTouched((s) => ({ ...s, lastName: true }));
@@ -754,7 +791,7 @@ export function CheckoutPage() {
                     autoComplete="tel-national"
                     prefix={abroadDial}
                     value={abroadPhone}
-                    error={touched.phone && abroadPhone && !isInternationalPhone(abroadDial, abroadPhone) ? t("checkout.abroad.errorPhone") : null}
+                    error={requiredError("phone", !abroadPhone) ?? ((touched.phone || missing === "phone") && abroadPhone && !isInternationalPhone(abroadDial, abroadPhone) ? t("checkout.abroad.errorPhone") : null)}
                     onBlur={() => setTouched((s) => ({ ...s, phone: true }))}
                     onChange={(e) => {
                       setAbroadPhone(formatAbroadPhone(normalizeAbroadPhone(e.target.value, abroadDial)));
@@ -771,7 +808,7 @@ export function CheckoutPage() {
                   autoComplete="tel"
                   prefix="+380"
                   value={recipientPhone}
-                  error={phoneError}
+                  error={requiredError("phone", !recipientPhone) ?? phoneError ?? (missing === "phone" && !phoneOk ? t("checkout.errorPhoneTooShort") : null)}
                   onBlur={() => {
                     setTouched((s) => ({ ...s, phone: true }));
                     // Leaving the field is the user saying they are done — no need to wait out
@@ -807,6 +844,7 @@ export function CheckoutPage() {
                 />
                 {!abroad && (
                 <>
+                <div id={MISSING_FIELD_IDS.delivery} tabIndex={-1} className="rounded-[14px] outline-none" style={missing === "delivery" && !isDeliveryValid ? MISSING_OUTLINE : undefined}>
                 <NovaPoshtaPicker
                   value={delivery}
                   onSelect={(selection) => {
@@ -815,6 +853,7 @@ export function CheckoutPage() {
                   }}
                   tone="dark"
                 />
+                </div>
                 {delivery && (shippingEstimateLoading || shippingEstimate !== null) && (
                   <div className="flex items-baseline justify-between mt-3 text-sm" style={{ fontFamily: "'DM Sans', sans-serif" }}>
                     <span style={{ color: "rgba(245,242,237,0.5)" }}>{t("checkout.shippingEstimateLabel")}</span>
@@ -839,7 +878,9 @@ export function CheckoutPage() {
                 )}
                 {abroad && (
                   <>
-                    <DeliveryAbroadPicker value={abroadChoice} onChange={setAbroadChoice} tone="dark" />
+                    <div id={MISSING_FIELD_IDS.delivery} tabIndex={-1} className="rounded-[14px] outline-none" style={missing === "delivery" && !abroadChoice ? MISSING_OUTLINE : undefined}>
+                      <DeliveryAbroadPicker value={abroadChoice} onChange={setAbroadChoice} tone="dark" />
+                    </div>
                     {abroadChoice && abroadChoice.kind !== "branch" && (
                       <div className="mt-2.5 space-y-2.5">
                         {abroadChoice.kind === "other" && (
@@ -850,7 +891,7 @@ export function CheckoutPage() {
                             autoComplete="country-name"
                             maxLength={100}
                             value={abroadCountryName}
-                            error={abroadBlocked ? t("checkout.abroad.errorBlocked") : null}
+                            error={abroadBlocked ? t("checkout.abroad.errorBlocked") : requiredError("abroadCountry", !abroadCountryName.trim())}
                             onChange={(e) => setAbroadCountryName(e.target.value)}
                             placeholder={t("checkout.abroad.fieldCountry")}
                           />
@@ -863,6 +904,7 @@ export function CheckoutPage() {
                             autoComplete="address-level2"
                             maxLength={100}
                             value={abroadCity}
+                            error={requiredError("abroadCity", !abroadCity.trim())}
                             onChange={(e) => setAbroadCity(e.target.value)}
                             placeholder={t("checkout.abroad.fieldCity")}
                           />
@@ -884,6 +926,7 @@ export function CheckoutPage() {
                           autoComplete="street-address"
                           maxLength={300}
                           value={abroadAddress}
+                          error={requiredError("abroadAddress", !abroadAddress.trim())}
                           onChange={(e) => setAbroadAddress(e.target.value)}
                           placeholder={t("checkout.abroad.fieldAddress")}
                         />
@@ -917,7 +960,8 @@ export function CheckoutPage() {
               )}
               <button
                 onClick={placeOrder}
-                disabled={placingOrder || cartItems.length === 0 || !isEmailValid || !recipientOk || !deliveryOk || abroadMissingEuro}
+                // Never greyed out for an unfinished form: pressing it points at the first thing still missing.
+                disabled={placingOrder || cartItems.length === 0 || abroadMissingEuro}
                 className="mt-6 w-full h-[52px] rounded-[26px] uppercase transition-opacity duration-300 disabled:opacity-60 cursor-pointer"
                 style={{ backgroundColor: "#F5F2ED", color: "#4A0E0E", fontFamily: "'DM Sans', sans-serif", fontSize: "0.75rem", letterSpacing: "0.14em" }}
               >

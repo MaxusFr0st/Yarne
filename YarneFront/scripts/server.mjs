@@ -1149,7 +1149,9 @@ async function serveStaticFile(req, res, pathname) {
     res.setHeader("Content-Type", MIME_TYPES[extname(filePath)] || "application/octet-stream");
     createReadStream(filePath).pipe(res);
   } catch {
-    res.writeHead(404).end("Not found");
+    // no-store: during a deploy a file can be missing for a few seconds, and a cached 404 would
+    // keep it "missing" at the CDN for hours after it exists.
+    res.writeHead(404, { "Cache-Control": "no-store" }).end("Not found");
   }
 }
 

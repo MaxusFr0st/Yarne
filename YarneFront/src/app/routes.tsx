@@ -10,6 +10,7 @@ import { Home } from "./pages/Home";
 import { Collection } from "./pages/Collection";
 import { ProductDetail } from "./pages/ProductDetail";
 import { AdminGuard } from "./components/AdminGuard";
+import { RouteError } from "./pages/RouteError";
 import {
   DEFAULT_LOCALE,
   isLocale,
@@ -72,6 +73,8 @@ export const router = createBrowserRouter([
   {
     path: "/",
     Component: Root,
+    // In the main file on purpose: it has to render when a page's own file could not be loaded.
+    errorElement: <RouteError />,
     children: [
       // Locale-prefixed storefront tree.
       {

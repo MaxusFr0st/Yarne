@@ -236,6 +236,7 @@ const uk: Translations = {
     },
     eurReferenceNote: "Замовлення оплачується в ₴. Ціну в € показано для довідки.",
     errorEmail: "Перевірте пошту",
+    errorRequired: "Заповніть це поле",
     errorNameTooLong: "Задовге",
     errorNameCyrillicOnly: "Лише кирилицею",
     errorPhoneLetters: "Лише цифри",

@@ -232,6 +232,7 @@ const en = {
     },
     eurReferenceNote: "The order is paid in ₴. The € price is shown for reference.",
     errorEmail: "Check this email",
+    errorRequired: "Fill in this field",
     errorNameTooLong: "Too long",
     errorNameCyrillicOnly: "Cyrillic letters only",
     errorPhoneLetters: "Digits only",
