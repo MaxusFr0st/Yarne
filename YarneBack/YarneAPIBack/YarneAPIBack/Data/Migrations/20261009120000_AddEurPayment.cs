@@ -10,18 +10,8 @@ namespace YarneAPIBack.Data.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.AddColumn<string>(
-                name: "PaymentCurrency",
-                table: "Order",
-                type: "character varying(3)",
-                maxLength: 3,
-                nullable: true);
-
-            migrationBuilder.AddColumn<long>(
-                name: "EurTotalCents",
-                table: "Order",
-                type: "bigint",
-                nullable: true);
+            // Idempotent on purpose: the same statements run from OrderFlowSchemaPatches at every start.
+            migrationBuilder.Sql(YarneAPIBack.Data.OrderFlowSchemaPatches.EnsureSql);
         }
 
         /// <inheritdoc />

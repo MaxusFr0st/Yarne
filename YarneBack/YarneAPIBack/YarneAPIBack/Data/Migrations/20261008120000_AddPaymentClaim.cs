@@ -11,11 +11,8 @@ namespace YarneAPIBack.Data.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.AddColumn<DateTime>(
-                name: "PaymentClaimedAt",
-                table: "Order",
-                type: "timestamp with time zone",
-                nullable: true);
+            // Idempotent on purpose: the same statements run from OrderFlowSchemaPatches at every start.
+            migrationBuilder.Sql(YarneAPIBack.Data.OrderFlowSchemaPatches.EnsureSql);
         }
 
         /// <inheritdoc />
