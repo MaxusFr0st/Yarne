@@ -3243,6 +3243,17 @@ namespace YarneAPIBack.Data.Migrations
                     b.Navigation("ShippingAddr");
                 });
 
+            modelBuilder.Entity("YarneAPIBack.Models.OrderMakingPhoto", b =>
+                {
+                    b.HasOne("YarneAPIBack.Models.Order", "Order")
+                        .WithMany("MakingPhotos")
+                        .HasForeignKey("OrderId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Order");
+                });
+
             modelBuilder.Entity("YarneAPIBack.Models.OrderItem", b =>
                 {
                     b.HasOne("YarneAPIBack.Models.Order", "Order")
@@ -3585,17 +3596,6 @@ namespace YarneAPIBack.Data.Migrations
                     b.Navigation("OrderItems");
 
                     b.Navigation("ReturnOrders");
-                });
-
-            modelBuilder.Entity("YarneAPIBack.Models.OrderMakingPhoto", b =>
-                {
-                    b.HasOne("YarneAPIBack.Models.Order", "Order")
-                        .WithMany("MakingPhotos")
-                        .HasForeignKey("OrderId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Order");
                 });
 
             modelBuilder.Entity("YarneAPIBack.Models.OrderItem", b =>
