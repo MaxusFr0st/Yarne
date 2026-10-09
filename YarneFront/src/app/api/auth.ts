@@ -86,3 +86,10 @@ export async function loginWithGoogle(idToken: string): Promise<AuthResponse> {
     skipAuthExpire: true,
   });
 }
+
+export async function updateCustomerProfile(data: { fullName: string; phoneNumber?: string }): Promise<CustomerProfileResponse> {
+  return apiRequest<CustomerProfileResponse>("/api/auth/me", {
+    method: "PUT",
+    body: JSON.stringify(data),
+  });
+}

@@ -10,12 +10,12 @@ import {
   Clock,
   LogOut,
   Mail,
-  MapPin,
   Package,
   Phone,
   ShoppingBag,
   User,
 } from "lucide-react";
+import { fetchCustomerProfile, updateCustomerProfile } from "../api/auth";
 import { fetchMyOrders, trackOrderByTtn, orderEurTotal, type OrderDto } from "../api/orders";
 import { ImageWithFallback } from "../components/figma/ImageWithFallback";
 import { useApp } from "../context/AppContext";
@@ -279,7 +279,7 @@ function OrderRow({ order, productImageByCode }: { order: Order; productImageByC
 export function AccountPage() {
   const { t } = useTranslation();
   const locale = useLocale();
-  const { user, isLoggedIn, openLogin, logout } = useApp();
+  const { user, isLoggedIn, openLogin, logout, setUserName } = useApp();
   const { products } = useProducts();
 
   const [activeTab, setActiveTab] = useState<Tab>("overview");
@@ -291,11 +291,12 @@ export function AccountPage() {
   const [trackingError, setTrackingError] = useState<string | null>(null);
   const [trackingLoading, setTrackingLoading] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [profileForm, setProfileForm] = useState({
     name: user?.name ?? "",
     email: user?.email ?? "",
     phone: "",
-    address: "",
   });
 
   useEffect(() => {
@@ -305,6 +306,19 @@ export function AccountPage() {
       email: user?.email ?? "",
     }));
   }, [user?.name, user?.email]);
+
+  useEffect(() => {
+    if (!isLoggedIn) return;
+    let cancelled = false;
+    fetchCustomerProfile()
+      .then((profile) => {
+        if (!cancelled) setProfileForm((prev) => ({ ...prev, phone: profile.phoneNumber ?? "" }));
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [isLoggedIn]);
 
   useEffect(() => {
     if (!isLoggedIn) return;
@@ -368,9 +382,24 @@ export function AccountPage() {
     { icon: <CheckCircle2 size={20} />, label: t("account.overview.cards.received"), value: receivedCount.toLocaleString() },
   ];
 
-  const handleSaveProfile = () => {
-    setSaveSuccess(true);
-    setTimeout(() => setSaveSuccess(false), 2500);
+  const handleSaveProfile = async () => {
+    if (saving) return;
+    setSaving(true);
+    setSaveError(null);
+    try {
+      const profile = await updateCustomerProfile({
+        fullName: profileForm.name.trim(),
+        phoneNumber: profileForm.phone.trim() || undefined,
+      });
+      setUserName(profile.fullName);
+      setProfileForm((prev) => ({ ...prev, name: profile.fullName, phone: profile.phoneNumber ?? "" }));
+      setSaveSuccess(true);
+      setTimeout(() => setSaveSuccess(false), 2500);
+    } catch (e) {
+      setSaveError(e instanceof Error && e.message ? e.message : t("account.profile.actions.saveFailed"));
+    } finally {
+      setSaving(false);
+    }
   };
 
   if (!isLoggedIn) {
@@ -606,7 +635,7 @@ export function AccountPage() {
                 {t("account.profile.title")}
               </h2>
 
-              <div className="grid lg:grid-cols-2 gap-6">
+              <div className="grid gap-6">
                 <section className="rounded-[28px] p-7" style={{ backgroundColor: "#EDE9E2" }}>
                   <h3 className="text-[#2D241E] mb-6" style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "1.25rem", fontWeight: 500 }}>
                     {t("account.profile.sections.personal")}
@@ -626,7 +655,9 @@ export function AccountPage() {
                           type="text"
                           value={profileForm[field.key as keyof typeof profileForm]}
                           onChange={(e) => setProfileForm((prev) => ({ ...prev, [field.key]: e.target.value }))}
-                          className="w-full bg-transparent border-0 border-b pb-2 focus:outline-none text-[#2D241E]"
+                          readOnly={field.key === "email"}
+                          aria-readonly={field.key === "email" || undefined}
+                          className={field.key === "email" ? "w-full bg-transparent border-0 border-b pb-2 focus:outline-none text-[#2D241E]/[0.68]" : "w-full bg-transparent border-0 border-b pb-2 focus:outline-none text-[#2D241E]"}
                           style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "0.92rem", borderBottom: "1.5px solid rgba(45,36,30,0.16)" }}
                           onFocus={(e) => (e.target.style.borderBottomColor = "#4A0E0E")}
                           onBlur={(e) => (e.target.style.borderBottomColor = "rgba(45,36,30,0.16)")}
@@ -636,59 +667,19 @@ export function AccountPage() {
                   </div>
                 </section>
 
-                <section className="rounded-[28px] p-7" style={{ backgroundColor: "#EDE9E2" }}>
-                  <h3 className="text-[#2D241E] mb-6" style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "1.25rem", fontWeight: 500 }}>
-                    {t("account.profile.sections.address")}
-                  </h3>
-
-                  <label className="flex items-center gap-2 text-xs mb-2 uppercase tracking-widest text-[#2D241E]/[0.68]" style={{ fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.1em" }}>
-                    <MapPin size={14} />
-                    {t("account.profile.labels.shippingAddress")}
-                  </label>
-                  <textarea
-                    value={profileForm.address}
-                    onChange={(e) => setProfileForm((prev) => ({ ...prev, address: e.target.value }))}
-                    rows={3}
-                    className="w-full bg-transparent border-0 border-b pb-2 focus:outline-none text-[#2D241E] resize-none"
-                    style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "0.92rem", borderBottom: "1.5px solid rgba(45,36,30,0.16)", lineHeight: 1.7 }}
-                    onFocus={(e) => (e.target.style.borderBottomColor = "#4A0E0E")}
-                    onBlur={(e) => (e.target.style.borderBottomColor = "rgba(45,36,30,0.16)")}
-                  />
-
-                  <div className="mt-8">
-                    <p className="text-[#2D241E]/[0.68] text-xs mb-4 uppercase tracking-widest" style={{ fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.1em" }}>
-                      {t("account.profile.sections.emailPreferences")}
-                    </p>
-                    <div className="space-y-3">
-                      {[
-                        { label: t("account.profile.preferences.arrivals"), checked: true },
-                        { label: t("account.profile.preferences.orderUpdates"), checked: true },
-                      ].map((pref) => (
-                        <label key={pref.label} className="flex items-center gap-3 cursor-pointer">
-                          <div
-                            className="w-4 h-4 rounded flex items-center justify-center flex-shrink-0"
-                            style={{ border: pref.checked ? "none" : "1.5px solid rgba(45,36,30,0.2)", backgroundColor: pref.checked ? "#2D241E" : "transparent" }}
-                          >
-                            {pref.checked && (
-                              <svg width="10" height="8" viewBox="0 0 10 8" fill="none">
-                                <path d="M1 4L3.5 6.5L9 1" stroke="#F5F2ED" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                              </svg>
-                            )}
-                          </div>
-                          <span className="text-sm text-[#2D241E]/75" style={{ fontFamily: "'DM Sans', sans-serif" }}>
-                            {pref.label}
-                          </span>
-                        </label>
-                      ))}
-                    </div>
-                  </div>
-                </section>
               </div>
+
+              {saveError && (
+                <p className="text-[#4A0E0E] text-sm mt-6" style={{ fontFamily: "'DM Sans', sans-serif" }}>
+                  {saveError}
+                </p>
+              )}
 
               <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 mt-8">
                 <button
                   onClick={handleSaveProfile}
-                  className="px-10 py-4 rounded-full text-[#F5F2ED] transition-all duration-300 hover:opacity-90 flex items-center gap-2 uppercase tracking-widest"
+                  disabled={saving}
+                  className="px-10 py-4 rounded-full text-[#F5F2ED] transition-all duration-300 hover:opacity-90 disabled:opacity-60 flex items-center gap-2 uppercase tracking-widest"
                   style={{ backgroundColor: saveSuccess ? "#2D6A4F" : "#2D241E", fontFamily: "'DM Sans', sans-serif", fontSize: "0.78rem", letterSpacing: "0.14em" }}
                 >
                   {saveSuccess ? (

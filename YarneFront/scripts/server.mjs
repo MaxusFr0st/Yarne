@@ -319,7 +319,7 @@ const PAGE_SEO = {
     home: {
       title: "В'язані сумки та аксесуари ручної роботи",
       description:
-        "Yarné — в'язані сумки, капелюхи та пляжні комплекти ручної роботи. Виготовляємо під замовлення та доставляємо по Україні Новою поштою.",
+        "Yarné — в'язані сумки, клатчі, капелюхи та пляжні комплекти ручної роботи. Виготовляємо під замовлення, доставляємо по Україні Новою поштою та за кордон.",
     },
     collection: {
       title: "Колекція в'язаних сумок і аксесуарів",
@@ -346,7 +346,7 @@ const PAGE_SEO = {
     home: {
       title: "Handmade knitted bags and accessories",
       description:
-        "Yarné makes handmade knitted bags, hats and beach sets to order. Choose your colour and have it delivered anywhere in Ukraine by Nova Poshta.",
+        "Yarné makes handmade knitted bags, clutches, hats and beach sets to order. Choose your colour; delivery across Ukraine by Nova Poshta and abroad.",
     },
     collection: {
       title: "Shop handmade knitted bags, hats and sets",
@@ -444,9 +444,16 @@ const WORDS = {
     contact: "Зв'язатися з нами",
     callUs: "Телефон",
     lastUpdated: "Оновлено",
+    homeHeading: "Yarné — в'язані сумки ручної роботи на замовлення",
     brandIntro:
-      "Yarné — в'язані сумки, капелюхи та пляжні комплекти ручної роботи. Кожен виріб виготовляємо під замовлення, а доставляємо по Україні Новою поштою.",
-    brandGuarantee: "Кожен виріб Yarné має нашу довічну гарантію.",
+      "Yarné — українська майстерня в'язаних аксесуарів, заснована у 2025 році. Ми в'яжемо вручну сумки, клатчі, капелюхи та пляжні комплекти з бавовняної трикотажної пряжі та рафії. Кожен виріб виготовляємо під замовлення: ви обираєте модель, колір, а для частини моделей — колір фурнітури та ремінець.",
+    // The same facts the Delivery & Returns and care pages state; keep them in step with those pages.
+    homeFacts: [
+      ["Як замовити.", "Замовлення оформлюється на сайті без реєстрації. Ми підтверджуємо його протягом 0–1 дня і відправляємо протягом 5 робочих днів після підтвердження."],
+      ["Доставка.", "По Україні — Новою поштою у відділення або поштомат. За кордон — Nova Post або іншим перевізником за домовленістю."],
+      ["Оплата.", "В Україні — переказом на картку або при отриманні. За кордон — банківським переказом у євро наперед."],
+      ["Повернення та гарантія.", "Виріб можна повернути протягом 14 днів без слідів носіння. На кожен виріб діє гарантія: ремонт і перев'язування у нашій майстерні."],
+    ],
     collectionIntro: "Усі вироби Yarné з цінами. Кожен виріб виготовляємо під замовлення.",
     historySummary:
       "YARNE був заснований у 2025 році з однією простою ідеєю — створити в'язану сумку, яка не виглядатиме звично.",
@@ -506,9 +513,15 @@ const WORDS = {
     contact: "Contact us",
     callUs: "Phone",
     lastUpdated: "Last updated",
+    homeHeading: "Yarné — handmade knitted bags, made to order in Ukraine",
     brandIntro:
-      "Yarné makes handmade knitted bags, hats and beach sets. Every piece is made to order and delivered across Ukraine by Nova Poshta.",
-    brandGuarantee: "Every Yarné piece is covered by our lifetime guarantee.",
+      "Yarné is a Ukrainian knitting atelier founded in 2025. We hand-knit bags, clutches, hats and beach sets from cotton knitted yarn and raffia. Every piece is made to order: you choose the model and colour, and for some models the hardware colour and a strap.",
+    homeFacts: [
+      ["How to order.", "Order on the site without an account. We confirm within 0–1 days and ship within 5 working days after confirmation."],
+      ["Delivery.", "In Ukraine by Nova Poshta to a branch or parcel locker. Abroad by Nova Post, or another carrier by agreement."],
+      ["Payment.", "In Ukraine by bank transfer or on pickup. Abroad by bank transfer in euros, in advance."],
+      ["Returns and guarantee.", "A piece can be returned within 14 days if unworn. Every piece is covered by our guarantee: repair and re-knitting in our atelier."],
+    ],
     collectionIntro: "Every Yarné piece with its price. Each piece is made to order.",
     historySummary:
       "YARNÉ was founded in 2025 with one simple idea — to create a knitted bag that would not look ordinary.",
@@ -701,13 +714,13 @@ function productLd(product, lang, canonical) {
 }
 
 // What the collection and home pages say: the intro, then every product with its price.
-async function catalogueContent(lang, intro, heading, withGuarantee) {
+async function catalogueContent(lang, intro, heading, facts) {
   const w = WORDS[lang];
   const products = await getProducts();
   return contentBlock(
     `<h1>${escapeHtml(heading)}</h1>` +
       para(intro) +
-      (withGuarantee ? para(w.brandGuarantee) : "") +
+      (facts ?? []).map(([label, text]) => `<p><strong>${escapeHtml(label)}</strong> ${escapeHtml(text)}</p>`).join("") +
       (products?.length ? `<h2>${escapeHtml(w.allPieces)}</h2>${productListHtml(products, lang)}` : "") +
       siteLinks(lang),
   );
@@ -830,7 +843,7 @@ async function describePage(route, reqUrl) {
         imageUrl: shareDefault?.imageUrl,
         suffix: "",
         jsonLd: [organizationLd(contact), websiteLd()],
-        content: await catalogueContent(lang, w.brandIntro, SITE_NAME, true),
+        content: await catalogueContent(lang, w.brandIntro, w.homeHeading, w.homeFacts),
       };
     }
 
@@ -841,7 +854,7 @@ async function describePage(route, reqUrl) {
         title: withSiteName(seo.collection.title),
         description: seo.collection.description,
         suffix: "/collection",
-        content: await catalogueContent(lang, w.collectionIntro, w.collection, false),
+        content: await catalogueContent(lang, w.collectionIntro, w.collection),
       };
 
     case "ourHistory": {
@@ -1115,7 +1128,11 @@ async function buildLlms() {
   const lines = [
     `# ${SITE_NAME}`,
     "",
-    `> ${SITE_NAME} is a Ukrainian shop of handmade knitted bags, hats and beach sets. Every piece is made to order and delivered across Ukraine by Nova Poshta. Prices are in Ukrainian hryvnia (UAH). The site is available in Ukrainian (${SITE_ORIGIN}/uk) and English (${SITE_ORIGIN}/en); replace /uk/ with /en/ in any link below for the English page.`,
+    `> ${SITE_NAME} is a Ukrainian knitting atelier founded in 2025 that sells handmade knitted bags, clutches, hats and beach sets. Every piece is hand-knitted to order and delivered across Ukraine by Nova Poshta and abroad by Nova Post. Prices below are in Ukrainian hryvnia (UAH); orders abroad are paid in euros. The site is available in Ukrainian (${SITE_ORIGIN}/uk) and English (${SITE_ORIGIN}/en); replace /uk/ with /en/ in any link below for the English page.`,
+    "",
+    "## How it works",
+    "",
+    ...WORDS.en.homeFacts.map(([label, text]) => `- ${label} ${text}`),
     "",
     "## Products",
     "",
@@ -1144,6 +1161,18 @@ function applyCommonHeaders(res) {
   for (const { key, value } of extraHeaders) res.setHeader(key, value);
 }
 
+// Vite names everything in /assets/ after its content (index-BdRXgK3R.js), so those files never change under
+// the same address and can be kept for a year; fonts too. The service worker must be re-checked every time,
+// or a new release would not reach people who already have the old one. Anything else keeps the CDN default.
+const HASHED_ASSET = /^\/assets\/.+-[\w-]{8}\.[a-z0-9]+$/i;
+const FONT_FILE = /\.(woff2?|ttf|otf)$/i;
+
+function staticCacheControl(pathname) {
+  if (pathname === "/sw.js") return "no-cache";
+  if (HASHED_ASSET.test(pathname) || FONT_FILE.test(pathname)) return "public, max-age=31536000, immutable";
+  return null;
+}
+
 async function serveStaticFile(req, res, pathname) {
   const filePath = join(distDir, pathname);
   if (!filePath.startsWith(distDir)) {
@@ -1155,6 +1184,8 @@ async function serveStaticFile(req, res, pathname) {
     if (!info.isFile()) throw new Error("not a file");
     applyCommonHeaders(res);
     res.setHeader("Content-Type", MIME_TYPES[extname(filePath)] || "application/octet-stream");
+    const cacheControl = staticCacheControl(pathname);
+    if (cacheControl) res.setHeader("Cache-Control", cacheControl);
     createReadStream(filePath).pipe(res);
   } catch {
     // no-store: during a deploy a file can be missing for a few seconds, and a cached 404 would

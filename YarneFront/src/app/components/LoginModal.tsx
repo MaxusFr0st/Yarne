@@ -7,6 +7,7 @@ import { useTouchMobileLayout } from "../hooks/useTouchMobileLayout";
 import { useBodyScrollLock } from "../hooks/useBodyScrollLock";
 import { isGoogleOAuthEnabled, isOAuthEnabled } from "../config/oauth";
 import { LoginGoogleButton } from "./LoginGoogleButton";
+import { LangLink } from "../i18n/LangLink";
 
 const easing = [0.25, 0.1, 0.25, 1] as const;
 const FOCUSABLE = 'a[href], button:not([disabled]), input:not([disabled]), [tabindex]:not([tabindex="-1"])';
@@ -561,7 +562,11 @@ export function LoginModal() {
                 className="text-center text-[#2D241E]/[0.68] text-xs mt-6 [@media(max-height:820px)]:mt-4 leading-relaxed"
                 style={{ fontFamily: "'DM Sans', sans-serif" }}
               >
-                {t("auth.agreePrefix")} {t("auth.terms")} {t("auth.and")} {t("auth.privacyPolicy")}.
+                {t("auth.agreePrefix")}{" "}
+                <LangLink to="/pages/terms" target="_blank" rel="noopener noreferrer" className="underline">
+                  {t("auth.terms")}
+                </LangLink>{" "}
+                {t("auth.and")} {t("auth.privacyPolicy")}.
               </p>
               </div>
             </motion.div>

@@ -56,7 +56,10 @@ export function Root() {
     window.history.scrollRestoration = "manual";
 
     const nav = performance.getEntriesByType("navigation")[0] as PerformanceNavigationTiming | undefined;
-    if (nav?.type === "reload") {
+    // A reload, and also an address typed or followed in a tab that visited the page earlier:
+    // both start at the top. Only coming back with the browser's Back/Forward returns to the
+    // old place; the tab's saved positions would otherwise open such a page already scrolled.
+    if (nav?.type === "reload" || nav?.type === "navigate") {
       clearAllScrollPositions();
       window.scrollTo(0, 0);
     }

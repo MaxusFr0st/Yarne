@@ -73,6 +73,8 @@ interface AuthContextType {
   loginWithOAuth: (idToken: string, provider: "google") => Promise<{ ok: boolean; error?: string }>;
   register: (data: { firstName?: string; lastName?: string; userName?: string; email: string; password: string; statusToken?: string }) => Promise<{ ok: boolean; error?: string }>;
   logout: () => void;
+  /** Shows a name the customer just saved on the account page, without a reload. */
+  setUserName: (name: string) => void;
 }
 
 type AppContextType = CartContextType & OverlayContextType & AuthContextType;
@@ -138,6 +140,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, [clearClientAuth]);
 
   const logout = endSession;
+
+  const setUserName = useCallback((name: string) => {
+    setUser((prev) => (prev ? { ...prev, name } : prev));
+  }, []);
 
   useEffect(() => {
     clearLegacyAuthStorage();
@@ -390,8 +396,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       loginWithOAuth,
       register,
       logout,
+      setUserName,
     }),
-    [isLoggedIn, authHydrated, user, login, loginWithOAuth, register, logout]
+    [isLoggedIn, authHydrated, user, login, loginWithOAuth, register, logout, setUserName]
   );
 
   const appValue = useMemo<AppContextType>(

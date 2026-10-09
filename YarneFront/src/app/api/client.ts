@@ -1,6 +1,7 @@
 import { buildApiUrl, resolveApiBase } from "./base";
 import { ApiRequestError } from "./errors";
 import { takeEarlyResponse } from "./earlyRequests";
+import i18n from "../i18n";
 
 /** Clear legacy JWT storage from before httpOnly cookies. */
 export function clearLegacyAuthStorage() {
@@ -87,9 +88,11 @@ export async function apiRequest<T>(
     });
   } catch (err) {
     if (err instanceof DOMException && err.name === "TimeoutError") {
-      throw new Error(`API request timed out (${resolveApiBase()}). The backend may be down — check Railway deploy logs.`);
+      console.error(`API request timed out (${resolveApiBase()}). The backend may be down — check Railway deploy logs.`, err);
+    } else {
+      console.error(`Failed to reach API (${resolveApiBase()}). Check backend/CORS and retry.`, err);
     }
-    throw new Error(`Failed to reach API (${resolveApiBase()}). Check backend/CORS and retry.`);
+    throw new Error(i18n.t("common.serverUnreachable"));
   }
 
   if (res.status === 401 && !skipAuthExpire && !_retriedAfterRefresh) {
@@ -115,7 +118,8 @@ export async function apiRequest<T>(
   if (res.status === 204) return undefined as T;
   const contentType = res.headers.get("content-type")?.toLowerCase() ?? "";
   if (!contentType.includes("application/json")) {
-    throw new Error(`API returned non-JSON response from ${resolveApiBase()}. Set VITE_API_URL to your backend Railway URL.`);
+    console.error(`API returned non-JSON response from ${resolveApiBase()}. Set VITE_API_URL to your backend Railway URL.`);
+    throw new Error(i18n.t("common.serverUnreachable"));
   }
   return res.json();
 }
@@ -129,8 +133,9 @@ export async function apiBlob(endpoint: string): Promise<Blob> {
       cache: "no-store",
       signal: AbortSignal.timeout(30_000),
     });
-  } catch {
-    throw new Error("Failed to reach API.");
+  } catch (err) {
+    console.error(`Failed to reach API (${resolveApiBase()}).`, err);
+    throw new Error(i18n.t("common.serverUnreachable"));
   }
   if (!res.ok) throw new ApiRequestError(`Request failed: ${res.status}`, res.status, {});
   return res.blob();

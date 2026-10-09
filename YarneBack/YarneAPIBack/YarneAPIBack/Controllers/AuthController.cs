@@ -55,6 +55,56 @@ public class AuthController : ControllerBase
         if (customer == null)
             return Unauthorized();
 
+        return Ok(BuildProfile(customer));
+    }
+
+    /// <summary>The signed-in customer changes their own name and phone. The email stays as it is.</summary>
+    [HttpPut("me")]
+    [Authorize]
+    [EnableRateLimiting("auth-login")]
+    [ProducesResponseType(typeof(CustomerProfileResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    public async Task<ActionResult<CustomerProfileResponse>> UpdateMe([FromBody] UpdateProfileRequest request, CancellationToken ct)
+    {
+        var customerId = GetCurrentCustomerId();
+        if (customerId == null)
+            return Unauthorized();
+
+        var customer = await _context.Customers
+            .FirstOrDefaultAsync(c => c.Id == customerId.Value && c.IsActive, ct);
+
+        if (customer == null)
+            return Unauthorized();
+
+        var fullName = request?.FullName?.Trim() ?? string.Empty;
+        if (fullName.Length < 2 || fullName.Length > 200)
+            return BadRequest(new { message = "Full name must be 2 to 200 characters." });
+
+        // First word is the first name, the rest the last name (which may be empty, as for Google sign-ups).
+        var parts = fullName.Split((char[]?)null, 2, StringSplitOptions.RemoveEmptyEntries);
+        var firstName = parts[0];
+        var lastName = parts.Length > 1 ? parts[1].Trim() : string.Empty;
+        if (firstName.Length > 100 || lastName.Length > 100)
+            return BadRequest(new { message = "First and last name must each be at most 100 characters." });
+
+        var phone = request!.PhoneNumber?.Trim();
+        if (string.IsNullOrEmpty(phone))
+            phone = null;
+        else if (phone.Length < 8 || phone.Length > 32)
+            return BadRequest(new { message = "Phone number must be 8 to 32 characters." });
+
+        customer.FirstName = firstName;
+        customer.LastName = lastName;
+        customer.PhoneNumber = phone;
+        await _context.SaveChangesAsync(ct);
+
+        return Ok(BuildProfile(customer));
+    }
+
+    private CustomerProfileResponse BuildProfile(Models.Customer customer)
+    {
         var fullName = $"{customer.FirstName} {customer.LastName}".Trim();
         if (string.IsNullOrWhiteSpace(fullName))
             fullName = customer.UserName;
@@ -63,7 +113,7 @@ public class AuthController : ControllerBase
         var expiresAt = ResolveAccessTokenExpiry()
             ?? DateTime.UtcNow.AddMinutes(role.Equals("Admin", StringComparison.OrdinalIgnoreCase) ? 120 : 45);
 
-        return Ok(new CustomerProfileResponse
+        return new CustomerProfileResponse
         {
             Email = customer.Email,
             FullName = fullName,
@@ -71,7 +121,7 @@ public class AuthController : ControllerBase
             PhoneNumber = customer.PhoneNumber,
             Role = role,
             ExpiresAt = expiresAt,
-        });
+        };
     }
 
     [HttpPost("logout")]
