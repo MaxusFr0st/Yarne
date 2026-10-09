@@ -264,7 +264,7 @@ function ProductCardInner({
                   e.stopPropagation();
                   setActiveColor(i);
                 }}
-                className={`relative shrink-0 transition-[width,height,box-shadow,border-color] duration-300 ease-out cursor-pointer ${isCarouselCard ? "" : "hover:scale-110"}`}
+                className={`relative shrink-0 transition-[width,height,box-shadow,border-color] duration-300 ease-out cursor-pointer ${isCarouselCard ? "" : "hover:scale-110"}${touchMobile && !previewMode ? (i === activeColor ? " before:-inset-x-[6px]" : " before:-inset-x-[5px]") + " before:content-[''] before:absolute before:top-1/2 before:h-10 before:-translate-y-1/2" : ""}`}
                 style={{
                   width: i === activeColor ? 18 : 14,
                   height: i === activeColor ? 18 : 14,

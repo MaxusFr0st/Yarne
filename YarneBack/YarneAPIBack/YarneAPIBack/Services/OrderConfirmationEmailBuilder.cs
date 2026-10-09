@@ -9,11 +9,11 @@ public static class OrderConfirmationEmailBuilder
     private static readonly CultureInfo UkrainianCulture = CultureInfo.GetCultureInfo("uk-UA");
 
     // Site colours: cream, ink, maroon. Web-safe stacks only (no web fonts in mail clients).
-    private const string Cream = "#F5F2ED";
-    private const string Ink = "#2D241E";
+    internal const string Cream = "#F5F2ED";
+    internal const string Ink = "#2D241E";
     private const string Maroon = "#4A0E0E";
-    private const string SerifStack = "Georgia,'Times New Roman',serif";
-    private const string SansStack = "Arial,Helvetica,sans-serif";
+    internal const string SerifStack = "Georgia,'Times New Roman',serif";
+    internal const string SansStack = "Arial,Helvetica,sans-serif";
 
     /// <summary>"Y071026-3": the public order number, or the Id for an order that has none (placed by hand).</summary>
     public static string FormatOrderNumber(OrderConfirmationEmailMessage message)
@@ -305,11 +305,11 @@ public static class OrderConfirmationEmailBuilder
     private static string? FirstText(params string?[] values)
         => values.FirstOrDefault(v => !string.IsNullOrWhiteSpace(v))?.Trim();
 
-    private static string Paragraph(string htmlInner)
+    internal static string Paragraph(string htmlInner)
         => $"""<p style="margin:0 0 16px;font-family:{SansStack};font-size:14px;line-height:1.6;color:{Ink};">{htmlInner}</p>""";
 
     /// <summary>A full-width pill button in a table, so it holds its shape in Gmail and Apple Mail.</summary>
-    private static string Button(string label, string url, bool primary)
+    internal static string Button(string label, string url, bool primary)
     {
         var background = primary ? Ink : "#ffffff";
         var color = primary ? Cream : Ink;

@@ -8,11 +8,16 @@ import { useBodyScrollLock } from "../hooks/useBodyScrollLock";
 import { isGoogleOAuthEnabled, isOAuthEnabled } from "../config/oauth";
 import { LoginGoogleButton } from "./LoginGoogleButton";
 import { LangLink } from "../i18n/LangLink";
+import { useLocale } from "../i18n/useLocale";
+import { requestPasswordReset } from "../api/auth";
+import { ApiRequestError } from "../api/errors";
 
 const easing = [0.25, 0.1, 0.25, 1] as const;
 const FOCUSABLE = 'a[href], button:not([disabled]), input:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
 type AuthMode = "login" | "register";
+// "forgot" and "sent" are the password-reset steps; the tabs, Google and the agreement line belong to "auth" only.
+type AuthView = "auth" | "forgot" | "sent";
 
 function AuthField({
   id,
@@ -70,7 +75,8 @@ function AuthField({
 
 export function LoginModal() {
   const { t } = useTranslation();
-  const { loginOpen, closeLogin } = useOverlay();
+  const { loginOpen, loginStartView, closeLogin } = useOverlay();
+  const locale = useLocale();
   const { login, loginWithOAuth, register } = useAuth();
   const reduceMotion = useReducedMotion();
   useBodyScrollLock(loginOpen);
@@ -79,8 +85,11 @@ export function LoginModal() {
   const panelRef = useRef<HTMLDivElement>(null);
   const emailRef = useRef<HTMLInputElement>(null);
   const firstNameRef = useRef<HTMLInputElement>(null);
+  const sentButtonRef = useRef<HTMLButtonElement>(null);
 
   const [mode, setMode] = useState<AuthMode>("login");
+  const [view, setView] = useState<AuthView>("auth");
+  const [sentTo, setSentTo] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [firstName, setFirstName] = useState("");
@@ -100,6 +109,8 @@ export function LoginModal() {
     setError("");
     setLoading(false);
     setMode("login");
+    setView("auth");
+    setSentTo("");
   }, []);
 
   const switchMode = useCallback((next: AuthMode) => {
@@ -120,6 +131,7 @@ export function LoginModal() {
       resetForm();
       return;
     }
+    if (loginStartView === "forgot") setView("forgot");
 
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
@@ -154,7 +166,19 @@ export function LoginModal() {
       document.removeEventListener("keydown", onKeyDown);
       window.clearTimeout(focusTimer);
     };
-  }, [loginOpen, closeLogin, resetForm, reduceMotion]);
+  }, [loginOpen, loginStartView, closeLogin, resetForm, reduceMotion]);
+
+  // Each step of the reset puts focus on its first control. (Opening the window is handled above.)
+  const prevView = useRef<AuthView>("auth");
+  useEffect(() => {
+    const changed = prevView.current !== view;
+    prevView.current = view;
+    if (!loginOpen || !changed) return;
+    const timer = window.setTimeout(() => {
+      (view === "sent" ? sentButtonRef : emailRef).current?.focus();
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [loginOpen, view]);
 
   // Focus goes back to whatever opened the dialog. Its own effect, keyed on open alone, so the
   // opener is read once, before focus moves in.
@@ -186,6 +210,40 @@ export function LoginModal() {
       }
     } catch {
       setError(t("auth.errors.generic"));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const openForgot = () => {
+    setError("");
+    setPassword("");
+    setShowPass(false);
+    setView("forgot");
+  };
+
+  const backToSignIn = () => {
+    setError("");
+    setMode("login");
+    setView("auth");
+  };
+
+  // The answer is the same for any address, so the next step shows whatever the server says.
+  const handleForgot = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const address = email.trim();
+    if (!address) {
+      emailRef.current?.focus();
+      return;
+    }
+    setError("");
+    setLoading(true);
+    try {
+      await requestPasswordReset({ email: address, locale });
+      setSentTo(address);
+      setView("sent");
+    } catch (err) {
+      setError(err instanceof ApiRequestError && err.status === 429 ? t("passwordReset.tooMany") : t("auth.errors.generic"));
     } finally {
       setLoading(false);
     }
@@ -275,6 +333,112 @@ export function LoginModal() {
               </button>
 
               <div className="flex-auto min-h-0 overflow-y-auto">
+                {view !== "auth" ? (
+                  <motion.div
+                    key={view}
+                    initial={reduceMotion ? false : { opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={expandTransition}
+                  >
+                    <div className="text-center mb-7 [@media(max-height:820px)]:mb-5">
+                      <p
+                        className="text-[#2D241E] mb-2 [@media(max-height:720px)]:hidden"
+                        style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "1.75rem", fontWeight: 500, letterSpacing: "0.02em" }}
+                      >
+                        Yarné
+                      </p>
+                      <p
+                        className="text-[#2D241E]/[0.68] tracking-widest uppercase text-xs mb-2 [@media(max-height:820px)]:hidden"
+                        style={{ fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.2em" }}
+                      >
+                        {view === "forgot" ? t("passwordReset.forgotLabel") : t("passwordReset.sentLabel")}
+                      </p>
+                      <h2
+                        id={titleId}
+                        className="text-[#2D241E]"
+                        style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "clamp(1.65rem, 5vw, 2rem)", fontWeight: 400, lineHeight: 1.2 }}
+                      >
+                        {view === "forgot" ? t("passwordReset.forgotTitle") : t("passwordReset.sentTitle")}
+                      </h2>
+                    </div>
+
+                    {view === "forgot" ? (
+                      <form onSubmit={handleForgot} className="space-y-4" noValidate>
+                        <p className="text-[#2D241E]/[0.68] text-sm text-center leading-relaxed" style={{ fontFamily: "'DM Sans', sans-serif" }}>
+                          {t("passwordReset.forgotText")}
+                        </p>
+                        <AuthField
+                          id="auth-forgot-email"
+                          label={t("auth.email")}
+                          type="email"
+                          value={email}
+                          onChange={setEmail}
+                          autoComplete="email"
+                          maxLength={254}
+                          required
+                          inputRef={emailRef}
+                        />
+                        {error && (
+                          <p
+                            role="alert"
+                            aria-live="polite"
+                            className="text-[#4A0E0E] text-sm text-center px-2"
+                            style={{ fontFamily: "'DM Sans', sans-serif" }}
+                          >
+                            {error}
+                          </p>
+                        )}
+                        <button
+                          type="submit"
+                          disabled={loading}
+                          className="w-full py-3.5 rounded-full text-white transition-opacity duration-200 hover:opacity-90 disabled:opacity-50 mt-1 cursor-pointer"
+                          style={{
+                            backgroundColor: "#2D241E",
+                            fontFamily: "'DM Sans', sans-serif",
+                            fontSize: "0.8rem",
+                            letterSpacing: "0.15em",
+                          }}
+                        >
+                          {loading ? (
+                            <span className="flex items-center justify-center gap-2">
+                              <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                              {t("passwordReset.forgotSending")}
+                            </span>
+                          ) : (
+                            <span className="uppercase tracking-widest inline-block">{t("passwordReset.forgotSubmit")}</span>
+                          )}
+                        </button>
+                        <p className="text-center">
+                          <button
+                            type="button"
+                            onClick={backToSignIn}
+                            className="text-[0.84rem] text-[#2D241E]/[0.68] underline underline-offset-4 hover:text-[#4A0E0E] transition-colors cursor-pointer"
+                            style={{ fontFamily: "'DM Sans', sans-serif" }}
+                          >
+                            {t("passwordReset.backToSignIn")}
+                          </button>
+                        </p>
+                      </form>
+                    ) : (
+                      <div className="space-y-4 text-center" style={{ fontFamily: "'DM Sans', sans-serif" }}>
+                        <p className="text-[#2D241E]/[0.68] text-sm leading-relaxed break-words">
+                          {t("passwordReset.sentText", { email: sentTo })}
+                        </p>
+                        <p className="text-[#2D241E]/[0.68] text-sm leading-relaxed">{t("passwordReset.sentSpam")}</p>
+                        <button
+                          ref={sentButtonRef}
+                          type="button"
+                          onClick={backToSignIn}
+                          className="w-full py-3.5 rounded-full text-[#2D241E] border border-[#2D241E]/25 transition-colors duration-200 hover:bg-[#2D241E]/5 mt-1 cursor-pointer"
+                          style={{ fontSize: "0.8rem", letterSpacing: "0.15em" }}
+                        >
+                          <span className="uppercase tracking-widest inline-block">{t("passwordReset.sentBack")}</span>
+                        </button>
+                      </div>
+                    )}
+                  </motion.div>
+                ) : (
+                <>
                 <div className="text-center mb-7 [@media(max-height:820px)]:mb-5">
                 {/* Very short screens: the page header shows the logo right behind the modal. */}
                 <p
@@ -490,6 +654,18 @@ export function LoginModal() {
                           {showPass ? <EyeOff size={16} /> : <Eye size={16} />}
                         </button>
                       </AuthField>
+                      {mode === "login" && (
+                        <p className="text-right mt-2">
+                          <button
+                            type="button"
+                            onClick={openForgot}
+                            className="text-[0.84rem] text-[#2D241E]/[0.68] underline underline-offset-4 hover:text-[#4A0E0E] transition-colors cursor-pointer"
+                            style={{ fontFamily: "'DM Sans', sans-serif" }}
+                          >
+                            {t("passwordReset.forgotLink")}
+                          </button>
+                        </p>
+                      )}
                     </motion.div>
 
                     <AnimatePresence mode="wait" initial={false}>
@@ -566,8 +742,13 @@ export function LoginModal() {
                 <LangLink to="/pages/terms" target="_blank" rel="noopener noreferrer" className="underline">
                   {t("auth.terms")}
                 </LangLink>{" "}
-                {t("auth.and")} {t("auth.privacyPolicy")}.
+                {t("auth.and")}{" "}
+                <LangLink to="/pages/privacy" target="_blank" rel="noopener noreferrer" className="underline">
+                  {t("auth.privacyPolicy")}
+                </LangLink>.
               </p>
+                </>
+                )}
               </div>
             </motion.div>
           </div>

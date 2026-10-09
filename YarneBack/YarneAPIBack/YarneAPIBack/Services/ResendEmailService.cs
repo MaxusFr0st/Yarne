@@ -47,6 +47,20 @@ public class ResendEmailService : IEmailService
         return Task.CompletedTask;
     }
 
+    public async Task SendPasswordResetAsync(PasswordResetEmailMessage message, CancellationToken ct = default)
+    {
+        if (!CanSendEmails())
+            return;
+
+        if (string.IsNullOrWhiteSpace(message.ToEmail))
+            return;
+
+        // The link in the body is a secret: only the recipient is ever logged, never the message.
+        var subject = PasswordResetEmailBuilder.BuildSubject(message);
+        var htmlBody = PasswordResetEmailBuilder.BuildHtml(message);
+        await SendHtmlEmailAsync(message.ToEmail, subject, htmlBody, [], EmailThreading.Standalone("password-reset", _emailFrom), ct);
+    }
+
     private bool CanSendEmails()
     {
         var missingValues = new List<string>();

@@ -64,7 +64,7 @@ function langLoader(args: LoaderFunctionArgs) {
 // move between, and splitting them saved only ~3% for a second round trip on a direct visit.
 // Every other page is its own file, loaded when opened (the admin panel alone was a third of the
 // main file). While one loads, the page the visitor is on stays on screen.
-async function staticPage(pageKey: "delivery" | "terms") {
+async function staticPage(pageKey: "delivery" | "terms" | "privacy") {
   const { StaticContentPage } = await import("./pages/StaticContentPage");
   return { element: <StaticContentPage pageKey={pageKey} /> };
 }
@@ -95,6 +95,8 @@ export const router = createBrowserRouter([
           { path: "pages/care/request", lazy: async () => ({ Component: (await import("./pages/CareRequestPage")).CareRequestPage }) },
           { path: "pages/care/:materialSlug", lazy: async () => ({ Component: (await import("./pages/CareMaterialPage")).CareMaterialPage }) },
           { path: "pages/terms", lazy: () => staticPage("terms") },
+          { path: "pages/privacy", lazy: () => staticPage("privacy") },
+          { path: "reset-password", lazy: async () => ({ Component: (await import("./pages/ResetPasswordPage")).ResetPasswordPage }) },
           // A customer's own order, opened with the token in the emails: unlisted (scripts/server.mjs marks it noindex).
           { path: "order/:token", lazy: async () => ({ Component: (await import("./pages/OrderStatusPage")).OrderStatusPage }) },
           // /en/admin → canonical /admin (admin has no locale prefix).

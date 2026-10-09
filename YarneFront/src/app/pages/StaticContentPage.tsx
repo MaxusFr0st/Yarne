@@ -5,7 +5,7 @@ import { useContactContent, useDeliveryContent } from "../hooks/useCareServiceCo
 import { careText } from "../utils/careContent";
 import { useLocale } from "../i18n/useLocale";
 
-type StaticPageKey = "delivery" | "terms";
+type StaticPageKey = "delivery" | "terms" | "privacy";
 
 type Props = {
   pageKey: StaticPageKey;
@@ -19,7 +19,7 @@ export function StaticContentPage({ pageKey }: Props) {
   const locale = useLocale();
   const { content: delivery } = useDeliveryContent();
   const fill = (text: string) => text.split("{{email}}").join(contact.email);
-  // Terms come from the locale files; Delivery & Returns is edited in the admin (the seed is the same text).
+  // Terms and Privacy come from the locale files; Delivery & Returns is edited in the admin (the seed is the same text).
   const paragraphs =
     pageKey === "delivery"
       ? delivery.sections.flatMap((section) => [
@@ -30,7 +30,9 @@ export function StaticContentPage({ pageKey }: Props) {
             .filter(Boolean)
             .map((text) => ({ heading: false, text })),
         ])
-      : (t(`pages.${pageKey}.paragraphs`, { returnObjects: true, email: contact.email }) as string[]).map((text) => ({ heading: false, text }));
+      : (t(`pages.${pageKey}.paragraphs`, { returnObjects: true, email: contact.email }) as (string | { heading: boolean; text: string })[]).map((item) =>
+          typeof item === "string" ? { heading: false, text: item } : item,
+        );
 
   return (
     <main style={{ backgroundColor: "#F5F2ED", minHeight: "var(--app-svh)" }}>
@@ -51,9 +53,9 @@ export function StaticContentPage({ pageKey }: Props) {
                   </p>
                 ))}
             </div>
-            {pageKey === "terms" && (
+            {pageKey !== "delivery" && (
               <p className="text-[#2D241E]/[0.68] text-xs mt-10" style={{ fontFamily: "'DM Sans', sans-serif" }}>
-                {t("pages.terms.lastUpdated")}
+                {t(`pages.${pageKey}.lastUpdated`)}
               </p>
             )}
           </ScrollReveal>

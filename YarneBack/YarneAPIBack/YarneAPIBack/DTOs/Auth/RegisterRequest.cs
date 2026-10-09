@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using YarneAPIBack.Services;
 
 namespace YarneAPIBack.DTOs.Auth;
 
@@ -31,6 +32,6 @@ public class RegisterRequest
 
     [Required]
     [StringLength(100, MinimumLength = 8)]
-    [RegularExpression(@"^(?=.*[A-Z])(?=.*\d).{8,}$", ErrorMessage = "Password must be at least 8 characters and include one uppercase letter and one digit")]
+    [RegularExpression(PasswordRules.Pattern, ErrorMessage = PasswordRules.Message)]
     public string Password { get; set; } = null!;
 }

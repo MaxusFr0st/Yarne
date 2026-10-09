@@ -57,6 +57,15 @@ public static class DatabaseBootstrap
 
         try
         {
+            await PasswordResetSchemaPatches.ForceEnsureAsync(db, logger, cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Password reset schema not ready at bootstrap start; will retry after migrations.");
+        }
+
+        try
+        {
             await FocalPointSchemaPatches.ForceEnsureAsync(db, logger, cancellationToken);
         }
         catch (Exception ex)
@@ -133,6 +142,15 @@ public static class DatabaseBootstrap
         catch (Exception shopContentEx)
         {
             logger.LogError(shopContentEx, "Shop content columns still missing after bootstrap; /api/products and /api/orders will 500 until fixed.");
+        }
+
+        try
+        {
+            await PasswordResetSchemaPatches.ForceEnsureAsync(db, logger, cancellationToken);
+        }
+        catch (Exception resetEx)
+        {
+            logger.LogError(resetEx, "Password reset table still missing after bootstrap; /api/auth/forgot-password will fail until fixed.");
         }
 
         // The numbers and tokens of older orders: normally run inside the migration step, which may have failed.

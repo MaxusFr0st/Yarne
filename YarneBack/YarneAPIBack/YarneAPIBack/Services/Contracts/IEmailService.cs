@@ -7,4 +7,6 @@ public interface IEmailService
     Task SendOrderConfirmationAsync(OrderConfirmationEmailMessage message, CancellationToken ct = default);
 
     Task SendOrderReceiptAsync(OrderConfirmationEmailMessage message, CancellationToken ct = default);
+
+    Task SendPasswordResetAsync(PasswordResetEmailMessage message, CancellationToken ct = default);
 }

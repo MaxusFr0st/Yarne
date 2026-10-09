@@ -484,12 +484,14 @@ public class ForeignAndReceiptTests : IDisposable
         public IEnumerable<OrderEmailEvent> Events => Messages.Select(m => m.Event);
         public Task SendOrderConfirmationAsync(OrderConfirmationEmailMessage message, CancellationToken ct = default) { lock (Messages) Messages.Add(message); return Task.CompletedTask; }
         public Task SendOrderReceiptAsync(OrderConfirmationEmailMessage message, CancellationToken ct = default) => Task.CompletedTask;
+        public Task SendPasswordResetAsync(PasswordResetEmailMessage message, CancellationToken ct = default) => Task.CompletedTask;
     }
 
     internal sealed class NoEmail : IEmailService
     {
         public Task SendOrderConfirmationAsync(OrderConfirmationEmailMessage message, CancellationToken ct = default) => Task.CompletedTask;
         public Task SendOrderReceiptAsync(OrderConfirmationEmailMessage message, CancellationToken ct = default) => Task.CompletedTask;
+        public Task SendPasswordResetAsync(PasswordResetEmailMessage message, CancellationToken ct = default) => Task.CompletedTask;
     }
 
     internal sealed class FakeStorage : IR2ImageStorageService

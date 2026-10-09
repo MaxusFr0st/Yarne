@@ -9,6 +9,7 @@ import React, {
 } from "react";
 import {
   login as apiLogin,
+  resetPassword as apiResetPassword,
   register as apiRegister,
   loginWithGoogle as apiLoginWithGoogle,
   logout as apiLogout,
@@ -60,7 +61,11 @@ interface OverlayContextType {
   loginOpen: boolean;
   openCart: () => void;
   closeCart: () => void;
+  /** Which view the sign-in window opens on; "forgot" is the password-reset form. */
+  loginStartView: "forgot" | null;
   openLogin: () => void;
+  /** Opens the sign-in window on the "forgot password" form. */
+  openForgotPassword: () => void;
   closeLogin: () => void;
 }
 
@@ -72,6 +77,8 @@ interface AuthContextType {
   login: (email: string, password: string, statusToken?: string) => Promise<{ ok: boolean; error?: string }>;
   loginWithOAuth: (idToken: string, provider: "google") => Promise<{ ok: boolean; error?: string }>;
   register: (data: { firstName?: string; lastName?: string; userName?: string; email: string; password: string; statusToken?: string }) => Promise<{ ok: boolean; error?: string }>;
+  /** Sets a new password with an emailed token; on success the customer is signed in. "invalid" means the link is unusable, "weak" the password broke the rule. */
+  resetPassword: (token: string, newPassword: string) => Promise<{ ok: boolean; reason?: "invalid" | "weak" | "tooMany" | "failed" }>;
   logout: () => void;
   /** Shows a name the customer just saved on the account page, without a reload. */
   setUserName: (name: string) => void;
@@ -119,6 +126,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [cartItems, setCartItems] = useState<CartItem[]>(readStoredCart);
   const [cartOpen, setCartOpen] = useState(false);
   const [loginOpen, setLoginOpen] = useState(false);
+  const [loginStartView, setLoginStartView] = useState<"forgot" | null>(null);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [authHydrated, setAuthHydrated] = useState(false);
   const [user, setUser] = useState<{ name: string; email: string; role: string } | null>(null);
@@ -266,7 +274,16 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const closeCart = useCallback(() => setCartOpen(false), []);
   const openLogin = useCallback(() => {
-    startTransition(() => setLoginOpen(true));
+    startTransition(() => {
+      setLoginStartView(null);
+      setLoginOpen(true);
+    });
+  }, []);
+  const openForgotPassword = useCallback(() => {
+    startTransition(() => {
+      setLoginStartView("forgot");
+      setLoginOpen(true);
+    });
   }, []);
   const closeLogin = useCallback(() => setLoginOpen(false), []);
 
@@ -367,6 +384,25 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  const resetPassword = useCallback(async (token: string, newPassword: string): Promise<{ ok: boolean; reason?: "invalid" | "weak" | "tooMany" | "failed" }> => {
+    try {
+      const res = await apiResetPassword({ token, newPassword });
+      const role = res.role ?? "Customer";
+      clearLegacyAuthStorage();
+      setUser({ name: res.fullName, email: res.email, role });
+      setSessionExpiresAt(res.expiresAt);
+      setIsLoggedIn(true);
+      return { ok: true };
+    } catch (e) {
+      if (e instanceof ApiRequestError) {
+        if (e.status === 429) return { ok: false, reason: "tooMany" };
+        if (e.body.code === "weak_password") return { ok: false, reason: "weak" };
+        if (e.body.code === "invalid_token") return { ok: false, reason: "invalid" };
+      }
+      return { ok: false, reason: "failed" };
+    }
+  }, []);
+
   const cartValue = useMemo(
     () => ({
       cartItems,
@@ -382,8 +418,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   );
 
   const overlayValue = useMemo(
-    () => ({ cartOpen, loginOpen, openCart, closeCart, openLogin, closeLogin }),
-    [cartOpen, loginOpen, openCart, closeCart, openLogin, closeLogin]
+    () => ({ cartOpen, loginOpen, loginStartView, openCart, closeCart, openLogin, openForgotPassword, closeLogin }),
+    [cartOpen, loginOpen, loginStartView, openCart, closeCart, openLogin, openForgotPassword, closeLogin]
   );
 
   const authValue = useMemo(
@@ -395,10 +431,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       login,
       loginWithOAuth,
       register,
+      resetPassword,
       logout,
       setUserName,
     }),
-    [isLoggedIn, authHydrated, user, login, loginWithOAuth, register, logout, setUserName]
+    [isLoggedIn, authHydrated, user, login, loginWithOAuth, register, resetPassword, logout, setUserName]
   );
 
   const appValue = useMemo<AppContextType>(

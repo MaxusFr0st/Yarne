@@ -60,6 +60,12 @@ type MobileProductDetailViewProps = {
   guaranteeContent: ProductGuaranteeContent;
 };
 
+// Touch layouts only: an invisible, taller and wider area around a small swatch (half the gap to each neighbour,
+// so neighbours never overlap); the swatch itself is not resized.
+const SWATCH_HIT = " before:content-[''] before:absolute before:-inset-x-[calc(clamp(8px,2vw,10px)/2)] before:top-1/2 before:h-10 before:-translate-y-1/2";
+// A swatch without the selected ring has a 1.5px border (1px on a 1x screen), which the offsets do not count: 1px keeps neighbours from overlapping.
+const SWATCH_HIT_RING = " before:content-[''] before:absolute before:-inset-x-[calc(clamp(8px,2vw,10px)/2+1px)] before:top-1/2 before:h-10 before:-translate-y-1/2";
+
 export function MobileProductDetailView({
   product,
   images,
@@ -369,6 +375,7 @@ export function MobileProductDetailView({
         </button>
 
         {galleryImages.length > 1 && (
+          // The dots' touch area grows only 8px above and below the dot: taller, it sat over the photo and a swipe that began there no longer moved the gallery.
           // Sits above the info sheet's -mt-[clamp(24px,6vw,32px)] overlap so it isn't buried under it at rest.
           <div className="absolute z-20 bottom-[clamp(34px,8vw,42px)] left-1/2 -translate-x-1/2 flex items-center gap-1.5">
             {galleryImages.map((_, i) => (
@@ -376,7 +383,7 @@ export function MobileProductDetailView({
                 key={i}
                 type="button"
                 onClick={() => emblaApi?.scrollTo(i)}
-                className="rounded-full transition-all duration-300 cursor-pointer"
+                className={`rounded-full transition-all duration-300 cursor-pointer${touchMobile ? " relative before:content-[''] before:absolute before:-inset-x-[3px] before:-inset-y-[8px]" : ""}`}
                 style={{
                   width: safeGalleryIndex === i ? "clamp(18px, 4.5vw, 22px)" : "clamp(6px, 1.5vw, 7px)",
                   height: "clamp(6px, 1.5vw, 7px)",
@@ -557,7 +564,7 @@ export function MobileProductDetailView({
                       title={colorLabel}
                       aria-label={colorLabel}
                       aria-pressed={isActive}
-                      className="relative shrink-0 rounded-full cursor-pointer touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2D241E]/40"
+                      className={`relative shrink-0 rounded-full cursor-pointer touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2D241E]/40${touchMobile ? (isActive ? SWATCH_HIT : SWATCH_HIT_RING) : ""}`}
                       style={colorStyle}
                     />
                   );
@@ -571,7 +578,7 @@ export function MobileProductDetailView({
                     title={colorLabel}
                     aria-label={colorLabel}
                     aria-pressed={isActive}
-                    className="relative shrink-0 rounded-full cursor-pointer touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2D241E]/40"
+                    className={`relative shrink-0 rounded-full cursor-pointer touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2D241E]/40${touchMobile ? (isActive ? SWATCH_HIT : SWATCH_HIT_RING) : ""}`}
                     animate={{ scale: isActive ? 1.06 : 1 }}
                     transition={{ duration: 0.2, ease: transitionEase }}
                     style={colorStyle}
@@ -714,7 +721,7 @@ export function MobileProductDetailView({
                         title={furnitureLabel}
                         aria-label={furnitureLabel}
                         aria-pressed={isActive}
-                        className="relative shrink-0 rounded-full cursor-pointer touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2D241E]/40"
+                        className={`relative shrink-0 rounded-full cursor-pointer touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2D241E]/40${touchMobile ? (isActive ? SWATCH_HIT : SWATCH_HIT_RING) : ""}`}
                         style={furnitureStyle}
                       />
                     );
@@ -729,7 +736,7 @@ export function MobileProductDetailView({
                       title={furnitureLabel}
                       aria-label={furnitureLabel}
                       aria-pressed={isActive}
-                      className="relative shrink-0 rounded-full cursor-pointer touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2D241E]/40"
+                      className={`relative shrink-0 rounded-full cursor-pointer touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2D241E]/40${touchMobile ? (isActive ? SWATCH_HIT : SWATCH_HIT_RING) : ""}`}
                       animate={{ scale: isActive ? 1.06 : 1 }}
                       transition={{ duration: 0.2, ease: transitionEase }}
                       style={furnitureStyle}

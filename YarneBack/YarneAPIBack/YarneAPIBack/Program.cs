@@ -124,56 +124,42 @@ builder.Services.AddRateLimiter(options =>
             return RateLimitPartition.GetNoLimiter("healthz");
 
         var key = context.Connection.RemoteIpAddress?.ToString() ?? "unknown";
-        return RateLimitPartition.GetFixedWindowLimiter(
-            partitionKey: key,
-            factory: _ => new FixedWindowRateLimiterOptions
-            {
-                PermitLimit = 120,
-                Window = TimeSpan.FromMinutes(1),
-                QueueLimit = 0,
-                AutoReplenishment = true,
-            });
+        return RateLimits.SlidingWindow(key, 120, TimeSpan.FromMinutes(1));
     });
     // The public order status page: a token is unguessable, but a limit still stops anyone hammering the lookup.
     options.AddPolicy("order-status", context =>
     {
         var key = context.Connection.RemoteIpAddress?.ToString() ?? "unknown";
-        return RateLimitPartition.GetFixedWindowLimiter(
-            partitionKey: key,
-            factory: _ => new FixedWindowRateLimiterOptions
-            {
-                PermitLimit = 30,
-                Window = TimeSpan.FromMinutes(1),
-                QueueLimit = 0,
-                AutoReplenishment = true,
-            });
+        return RateLimits.SlidingWindow(key, 30, TimeSpan.FromMinutes(1));
     });
     // Receipt uploads are heavy: a few a minute is plenty for a customer.
     options.AddPolicy("order-receipt", context =>
     {
         var key = context.Connection.RemoteIpAddress?.ToString() ?? "unknown";
-        return RateLimitPartition.GetFixedWindowLimiter(
-            partitionKey: key,
-            factory: _ => new FixedWindowRateLimiterOptions
-            {
-                PermitLimit = 5,
-                Window = TimeSpan.FromMinutes(1),
-                QueueLimit = 0,
-                AutoReplenishment = true,
-            });
+        return RateLimits.SlidingWindow(key, 5, TimeSpan.FromMinutes(1));
+    });
+    // Reset emails cost money and fill inboxes: a few asks per IP, on top of the per-account limit in PasswordResetService.
+    options.AddPolicy("auth-forgot", context =>
+    {
+        var key = context.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+        return RateLimits.SlidingWindow(key, 5, TimeSpan.FromMinutes(10));
+    });
+    options.AddPolicy("auth-reset", context =>
+    {
+        var key = context.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+        return RateLimits.SlidingWindow(key, 10, TimeSpan.FromMinutes(10));
+    });
+    // Placing an order: a customer needs a handful of tries at most (a retry with the same clientRequestId counts too).
+    // Not tighter than this: mobile carriers put many customers behind one address.
+    options.AddPolicy("order-create", context =>
+    {
+        var key = context.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+        return RateLimits.SlidingWindow(key, 15, TimeSpan.FromMinutes(10));
     });
     options.AddPolicy("auth-login", context =>
     {
         var key = context.Connection.RemoteIpAddress?.ToString() ?? "unknown";
-        return RateLimitPartition.GetFixedWindowLimiter(
-            partitionKey: key,
-            factory: _ => new FixedWindowRateLimiterOptions
-            {
-                PermitLimit = 8,
-                Window = TimeSpan.FromMinutes(1),
-                QueueLimit = 0,
-                AutoReplenishment = true,
-            });
+        return RateLimits.SlidingWindow(key, 8, TimeSpan.FromMinutes(1));
     });
 });
 
@@ -182,6 +168,7 @@ builder.Services.AddHttpClient();
 builder.Services.AddScoped<IAccessTokenIssuer, AccessTokenIssuer>();
 builder.Services.AddScoped<IRefreshTokenService, RefreshTokenService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
+builder.Services.AddScoped<PasswordResetService>();
 builder.Services.AddScoped<OrderNotifier>();
 builder.Services.AddScoped<MakingPhotoUploads>();
 builder.Services.AddHostedService<ReceiptCleanupService>();

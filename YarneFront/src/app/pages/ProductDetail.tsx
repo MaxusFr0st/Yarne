@@ -44,7 +44,7 @@ export function ProductDetail() {
   const navigate = useNavigate();
   const location = useLocation();
   const { addToCart } = useCart();
-  const { product, loading } = useProduct(id);
+  const { product, loading, error, notFound, refetch } = useProduct(id);
   const { products } = useProducts();
   const related = useMemo(() => {
     const fromApi = product?.suggestedProducts ?? [];
@@ -171,6 +171,37 @@ export function ProductDetail() {
     // product is rebuilt on every render; its id is what identifies it.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [product?.id, activeColor]);
+
+  if (!loading && !product && error && !notFound) {
+    return (
+      <main
+        className="min-h-[var(--app-svh)] flex flex-col items-center justify-center text-center px-6"
+        style={{ backgroundColor: "#F5F2ED" }}
+      >
+        <p className="text-[#2D241E]" style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "1.5rem" }}>
+          {t("loadError.productTitle")}
+        </p>
+        <p className="text-[#2D241E]/[0.68] mt-1.5 mb-4" style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "0.88rem" }}>
+          {t("loadError.hint")}
+        </p>
+        <button
+          type="button"
+          onClick={refetch}
+          className="inline-block rounded-full bg-[#2D241E] text-[#F5F2ED] uppercase cursor-pointer px-[18px] py-[11px] hover:opacity-90 transition-opacity duration-200"
+          style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "0.74rem", letterSpacing: "0.12em" }}
+        >
+          {t("loadError.retry")}
+        </button>
+        <LangLink
+          to="/collection"
+          className="mt-6 text-[#2D241E] underline text-sm"
+          style={{ fontFamily: "'DM Sans', sans-serif" }}
+        >
+          {t("loadError.toCollection")}
+        </LangLink>
+      </main>
+    );
+  }
 
   if (!loading && !product) {
     return (

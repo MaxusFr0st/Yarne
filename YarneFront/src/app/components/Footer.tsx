@@ -67,6 +67,7 @@ export function Footer() {
     { label: t("footer.links.care"), to: productCarePath ?? "/pages/care" },
     { label: t("care.guarantee.breadcrumb"), to: "/pages/care/guarantee" },
     { label: t("footer.legal.terms"), to: "/pages/terms" },
+    { label: t("footer.legal.privacy"), to: "/pages/privacy" },
     { label: t("footer.links.contact"), to: "/pages/care/request" },
   ];
 

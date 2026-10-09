@@ -22,6 +22,10 @@ public static class EmailThreading
             : new Headers($"<order-{message.OrderId}-{(int)message.Event}-{Guid.NewGuid():N}@{domain}>", root, root);
     }
 
+    /// <summary>An email that belongs to no order thread (password reset): a fresh id and no replies.</summary>
+    public static Headers Standalone(string kind, string? emailFrom)
+        => new($"<{kind}-{Guid.NewGuid():N}@{DomainOf(emailFrom)}>", null, null);
+
     private static string DomainOf(string? emailFrom)
     {
         var text = emailFrom ?? string.Empty;

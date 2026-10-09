@@ -7,6 +7,7 @@ using Microsoft.EntityFrameworkCore;
 using YarneAPIBack.Auth;
 using YarneAPIBack.Data;
 using YarneAPIBack.DTOs.Auth;
+using YarneAPIBack.Services;
 using YarneAPIBack.Services.Contracts;
 
 namespace YarneAPIBack.Controllers;
@@ -230,6 +231,43 @@ public class AuthController : ControllerBase
             _logger.LogError(ex, "Email/password login failed.");
             return StatusCode(StatusCodes.Status500InternalServerError, new { message = "Sign-in failed on the server. Please try again." });
         }
+    }
+
+    /// <summary>Always answers 200 with the same body, whether or not the email has an account.</summary>
+    [HttpPost("forgot-password")]
+    [AllowAnonymous]
+    [EnableRateLimiting("auth-forgot")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    public async Task<IActionResult> ForgotPassword(
+        [FromBody] ForgotPasswordRequest request,
+        [FromServices] PasswordResetService passwordReset,
+        CancellationToken ct)
+    {
+        await passwordReset.RequestAsync(request?.Email, request?.Locale, ct);
+        return Ok(new { sent = true });
+    }
+
+    [HttpPost("reset-password")]
+    [AllowAnonymous]
+    [EnableRateLimiting("auth-reset")]
+    [ProducesResponseType(typeof(AuthResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    public async Task<ActionResult<AuthResponse>> ResetPassword(
+        [FromBody] ResetPasswordRequest request,
+        [FromServices] PasswordResetService passwordReset,
+        CancellationToken ct)
+    {
+        if (!PasswordRules.IsValid(request?.NewPassword))
+            return BadRequest(new { code = "weak_password", message = PasswordRules.Message });
+
+        var result = await passwordReset.ResetAsync(request!.Token, request.NewPassword!, ct);
+        if (result == null)
+            return BadRequest(new { code = "invalid_token", message = "This link is invalid or has expired. Please request a new one." });
+
+        SetSessionCookies(result);
+        return Ok(result);
     }
 
     [HttpPost("google")]

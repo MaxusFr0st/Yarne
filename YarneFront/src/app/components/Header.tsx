@@ -225,7 +225,7 @@ export function Header() {
                   aria-expanded={langOpen}
                   aria-haspopup="listbox"
                   aria-label={t("language.label")}
-                  className="flex items-center gap-[3px] h-8 px-1.5 rounded-[4px] text-[#2D241E] hover:bg-[#2D241E]/5 transition-colors duration-150 cursor-pointer focus-visible:outline-2 focus-visible:outline-[#2D241E] focus-visible:outline-offset-2"
+                  className="relative flex items-center gap-[3px] h-8 px-1.5 rounded-[4px] before:content-[''] before:absolute before:-top-1.5 before:-bottom-1.5 before:-left-0.5 before:min-w-11 text-[#2D241E] hover:bg-[#2D241E]/5 transition-colors duration-150 cursor-pointer focus-visible:outline-2 focus-visible:outline-[#2D241E] focus-visible:outline-offset-2"
                   style={{
                     fontFamily: "'DM Sans', sans-serif",
                     fontSize: "0.72rem",
@@ -346,7 +346,7 @@ export function Header() {
                   <button
                     type="button"
                     onClick={() => navigate("/account")}
-                    className="flex items-center justify-center w-10 h-10 rounded-full text-[#2D241E] hover:bg-[#2D241E]/5 transition-colors duration-200 cursor-pointer"
+                    className="relative before:content-[''] before:absolute before:-top-0.5 before:-bottom-0.5 before:-left-0.5 before:-right-px flex items-center justify-center w-10 h-10 rounded-full text-[#2D241E] hover:bg-[#2D241E]/5 transition-colors duration-200 cursor-pointer"
                     aria-label={t("header.myAccount")}
                     title={user?.name ? `${t("header.myAccount")} — ${user.name}` : t("header.myAccount")}
                   >
@@ -356,7 +356,7 @@ export function Header() {
                   <button
                     type="button"
                     onClick={openLogin}
-                    className="flex items-center justify-center w-10 h-10 rounded-full text-[#2D241E] hover:bg-[#2D241E]/5 transition-colors duration-200 cursor-pointer"
+                    className="relative before:content-[''] before:absolute before:-top-0.5 before:-bottom-0.5 before:-left-0.5 before:-right-px flex items-center justify-center w-10 h-10 rounded-full text-[#2D241E] hover:bg-[#2D241E]/5 transition-colors duration-200 cursor-pointer"
                     aria-label={t("header.signIn")}
                     title={t("header.signIn")}
                   >
@@ -365,7 +365,7 @@ export function Header() {
                 )}
                 <button
                   onClick={openCart}
-                  className="relative flex items-center justify-center w-10 h-10 rounded-full text-[#2D241E] hover:bg-[#2D241E]/5 transition-colors duration-200 cursor-pointer"
+                  className="relative before:content-[''] before:absolute before:-top-0.5 before:-bottom-0.5 before:-left-px before:-right-0.5 flex items-center justify-center w-10 h-10 rounded-full text-[#2D241E] hover:bg-[#2D241E]/5 transition-colors duration-200 cursor-pointer"
                   aria-label={t("header.cart")}
                 >
                   <ShoppingBag size={20} strokeWidth={1.5} />

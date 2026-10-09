@@ -518,7 +518,8 @@ export function CheckoutPage() {
     } catch (e) {
       // Only a 4xx carries a sentence written for the customer; anything else is the server failing.
       const refused = e instanceof ApiRequestError && e.status >= 400 && e.status < 500;
-      setError(abroad && refused && /euro price/i.test(e.message) ? t("checkout.abroad.noEuroPrice", { email: contactContent.email }) : refused ? e.message : t("checkout.errors.unableToPlaceOrder"));
+      const tooMany = e instanceof ApiRequestError && e.status === 429;
+      setError(tooMany ? t("checkout.errors.tooManyAttempts") : abroad && refused && /euro price/i.test(e.message) ? t("checkout.abroad.noEuroPrice", { email: contactContent.email }) : refused ? e.message : t("checkout.errors.unableToPlaceOrder"));
     } finally {
       setPlacingOrder(false);
     }

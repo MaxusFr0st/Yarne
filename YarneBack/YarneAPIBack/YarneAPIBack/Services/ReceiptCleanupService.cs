@@ -42,6 +42,14 @@ public sealed class ReceiptCleanupService : BackgroundService
                     stoppingToken);
                 if (photos > 0)
                     _logger.LogInformation("Deleted {Count} leftover making-of photos.", photos);
+
+                // Password reset links that were used or expired more than a day ago.
+                var links = await PasswordResetService.DeleteStaleAsync(
+                    scope.ServiceProvider.GetRequiredService<YarneDbContext>(),
+                    DateTime.UtcNow,
+                    stoppingToken);
+                if (links > 0)
+                    _logger.LogInformation("Deleted {Count} stale password reset links.", links);
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {

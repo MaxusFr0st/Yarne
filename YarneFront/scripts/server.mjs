@@ -279,7 +279,7 @@ function toAbsoluteImageUrl(src, fallback) {
 
 // The care materials the app ships with (src/app/utils/careSeed.ts), used until the admin saves their own.
 const CARE_SEED_SLUGS = ["raffia", "cotton-yarn"];
-const STATIC_PAGE_KINDS = { "our-history": "ourHistory", delivery: "delivery", terms: "terms" };
+const STATIC_PAGE_KINDS = { "our-history": "ourHistory", delivery: "delivery", terms: "terms", privacy: "privacy" };
 
 // `rest` is the path after the language. Static segments match without regard to case, as the router does.
 function matchPage(rest, lang) {
@@ -290,6 +290,7 @@ function matchPage(rest, lang) {
   }
   if (rest.length === 2 && a === "product") return { kind: "product", lang, id: rest[1] };
   if (rest.length === 2 && a === "order") return { kind: "order", lang };
+  if (rest.length === 1 && a === "reset-password") return { kind: "reset-password", lang };
   if (a === "pages" && rest.length === 2 && Object.hasOwn(STATIC_PAGE_KINDS, b)) return { kind: STATIC_PAGE_KINDS[b], lang };
   if (a === "pages" && b === "care") {
     if (rest.length === 2) return { kind: "care", lang };
@@ -341,6 +342,11 @@ const PAGE_SEO = {
       description:
         "Умови використання сайту Yarné та оформлення замовлення: ціни й наявність, оплата, доставка, повернення та авторські права на матеріали сайту.",
     },
+    privacy: {
+      title: "Політика конфіденційності",
+      description:
+        "Які дані ми збираємо на сайті Yarné, навіщо, кому їх передаємо, скільки зберігаємо і як ви можете попросити їх показати чи видалити.",
+    },
   },
   en: {
     home: {
@@ -367,6 +373,11 @@ const PAGE_SEO = {
       title: "Terms and conditions of use and ordering",
       description:
         "The terms for using the Yarné website and placing an order: prices and availability, payment, delivery, returns and ownership of site content.",
+    },
+    privacy: {
+      title: "Privacy Policy",
+      description:
+        "What data we collect on the Yarné website, why, who we share it with, how long we keep it and how you can ask us to show or delete it.",
     },
   },
 };
@@ -418,6 +429,8 @@ const WORDS = {
     ourHistory: "Наша історія",
     delivery: "Доставка та повернення",
     terms: "Умови використання",
+    privacy: "Політика конфіденційності",
+    resetPassword: "Новий пароль",
     checkout: "Оформлення замовлення",
     order: "Статус замовлення",
     account: "Мій кабінет",
@@ -487,6 +500,8 @@ const WORDS = {
     ourHistory: "Our History",
     delivery: "Delivery & Returns",
     terms: "Terms & Conditions",
+    privacy: "Privacy Policy",
+    resetPassword: "New password",
     checkout: "Checkout",
     order: "Order status",
     account: "My Account",
@@ -617,6 +632,62 @@ const websiteLd = () => ({
 // The copy of the page for crawlers: plain semantic HTML, hidden the way screen-reader-only
 // text is (clipped, not display:none), and replaced by the app the moment it mounts.
 const HIDDEN_STYLE = "position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip:rect(0 0 0 0);clip-path:inset(50%);border:0";
+// The text of /pages/privacy for crawlers, the same as pages.privacy in the locale files (keep the two in step).
+const PRIVACY_BODY = {
+  uk: [
+    "Ця сторінка пояснює, які дані ми збираємо на yarne-acc.com, навіщо, і як із ними поводимося.",
+    { heading: true, text: "Хто ми" },
+    "Yarné — майстерня в'язаних аксесуарів. Написати нам: {{email}}.",
+    { heading: true, text: "Які дані ми отримуємо" },
+    "Коли ви оформлюєте замовлення: ім'я та прізвище, номер телефону, електронну адресу, місто й відділення або адресу доставки, склад замовлення.",
+    "Коли ви підтверджуєте оплату переказом: фото квитанції.",
+    "Коли ви створюєте акаунт: ім'я, електронну адресу, телефон і пароль. Пароль зберігається у зашифрованому вигляді; ми його не бачимо. Якщо ви входите через Google, ми отримуємо від Google ваше ім'я та електронну адресу.",
+    "Коли ви пишете нам або залишаєте запит на догляд: те, що ви вказали у зверненні.",
+    { heading: true, text: "Навіщо" },
+    "Щоб прийняти, виготовити й відправити ваше замовлення, повідомляти про його статус електронною поштою, виконувати гарантію та відповідати на звернення. Ми не надсилаємо рекламних розсилок.",
+    { heading: true, text: "Кому ми передаємо дані" },
+    "Перевізнику (Нова пошта, Nova Post або інший, узгоджений із вами): ім'я, телефон і адресу доставки.",
+    "Сервісам, на яких працює сайт: хостинг, сховище файлів і сервіс надсилання листів. Вони обробляють дані лише для роботи сайту.",
+    "Ми не продаємо ваші дані й не передаємо їх рекламним компаніям.",
+    { heading: true, text: "Скільки зберігаємо" },
+    "Фото квитанції — 30 днів після завершення замовлення, далі видаляється автоматично.",
+    "Фото процесу виготовлення, зроблені на ваш запит, — до позначки «Отримано».",
+    "Дані замовлення — доки це потрібно для виконання гарантії та обліку.",
+    "Акаунт — доки ви його не видалите.",
+    { heading: true, text: "Файли на вашому пристрої" },
+    "Сайт зберігає на пристрої лише необхідне для роботи: вхід в акаунт, кошик і вибрану мову. Рекламних чи аналітичних файлів cookie немає.",
+    { heading: true, text: "Ваші права" },
+    "Ви можете попросити показати, виправити або видалити ваші дані. Напишіть на {{email}} — ми відповімо протягом 30 днів.",
+  ],
+  en: [
+    "This page explains what data we collect on yarne-acc.com, why, and how we handle it.",
+    { heading: true, text: "Who we are" },
+    "Yarné is an atelier of knitted accessories. Contact: {{email}}.",
+    { heading: true, text: "What data we receive" },
+    "When you place an order: your name, phone number, email address, city and branch or delivery address, and the order contents.",
+    "When you confirm a bank transfer: a photo of the receipt.",
+    "When you create an account: your name, email, phone and password. The password is stored encrypted; we cannot see it. If you sign in with Google, we receive your name and email from Google.",
+    "When you write to us or send a care request: whatever you put in the message.",
+    { heading: true, text: "Why" },
+    "To accept, make and ship your order, email you its status, honour the guarantee and answer your messages. We send no marketing emails.",
+    { heading: true, text: "Who we share data with" },
+    "The carrier (Nova Poshta, Nova Post, or another agreed with you): name, phone and delivery address.",
+    "The services the site runs on: hosting, file storage and the email sending service. They process data only to run the site.",
+    "We do not sell your data or pass it to advertisers.",
+    { heading: true, text: "How long we keep it" },
+    "Receipt photo: 30 days after the order is finished, then deleted automatically.",
+    "Making-of photos taken at your request: until the order is marked Received.",
+    "Order data: for as long as it is needed for the guarantee and our records.",
+    "Account: until you delete it.",
+    { heading: true, text: "Files on your device" },
+    "The site stores only what it needs to work: your sign-in, your bag and your chosen language. There are no advertising or analytics cookies.",
+    { heading: true, text: "Your rights" },
+    "You can ask us to show, correct or delete your data. Write to {{email}} and we will reply within 30 days.",
+  ],
+};
+const privacyHtml = (lang, email) =>
+  PRIVACY_BODY[lang].map((item) => (typeof item === "string" ? para(item.split("{{email}}").join(email)) : `<h2>${escapeHtml(item.text)}</h2>`)).join("");
+
 const contentBlock = (inner) => `<main style="${HIDDEN_STYLE}">${inner}</main>`;
 const link = (lang, suffix, label) => `<a href="${escapeHtml(pagePath(lang, suffix))}">${escapeHtml(label)}</a>`;
 const para = (text) => (text ? `<p>${escapeHtml(text)}</p>` : "");
@@ -630,6 +701,7 @@ function siteLinks(lang) {
     link(lang, "/pages/our-history", w.ourHistory),
     link(lang, "/pages/delivery", w.delivery),
     link(lang, "/pages/terms", w.terms),
+    link(lang, "/pages/privacy", w.privacy),
   ])}</nav>`;
 }
 
@@ -832,6 +904,9 @@ async function describePage(route, reqUrl) {
     case "admin":
       return privatePage(lang, w[route.kind]);
 
+    case "reset-password":
+      return privatePage(lang, w.resetPassword);
+
     case "home": {
       // The admin's default share card keeps winning for the home page.
       const [shareDefault, contact] = await Promise.all([getShareDefault(), getSetting(CONTACT_CONTENT_KEY)]);
@@ -901,6 +976,18 @@ async function describePage(route, reqUrl) {
         suffix: `/pages/${route.kind}`,
         content: contentBlock(`<h1>${escapeHtml(w[route.kind])}</h1>${para(w[`${route.kind}Summary`])}${siteLinks(lang)}`),
       };
+
+    case "privacy": {
+      const contact = await getSetting(CONTACT_CONTENT_KEY);
+      return {
+        status: 200,
+        lang,
+        title: withSiteName(seo.privacy.title),
+        description: seo.privacy.description,
+        suffix: "/pages/privacy",
+        content: contentBlock(`<h1>${escapeHtml(w.privacy)}</h1>${privacyHtml(lang, contactEmail(contact))}${siteLinks(lang)}`),
+      };
+    }
 
     case "care":
     case "care-guarantee":
@@ -1076,7 +1163,7 @@ async function renderHtml(req, pathname) {
 // sitemap.xml, robots.txt, llms.txt
 // ---------------------------------------------------------------------------------------------
 
-const STATIC_SITEMAP_SUFFIXES = ["", "/collection", "/pages/our-history", "/pages/delivery", "/pages/terms", "/pages/care", "/pages/care/guarantee", "/pages/care/request"];
+const STATIC_SITEMAP_SUFFIXES = ["", "/collection", "/pages/our-history", "/pages/delivery", "/pages/terms", "/pages/privacy", "/pages/care", "/pages/care/guarantee", "/pages/care/request"];
 const sitemapCache = { xml: null, fetchedAt: 0 };
 
 function sitemapEntry(suffix, lastmod) {
@@ -1112,7 +1199,7 @@ async function buildSitemap() {
 }
 
 const AI_CRAWLERS = ["GPTBot", "OAI-SearchBot", "ChatGPT-User", "ClaudeBot", "Claude-SearchBot", "Claude-User", "PerplexityBot", "Perplexity-User", "Google-Extended", "Bingbot"];
-const PRIVATE_PATHS = ["/admin", "/*/checkout", "/*/account", "/*/order"];
+const PRIVATE_PATHS = ["/admin", "/*/checkout", "/*/account", "/*/order", "/*/reset-password"];
 
 // A crawler with a group of its own ignores the "*" group, so the private paths repeat in each.
 function buildRobots() {
@@ -1148,7 +1235,7 @@ async function buildLlms() {
   }
   lines.push("", "## Guarantee", "", `- [Guarantee terms](${url("/pages/care/guarantee")}): every Yarné piece is covered by a lifetime guarantee`);
   lines.push(`- [Request care](${url("/pages/care/request")}): ask for re-knitting, washing or repair`);
-  lines.push("", "## Delivery and terms", "", `- [Delivery & Returns](${url("/pages/delivery")})`, `- [Terms & Conditions](${url("/pages/terms")})`, `- [Our History](${url("/pages/our-history")})`);
+  lines.push("", "## Delivery and terms", "", `- [Delivery & Returns](${url("/pages/delivery")})`, `- [Terms & Conditions](${url("/pages/terms")})`, `- [Privacy Policy](${url("/pages/privacy")})`, `- [Our History](${url("/pages/our-history")})`);
   lines.push("", "## Contact", "");
   lines.push(`- [Contact us and request care](${url("/pages/care/request")})`);
   lines.push(`- Email: ${contactEmail(contact)}`);

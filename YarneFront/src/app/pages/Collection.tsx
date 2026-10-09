@@ -75,7 +75,9 @@ export function Collection() {
     return undefined;
   }, [validCollectionId, filterParam]);
 
-  const { products, loading } = useProducts(productQuery);
+  const { products, loading, error, refetch } = useProducts(productQuery);
+  // The list could not be loaded (not just empty): offer to try again instead of "no pieces".
+  const loadFailed = !loading && Boolean(error) && products.length === 0;
   const activeCollection = useMemo(
     () => collections.find((collection) => collection.id === validCollectionId) ?? null,
     [collections, validCollectionId],
@@ -154,8 +156,8 @@ export function Collection() {
               {/* While loading, the sentence is laid out invisibly under the placeholder so it
                   takes its real room: two lines on a phone, where a one-line placeholder made
                   everything below drop 25px when the count arrived. */}
-              <span className={loading ? "invisible" : undefined} aria-hidden={loading || undefined}>
-                {t("collection.header.pieceCount", { count: loading ? 10 : filtered.length })}
+              <span className={loading || loadFailed ? "invisible" : undefined} aria-hidden={loading || loadFailed || undefined}>
+                {t("collection.header.pieceCount", { count: loading || loadFailed ? 10 : filtered.length })}
               </span>
               {loading && (
                 <span className="absolute left-0 top-[0.35em] w-48 h-4 rounded bg-[#E5E0D8] animate-pulse" aria-hidden />
@@ -220,6 +222,29 @@ export function Collection() {
               <CollectionCardSkeleton key={i} />
             ))}
           </div>
+        ) : loadFailed ? (
+          <motion.div className="text-center py-24 md:py-32" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+            <p
+              className="text-[#2D241E]"
+              style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "1.5rem" }}
+            >
+              {t("loadError.collectionTitle")}
+            </p>
+            <p
+              className="text-[#2D241E]/[0.68] mt-1.5 mb-4"
+              style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "0.88rem" }}
+            >
+              {t("loadError.hint")}
+            </p>
+            <button
+              type="button"
+              onClick={refetch}
+              className="inline-block rounded-full bg-[#2D241E] text-[#F5F2ED] uppercase cursor-pointer px-[18px] py-[11px] hover:opacity-90 transition-opacity duration-200"
+              style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "0.74rem", letterSpacing: "0.12em" }}
+            >
+              {t("loadError.retry")}
+            </button>
+          </motion.div>
         ) : filtered.length === 0 && searchTerm ? (
           <motion.div
             className="text-center py-24 md:py-32"

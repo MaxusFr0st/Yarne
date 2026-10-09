@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useSyncExternalStore } from "react";
+import { ApiRequestError } from "../api/errors";
 import { fetchProducts, fetchProduct, type ProductDto, type ProductDetailDto, type ColorVariantDto, type SuggestedProductDto, type ProductImageDto, type SizeOptionDto } from "../api/products";
 import type { Product, ProductImage, ColorVariant } from "../types/product";
 import { normalizeLaceVariants } from "../utils/variantStock";
@@ -240,6 +241,9 @@ export function useProducts(
   };
 }
 
+// Products the server answered "no such product" for, to tell them from a failed connection.
+const missingProductIds = new Set<string>();
+
 export function useProduct(id: string | undefined) {
   const entry = useSyncExternalStore(
     subscribeProductsCache,
@@ -258,7 +262,22 @@ export function useProduct(id: string | undefined) {
       return;
     }
     setPending(true);
-    void loadProductDetail(id, () => fetchProduct(id), { force }).finally(() => {
+    void loadProductDetail(
+      id,
+      () =>
+        fetchProduct(id).then(
+          (dto) => {
+            missingProductIds.delete(id);
+            return dto;
+          },
+          (e: unknown) => {
+            if (e instanceof ApiRequestError && e.status === 404) missingProductIds.add(id);
+            else missingProductIds.delete(id);
+            throw e;
+          },
+        ),
+      { force },
+    ).finally(() => {
       setPending(false);
     });
   }, [id]);
@@ -275,6 +294,8 @@ export function useProduct(id: string | undefined) {
     product: entry?.data ? mapDetailToFrontend(entry.data) : null,
     loading: pending && !entry?.data,
     error: entry?.error ?? null,
+    // The product does not exist (as opposed to the server being out of reach).
+    notFound: Boolean(id && missingProductIds.has(id)),
     refetch: () => load(true),
   };
 }
