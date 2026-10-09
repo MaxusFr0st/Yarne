@@ -156,10 +156,10 @@ function DeliveryProgressPreview({ status }: { status: OrderStatus }) {
   return (
     <div className="mt-3">
       <div className="flex items-center justify-between mb-1.5">
-        <span className="text-[11px] text-[#2D241E]/55" style={{ fontFamily: "'DM Sans', sans-serif" }}>
+        <span className="text-[0.72rem] text-[#2D241E]/[0.68]" style={{ fontFamily: "'DM Sans', sans-serif" }}>
           {t(`account.deliveryProgress.${status}`)}
         </span>
-        <span className="text-[11px] text-[#2D241E]/45" style={{ fontFamily: "'DM Sans', sans-serif" }}>
+        <span className="text-[0.72rem] text-[#2D241E]/[0.68]" style={{ fontFamily: "'DM Sans', sans-serif" }}>
           {cfg.progress}%
         </span>
       </div>
@@ -189,7 +189,7 @@ function OrderRow({ order, productImageByCode }: { order: Order; productImageByC
               </span>
               <StatusBadge status={order.status} />
             </div>
-            <p className="text-[#2D241E]/50 text-xs mt-1" style={{ fontFamily: "'DM Sans', sans-serif" }}>
+            <p className="text-[#2D241E]/[0.68] text-xs mt-1" style={{ fontFamily: "'DM Sans', sans-serif" }}>
               {toDisplayDate(order.date, locale)} · {t("account.orderRow.itemCount", { count: order.items.length })} · <PriceTag amount={order.total} eurAmount={order.eurTotal} locale={locale} variant="line" withUnit />
             </p>
             <DeliveryProgressPreview status={order.status} />
@@ -245,7 +245,7 @@ function OrderRow({ order, productImageByCode }: { order: Order; productImageByC
                 {order.ttnNumber && (
                   <div className="flex items-center gap-2">
                     <Package size={13} style={{ color: "#2D241E", opacity: 0.45 }} />
-                    <span className="text-xs" style={{ fontFamily: "'DM Sans', sans-serif", color: "#2D241E", opacity: 0.6 }}>
+                    <span className="text-xs" style={{ fontFamily: "'DM Sans', sans-serif", color: "#2D241E", opacity: 0.68 }}>
                       {t("account.orderRow.ttn")}: {order.ttnNumber}
                       {order.trackingStatus ? ` — ${order.trackingStatus}` : ""}
                     </span>
@@ -254,13 +254,13 @@ function OrderRow({ order, productImageByCode }: { order: Order; productImageByC
                 {order.estimatedDelivery && (
                   <div className="flex items-center gap-2">
                     <Calendar size={13} style={{ color: "#2D241E", opacity: 0.45 }} />
-                    <span className="text-xs" style={{ fontFamily: "'DM Sans', sans-serif", color: "#2D241E", opacity: 0.6 }}>
+                    <span className="text-xs" style={{ fontFamily: "'DM Sans', sans-serif", color: "#2D241E", opacity: 0.68 }}>
                       {t("account.orderRow.estDelivery")}: {toDisplayDate(order.estimatedDelivery, locale)}
                     </span>
                   </div>
                 )}
                 <div className="ml-auto flex items-center gap-2">
-                  <span className="text-[#2D241E]" style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "0.8rem", opacity: 0.5 }}>
+                  <span className="text-[#2D241E]" style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "0.8rem", opacity: 0.68 }}>
                     {t("account.orderRow.total")}
                   </span>
                   <span className="text-[#2D241E]" style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "1.15rem", fontWeight: 500 }}>
@@ -383,7 +383,7 @@ export function AccountPage() {
           <h1 className="text-[#2D241E] mb-4" style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "2rem", fontWeight: 400 }}>
             {t("account.guest.title")}
           </h1>
-          <p className="text-[#2D241E]/50 mb-8" style={{ fontFamily: "'DM Sans', sans-serif", lineHeight: 1.7, fontSize: "0.9rem" }}>
+          <p className="text-[#2D241E]/[0.68] mb-8" style={{ fontFamily: "'DM Sans', sans-serif", lineHeight: 1.7, fontSize: "0.9rem" }}>
             {t("account.guest.subtitle")}
           </p>
           <button
@@ -393,7 +393,7 @@ export function AccountPage() {
           >
             {t("account.guest.signIn")}
           </button>
-          <LangLink to="/collection" className="block mt-4 text-[#2D241E]/50 hover:text-[#4A0E0E] transition-colors text-sm" style={{ fontFamily: "'DM Sans', sans-serif" }}>
+          <LangLink to="/collection" className="block mt-4 text-[#2D241E]/[0.68] hover:text-[#4A0E0E] transition-colors text-sm" style={{ fontFamily: "'DM Sans', sans-serif" }}>
             {t("account.guest.continueBrowsing")}
           </LangLink>
         </motion.div>
@@ -416,13 +416,13 @@ export function AccountPage() {
             </div>
 
             <div className="flex-1">
-              <p className="text-[#2D241E]/40 tracking-widest uppercase mb-1" style={{ fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.2em", fontSize: "0.65rem" }}>
+              <p className="text-[#2D241E]/[0.68] tracking-widest uppercase mb-1" style={{ fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.2em", fontSize: "0.72rem" }}>
                 {t("account.header.eyebrow")}
               </p>
               <h1 className="text-[#2D241E]" style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "clamp(1.8rem, 4vw, 2.5rem)", fontWeight: 400, lineHeight: 1.2 }}>
                 {displayName}
               </h1>
-              <p className="text-[#2D241E]/50 mt-1" style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "0.85rem" }}>
+              <p className="text-[#2D241E]/[0.68] mt-1" style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "0.85rem" }}>
                 {displayEmail}
               </p>
             </div>
@@ -437,7 +437,7 @@ export function AccountPage() {
                   ) : (
                     <div className="flex justify-center">{stat.value}</div>
                   )}
-                  <p className="text-[#2D241E]/45 text-xs uppercase tracking-widest" style={{ fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.1em" }}>
+                  <p className="text-[#2D241E]/[0.68] text-xs uppercase tracking-widest" style={{ fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.1em" }}>
                     {t(`account.stats.${stat.key}`)}
                   </p>
                 </div>
@@ -492,7 +492,7 @@ export function AccountPage() {
                     <p className="text-[#2D241E]" style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "1.7rem", fontWeight: 500 }}>
                       {card.value}
                     </p>
-                    <p className="text-[#2D241E]/50 text-xs mt-0.5 uppercase tracking-widest" style={{ fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.08em" }}>
+                    <p className="text-[#2D241E]/[0.68] text-xs mt-0.5 uppercase tracking-widest" style={{ fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.08em" }}>
                       {card.label}
                     </p>
                   </motion.div>
@@ -503,7 +503,7 @@ export function AccountPage() {
                 <h2 className="text-[#2D241E]" style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "1.6rem", fontWeight: 400 }}>
                   {t("account.overview.recentOrdersTitle")}
                 </h2>
-                <button onClick={() => setActiveTab("orders")} className="flex items-center gap-2 text-[#2D241E]/55 hover:text-[#4A0E0E] transition-colors text-xs uppercase tracking-widest" style={{ fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.1em" }}>
+                <button onClick={() => setActiveTab("orders")} className="flex items-center gap-2 text-[#2D241E]/[0.68] hover:text-[#4A0E0E] transition-colors text-xs uppercase tracking-widest" style={{ fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.1em" }}>
                   {t("account.overview.viewAll")}
                   <ChevronRight size={14} />
                 </button>
@@ -514,7 +514,7 @@ export function AccountPage() {
                   <OrderRow key={order.id} order={order} productImageByCode={productImageByCode} />
                 ))}
                 {!ordersLoading && orders.length === 0 && (
-                  <p className="text-[#2D241E]/45 text-sm" style={{ fontFamily: "'DM Sans', sans-serif" }}>
+                  <p className="text-[#2D241E]/[0.68] text-sm" style={{ fontFamily: "'DM Sans', sans-serif" }}>
                     {t("account.overview.emptyOrders")}
                   </p>
                 )}
@@ -528,13 +528,13 @@ export function AccountPage() {
                 <h2 className="text-[#2D241E]" style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "1.6rem", fontWeight: 400 }}>
                   {t("account.orders.title")}
                 </h2>
-                <span className="text-[#2D241E]/45 text-xs uppercase tracking-widest" style={{ fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.1em" }}>
+                <span className="text-[#2D241E]/[0.68] text-xs uppercase tracking-widest" style={{ fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.1em" }}>
                   {t("account.orders.count", { count: orders.length })}
                 </span>
               </div>
 
               <div className="rounded-[24px] p-5 mb-6" style={{ backgroundColor: "#EDE9E2" }}>
-                <p className="text-xs uppercase tracking-widest text-[#2D241E]/55 mb-2" style={{ fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.1em" }}>
+                <p className="text-xs uppercase tracking-widest text-[#2D241E]/[0.68] mb-2" style={{ fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.1em" }}>
                   {t("account.tracking.title")}
                 </p>
                 <div className="flex gap-2">
@@ -577,7 +577,7 @@ export function AccountPage() {
               </div>
 
               {ordersLoading && (
-                <p className="text-[#2D241E]/45 text-sm mb-3" style={{ fontFamily: "'DM Sans', sans-serif" }}>
+                <p className="text-[#2D241E]/[0.68] text-sm mb-3" style={{ fontFamily: "'DM Sans', sans-serif" }}>
                   {t("account.orders.loading")}
                 </p>
               )}
@@ -592,7 +592,7 @@ export function AccountPage() {
                   <OrderRow key={order.id} order={order} productImageByCode={productImageByCode} />
                 ))}
                 {!ordersLoading && orders.length === 0 && !ordersError && (
-                  <p className="text-[#2D241E]/45 text-sm" style={{ fontFamily: "'DM Sans', sans-serif" }}>
+                  <p className="text-[#2D241E]/[0.68] text-sm" style={{ fontFamily: "'DM Sans', sans-serif" }}>
                     {t("account.orders.empty")}
                   </p>
                 )}
@@ -618,7 +618,7 @@ export function AccountPage() {
                       { key: "phone", label: t("account.profile.labels.phoneNumber"), icon: <Phone size={14} /> },
                     ].map((field) => (
                       <div key={field.key}>
-                        <label className="flex items-center gap-2 text-xs mb-2 uppercase tracking-widest text-[#2D241E]/45" style={{ fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.1em" }}>
+                        <label className="flex items-center gap-2 text-xs mb-2 uppercase tracking-widest text-[#2D241E]/[0.68]" style={{ fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.1em" }}>
                           {field.icon}
                           {field.label}
                         </label>
@@ -641,7 +641,7 @@ export function AccountPage() {
                     {t("account.profile.sections.address")}
                   </h3>
 
-                  <label className="flex items-center gap-2 text-xs mb-2 uppercase tracking-widest text-[#2D241E]/45" style={{ fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.1em" }}>
+                  <label className="flex items-center gap-2 text-xs mb-2 uppercase tracking-widest text-[#2D241E]/[0.68]" style={{ fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.1em" }}>
                     <MapPin size={14} />
                     {t("account.profile.labels.shippingAddress")}
                   </label>
@@ -656,7 +656,7 @@ export function AccountPage() {
                   />
 
                   <div className="mt-8">
-                    <p className="text-[#2D241E]/45 text-xs mb-4 uppercase tracking-widest" style={{ fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.1em" }}>
+                    <p className="text-[#2D241E]/[0.68] text-xs mb-4 uppercase tracking-widest" style={{ fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.1em" }}>
                       {t("account.profile.sections.emailPreferences")}
                     </p>
                     <div className="space-y-3">
@@ -704,7 +704,7 @@ export function AccountPage() {
                 <button
                   onClick={logout}
                   className="flex items-center gap-2 px-6 py-4 rounded-full border transition-all duration-300 hover:border-[#4A0E0E] hover:text-[#4A0E0E]"
-                  style={{ borderColor: "rgba(45,36,30,0.2)", fontFamily: "'DM Sans', sans-serif", fontSize: "0.78rem", letterSpacing: "0.12em", color: "rgba(45,36,30,0.56)" }}
+                  style={{ borderColor: "rgba(45,36,30,0.2)", fontFamily: "'DM Sans', sans-serif", fontSize: "0.78rem", letterSpacing: "0.12em", color: "rgba(45,36,30,0.68)" }}
                 >
                   <LogOut size={14} />
                   <span className="uppercase tracking-widest">{t("account.profile.actions.signOut")}</span>

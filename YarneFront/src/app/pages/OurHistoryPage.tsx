@@ -56,7 +56,7 @@ export function OurHistoryPage() {
             <div className="lg:pt-4 min-w-0">
               <ScrollReveal y={reduceMotion ? 0 : 14}>
                 <p
-                  className="text-[#2D241E]/45 uppercase tracking-[0.22em] text-[0.68rem] mb-4"
+                  className="text-[#2D241E]/[0.68] uppercase tracking-[0.22em] text-[0.72rem] mb-4"
                   style={{ fontFamily: "'DM Sans', sans-serif" }}
                 >
                   {copy.eyebrow}

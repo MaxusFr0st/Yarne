@@ -21,6 +21,7 @@ import {
   topicsForPiece,
   type CareTopic,
 } from "../utils/careContent";
+import { productName } from "../utils/productText";
 import { NotFound } from "./NotFound";
 
 const topicCardId = (topicId: string) => `care-topic-${topicId}`;
@@ -57,9 +58,9 @@ export function CareMaterialPage() {
     const byId = new Map(products.map((product) => [product.id, product]));
     return (material?.pieceProductIds ?? []).flatMap((id) => {
       const product = byId.get(id);
-      return product ? [{ id, name: product.name }] : [];
+      return product ? [{ id, name: productName(product, locale) }] : [];
     });
-  }, [material, products]);
+  }, [material, products, locale]);
 
   const topicId = params.get("topic");
   const piece = pieces.find((item) => item.id === params.get("piece")) ?? null;
@@ -129,7 +130,7 @@ export function CareMaterialPage() {
   const tag = (value: ReturnType<typeof tagFor>) =>
     value && (
       <span
-        className={`rounded-full uppercase font-medium text-[9.5px] tracking-[0.1em] px-2 py-1 md:text-[10.5px] md:tracking-[0.12em] md:px-2.5 md:py-[5px] ${
+        className={`rounded-full uppercase font-medium text-[0.72rem] tracking-[0.1em] px-2 py-1 md:text-[0.72rem] md:tracking-[0.12em] md:px-2.5 md:py-[5px] ${
           value.solid ? "bg-[#4A0E0E] text-[#F5F2ED]" : "text-[#4A0E0E]"
         }`}
         style={value.solid ? undefined : { backgroundColor: "rgba(74,14,14,0.08)" }}
@@ -141,7 +142,7 @@ export function CareMaterialPage() {
   const checkList = (title: string, items: string[], positive: boolean) =>
     items.length > 0 && (
       <div className="flex flex-col md:p-10 md:rounded-[20px] md:border md:border-[#2D241E]/15">
-        <h3 className={`${EYEBROW} text-[11px] md:text-xs mb-2 md:mb-3`} style={{ color: positive ? "#315B42" : "#B42318" }}>
+        <h3 className={`${EYEBROW} text-[0.72rem] md:text-xs mb-2 md:mb-3`} style={{ color: positive ? "#315B42" : "#B42318" }}>
           {title}
         </h3>
         <ul className="flex flex-col">
@@ -171,7 +172,7 @@ export function CareMaterialPage() {
         <nav className="px-4 pt-4 md:px-10 md:pt-8 flex items-center gap-4" aria-label={t("care.title")}>
           <LangLink
             to="/pages/care"
-            className={`h-11 pl-3 pr-4 md:pl-4 md:pr-5 inline-flex items-center gap-2 rounded-full border border-[#2D241E]/20 ${LABEL} text-[11px] md:text-[11.5px] hover:bg-[#2D241E]/5 transition-colors ${FOCUS_RING}`}
+            className={`h-11 pl-3 pr-4 md:pl-4 md:pr-5 inline-flex items-center gap-2 rounded-full border border-[#2D241E]/20 ${LABEL} text-[0.72rem] md:text-[11.5px] hover:bg-[#2D241E]/5 transition-colors ${FOCUS_RING}`}
           >
             <ArrowLeft size={14} strokeWidth={1.5} aria-hidden />
             {t("care.backToMaterials")}
@@ -181,7 +182,7 @@ export function CareMaterialPage() {
 
         <section className="px-6 pt-9 pb-8 md:px-10 md:py-[72px] flex flex-col gap-3.5 md:grid md:grid-cols-12 md:gap-x-6 md:gap-y-0 md:items-end">
           <div className="md:col-span-7 flex flex-col gap-3.5 md:gap-5">
-            <p className={`${EYEBROW} text-[11px] md:text-xs text-[#4A0E0E]`}>{t("care.guideEyebrow", { material: name })}</p>
+            <p className={`${EYEBROW} text-[0.72rem] md:text-xs text-[#4A0E0E]`}>{t("care.guideEyebrow", { material: name })}</p>
             <h1 className="font-normal text-[44px] md:text-[clamp(52px,5.8vw,84px)] leading-[1.04] tracking-[-0.02em] text-pretty" style={SERIF}>
               {careText(material.heroTitle, locale) || name}
               {heroSubtitle && (
@@ -228,7 +229,7 @@ export function CareMaterialPage() {
                   </span>
                   <span className="text-sm leading-[1.55] md:leading-[1.6] text-[#2D241E]/72">{careText(item.summary, locale)}</span>
                   <span className="mt-1.5 flex flex-wrap gap-2 items-center">
-                    <span className={`inline-flex items-center gap-2 ${LABEL} text-[10.5px] md:text-[11.5px]`}>
+                    <span className={`inline-flex items-center gap-2 ${LABEL} text-[0.72rem] md:text-[11.5px]`}>
                       {stepsLabel}
                       {!narrow && <ChevronRight size={14} strokeWidth={1.5} aria-hidden />}
                     </span>
@@ -279,7 +280,7 @@ export function CareMaterialPage() {
           <div className="px-6 pt-8 md:px-10 md:pt-12 flex justify-center">
             <LangLink
               to={careGuidePath(other)}
-              className={`min-h-11 inline-flex items-center gap-2 ${LABEL} text-[11px] md:text-[11.5px] underline underline-offset-4 hover:text-[#4A0E0E] rounded-sm ${FOCUS_RING}`}
+              className={`min-h-11 inline-flex items-center gap-2 ${LABEL} text-[0.72rem] md:text-[11.5px] underline underline-offset-4 hover:text-[#4A0E0E] rounded-sm ${FOCUS_RING}`}
             >
               {t("care.otherMaterial", { material: careText(other.name, locale) })}
               <ArrowRight size={14} strokeWidth={1.5} aria-hidden />

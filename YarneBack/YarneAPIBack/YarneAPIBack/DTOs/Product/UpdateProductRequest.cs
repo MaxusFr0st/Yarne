@@ -24,6 +24,22 @@ public class UpdateProductRequest
     [StringLength(100)]
     public string? Material { get; set; }
 
+    [StringLength(255)]
+    public string? NameEn { get; set; }
+
+    [StringLength(10000)]
+    public string? DescriptionEn { get; set; }
+
+    [StringLength(100)]
+    public string? MaterialEn { get; set; }
+
+    /// <summary>Optional on update. Null = keep the current photo; empty string = remove it.</summary>
+    [StringLength(500)]
+    public string? SizePhotoUrl { get; set; }
+
+    /// <summary>Optional on update. Null = keep the current measurements. Otherwise one entry per size replaces them (sizes without an entry lose theirs).</summary>
+    public List<SizeMeasurementInput>? SizeMeasurements { get; set; }
+
     [Required]
     public int CategoryId { get; set; }
 

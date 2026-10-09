@@ -80,7 +80,7 @@ export function LanguageSwitcher({
             <motion.span
               className="relative z-10 inline-block"
               animate={{
-                color: isActive ? "#2D241E" : "rgba(45,36,30,0.45)",
+                color: isActive ? "#2D241E" : "rgba(45,36,30,0.68)",
               }}
               transition={{ duration: 0.25, ease: TEXT_EASING }}
             >

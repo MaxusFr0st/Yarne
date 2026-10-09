@@ -79,7 +79,7 @@ export function CareRequestPage() {
     <button
       type="button"
       onClick={() => void copy(what, value)}
-      className={`w-full md:w-auto h-11 px-[18px] inline-flex items-center justify-center gap-2 rounded-full border border-[#2D241E]/25 uppercase font-medium tracking-[0.14em] text-[11px] text-[#2D241E] cursor-pointer hover:bg-[#2D241E]/5 transition-colors ${FOCUS_RING}`}
+      className={`w-full md:w-auto h-11 px-[18px] inline-flex items-center justify-center gap-2 rounded-full border border-[#2D241E]/25 uppercase font-medium tracking-[0.14em] text-[0.72rem] text-[#2D241E] cursor-pointer hover:bg-[#2D241E]/5 transition-colors ${FOCUS_RING}`}
     >
       {copied === what ? <Check size={15} strokeWidth={2} aria-hidden /> : <Copy size={15} strokeWidth={1.5} aria-hidden />}
       <span aria-live="polite">{copied === what ? t("care.request.copied") : label}</span>
@@ -110,11 +110,11 @@ export function CareRequestPage() {
           {card.icon}
         </span>
         <span className="md:hidden flex flex-col gap-0.5">
-          <span className={`${LABEL} text-[10.5px] ${card.ink ? "opacity-80" : "text-[#2D241E]/72"}`}>{card.label}</span>
+          <span className={`${LABEL} text-[0.72rem] ${card.ink ? "opacity-80" : "text-[#2D241E]/72"}`}>{card.label}</span>
           <span className={`text-[12.5px] ${card.ink ? "opacity-85" : "text-[#2D241E]/72"}`}>{card.badge}</span>
         </span>
         <span
-          className={`hidden md:inline-flex h-8 px-3.5 items-center rounded-full border ${LABEL} text-[11px] ${
+          className={`hidden md:inline-flex h-8 px-3.5 items-center rounded-full border ${LABEL} text-[0.72rem] ${
             card.ink ? "border-[#F5F2ED]/30" : "border-[#2D241E]/20"
           }`}
         >
@@ -166,7 +166,7 @@ export function CareRequestPage() {
 
         <section className="px-6 pt-[22px] pb-6 md:px-10 md:pt-10 md:pb-12 flex flex-col gap-3.5 md:gap-6 lg:flex-row lg:justify-between lg:items-end lg:gap-12">
           <div className="flex flex-col gap-3.5 md:gap-[22px] max-w-[780px]">
-            <p className={`inline-flex items-center gap-2 md:gap-2.5 ${EYEBROW} text-[11px] md:text-xs text-[#4A0E0E]`}>
+            <p className={`inline-flex items-center gap-2 md:gap-2.5 ${EYEBROW} text-[0.72rem] md:text-xs text-[#4A0E0E]`}>
               <ShieldCheck size={18} strokeWidth={1.5} className="shrink-0" aria-hidden />
               {t("care.request.eyebrow")}
             </p>
@@ -248,7 +248,7 @@ export function CareRequestPage() {
             className="pt-11 md:px-10 md:py-28 flex flex-col gap-7 lg:grid lg:grid-cols-12 lg:gap-x-6 lg:gap-y-0 lg:items-start"
           >
             <div className="px-6 md:px-0 lg:col-span-5 flex flex-col gap-2 md:gap-3.5">
-              <p className={`${EYEBROW} text-[11px] md:text-xs text-[#4A0E0E]`}>{t("care.request.readyEyebrow")}</p>
+              <p className={`${EYEBROW} text-[0.72rem] md:text-xs text-[#4A0E0E]`}>{t("care.request.readyEyebrow")}</p>
               <h2 id="request-ready" className="mb-1.5 md:mb-3 font-normal text-[32px] md:text-[52px] leading-[1.04]" style={SERIF}>
                 {t("care.request.readyTitle")}
               </h2>

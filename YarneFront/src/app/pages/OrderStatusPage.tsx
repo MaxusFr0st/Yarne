@@ -217,7 +217,7 @@ export function OrderStatusPage() {
         <h1 className="text-[#2D241E]" style={{ ...SERIF, fontSize: "clamp(1.8rem, 5vw, 2.4rem)", fontWeight: 500 }}>
           {t("orderStatus.notFound.title")}
         </h1>
-        <p className="text-[#2D241E]/65" style={{ ...SANS, fontSize: "0.95rem", lineHeight: 1.7 }}>
+        <p className="text-[#2D241E]/[0.68]" style={{ ...SANS, fontSize: "0.95rem", lineHeight: 1.7 }}>
           {t("orderStatus.notFound.text")}
         </p>
         <LangLink to="/" className={`${PILL} ${PILL_INK} h-12 px-8 justify-center mt-2`}>
@@ -233,7 +233,7 @@ export function OrderStatusPage() {
         <h1 className="text-[#2D241E]" style={{ ...SERIF, fontSize: "clamp(1.8rem, 5vw, 2.4rem)", fontWeight: 500 }}>
           {t("orderStatus.error.title")}
         </h1>
-        <p className="text-[#2D241E]/65" style={{ ...SANS, fontSize: "0.95rem", lineHeight: 1.7 }}>
+        <p className="text-[#2D241E]/[0.68]" style={{ ...SANS, fontSize: "0.95rem", lineHeight: 1.7 }}>
           {t("orderStatus.error.text")}
         </p>
         <button type="button" onClick={() => void load()} className={`${PILL} ${PILL_INK} h-12 px-8 justify-center mt-2`}>
@@ -274,7 +274,7 @@ export function OrderStatusPage() {
 
   const row = (label: string, value: ReactNode) => (
     <div className="flex justify-between gap-4 text-[0.9rem]">
-      <dt className="text-[#2D241E]/65">{label}</dt>
+      <dt className="text-[#2D241E]/[0.68]">{label}</dt>
       <dd className="text-right text-[#2D241E] min-w-0 break-words">{value}</dd>
     </div>
   );
@@ -306,7 +306,7 @@ export function OrderStatusPage() {
     <motion.div className="flex flex-col gap-5" {...fade()}>
       <header>
         <h1 className="flex flex-col gap-1">
-          <span className={`${LABEL} text-[11px] text-[#2D241E]/55`} style={SANS}>
+          <span className={`${LABEL} text-[0.72rem] text-[#2D241E]/[0.68]`} style={SANS}>
             {t("orderStatus.orderLabel")}
           </span>
           <span className="text-[#2D241E]" style={{ ...SERIF, fontSize: "clamp(2rem, 7vw, 2.8rem)", fontWeight: 600, letterSpacing: "0.02em", lineHeight: 1.1 }}>
@@ -317,12 +317,12 @@ export function OrderStatusPage() {
 
       {canceled ? (
         <div className={`${CARD} bg-[#EDE9E2]`} role="status">
-          <p className={`${LABEL} text-[11px] text-[#4A0E0E]`} style={SANS}>
+          <p className={`${LABEL} text-[0.72rem] text-[#4A0E0E]`} style={SANS}>
             {t("orderStatus.canceledLabel")}
           </p>
           {data.cancelReason && (
             <p className="mt-2 text-[0.9rem] text-[#2D241E]" style={{ ...SANS, lineHeight: 1.6 }}>
-              <span className="text-[#2D241E]/65">{t("orderStatus.reasonLabel")}: </span>
+              <span className="text-[#2D241E]/[0.68]">{t("orderStatus.reasonLabel")}: </span>
               {data.cancelReason}
             </p>
           )}
@@ -332,7 +332,7 @@ export function OrderStatusPage() {
           {STEP_KEYS.map((key, index) => {
             const on = index <= current;
             return (
-              <li key={key} aria-current={index === current ? "step" : undefined} className={`flex flex-col gap-1.5 min-w-0 text-[0.72rem] ${on ? "text-[#2D241E] font-bold" : "text-[#2D241E]/65"}`}>
+              <li key={key} aria-current={index === current ? "step" : undefined} className={`flex flex-col gap-1.5 min-w-0 text-[0.72rem] ${on ? "text-[#2D241E] font-bold" : "text-[#2D241E]/[0.68]"}`}>
                 <span className={`block h-1 rounded-sm ${on ? "bg-[#4A0E0E]" : "bg-[#2D241E]/15"}`} aria-hidden />
                 {t(`orderStatus.steps.${key}`)}
               </li>
@@ -365,11 +365,11 @@ export function OrderStatusPage() {
                 <p className="text-[0.95rem] text-[#2D241E]" style={{ fontWeight: 700 }}>
                   {item.productName}
                 </p>
-                {details.length > 0 && <p className="text-[0.85rem] text-[#2D241E]/65">{details.join(" · ")}</p>}
+                {details.length > 0 && <p className="text-[0.85rem] text-[#2D241E]/[0.68]">{details.join(" · ")}</p>}
               </div>
               <div className="text-right">
                 <PriceTag amount={item.unitPrice} eurAmount={item.eurUnitPrice} currency={currency} locale={locale} variant="line" />
-                {item.quantity > 1 && <p className="text-[0.8rem] text-[#2D241E]/65">{t("orderStatus.quantity", { count: item.quantity })}</p>}
+                {item.quantity > 1 && <p className="text-[0.8rem] text-[#2D241E]/[0.68]">{t("orderStatus.quantity", { count: item.quantity })}</p>}
               </div>
             </li>
           );
@@ -377,7 +377,7 @@ export function OrderStatusPage() {
       </ul>
 
       <div className="flex items-baseline justify-between gap-4" style={SANS}>
-        <span className="text-[0.9rem] text-[#2D241E]/65">{t("orderStatus.total")}</span>
+        <span className="text-[0.9rem] text-[#2D241E]/[0.68]">{t("orderStatus.total")}</span>
         <PriceTag amount={data.total} eurAmount={data.eurTotal} currency={currency} locale={locale} variant="emphasis" withUnit />
       </div>
 
@@ -397,10 +397,10 @@ export function OrderStatusPage() {
           data.ttnNumber ? (
             <>
               <span style={{ fontVariantNumeric: "tabular-nums", letterSpacing: "0.04em" }}>{data.ttnNumber}</span>
-              {data.trackingStatus && <span className="block text-[0.8rem] text-[#2D241E]/65">{`${t("orderStatus.ttnTracking")}: ${data.trackingStatus}`}</span>}
+              {data.trackingStatus && <span className="block text-[0.8rem] text-[#2D241E]/[0.68]">{`${t("orderStatus.ttnTracking")}: ${data.trackingStatus}`}</span>}
             </>
           ) : (
-            <span className="text-[#2D241E]/65">{t("orderStatus.ttnPending")}</span>
+            <span className="text-[#2D241E]/[0.68]">{t("orderStatus.ttnPending")}</span>
           ),
         )}
       </dl>
@@ -431,7 +431,7 @@ export function OrderStatusPage() {
                   {payOption("Pickup", t("orderStatus.pay.pickup"))}
                 </div>
               )}
-              {!data.isForeignDelivery && <p className="text-[0.8rem] text-[#2D241E]/65">{t("orderStatus.pay.fee")}</p>}
+              {!data.isForeignDelivery && <p className="text-[0.8rem] text-[#2D241E]/[0.68]">{t("orderStatus.pay.fee")}</p>}
               <button
                 type="button"
                 disabled={!effectivePick || paySaving}
@@ -446,7 +446,7 @@ export function OrderStatusPage() {
                       ? t("orderStatus.pay.confirmPickup")
                       : t("orderStatus.pay.confirm")}
               </button>
-              <p className="text-[0.8rem] text-[#2D241E]/65" aria-live="polite">
+              <p className="text-[0.8rem] text-[#2D241E]/[0.68]" aria-live="polite">
                 {payError ? t("orderStatus.pay.error") : t("orderStatus.pay.once")}
               </p>
             </>
@@ -456,12 +456,12 @@ export function OrderStatusPage() {
                 <Check size={15} strokeWidth={2} aria-hidden />
                 {data.paymentChoice === "Transfer" ? t("orderStatus.pay.transfer") : t("orderStatus.pay.pickup")}
               </p>
-              {data.paymentChoice === "Pickup" && <p className="text-[0.8rem] text-[#2D241E]/65">{t("orderStatus.pay.fee")}</p>}
+              {data.paymentChoice === "Pickup" && <p className="text-[0.8rem] text-[#2D241E]/[0.68]">{t("orderStatus.pay.fee")}</p>}
             </>
           )}
           {data.paymentChoice === "Transfer" && (
             <div className="rounded-[12px] p-3.5 text-[0.9rem] text-[#2D241E] bg-[#F5F2ED] flex flex-col gap-2.5">
-              <p className={`${LABEL} text-[10.5px] text-[#2D241E]/65`}>{t("orderStatus.pay.detailsTitle")}</p>
+              <p className={`${LABEL} text-[0.72rem] text-[#2D241E]/[0.68]`}>{t("orderStatus.pay.detailsTitle")}</p>
               {data.transferDetails ? (
                 (
                   [
@@ -478,7 +478,7 @@ export function OrderStatusPage() {
                   .map(([key, label, value]) => (
                     <div key={key} className="flex items-center justify-between gap-3">
                       <div className="min-w-0">
-                        <p className="text-[0.75rem] text-[#2D241E]/60">{label}</p>
+                        <p className="text-[0.75rem] text-[#2D241E]/[0.68]">{label}</p>
                         <p className="break-words" style={{ fontVariantNumeric: "tabular-nums" }}>{value}</p>
                       </div>
                       <button
@@ -527,8 +527,8 @@ export function OrderStatusPage() {
               >
                 {claimState === "sending" ? t("orderStatus.receipt.uploading") : t("orderStatus.receipt.paid")}
               </button>
-              {!receiptFile && <p className="text-[0.8rem] text-[#2D241E]/65">{t("orderStatus.receipt.required")}</p>}
-              <p className="text-[0.75rem] text-[#2D241E]/60">{t("orderStatus.receipt.privacy")}</p>
+              {!receiptFile && <p className="text-[0.8rem] text-[#2D241E]/[0.68]">{t("orderStatus.receipt.required")}</p>}
+              <p className="text-[0.75rem] text-[#2D241E]/[0.68]">{t("orderStatus.receipt.privacy")}</p>
               {(claimState === "type" || claimState === "size" || claimState === "error") && (
                 <p className="text-[0.85rem]" role="alert" style={{ color: "#8A1C1C" }}>
                   {claimState === "type" ? t("orderStatus.receipt.errorType") : claimState === "size" ? t("orderStatus.receipt.errorSize") : t("orderStatus.receipt.error")}
@@ -612,7 +612,7 @@ export function OrderStatusPage() {
                   className={INPUT}
                 />
                 {!data.accountExistsForEmail && (
-                  <p id="order-account-hint" className="text-[0.75rem] text-[#2D241E]/60">
+                  <p id="order-account-hint" className="text-[0.75rem] text-[#2D241E]/[0.68]">
                     {t("orderStatus.account.passwordHint")}
                   </p>
                 )}

@@ -195,6 +195,7 @@ public class ProductService : IProductService
     public async Task<ProductDto> CreateProductAsync(CreateProductRequest request, CancellationToken ct = default)
     {
         EnsureNonNegativePrice(request.Price);
+        var measurements = ProductMeasurements.Validate(request.SizeMeasurements);
 
         var validSizeIds = await ResolveSizeIdsAsync(request.SizeIds, request.DefaultSizeId, request.ColorSizeVariants.Select(v => v.SizeId), ct);
         var defaultSizeId = await ResolveDefaultSizeIdAsync(validSizeIds, request.DefaultSizeId, ct);
@@ -215,6 +216,10 @@ public class ProductService : IProductService
             SellingPriceCents = sellingPriceCents,
             SellingCurrencyCode = "UAH",
             Material = request.Material,
+            NameEn = NormalizeEn(request.NameEn),
+            DescriptionEn = NormalizeEn(request.DescriptionEn),
+            MaterialEn = NormalizeEn(request.MaterialEn),
+            SizePhotoUrl = NormalizeUrl(request.SizePhotoUrl),
             CategoryId = request.CategoryId,
             CollectionId = request.CollectionId,
             ProducerName = request.ProducerName,
@@ -229,7 +234,7 @@ public class ProductService : IProductService
         await _context.SaveChangesAsync(ct);
 
         await ReplaceProductImagesAsync(product.Id, request.ImageUrls, ct);
-        await ReplaceProductSizesAsync(product.Id, validSizeIds, ct);
+        await ReplaceProductSizesAsync(product.Id, validSizeIds, measurements, ct);
 
         var colorIds = ResolveColorIds(request.ColorIds, request.ColorVariants, request.ColorSizeVariants);
         var defaultColorId = ResolveDefaultColorId(colorIds, request.DefaultColorId);
@@ -314,6 +319,7 @@ public class ProductService : IProductService
     public async Task<ProductDto?> UpdateProductAsync(int id, UpdateProductRequest request, CancellationToken ct = default)
     {
         EnsureNonNegativePrice(request.Price);
+        var measurements = request.SizeMeasurements is null ? null : ProductMeasurements.Validate(request.SizeMeasurements);
 
         var product = await _context.Products
             .Include(p => p.ProductImages)
@@ -346,6 +352,11 @@ public class ProductService : IProductService
                 MidpointRounding.AwayFromZero);
         }
         product.Material = request.Material;
+        product.NameEn = NormalizeEn(request.NameEn);
+        product.DescriptionEn = NormalizeEn(request.DescriptionEn);
+        product.MaterialEn = NormalizeEn(request.MaterialEn);
+        if (request.SizePhotoUrl is not null)
+            product.SizePhotoUrl = NormalizeUrl(request.SizePhotoUrl);
         product.CategoryId = request.CategoryId;
         product.CollectionId = request.CollectionId ?? product.CollectionId;
         product.ProducerName = request.ProducerName;
@@ -359,7 +370,7 @@ public class ProductService : IProductService
         if (request.ImageUrls is not null)
             await ReplaceProductImagesAsync(product.Id, request.ImageUrls, ct);
 
-        if (request.SizeIds is not null || request.ColorSizeVariants is not null || request.DefaultSizeId is not null)
+        if (request.SizeIds is not null || request.ColorSizeVariants is not null || request.DefaultSizeId is not null || measurements is not null)
         {
             var requestedSizeIds = request.SizeIds ?? product.ProductSizes.Select(ps => ps.SizeId).ToList();
             var validSizeIds = await ResolveSizeIdsAsync(
@@ -368,7 +379,7 @@ public class ProductService : IProductService
                 (request.ColorSizeVariants ?? new List<ColorSizeVariantInput>()).Select(v => v.SizeId),
                 ct
             );
-            await ReplaceProductSizesAsync(product.Id, validSizeIds, ct);
+            await ReplaceProductSizesAsync(product.Id, validSizeIds, measurements, ct);
             product.DefaultSizeId = await ResolveDefaultSizeIdAsync(validSizeIds, request.DefaultSizeId ?? product.DefaultSizeId, ct);
         }
         else
@@ -508,6 +519,7 @@ public class ProductService : IProductService
     private static IEnumerable<string?> CollectProductUploadUrls(Models.Product product)
     {
         yield return product.ImageUrl;
+        yield return product.SizePhotoUrl;
 
         foreach (var image in product.ProductImages)
             yield return image.ImageUrl;
@@ -607,6 +619,10 @@ public class ProductService : IProductService
             {
                 Name = ps.Size.Name,
                 NameUk = ps.Size.NameUk,
+                WidthCm = ps.WidthCm,
+                HeightCm = ps.HeightCm,
+                DepthCm = ps.DepthCm,
+                HandleCm = ps.HandleCm,
             })
             .ToList();
         var defaultSize = p.DefaultSize?.Name ?? sizes.FirstOrDefault()?.Name;
@@ -632,6 +648,11 @@ public class ProductService : IProductService
             Price = p.Price,
             EurPrice = p.EurPrice,
             Material = p.Material,
+            NameEn = p.NameEn,
+            DescriptionEn = p.DescriptionEn,
+            MaterialEn = p.MaterialEn,
+            CategoryNameEn = p.Category.NameEn,
+            SizePhotoUrl = NormalizeUrl(p.SizePhotoUrl),
             PrimaryImage = images.FirstOrDefault() ?? ToImageDto(p.ImageUrl),
             ShareImageUrl = p.ShareImageUrl,
             Images = images,
@@ -682,6 +703,11 @@ public class ProductService : IProductService
             Price = baseDto.Price,
             EurPrice = baseDto.EurPrice,
             Material = baseDto.Material,
+            NameEn = baseDto.NameEn,
+            DescriptionEn = baseDto.DescriptionEn,
+            MaterialEn = baseDto.MaterialEn,
+            CategoryNameEn = baseDto.CategoryNameEn,
+            SizePhotoUrl = baseDto.SizePhotoUrl,
             PrimaryImage = baseDto.PrimaryImage,
             ShareImageUrl = baseDto.ShareImageUrl,
             Images = baseDto.Images,
@@ -715,10 +741,12 @@ public class ProductService : IProductService
         {
             ProductCode = p.ProductCode,
             Name = p.Name,
+            NameEn = p.NameEn,
             Price = p.Price,
             EurPrice = p.EurPrice,
             PrimaryImage = images.FirstOrDefault() ?? ToImageDto(p.ImageUrl),
             CategoryName = p.Category?.Name ?? string.Empty,
+            CategoryNameEn = p.Category?.NameEn,
             IsNew = p.IsNew,
             IsBestseller = p.IsBestseller,
             DefaultColorName = p.DefaultColor?.Name,
@@ -796,6 +824,9 @@ public class ProductService : IProductService
 
     private static List<string> NormalizeUrls(IEnumerable<string>? urls) =>
         MediaUrlNormalizer.NormalizeList(urls);
+
+    private static string? NormalizeEn(string? text) =>
+        string.IsNullOrWhiteSpace(text) ? null : text.Trim();
 
     private static string? NormalizeUrl(string? url) =>
         MediaUrlNormalizer.NormalizeForStorage(url);
@@ -1025,22 +1056,38 @@ public class ProductService : IProductService
         }
     }
 
-    private async Task ReplaceProductSizesAsync(int productId, List<int> sizeIds, CancellationToken ct)
+    /// <param name="measurements">Per-size measurements to store; null = keep what the kept sizes already have.</param>
+    private async Task ReplaceProductSizesAsync(
+        int productId,
+        List<int> sizeIds,
+        IReadOnlyDictionary<int, SizeMeasurementInput>? measurements,
+        CancellationToken ct)
     {
         // Clear size-bound children first because ProductSize FK is NO ACTION.
         var existingSizeImages = await _context.ProductColorSizeImages.Where(v => v.ProductId == productId).ToListAsync(ct);
         _context.ProductColorSizeImages.RemoveRange(existingSizeImages);
 
+        // Rows for sizes that stay are updated in place so their measurements survive an edit that only touches other fields.
         var existing = await _context.ProductSizes.Where(ps => ps.ProductId == productId).ToListAsync(ct);
-        _context.ProductSizes.RemoveRange(existing);
+        var existingBySizeId = existing.ToDictionary(ps => ps.SizeId);
+        _context.ProductSizes.RemoveRange(existing.Where(ps => !sizeIds.Contains(ps.SizeId)));
         for (var i = 0; i < sizeIds.Count; i++)
         {
-            _context.ProductSizes.Add(new Models.ProductSize
+            if (!existingBySizeId.TryGetValue(sizeIds[i], out var row))
             {
-                ProductId = productId,
-                SizeId = sizeIds[i],
-                SortOrder = i,
-            });
+                row = new Models.ProductSize { ProductId = productId, SizeId = sizeIds[i] };
+                _context.ProductSizes.Add(row);
+            }
+
+            row.SortOrder = i;
+            if (measurements is null)
+                continue;
+
+            measurements.TryGetValue(sizeIds[i], out var m);
+            row.WidthCm = m?.WidthCm;
+            row.HeightCm = m?.HeightCm;
+            row.DepthCm = m?.DepthCm;
+            row.HandleCm = m?.HandleCm;
         }
     }
 

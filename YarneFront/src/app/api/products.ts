@@ -35,6 +35,10 @@ export interface FurnitureColorVariantDto {
 export interface SizeOptionDto {
   name: string;
   nameUk?: string | null;
+  widthCm?: number | null;
+  heightCm?: number | null;
+  depthCm?: number | null;
+  handleCm?: number | null;
 }
 
 export interface ProductDto {
@@ -45,6 +49,12 @@ export interface ProductDto {
   price: number;
   eurPrice?: number | null;
   material: string | null;
+  nameEn?: string | null;
+  descriptionEn?: string | null;
+  materialEn?: string | null;
+  categoryNameEn?: string | null;
+  /** One plain photo for the size panel. */
+  sizePhotoUrl?: string | null;
   primaryImage: ProductImageDto | null;
   /** Dedicated photo for link-share previews and order emails. Null = falls back to primaryImage. */
   shareImageUrl?: string | null;
@@ -80,10 +90,12 @@ export interface ProductDetailDto extends ProductDto {
 export interface SuggestedProductDto {
   productCode: string;
   name: string;
+  nameEn?: string | null;
   price: number;
   eurPrice?: number | null;
   primaryImage: ProductImageDto | null;
   categoryName: string;
+  categoryNameEn?: string | null;
   isNew: boolean;
   isBestseller: boolean;
   defaultColorName: string | null;
@@ -131,6 +143,14 @@ export interface ColorPriceInput {
   eurPriceWithLace?: number;
 }
 
+export interface SizeMeasurementInput {
+  sizeId: number;
+  widthCm?: number | null;
+  heightCm?: number | null;
+  depthCm?: number | null;
+  handleCm?: number | null;
+}
+
 export interface CreateProductRequest {
   productCode?: string;
   name: string;
@@ -138,6 +158,13 @@ export interface CreateProductRequest {
   price: number;
   eurPrice?: number;
   material?: string;
+  nameEn?: string;
+  descriptionEn?: string;
+  materialEn?: string;
+  /** Public URL of an already uploaded photo. On update, "" removes it and undefined keeps it. */
+  sizePhotoUrl?: string;
+  /** On update, undefined keeps the stored numbers; a list replaces them (sizes without an entry lose theirs). */
+  sizeMeasurements?: SizeMeasurementInput[];
   categoryId: number;
   collectionId?: number;
   producerName?: string;

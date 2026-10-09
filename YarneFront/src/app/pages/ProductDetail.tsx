@@ -25,6 +25,9 @@ import { dropPhotos, Priority, queuePhotos } from "../utils/photoQueue";
 import { productPagePhotos } from "../utils/productPhotos";
 import { clearScrollForRoute } from "../utils/scrollRestoration";
 import { localizedCatalogName } from "../utils/localizedName";
+import { productCategory, productDescription, productName } from "../utils/productText";
+import { productSubtitle } from "../utils/productSubtitle";
+import { SizePanel, hasSizeMeasurements } from "../components/SizePanel";
 import {
   getProductGuaranteeContent,
   loadProductGuaranteeContent,
@@ -69,6 +72,9 @@ export function ProductDetail() {
   const [addedToBag, setAddedToBag] = useState(false);
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [sizeError, setSizeError] = useState(false);
+  const [sizePanelOpen, setSizePanelOpen] = useState(false);
+  // Going back or forward to another product must not carry an open panel over to it.
+  useEffect(() => setSizePanelOpen(false), [id]);
   // Tracks the sticky info column's real height so the image can animate to match it. A callback
   // ref (not useEffect+useRef) because the column only mounts once the product has loaded —
   // an effect with an empty dep array would run before that node exists and never reattach,
@@ -173,7 +179,7 @@ export function ProductDetail() {
         style={{ backgroundColor: "#F5F2ED" }}
       >
         <p
-          className="text-[#2D241E]/50"
+          className="text-[#2D241E]/[0.68]"
           style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "1.5rem" }}
         >
           {t("product.notFound")}
@@ -286,7 +292,7 @@ export function ProductDetail() {
         <button
           type="button"
           onClick={() => navigate(-1)}
-          className="flex items-center gap-2 text-[#2D241E]/45 hover:text-[#2D241E] transition-colors duration-300 mb-5 group"
+          className="flex items-center gap-2 text-[#2D241E]/[0.68] hover:text-[#2D241E] transition-colors duration-300 mb-5 group"
           style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "0.76rem", letterSpacing: "0.1em" }}
         >
           <ArrowLeft size={15} strokeWidth={1.5} className="group-hover:-translate-x-1 transition-transform duration-300" />
@@ -333,7 +339,7 @@ export function ProductDetail() {
                 <CrossfadeImage
                   src={images[safeImageIndex].src}
                   focal={{ x: images[safeImageIndex].focalX, y: images[safeImageIndex].focalY }}
-                  alt={`${product!.name} – ${selectedColorLabel}`}
+                  alt={`${productName(product!, locale)} – ${selectedColorLabel}`}
                   priority
                 />
               )}
@@ -343,7 +349,7 @@ export function ProductDetail() {
                 {product.isNew && (
                   <span
                     className="px-3.5 py-1.5 rounded-2xl"
-                    style={{ backgroundColor: "#fff", color: "#2D241E", fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.12em", fontSize: "0.62rem" }}
+                    style={{ backgroundColor: "#fff", color: "#2D241E", fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.12em", fontSize: "0.72rem" }}
                   >
                     {t("product.badgeNew")}
                   </span>
@@ -351,7 +357,7 @@ export function ProductDetail() {
                 {product.isBestseller && (
                   <span
                     className="px-3.5 py-1.5 rounded-2xl"
-                    style={{ backgroundColor: "rgba(255,255,255,0.85)", color: "#2D241E", fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.1em", fontSize: "0.62rem" }}
+                    style={{ backgroundColor: "rgba(255,255,255,0.85)", color: "#2D241E", fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.1em", fontSize: "0.72rem" }}
                   >
                     {t("product.badgeBestseller")}
                   </span>
@@ -390,28 +396,28 @@ export function ProductDetail() {
           >
             <div>
               <p
-                className="text-[#2D241E]/40 uppercase"
-                style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "0.66rem", letterSpacing: "0.18em" }}
+                className="text-[#2D241E]/[0.68] uppercase"
+                style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "0.72rem", letterSpacing: "0.18em" }}
               >
-                {product.category}
+                {productCategory(product, locale)}
               </p>
               <h1
                 className="text-[#2D241E] text-pretty mt-2.5"
                 style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "clamp(1.9rem, 3.4vw, 2.7rem)", fontWeight: 500, lineHeight: 1.05 }}
               >
-                {product.name}
+                {productName(product, locale)}
               </h1>
               <p
-                className="text-[#2D241E]/50 mt-2"
+                className="text-[#2D241E]/[0.68] mt-2"
                 style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "0.85rem" }}
               >
-                {product.subtitle}
+                {productSubtitle(product, locale)}
               </p>
               <p
-                className="text-[#2D241E]/60 mt-4"
+                className="text-[#2D241E]/[0.68] mt-4"
                 style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "0.88rem", lineHeight: 1.75, whiteSpace: "pre-line" }}
               >
-                {product.description}
+                {productDescription(product, locale)}
               </p>
             </div>
 
@@ -426,12 +432,12 @@ export function ProductDetail() {
               <div>
                 <div className="flex items-center justify-between mb-2.5">
                   <p
-                    className="text-[#2D241E]/45 uppercase"
-                    style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "0.66rem", letterSpacing: "0.12em" }}
+                    className="text-[#2D241E]/[0.68] uppercase"
+                    style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "0.72rem", letterSpacing: "0.12em" }}
                   >
                     {t("product.colour")}
                   </p>
-                  <p className="text-[#2D241E]/55 text-xs" style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "0.78rem" }}>
+                  <p className="text-[#2D241E]/[0.68] text-xs" style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "0.78rem" }}>
                     <AnimatePresence mode="wait">
                       <motion.span
                         key={selectedColorLabel}
@@ -479,8 +485,8 @@ export function ProductDetail() {
               {product.lace === true && (
                 <div>
                   <p
-                    className="text-[#2D241E]/45 uppercase mb-2.5"
-                    style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "0.66rem", letterSpacing: "0.12em" }}
+                    className="text-[#2D241E]/[0.68] uppercase mb-2.5"
+                    style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "0.72rem", letterSpacing: "0.12em" }}
                   >
                     {t("product.lace.label")}
                   </p>
@@ -537,12 +543,12 @@ export function ProductDetail() {
                   <div ref={furnitureContentRef} aria-hidden={!showFurniture} style={{ pointerEvents: showFurniture ? undefined : "none" }}>
                   <div className="flex items-center justify-between mb-2.5">
                     <p
-                      className="text-[#2D241E]/45 uppercase"
-                      style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "0.66rem", letterSpacing: "0.12em" }}
+                      className="text-[#2D241E]/[0.68] uppercase"
+                      style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "0.72rem", letterSpacing: "0.12em" }}
                     >
                       {t("product.furniture")}
                     </p>
-                    <p className="text-[#2D241E]/55" style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "0.78rem" }}>
+                    <p className="text-[#2D241E]/[0.68]" style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "0.78rem" }}>
                       <AnimatePresence mode="wait">
                         <motion.span
                           key={selectedFurnitureLabel}
@@ -593,18 +599,22 @@ export function ProductDetail() {
               <div>
                 <div className="flex items-center justify-between mb-2.5">
                   <p
-                    className="text-[#2D241E]/45 uppercase"
-                    style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "0.66rem", letterSpacing: "0.12em" }}
+                    className="text-[#2D241E]/[0.68] uppercase"
+                    style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "0.72rem", letterSpacing: "0.12em" }}
                   >
                     {t("product.size")}
                   </p>
-                  <button
-                    type="button"
-                    className="text-[#2D241E]/45 hover:text-[#4A0E0E] transition-colors duration-200 underline underline-offset-2 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2D241E]/35 rounded-sm"
-                    style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "0.78rem" }}
-                  >
-                    {t("product.sizeGuide")}
-                  </button>
+                  {hasSizeMeasurements(product) && (
+                    <button
+                      type="button"
+                      onClick={() => setSizePanelOpen(true)}
+                      aria-haspopup="dialog"
+                      className="text-[#2D241E]/[0.68] hover:text-[#4A0E0E] transition-colors duration-200 underline underline-offset-2 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2D241E]/35 rounded-sm"
+                      style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "0.78rem" }}
+                    >
+                      {t("product.sizeGuide")}
+                    </button>
+                  )}
                 </div>
                 <div className="flex flex-wrap gap-2">
                   {displaySizes.map((size) => {
@@ -694,6 +704,19 @@ export function ProductDetail() {
                   )}
                 </motion.button>
               </div>
+
+              <p
+                className="text-center text-[#2D241E]/[0.68]"
+                style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "0.8rem", lineHeight: 1.5 }}
+              >
+                {t("deliveryNote.text")}
+                <LangLink
+                  to="/pages/delivery"
+                  className="underline underline-offset-2 hover:text-[#4A0E0E] transition-colors duration-200"
+                >
+                  {t("deliveryNote.link")}
+                </LangLink>
+              </p>
             </div>
 
             {/* Details Accordion */}
@@ -704,7 +727,7 @@ export function ProductDetail() {
                   className="w-full flex items-center justify-between pb-3 text-left group"
                   style={{ borderBottom: "1px solid rgba(45,36,30,0.1)" }}
                 >
-                  <span className="text-[#2D241E]/60" style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "0.82rem" }}>
+                  <span className="text-[#2D241E]/[0.68]" style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "0.82rem" }}>
                     {t("product.detailsTitle")}
                   </span>
                   <motion.div animate={{ rotate: detailsOpen ? 180 : 0 }} transition={{ duration: 0.3 }}>
@@ -723,7 +746,7 @@ export function ProductDetail() {
                       {product.producerName ? (
                         <li
                           key="producer"
-                          className="flex items-start gap-3 text-[#2D241E]/60 text-sm"
+                          className="flex items-start gap-3 text-[#2D241E]/[0.68] text-sm"
                           style={{ fontFamily: "'DM Sans', sans-serif" }}
                         >
                           <span className="mt-1.5 w-1 h-1 rounded-full bg-[#4A0E0E] flex-shrink-0" />
@@ -733,7 +756,7 @@ export function ProductDetail() {
                       {supplementaryDetails.map((detail) => (
                         <li
                           key={detail}
-                          className="flex items-start gap-3 text-[#2D241E]/60 text-sm"
+                          className="flex items-start gap-3 text-[#2D241E]/[0.68] text-sm"
                           style={{ fontFamily: "'DM Sans', sans-serif" }}
                         >
                           <span className="mt-1.5 w-1 h-1 rounded-full bg-[#4A0E0E] flex-shrink-0" />
@@ -752,13 +775,21 @@ export function ProductDetail() {
         </div>
       </div>
 
+      <SizePanel
+        open={sizePanelOpen}
+        onClose={() => setSizePanelOpen(false)}
+        product={product}
+        locale={locale}
+        activeSize={activeSize}
+      />
+
       {/* Related Products */}
       {related.length > 0 && (
         <section className="hidden md:block px-5 md:px-10 max-w-[1400px] mx-auto mt-24 pb-24 overflow-x-hidden">
           <div className="flex items-center justify-between mb-8 md:mb-10">
             <div>
               <p
-                className="text-[#2D241E]/40 tracking-widest uppercase text-xs mb-2"
+                className="text-[#2D241E]/[0.68] tracking-widest uppercase text-xs mb-2"
                 style={{ fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.2em" }}
               >
                 {t("product.relatedEyebrow")}
@@ -772,7 +803,7 @@ export function ProductDetail() {
             </div>
             <LangLink
               to="/collection"
-              className="hidden md:flex items-center gap-2 text-[#2D241E]/50 hover:text-[#4A0E0E] text-xs transition-colors uppercase tracking-widest"
+              className="hidden md:flex items-center gap-2 text-[#2D241E]/[0.68] hover:text-[#4A0E0E] text-xs transition-colors uppercase tracking-widest"
               style={{ fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.12em" }}
             >
               {t("common.viewAll")}

@@ -3,6 +3,7 @@ import { apiRequest } from "./client";
 export interface CategoryDto {
   id: number;
   name: string;
+  nameEn?: string | null;
 }
 
 export interface ColorDto {
@@ -41,18 +42,19 @@ export async function fetchCategories(): Promise<CategoryDto[]> {
   return Array.isArray(data) ? data : [];
 }
 
-export async function createCategory(name: string): Promise<CategoryDto> {
+export async function createCategory(name: string, nameEn?: string): Promise<CategoryDto> {
   const data = await apiRequest<CategoryDto>("/api/categories", {
     method: "POST",
-    body: JSON.stringify({ name }),
+    body: JSON.stringify({ name, nameEn }),
   });
   return data;
 }
 
-export async function updateCategory(id: number, name: string): Promise<CategoryDto> {
+/** nameEn: undefined keeps the stored English name, "" clears it. */
+export async function updateCategory(id: number, name: string, nameEn?: string): Promise<CategoryDto> {
   const data = await apiRequest<CategoryDto>(`/api/categories/${id}`, {
     method: "PUT",
-    body: JSON.stringify({ name }),
+    body: JSON.stringify({ name, nameEn }),
   });
   return data;
 }

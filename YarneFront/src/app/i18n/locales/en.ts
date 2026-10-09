@@ -101,7 +101,7 @@ const en = {
     colour: "Colour",
     furniture: "Hardware",
     size: "Size",
-    sizeGuide: "Size guide",
+    sizeGuide: "Measurements",
     selectSize: "Please select a size to continue.",
     addToBag: "Add to Bag",
     addedToBag: "Added to Bag",
@@ -288,17 +288,6 @@ const en = {
     tabs: {
       allPieces: "All Pieces",
     },
-    sort: {
-      featured: "Featured",
-      priceLowToHigh: "Price: Low to High",
-      priceHighToLow: "Price: High to Low",
-      newest: "Newest",
-    },
-    availability: {
-      allItems: "All Items",
-      newOnly: "New Only",
-      bestsellers: "Bestsellers",
-    },
     header: {
       newArrivalsEyebrow: "New Arrivals",
       collectionEyebrow: "The Collection",
@@ -309,13 +298,42 @@ const en = {
       pieceCount_one: "{{count}} piece — handmade, made to order",
       pieceCount_other: "{{count}} pieces — handmade, made to order",
     },
-    filter: {
-      button: "Filter",
-      priceRange: "Price Range",
-      availability: "Availability",
-      close: "Close",
-    },
     empty: "No pieces found in this selection.",
+  },
+  // Round nine, agent B: live search, size panel, delivery note.
+  searchPanel: {
+    browseAll: "Browse the whole collection →",
+    found: "Found: {{count}}",
+    showAll: "Show all ({{count}})",
+    noResultsTitle: "Nothing found for “{{term}}”",
+    noResultsHint: "Try another name, colour or material.",
+    goToCollection: "Go to the whole collection",
+    colour: "Colour: {{value}}",
+    material: "Material: {{value}}",
+    resultsLabel: "Search results",
+    collectionResultsFor: "Results for “{{term}}”",
+    collectionClear: "Clear",
+    collectionEmptyTitle: "Nothing found",
+    collectionShowAll: "Show the whole collection",
+  },
+  sizePanel: {
+    title: "Measurements",
+    sizeSwitch: "Size",
+    photoAlt: "Photo with measurements",
+    width: "Width",
+    height: "Height",
+    depth: "Depth",
+    handle: "Handle",
+    cm: "{{value}} cm",
+    note: "Handmade: measurements may vary by 1–2 cm.",
+    close: "Close",
+  },
+  mobileMenu: {
+    label: "Menu",
+  },
+  deliveryNote: {
+    text: "Made to order, ships within 5 working days · ",
+    link: "Delivery, payment and returns",
   },
   account: {
     guest: {

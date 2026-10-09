@@ -5,6 +5,8 @@ import { motion, AnimatePresence } from "motion/react";
 import { useTranslation } from "react-i18next";
 import { useCart, useOverlay, useAuth } from "../context/AppContext";
 import { Logo } from "./Logo";
+import { SearchOverlay } from "./SearchOverlay";
+import { useBodyScrollLock } from "../hooks/useBodyScrollLock";
 import { LangLink } from "../i18n/LangLink";
 import { useLangNavigate } from "../i18n/useLangNavigate";
 import { LanguageSwitcher } from "../i18n/LanguageSwitcher";
@@ -27,6 +29,9 @@ export function Header() {
   const [searchTerm, setSearchTerm] = useState("");
   const [langOpen, setLangOpen] = useState(false);
   const langRef = useRef<HTMLDivElement>(null);
+  const menuButtonRef = useRef<HTMLButtonElement>(null);
+  const menuPanelRef = useRef<HTMLDivElement>(null);
+  const menuCloseRef = useRef<HTMLButtonElement>(null);
   const location = useLocation();
   const navigate = useLangNavigate();
   const rawNavigate = useNavigate();
@@ -39,6 +44,44 @@ export function Header() {
     setSearchOpen(false);
     setSearchTerm("");
     navigate(`/collection?q=${encodeURIComponent(term)}`);
+  };
+
+  // The page behind the search and the menu does not scroll while either is open.
+  useBodyScrollLock(searchOpen || mobileOpen);
+
+  const closeSearch = (opts?: { clear?: boolean }) => {
+    setSearchOpen(false);
+    if (opts?.clear) setSearchTerm("");
+  };
+
+  // The menu behaves like a dialog: Escape closes it, focus moves in on open and back to its button on close.
+  useEffect(() => {
+    if (!mobileOpen) return;
+    const frame = requestAnimationFrame(() => menuCloseRef.current?.focus({ preventScroll: true }));
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setMobileOpen(false);
+    };
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      cancelAnimationFrame(frame);
+      document.removeEventListener("keydown", onKeyDown);
+      menuButtonRef.current?.focus({ preventScroll: true });
+    };
+  }, [mobileOpen]);
+
+  const keepFocusInMenu = (event: React.KeyboardEvent) => {
+    if (event.key !== "Tab") return;
+    const items = Array.from(menuPanelRef.current?.querySelectorAll<HTMLElement>('button:not([disabled]), a[href]') ?? []);
+    if (items.length === 0) return;
+    const first = items[0];
+    const last = items[items.length - 1];
+    if (event.shiftKey && document.activeElement === first) {
+      event.preventDefault();
+      last.focus();
+    } else if (!event.shiftKey && document.activeElement === last) {
+      event.preventDefault();
+      first.focus();
+    }
   };
 
   useEffect(() => {
@@ -163,9 +206,12 @@ export function Header() {
 
               {/* Mobile: Hamburger */}
               <button
+                ref={menuButtonRef}
                 className="md:hidden flex items-center justify-center w-11 h-11 -ml-2 rounded-full text-[#2D241E] hover:bg-[#2D241E]/5 transition-colors duration-200 cursor-pointer"
                 onClick={() => setMobileOpen(true)}
                 aria-label={t("header.openMenu")}
+                aria-haspopup="dialog"
+                aria-expanded={mobileOpen}
                 style={{ touchAction: "manipulation" }}
               >
                 <Menu size={22} strokeWidth={1.5} />
@@ -182,7 +228,7 @@ export function Header() {
                   className="flex items-center gap-[3px] h-8 px-1.5 rounded-[4px] text-[#2D241E] hover:bg-[#2D241E]/5 transition-colors duration-150 cursor-pointer focus-visible:outline-2 focus-visible:outline-[#2D241E] focus-visible:outline-offset-2"
                   style={{
                     fontFamily: "'DM Sans', sans-serif",
-                    fontSize: "0.68rem",
+                    fontSize: "0.72rem",
                     letterSpacing: "0.14em",
                     touchAction: "manipulation",
                     WebkitTapHighlightColor: "transparent",
@@ -215,10 +261,10 @@ export function Header() {
                           <button
                             type="button"
                             onClick={() => { changeLocale(code); setLangOpen(false); }}
-                            className="w-full text-left px-3 py-2.5 text-[#2D241E]/55 hover:text-[#2D241E] hover:bg-[#2D241E]/5 transition-colors duration-150 cursor-pointer"
+                            className="w-full text-left px-3 py-2.5 text-[#2D241E]/[0.68] hover:text-[#2D241E] hover:bg-[#2D241E]/5 transition-colors duration-150 cursor-pointer"
                             style={{
                               fontFamily: "'DM Sans', sans-serif",
-                              fontSize: "0.68rem",
+                              fontSize: "0.72rem",
                               letterSpacing: "0.14em",
                               touchAction: "manipulation",
                               WebkitTapHighlightColor: "transparent",
@@ -327,7 +373,7 @@ export function Header() {
                     <motion.span
                       initial={{ scale: 0 }}
                       animate={{ scale: 1 }}
-                      className="absolute top-0.5 right-0.5 min-w-[16px] h-4 px-1 rounded-full text-[10px] flex items-center justify-center text-white"
+                      className="absolute top-0.5 right-0.5 min-w-[16px] h-4 px-1 rounded-full text-[0.72rem] flex items-center justify-center text-white"
                       style={{ backgroundColor: "#4A0E0E", fontFamily: "'DM Sans', sans-serif" }}
                     >
                       {cartCount}
@@ -347,7 +393,7 @@ export function Header() {
                   <motion.span
                     initial={{ scale: 0 }}
                     animate={{ scale: 1 }}
-                    className="absolute -top-2 -right-2 w-4 h-4 rounded-full text-[10px] flex items-center justify-center text-white"
+                    className="absolute -top-2 -right-2 min-w-4 h-4 px-[3px] rounded-full text-[0.72rem] flex items-center justify-center text-white"
                     style={{ backgroundColor: "#4A0E0E", fontFamily: "'DM Sans', sans-serif" }}
                   >
                     {cartCount}
@@ -372,6 +418,11 @@ export function Header() {
               onClick={() => setMobileOpen(false)}
             />
             <motion.div
+              ref={menuPanelRef}
+              role="dialog"
+              aria-modal="true"
+              aria-label={t("mobileMenu.label")}
+              onKeyDown={keepFocusInMenu}
               className="fixed top-0 left-0 bottom-0 z-50 w-80 flex flex-col"
               style={{ backgroundColor: "#F5F2ED" }}
               initial={{ x: "-100%" }}
@@ -382,6 +433,7 @@ export function Header() {
               <div className="flex items-center justify-between p-6 border-b border-[#2D241E]/10">
                 <Logo title="Yarné" className="h-7 w-auto text-[#2D241E]" />
                 <button
+                  ref={menuCloseRef}
                   onClick={() => setMobileOpen(false)}
                   className="text-[#2D241E]"
                   aria-label={t("header.closeMenu")}
@@ -437,49 +489,12 @@ export function Header() {
       {/* Search Overlay */}
       <AnimatePresence>
         {searchOpen && (
-          <motion.div
-            className="fixed inset-0 z-50 flex flex-col items-center justify-center p-8"
-            style={{ backgroundColor: "rgba(245,242,237,0.96)", backdropFilter: "blur(24px)" }}
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.3 }}
-          >
-            <button
-              onClick={() => setSearchOpen(false)}
-              className="absolute top-8 right-8 text-[#2D241E]/60 hover:text-[#2D241E] transition-colors"
-              aria-label={t("header.closeSearch")}
-            >
-              <X size={24} />
-            </button>
-            <motion.div
-              className="w-full max-w-2xl"
-              initial={{ y: 20, opacity: 0 }}
-              animate={{ y: 0, opacity: 1 }}
-              transition={{ delay: 0.1, duration: 0.4, ease: [0.25, 0.1, 0.25, 1] }}
-            >
-              <p
-                className="text-[#2D241E]/50 text-center mb-8 tracking-widest uppercase text-xs"
-                style={{ fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.2em" }}
-              >
-                {t("header.searchTitle")}
-              </p>
-              <form role="search" className="relative" onSubmit={submitSearch}>
-                <input
-                  type="text"
-                  name="q"
-                  value={searchTerm}
-                  onChange={(event) => setSearchTerm(event.target.value)}
-                  aria-label={t("header.searchLabel")}
-                  placeholder={t("header.searchPlaceholder")}
-                  autoFocus
-                  className="w-full bg-transparent border-0 border-b-2 border-[#2D241E]/20 focus:border-[#4A0E0E] focus:outline-none pb-4 text-[#2D241E] placeholder-[#2D241E]/30 text-xl transition-colors duration-300"
-                  style={{ fontFamily: "'Cormorant Garamond', serif" }}
-                />
-                <Search className="absolute right-0 bottom-4 text-[#2D241E]/40" size={22} />
-              </form>
-            </motion.div>
-          </motion.div>
+          <SearchOverlay
+            term={searchTerm}
+            onTermChange={setSearchTerm}
+            onClose={closeSearch}
+            onSubmit={submitSearch}
+          />
         )}
       </AnimatePresence>
     </>

@@ -75,7 +75,7 @@ export function CareSearch({ entries }: { entries: CareSearchEntry[] }) {
 
   return (
     <form role="search" onSubmit={onSubmit} className="relative flex flex-col gap-2 md:gap-2.5 text-left" style={SANS}>
-      <label htmlFor={inputId} className={`${LABEL} text-[10.5px] md:text-[11.5px] pl-2 md:pl-6 text-[#2D241E]`}>
+      <label htmlFor={inputId} className={`${LABEL} text-[0.72rem] md:text-[11.5px] pl-2 md:pl-6 text-[#2D241E]`}>
         {t("care.search.label")}
       </label>
       <div

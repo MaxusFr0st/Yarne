@@ -1,44 +1,23 @@
 import { useState, useEffect, useMemo } from "react";
 import { useSearchParams } from "react-router";
 import { motion } from "motion/react";
-import { SlidersHorizontal, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useProducts } from "../hooks/useProducts";
-import { useLocale } from "../i18n/useLocale";
-import { showsEur } from "../i18n/format";
-import { PriceTag } from "../components/PriceTag";
 import { ProductCard } from "../components/ProductCard";
 import { Skeleton } from "../components/ui/skeleton";
 import { usePageTitle } from "../hooks/usePageTitle";
 import { fetchCollections, type CollectionDto } from "../api/collections";
-import type { Product } from "../types/product";
+import { searchProducts } from "../utils/productSearch";
 
-/** Lower-cased and without accents, so "cherie" finds "Chérie". */
-function searchable(value: string | null | undefined): string {
-  return (value ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
-}
-
-/** Every word of the search must appear somewhere in the piece's text, in either language. */
-function matchesSearch(product: Product, words: string[]): boolean {
-  const haystack = searchable(
-    [
-      product.name,
-      product.subtitle,
-      product.description,
-      product.category,
-      product.producerName,
-      ...product.colors.flatMap((color) => [color.name, color.nameUk]),
-    ].join(" "),
-  );
-  return words.every((word) => haystack.includes(word));
-}
+/** Where `overflow-x: clip` is not understood the page falls back to `hidden`, which cannot keep the bar sticky. */
+const CLIP_X = typeof CSS !== "undefined" && CSS.supports("overflow-x", "clip") ? "clip" : "hidden";
 
 const SKELETON_COUNT = 6;
 const ALL_PRODUCTS_TAB = "all";
 
-const easing = [0.25, 0.1, 0.25, 1] as const;
-const SORT_OPTION_KEYS = ["featured", "priceLowToHigh", "priceHighToLow", "newest"] as const;
-type SortOptionKey = (typeof SORT_OPTION_KEYS)[number];
+// Phones: two columns. From md: two columns with wider gaps, from lg three.
+const GRID_CLASS =
+  "grid grid-cols-2 gap-x-2.5 gap-y-7 w-full md:gap-x-5 md:gap-y-5 lg:gap-x-7 lg:gap-y-7 lg:grid-cols-3";
 
 function CollectionCardSkeleton() {
   return (
@@ -66,21 +45,15 @@ function CollectionCardSkeleton() {
 
 export function Collection() {
   const { t } = useTranslation();
-  const locale = useLocale();
   usePageTitle(t("seo.collectionTitle"));
   const [searchParams, setSearchParams] = useSearchParams();
   const filterParam = searchParams.get("filter");
   const collectionParam = searchParams.get("collection");
   // The header's search sends shoppers here as ?q=<words>.
-  const searchWords = searchable(searchParams.get("q")).split(/\s+/).filter(Boolean);
+  const searchTerm = (searchParams.get("q") ?? "").trim();
   const collectionId = collectionParam ? Number.parseInt(collectionParam, 10) : undefined;
   const validCollectionId = collectionId && !Number.isNaN(collectionId) ? collectionId : undefined;
   const [collections, setCollections] = useState<CollectionDto[]>([]);
-  const [activeSort, setActiveSort] = useState<SortOptionKey>("featured");
-  const [filterOpen, setFilterOpen] = useState(false);
-  const [activeAvailability, setActiveAvailability] = useState<"allItems" | "newOnly" | "bestsellers">("allItems");
-  const [priceRange, setPriceRange] = useState<[number, number]>([0, 500]);
-  const [priceFilterTouched, setPriceFilterTouched] = useState(false);
 
   const activeTab = validCollectionId ? String(validCollectionId) : ALL_PRODUCTS_TAB;
 
@@ -108,33 +81,6 @@ export function Collection() {
     [collections, validCollectionId],
   );
 
-  // With euros switched on (SHOW_EUR_FOR_ENGLISH), English shoppers filter/sort by EUR, not
-  // hryvnia — a product with no EUR price set can't honestly sit on a €-labeled range, so it's
-  // left out of the bounds calculation and (once the slider is touched) out of the filtered
-  // results below. Switched off, everyone filters and sorts by hryvnia.
-  const priceValue = (product: { price: number; eurPrice?: number }) =>
-    showsEur(locale) ? product.eurPrice ?? null : product.price;
-
-  const priceBounds = useMemo(() => {
-    const values = products
-      .map(priceValue)
-      .filter((v): v is number => v != null);
-    if (values.length === 0) return { min: 0, max: 500 };
-    const max = Math.ceil(Math.max(...values));
-    return { min: 0, max: Math.max(max, 100) };
-  }, [products, locale]);
-
-  useEffect(() => {
-    if (priceFilterTouched) return;
-    setPriceRange([priceBounds.min, priceBounds.max]);
-  }, [priceBounds.min, priceBounds.max, activeTab, priceFilterTouched]);
-
-  // Switching language mid-filter would otherwise reinterpret a UAH range as EUR (or vice
-  // versa) — reset so the slider re-syncs to the new currency's bounds instead.
-  useEffect(() => {
-    setPriceFilterTouched(false);
-  }, [locale]);
-
   const tabs = useMemo(
     () => [
       { id: ALL_PRODUCTS_TAB, label: t("collection.tabs.allPieces") },
@@ -151,48 +97,30 @@ export function Collection() {
     } else {
       next.set("collection", tabId);
     }
-    setPriceFilterTouched(false);
     setSearchParams(next, { replace: true });
   };
 
-  let filtered = products;
-  if (filterParam === "new") filtered = filtered.filter((p) => p.isNew);
-  if (searchWords.length > 0) filtered = filtered.filter((p) => matchesSearch(p, searchWords));
-  if (activeAvailability === "newOnly") filtered = filtered.filter((p) => p.isNew);
-  if (activeAvailability === "bestsellers") filtered = filtered.filter((p) => p.isBestseller);
-  if (priceFilterTouched) {
-    filtered = filtered.filter((p) => {
-      const value = priceValue(p);
-      return value != null && value >= priceRange[0] && value <= priceRange[1];
-    });
-  }
+  /** Drops the search words and keeps every other parameter. */
+  const clearSearch = () => {
+    const next = new URLSearchParams(searchParams);
+    next.delete("q");
+    setSearchParams(next, { replace: true });
+  };
 
-  if (activeSort === "priceLowToHigh" || activeSort === "priceHighToLow") {
-    const direction = activeSort === "priceLowToHigh" ? 1 : -1;
-    filtered = [...filtered].sort((a, b) => {
-      const av = priceValue(a);
-      const bv = priceValue(b);
-      // No EUR price to rank by — always sinks to the end, whichever direction is active.
-      if (av == null && bv == null) return 0;
-      if (av == null) return 1;
-      if (bv == null) return -1;
-      return (av - bv) * direction;
-    });
-  } else if (activeSort === "newest") {
-    filtered = [...filtered].sort((a, b) => {
-      const aTime = a.createdAt ? Date.parse(a.createdAt) : 0;
-      const bTime = b.createdAt ? Date.parse(b.createdAt) : 0;
-      return bTime - aTime;
-    });
-  }
+  /** Back to the whole collection: no search, no tab, no "new" filter. */
+  const showWholeCollection = () => setSearchParams(new URLSearchParams(), { replace: true });
+
+  // Products keep the order the list came in; a search puts the best match first.
+  const listed = filterParam === "new" ? products.filter((p) => p.isNew) : products;
+  const filtered = searchTerm ? searchProducts(listed, searchTerm).map((hit) => hit.product) : listed;
 
   return (
-    <main style={{ backgroundColor: "#F5F2ED", minHeight: "var(--app-svh)", overflowX: "hidden" }}>
+    <main style={{ backgroundColor: "#F5F2ED", minHeight: "var(--app-svh)", overflowX: CLIP_X }}>
       <section className="pt-24 pb-4 md:pt-32 md:pb-10">
         <div className="max-w-[1400px] mx-auto px-6 md:px-10">
           <div>
             <p
-              className="text-[#2D241E]/40 tracking-widest uppercase text-xs mb-4"
+              className="text-[#2D241E]/[0.68] tracking-widest uppercase text-xs mb-4"
               style={{ fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.2em" }}
             >
               {activeCollection
@@ -219,7 +147,7 @@ export function Collection() {
               )}
             </h1>
             <p
-              className="relative text-[#2D241E]/50 mt-4 max-w-lg min-h-[1.5rem]"
+              className="relative text-[#2D241E]/[0.68] mt-4 max-w-lg min-h-[1.5rem]"
               style={{ fontFamily: "'DM Sans', sans-serif", lineHeight: 1.7, fontSize: "0.9rem" }}
               aria-live="polite"
             >
@@ -233,10 +161,29 @@ export function Collection() {
                 <span className="absolute left-0 top-[0.35em] w-48 h-4 rounded bg-[#E5E0D8] animate-pulse" aria-hidden />
               )}
             </p>
+            {searchTerm && (
+              <p
+                className="mt-3 text-[#2D241E] break-words"
+                style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "0.9rem" }}
+              >
+                {t("searchPanel.collectionResultsFor", { term: searchTerm })}
+                {" · "}
+                <button
+                  type="button"
+                  onClick={clearSearch}
+                  className="text-[#2D241E]/[0.68] hover:text-[#4A0E0E] transition-colors duration-200 underline underline-offset-[3px] cursor-pointer"
+                  style={{ fontSize: "0.82rem" }}
+                >
+                  {t("searchPanel.collectionClear")}
+                </button>
+              </p>
+            )}
           </div>
         </div>
       </section>
 
+      {/* `overflow-x: hidden` on <main> used to make it a scroll container, which switched off
+          position: sticky for this bar; the clip above does not. Phones keep it in the flow. */}
       <div className="md:sticky top-[var(--main-header-h)] z-30 border-y border-[#2D241E]/10" style={{ backgroundColor: "rgba(245,242,237,0.95)", backdropFilter: "blur(16px)" }}>
         <div className="max-w-[1400px] mx-auto px-6 md:px-10">
           <div className="flex items-center justify-between py-2.5 gap-3 overflow-x-auto scrollbar-hide min-h-[44px]">
@@ -259,107 +206,7 @@ export function Collection() {
                 </button>
               ))}
             </div>
-
-            <div className="flex items-center gap-4 flex-shrink-0">
-              <select
-                value={activeSort}
-                onChange={(e) => setActiveSort(e.target.value as SortOptionKey)}
-                className="h-9 bg-transparent border border-[#2D241E]/20 rounded-full px-4 py-0 text-xs text-[#2D241E] focus:outline-none focus:border-[#2D241E]/50 cursor-pointer"
-                style={{ fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.06em" }}
-              >
-                {SORT_OPTION_KEYS.map((s) => (
-                  <option key={s} value={s}>{t(`collection.sort.${s}`)}</option>
-                ))}
-              </select>
-
-              <button
-                type="button"
-                onClick={() => setFilterOpen(!filterOpen)}
-                className="flex items-center gap-2 px-4 py-2 rounded-full border border-[#2D241E]/20 hover:border-[#2D241E]/50 transition-colors text-[#2D241E]"
-                style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "0.72rem", letterSpacing: "0.1em" }}
-              >
-                <SlidersHorizontal size={13} />
-                <span className="uppercase tracking-widest hidden sm:inline">{t("collection.filter.button")}</span>
-              </button>
-            </div>
           </div>
-
-          {filterOpen && (
-            <motion.div
-              initial={{ height: 0, opacity: 0 }}
-              animate={{ height: "auto", opacity: 1 }}
-              exit={{ height: 0, opacity: 0 }}
-              transition={{ duration: 0.3, ease: easing }}
-              className="border-t border-[#2D241E]/10 py-6"
-            >
-              <div className="flex flex-wrap gap-8 items-start">
-                <div>
-                  <p
-                    className="text-[#2D241E]/50 text-xs tracking-widest uppercase mb-3"
-                    style={{ fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.16em" }}
-                  >
-                    {t("collection.filter.priceRange")}
-                  </p>
-                  <div className="flex items-center gap-3">
-                    <span className="text-[#2D241E] text-sm">
-                      <PriceTag amount={priceRange[0]} eurAmount={showsEur(locale) ? priceRange[0] : null} locale={locale} variant="card" />
-                    </span>
-                    <input
-                      type="range"
-                      min={priceBounds.min}
-                      max={priceBounds.max}
-                      value={Math.min(priceRange[1], priceBounds.max)}
-                      onChange={(e) => {
-                        setPriceFilterTouched(true);
-                        setPriceRange([priceBounds.min, parseInt(e.target.value, 10)]);
-                      }}
-                      className="w-32 accent-[#4A0E0E]"
-                    />
-                    <span className="text-[#2D241E] text-sm">
-                      <PriceTag amount={priceRange[1]} eurAmount={showsEur(locale) ? priceRange[1] : null} locale={locale} variant="card" />
-                    </span>
-                  </div>
-                </div>
-
-                <div>
-                  <p
-                    className="text-[#2D241E]/50 text-xs tracking-widest uppercase mb-3"
-                    style={{ fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.16em" }}
-                  >
-                    {t("collection.filter.availability")}
-                  </p>
-                  <div className="flex gap-2">
-                    {(["allItems", "newOnly", "bestsellers"] as const).map((opt) => (
-                      <button
-                        key={opt}
-                        type="button"
-                        onClick={() => setActiveAvailability(opt)}
-                        className="px-4 py-1.5 rounded-full text-xs border transition-colors"
-                        style={{
-                          fontFamily: "'DM Sans', sans-serif",
-                          borderColor: activeAvailability === opt ? "#2D241E" : "rgba(45,36,30,0.2)",
-                          backgroundColor: activeAvailability === opt ? "#2D241E" : "transparent",
-                          color: activeAvailability === opt ? "#F5F2ED" : "#2D241E",
-                        }}
-                      >
-                        {t(`collection.availability.${opt}`)}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={() => setFilterOpen(false)}
-                  className="ml-auto flex items-center gap-2 text-[#2D241E]/50 hover:text-[#2D241E] transition-colors text-xs"
-                  style={{ fontFamily: "'DM Sans', sans-serif" }}
-                >
-                  <X size={13} />
-                  {t("collection.filter.close")}
-                </button>
-              </div>
-            </motion.div>
-          )}
         </div>
       </div>
 
@@ -368,18 +215,38 @@ export function Collection() {
         aria-busy={loading}
       >
         {loading ? (
-          <>
-            <div className="hidden md:grid md:grid-cols-2 lg:grid-cols-3 gap-5 lg:gap-7">
-              {Array.from({ length: SKELETON_COUNT }).map((_, i) => (
-                <CollectionCardSkeleton key={i} />
-              ))}
-            </div>
-            <div className="md:hidden grid grid-cols-2 gap-x-2.5 gap-y-7 w-full">
-              {Array.from({ length: SKELETON_COUNT }).map((_, i) => (
-                <CollectionCardSkeleton key={i} />
-              ))}
-            </div>
-          </>
+          <div className={GRID_CLASS}>
+            {Array.from({ length: SKELETON_COUNT }).map((_, i) => (
+              <CollectionCardSkeleton key={i} />
+            ))}
+          </div>
+        ) : filtered.length === 0 && searchTerm ? (
+          <motion.div
+            className="text-center py-24 md:py-32"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+          >
+            <p
+              className="text-[#2D241E]"
+              style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "1.45rem" }}
+            >
+              {t("searchPanel.collectionEmptyTitle")}
+            </p>
+            <p
+              className="text-[#2D241E]/[0.68] mt-1.5 mb-4"
+              style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "0.88rem" }}
+            >
+              {t("searchPanel.noResultsHint")}
+            </p>
+            <button
+              type="button"
+              onClick={showWholeCollection}
+              className="inline-block rounded-full bg-[#2D241E] text-[#F5F2ED] uppercase cursor-pointer px-[18px] py-[11px] hover:opacity-90 transition-opacity duration-200"
+              style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "0.74rem", letterSpacing: "0.12em" }}
+            >
+              {t("searchPanel.collectionShowAll")}
+            </button>
+          </motion.div>
         ) : filtered.length === 0 ? (
           <motion.div
             className="text-center py-32"
@@ -387,25 +254,18 @@ export function Collection() {
             animate={{ opacity: 1 }}
           >
             <p
-              className="text-[#2D241E]/40"
+              className="text-[#2D241E]/[0.68]"
               style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "1.5rem" }}
             >
               {t("collection.empty")}
             </p>
           </motion.div>
         ) : (
-          <>
-            <div className="hidden md:grid md:grid-cols-2 lg:grid-cols-3 gap-5 lg:gap-7">
-              {filtered.map((product, i) => (
-                <ProductCard key={product.id} product={product} index={i} size="collection" subtleEntrance />
-              ))}
-            </div>
-            <div className="md:hidden grid grid-cols-2 gap-x-2.5 gap-y-7 w-full">
-              {filtered.map((product, i) => (
-                <ProductCard key={product.id} product={product} index={i} size="collection" subtleEntrance />
-              ))}
-            </div>
-          </>
+          <div className={GRID_CLASS}>
+            {filtered.map((product, i) => (
+              <ProductCard key={product.id} product={product} index={i} size="collection" subtleEntrance />
+            ))}
+          </div>
         )}
       </div>
     </main>

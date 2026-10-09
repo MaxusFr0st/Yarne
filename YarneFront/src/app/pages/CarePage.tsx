@@ -28,9 +28,10 @@ import { LangLink } from "../i18n/LangLink";
 import { useLocale } from "../i18n/useLocale";
 import type { Product } from "../types/product";
 import { careGuidePath, careText, type CareMaterial } from "../utils/careContent";
+import { productName } from "../utils/productText";
 
 /** The phone's two service buttons: a little smaller than the page's other pills. */
-const SMALL_PILL = "h-[46px] px-4 flex items-center justify-center rounded-full uppercase font-medium tracking-[0.12em] text-[11px] text-center";
+const SMALL_PILL = "h-[46px] px-4 flex items-center justify-center rounded-full uppercase font-medium tracking-[0.12em] text-[0.72rem] text-center";
 
 type MaterialView = { material: CareMaterial; name: string; pieces: Product[] };
 
@@ -67,9 +68,9 @@ export function CarePage() {
     () =>
       materials.flatMap(({ material, name, pieces }) => [
         { name, material, materialName: name },
-        ...pieces.map((piece) => ({ productId: piece.id, name: piece.name, material, materialName: name })),
+        ...pieces.map((piece) => ({ productId: piece.id, name: productName(piece, locale), material, materialName: name })),
       ]),
-    [materials],
+    [materials, locale],
   );
 
   // The pieces under each tile link to their product pages: one tap away (desktop only).
@@ -103,7 +104,7 @@ export function CarePage() {
         {narrow ? (
           <>
             <section className="px-6 pt-[22px] pb-5 flex flex-col gap-3">
-              <p className={`${EYEBROW} text-[11px] text-[#4A0E0E]`}>{t("care.landing.eyebrow")}</p>
+              <p className={`${EYEBROW} text-[0.72rem] text-[#4A0E0E]`}>{t("care.landing.eyebrow")}</p>
               <h1 className="font-normal text-[38px] leading-[1.04] tracking-[-0.02em]" style={SERIF}>
                 {t("care.landing.titleLine1")} <span className="italic font-light">{t("care.landing.titleLine2")}</span>
               </h1>
@@ -152,7 +153,7 @@ export function CarePage() {
             </div>
 
             <section id="materials" className="scroll-mt-[var(--main-header-h)] px-6 pt-9 pb-5 flex flex-col gap-2">
-              <p className={`${EYEBROW} text-[11px] text-[#4A0E0E]`}>{t("care.landing.materialsEyebrow")}</p>
+              <p className={`${EYEBROW} text-[0.72rem] text-[#4A0E0E]`}>{t("care.landing.materialsEyebrow")}</p>
               <h2 className="font-normal text-[32px] leading-[1.08]" style={SERIF}>
                 {t("care.landing.materialsTitle")}
               </h2>
@@ -163,7 +164,7 @@ export function CarePage() {
 
             <section className="px-4 pt-8 pb-12 flex flex-col gap-3">
               <div className="px-2 pb-1 flex justify-between items-baseline">
-                <h3 className={`${LABEL} text-[10.5px]`}>{t("care.chooseMaterial")}</h3>
+                <h3 className={`${LABEL} text-[0.72rem]`}>{t("care.chooseMaterial")}</h3>
                 <span className="text-xs text-[#2D241E]/72">{t("care.materialCount", { count: materials.length })}</span>
               </div>
               {materials.map(({ material, name, pieces }, index) => (
@@ -193,8 +194,8 @@ export function CarePage() {
                     </span>
                     {pieces.length > 0 && (
                       <span className="text-xs leading-[1.45] text-[#2D241E]/72">
-                        <span className={`${LABEL} text-[10px] text-[#2D241E]`}>{t("care.pieces")} </span>
-                        {pieces.map((piece) => piece.name).join(", ")}
+                        <span className={`${LABEL} text-[0.72rem] text-[#2D241E]`}>{t("care.pieces")} </span>
+                        {pieces.map((piece) => productName(piece, locale)).join(", ")}
                       </span>
                     )}
                   </span>
@@ -328,7 +329,7 @@ export function CarePage() {
                   </LangLink>
                   {pieces.length > 0 && (
                     <p className="px-2 pt-4 flex gap-3 items-baseline text-[13px] text-[#2D241E]/72">
-                      <span className={`${LABEL} text-[11px] shrink-0`}>{t("care.pieces")}</span>
+                      <span className={`${LABEL} text-[0.72rem] shrink-0`}>{t("care.pieces")}</span>
                       <span>
                         {pieces.map((piece, i) => (
                           <span key={piece.id}>
@@ -337,7 +338,7 @@ export function CarePage() {
                               to={`/product/${piece.id}`}
                               className="text-[#2D241E] underline underline-offset-2 hover:text-[#4A0E0E]"
                             >
-                              {piece.name}
+                              {productName(piece, locale)}
                             </LangLink>
                           </span>
                         ))}

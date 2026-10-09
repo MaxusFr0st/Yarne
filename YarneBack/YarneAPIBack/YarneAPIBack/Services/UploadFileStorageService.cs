@@ -127,7 +127,7 @@ public partial class UploadFileStorageService : IUploadFileStorageService
         if (await _context.ProductColorSizeImages.AsNoTracking().AnyAsync(pi => pi.ImageUrl == normalizedPath, ct))
             return true;
 
-        if (await _context.Products.AsNoTracking().AnyAsync(p => p.ImageUrl == normalizedPath, ct))
+        if (await _context.Products.AsNoTracking().AnyAsync(p => p.ImageUrl == normalizedPath || p.SizePhotoUrl == normalizedPath, ct))
             return true;
 
         var settings = await _context.AppSettings.AsNoTracking()

@@ -15,6 +15,10 @@ import type { ProductGuaranteeContent } from "../utils/productGuaranteeContent";
 import { getSupplementaryProductDetails, hasSupplementaryProductDetails } from "../utils/productDetails";
 import { useTouchMobileLayout } from "../hooks/useTouchMobileLayout";
 import { localizedCatalogName } from "../utils/localizedName";
+import { productCategory, productDescription, productName } from "../utils/productText";
+import { productSubtitle } from "../utils/productSubtitle";
+import { SizePanel, hasSizeMeasurements } from "./SizePanel";
+import { LangLink } from "../i18n/LangLink";
 import { getStableViewportHeight } from "../utils/stableViewport";
 import { markPhotoLoaded } from "../utils/photoQueue";
 
@@ -87,6 +91,9 @@ export function MobileProductDetailView({
   const [galleryIndex, setGalleryIndex] = useState(0);
   const [descriptionOpen, setDescriptionOpen] = useState(false);
   const [detailsOpen, setDetailsOpen] = useState(false);
+  const [sizePanelOpen, setSizePanelOpen] = useState(false);
+  // Going back or forward to another product must not carry an open panel over to it.
+  useEffect(() => setSizePanelOpen(false), [product.id]);
   // Furniture panel animates to this measured pixel height instead of framer-motion's
   // height:"auto" — "auto" has to re-measure content on every mount/toggle via
   // AnimatePresence, and that re-measurement is what produced the slide-then-jump on
@@ -328,7 +335,7 @@ export function MobileProductDetailView({
                   <CrossfadeImage
                     src={src.src}
                     focal={{ x: src.focalX, y: src.focalY }}
-                    alt={`${product.name} – ${activeColorLabel} – ${i + 1}`}
+                    alt={`${productName(product, locale)} – ${activeColorLabel} – ${i + 1}`}
                     priority={i === 0}
                     // Every slide, not just the visible one. Embla lays all slides out in one
                     // horizontal track, so slides 2 and 3 sit outside the viewport and WebKit's
@@ -394,14 +401,14 @@ export function MobileProductDetailView({
       >
         <div className="flex flex-col gap-[clamp(6px,1.6vw,9px)]">
           <p
-            className="text-[#2D241E]/45 uppercase shrink-0"
+            className="text-[#2D241E]/[0.68] uppercase shrink-0"
             style={{
               fontFamily: "'DM Sans', sans-serif",
               letterSpacing: "0.18em",
-              fontSize: "clamp(0.64rem, 2.4vw, 0.74rem)",
+              fontSize: "clamp(0.72rem, 2.4vw, 0.74rem)",
             }}
           >
-            {product.category}
+            {productCategory(product, locale)}
           </p>
 
           <h1
@@ -413,7 +420,7 @@ export function MobileProductDetailView({
               lineHeight: 1.05,
             }}
           >
-            {product.name}
+            {productName(product, locale)}
           </h1>
 
           <MobileAccordionSection
@@ -423,21 +430,21 @@ export function MobileProductDetailView({
             motionEnabled={motionEnabled}
           >
             <div className="flex flex-col gap-[clamp(6px,1.4vw,8px)] pb-0.5">
-              {product.subtitle ? (
+              {productSubtitle(product, locale) ? (
                 <p
-                  className="text-[#2D241E]/60"
+                  className="text-[#2D241E]/[0.68]"
                   style={{
                     fontFamily: "'DM Sans', sans-serif",
                     fontSize: "clamp(0.76rem, 2.85vw, 0.88rem)",
                     lineHeight: 1.45,
                   }}
                 >
-                  {product.subtitle}
+                  {productSubtitle(product, locale)}
                 </p>
               ) : null}
-              {product.description ? (
+              {productDescription(product, locale) ? (
                 <p
-                  className="text-[#2D241E]/65"
+                  className="text-[#2D241E]/[0.68]"
                   style={{
                     fontFamily: "'DM Sans', sans-serif",
                     fontSize: "clamp(0.78rem, 3vw, 0.9rem)",
@@ -445,7 +452,7 @@ export function MobileProductDetailView({
                     whiteSpace: "pre-line",
                   }}
                 >
-                  {product.description}
+                  {productDescription(product, locale)}
                 </p>
               ) : null}
             </div>
@@ -461,7 +468,7 @@ export function MobileProductDetailView({
               <ul className="space-y-[clamp(6px,1.4vw,8px)] pb-0.5">
                 {product.producerName ? (
                   <li
-                    className="flex items-start gap-[clamp(8px,2vw,10px)] text-[#2D241E]/60"
+                    className="flex items-start gap-[clamp(8px,2vw,10px)] text-[#2D241E]/[0.68]"
                     style={{
                       fontFamily: "'DM Sans', sans-serif",
                       fontSize: "clamp(0.78rem, 3vw, 0.9rem)",
@@ -475,7 +482,7 @@ export function MobileProductDetailView({
                 {extraDetails.map((detail) => (
                   <li
                     key={detail}
-                    className="flex items-start gap-[clamp(8px,2vw,10px)] text-[#2D241E]/60"
+                    className="flex items-start gap-[clamp(8px,2vw,10px)] text-[#2D241E]/[0.68]"
                     style={{
                       fontFamily: "'DM Sans', sans-serif",
                       fontSize: "clamp(0.78rem, 3vw, 0.9rem)",
@@ -504,13 +511,13 @@ export function MobileProductDetailView({
                 style={{
                   fontFamily: "'DM Sans', sans-serif",
                   letterSpacing: "0.14em",
-                  fontSize: "clamp(0.64rem, 2.4vw, 0.74rem)",
+                  fontSize: "clamp(0.72rem, 2.4vw, 0.74rem)",
                 }}
               >
                 {t("product.colour")}
               </p>
               <p
-                className="text-[#2D241E]/55"
+                className="text-[#2D241E]/[0.68]"
                 style={{
                   fontFamily: "'DM Sans', sans-serif",
                   fontSize: "clamp(0.76rem, 2.85vw, 0.88rem)",
@@ -581,7 +588,7 @@ export function MobileProductDetailView({
                 style={{
                   fontFamily: "'DM Sans', sans-serif",
                   letterSpacing: "0.14em",
-                  fontSize: "clamp(0.64rem, 2.4vw, 0.74rem)",
+                  fontSize: "clamp(0.72rem, 2.4vw, 0.74rem)",
                 }}
               >
                 {t("product.lace.label")}
@@ -603,7 +610,7 @@ export function MobileProductDetailView({
                       style={{
                         fontFamily: "'DM Sans', sans-serif",
                         letterSpacing: "0.04em",
-                        fontSize: "clamp(0.66rem, 2.5vw, 0.76rem)",
+                        fontSize: "clamp(0.72rem, 2.5vw, 0.76rem)",
                         padding: "clamp(6px, 1.6vw, 8px) clamp(12px, 3vw, 16px)",
                         color: activeLace === opt.value ? "#F5F2ED" : "#2D241E",
                         backgroundColor: !motionEnabled && activeLace === opt.value ? "#2D241E" : "transparent",
@@ -660,13 +667,13 @@ export function MobileProductDetailView({
                   style={{
                     fontFamily: "'DM Sans', sans-serif",
                     letterSpacing: "0.14em",
-                    fontSize: "clamp(0.64rem, 2.4vw, 0.74rem)",
+                    fontSize: "clamp(0.72rem, 2.4vw, 0.74rem)",
                   }}
                 >
                   {t("product.furniture")}
                 </p>
                 <p
-                  className="text-[#2D241E]/55"
+                  className="text-[#2D241E]/[0.68]"
                   style={{
                     fontFamily: "'DM Sans', sans-serif",
                     fontSize: "clamp(0.76rem, 2.85vw, 0.88rem)",
@@ -742,18 +749,22 @@ export function MobileProductDetailView({
                   style={{
                     fontFamily: "'DM Sans', sans-serif",
                     letterSpacing: "0.14em",
-                    fontSize: "clamp(0.64rem, 2.4vw, 0.74rem)",
+                    fontSize: "clamp(0.72rem, 2.4vw, 0.74rem)",
                   }}
                 >
                   {t("product.size")}
                 </p>
-                <button
-                  type="button"
-                  className="text-[#2D241E]/45 underline underline-offset-2 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2D241E]/35 rounded-sm"
-                  style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "clamp(0.7rem, 2.6vw, 0.78rem)" }}
-                >
-                  {t("product.sizeGuide")}
-                </button>
+                {hasSizeMeasurements(product) && (
+                  <button
+                    type="button"
+                    onClick={() => setSizePanelOpen(true)}
+                    aria-haspopup="dialog"
+                    className="text-[#2D241E]/[0.68] underline underline-offset-2 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2D241E]/35 rounded-sm"
+                    style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "clamp(0.72rem, 2.6vw, 0.78rem)" }}
+                  >
+                    {t("product.sizeGuide")}
+                  </button>
+                )}
               </div>
               <div
                 className={`flex flex-wrap gap-2 ${
@@ -826,7 +837,7 @@ export function MobileProductDetailView({
                 {sizeError && (
                   <motion.p
                     className="text-[#4A0E0E] mt-1"
-                    style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "clamp(0.62rem, 2.3vw, 0.72rem)" }}
+                    style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "clamp(0.72rem, 2.3vw, 0.72rem)" }}
                     initial={{ opacity: 0, y: -4 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0 }}
@@ -863,6 +874,16 @@ export function MobileProductDetailView({
             </>
           )}
           </motion.button>
+
+          <p
+            className="text-center text-[#2D241E]/[0.68]"
+            style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "0.8rem", lineHeight: 1.5 }}
+          >
+            {t("deliveryNote.text")}
+            <LangLink to="/pages/delivery" className="underline underline-offset-2">
+              {t("deliveryNote.link")}
+            </LangLink>
+          </p>
           </div>
 
           <ProductGuaranteeBlock
@@ -874,6 +895,14 @@ export function MobileProductDetailView({
           <CareProductLink productId={product.id} className="mt-2" />
         </div>
       </div>
+
+      <SizePanel
+        open={sizePanelOpen}
+        onClose={() => setSizePanelOpen(false)}
+        product={product}
+        locale={locale}
+        activeSize={activeSize}
+      />
     </div>
   );
 }
@@ -881,7 +910,7 @@ export function MobileProductDetailView({
 const accordionHeaderStyle = {
   fontFamily: "'DM Sans', sans-serif",
   letterSpacing: "0.14em",
-  fontSize: "clamp(0.64rem, 2.4vw, 0.74rem)",
+  fontSize: "clamp(0.72rem, 2.4vw, 0.74rem)",
 } as const;
 
 type MobileAccordionSectionProps = {

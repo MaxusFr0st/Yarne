@@ -8,6 +8,15 @@ public class ProductSize
 
     public int SortOrder { get; set; }
 
+    /// <summary>Measurements of this product in this size, in centimetres (0 &lt; value &lt;= 500). All optional.</summary>
+    public decimal? WidthCm { get; set; }
+
+    public decimal? HeightCm { get; set; }
+
+    public decimal? DepthCm { get; set; }
+
+    public decimal? HandleCm { get; set; }
+
     public virtual Product Product { get; set; } = null!;
 
     public virtual Size Size { get; set; } = null!;

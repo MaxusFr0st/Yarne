@@ -117,7 +117,7 @@ type SectionEyebrowProps = {
 export function SectionEyebrow({ children, className = "" }: SectionEyebrowProps) {
   return (
     <p
-      className={`text-[#2D241E]/40 uppercase tracking-[0.22em] text-[0.65rem] mb-2 ${className}`}
+      className={`text-[#2D241E]/[0.68] uppercase tracking-[0.22em] text-[0.72rem] mb-2 ${className}`}
       style={{ fontFamily: "'DM Sans', sans-serif" }}
     >
       {children}
@@ -160,7 +160,7 @@ export function SectionRule({ label }: SectionRuleProps) {
         <>
           <span className="h-px flex-1 bg-[#2D241E]/10" />
           <span
-            className="text-[#2D241E]/35 text-[0.62rem] uppercase tracking-[0.3em] shrink-0"
+            className="text-[#2D241E]/[0.68] text-[0.72rem] uppercase tracking-[0.3em] shrink-0"
             style={{ fontFamily: "'DM Sans', sans-serif" }}
           >
             {label}

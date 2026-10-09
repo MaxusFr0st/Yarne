@@ -121,6 +121,7 @@ public partial class YarneDbContext : DbContext
             entity.HasIndex(e => e.Name, "UQ__Category__737584F6060D144F").IsUnique();
 
             entity.Property(e => e.Name).HasMaxLength(100);
+            entity.Property(e => e.NameEn).HasMaxLength(100);
         });
 
         modelBuilder.Entity<Color>(entity =>
@@ -188,6 +189,11 @@ public partial class YarneDbContext : DbContext
         {
             entity.HasKey(e => new { e.ProductId, e.SizeId });
             entity.ToTable("ProductSize");
+
+            entity.Property(e => e.WidthCm).HasColumnType("numeric(5,1)");
+            entity.Property(e => e.HeightCm).HasColumnType("numeric(5,1)");
+            entity.Property(e => e.DepthCm).HasColumnType("numeric(5,1)");
+            entity.Property(e => e.HandleCm).HasColumnType("numeric(5,1)");
 
             entity.HasOne(d => d.Product)
                 .WithMany(p => p.ProductSizes)
@@ -329,6 +335,7 @@ public partial class YarneDbContext : DbContext
             entity.Property(e => e.GuestEmail).HasMaxLength(320);
             entity.Property(e => e.Locale).HasMaxLength(8);
             entity.Property(e => e.StatusToken).HasMaxLength(64);
+            entity.Property(e => e.ClientRequestId).HasMaxLength(64);
             entity.Property(e => e.OrderNumber).HasMaxLength(16);
             entity.Property(e => e.DeliveryCountryCode).HasMaxLength(2);
             entity.Property(e => e.DeliveryCountryName).HasMaxLength(100);
@@ -344,6 +351,7 @@ public partial class YarneDbContext : DbContext
 
             entity.HasIndex(e => e.OrderNumber).IsUnique();
             entity.HasIndex(e => e.StatusToken).IsUnique();
+            entity.HasIndex(e => e.ClientRequestId).IsUnique().HasFilter("\"ClientRequestId\" IS NOT NULL");
 
             entity.HasOne(d => d.Customer).WithMany(p => p.Orders)
                 .HasForeignKey(d => d.CustomerId)
@@ -437,6 +445,9 @@ public partial class YarneDbContext : DbContext
             entity.Property(e => e.CreatedAt).HasDefaultValueSql("CURRENT_TIMESTAMP");
             entity.Property(e => e.ImageUrl).HasMaxLength(500);
             entity.Property(e => e.ShareImageUrl).HasMaxLength(500);
+            entity.Property(e => e.SizePhotoUrl).HasMaxLength(500);
+            entity.Property(e => e.NameEn).HasMaxLength(255);
+            entity.Property(e => e.MaterialEn).HasMaxLength(100);
             entity.Property(e => e.IsActive).HasDefaultValue(true);
             entity.Property(e => e.IsNew).HasDefaultValue(false);
             entity.Property(e => e.IsBestseller).HasDefaultValue(false);

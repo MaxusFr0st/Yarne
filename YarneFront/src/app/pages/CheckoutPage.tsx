@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { ArrowRight, Package } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { createOrder, fetchNovaPoshtaShippingPrice, orderEurTotal, type OrderDto } from "../api/orders";
+import { createOrder, fetchNovaPoshtaShippingPrice, newClientRequestId, orderEurTotal, type OrderDto } from "../api/orders";
 import { fetchCustomerProfile } from "../api/auth";
 import { ApiRequestError } from "../api/errors";
 import { useApp, type CartItem } from "../context/AppContext";
@@ -432,6 +432,9 @@ export function CheckoutPage() {
   // Shown on a field only while it is the one pointed at and still empty.
   const requiredError = (field: MissingField, empty: boolean) => (missing === field && empty ? t("checkout.errorRequired") : null);
 
+  // One id per order attempt: a second press after a failure carries the same id, so an order that did go through is not created twice.
+  const requestIdRef = useRef<{ id: string; cart: string } | null>(null);
+
   const placeOrder = async () => {
     if (cartItems.length === 0 || placingOrder) return;
     const gap = firstMissing();
@@ -447,11 +450,28 @@ export function CheckoutPage() {
     setPlacingOrder(true);
     setError(null);
     const snapshot = [...cartItems];
+    // The recipient and delivery are part of it: a customer who corrects the address after a
+    // timeout is placing a different order, not retrying the same one.
+    const cartSignature = [
+      snapshot
+        .map((item) => [item.productId, item.colorId ?? item.color, item.size, item.furnitureColor ?? "", item.withLace ? 1 : 0, item.quantity].join("|"))
+        .join(";"),
+      recipientFirstName.trim(),
+      recipientLastName.trim(),
+      abroad ? abroadFullPhone : normalizedRecipientPhone,
+      isLoggedIn ? "" : normalizedEmail,
+      abroad
+        ? JSON.stringify([abroadChoice, abroadCountryName.trim(), abroadCity.trim(), abroadZip.trim(), abroadAddress.trim()])
+        : [delivery?.cityRef, delivery?.warehouseRef].join("|"),
+    ].join("#");
+    if (requestIdRef.current?.cart !== cartSignature) requestIdRef.current = { id: newClientRequestId(), cart: cartSignature };
+    const clientRequestId = requestIdRef.current.id;
     setOrderSnapshot(snapshot);
     setSnapshotTotal(cartItemsTotal(snapshot));
 
     try {
       const order = await createOrder({
+        clientRequestId,
         locale,
         phoneNumber: abroad ? abroadFullPhone : normalizedRecipientPhone,
         email: isLoggedIn ? undefined : normalizedEmail,
@@ -488,6 +508,7 @@ export function CheckoutPage() {
           withLace: item.withLace ?? undefined,
         })),
       });
+      requestIdRef.current = null;
       setPlacedOrder(order);
       rememberPlacedOrder(order);
       clearCart();

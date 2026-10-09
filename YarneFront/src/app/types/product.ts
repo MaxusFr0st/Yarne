@@ -33,6 +33,10 @@ export interface FurnitureColorVariant {
 export interface SizeOption {
   name: string;
   nameUk?: string | null;
+  widthCm?: number | null;
+  heightCm?: number | null;
+  depthCm?: number | null;
+  handleCm?: number | null;
 }
 
 export interface Product {
@@ -60,4 +64,14 @@ export interface Product {
   producerName?: string;
   /** Dedicated photo for link-share previews and order emails. Null/undefined = falls back to the primary product image. */
   shareImageUrl?: string | null;
+  material?: string | null;
+  nameEn?: string | null;
+  descriptionEn?: string | null;
+  materialEn?: string | null;
+  /** English name of the category. */
+  categoryEn?: string | null;
+  /** The collection the piece belongs to, as the owner named it; searched by the storefront search. */
+  collectionName?: string | null;
+  /** One plain photo for the size panel. */
+  sizePhotoUrl?: string | null;
 }

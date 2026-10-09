@@ -35,6 +35,16 @@ public static class DatabaseBootstrap
             logger.LogWarning(ex, "Order flow schema not ready at bootstrap start; will retry after migrations.");
         }
 
+        // Every product and order query selects these columns too (English texts, measurements, order request id).
+        try
+        {
+            await ShopContentSchemaPatches.ForceEnsureAsync(db, logger, cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Shop content schema not ready at bootstrap start; will retry after migrations.");
+        }
+
         // RefreshToken is required by cookie auth login/refresh — ensure before other work.
         try
         {
@@ -114,6 +124,15 @@ public static class DatabaseBootstrap
         catch (Exception orderFlowEx)
         {
             logger.LogError(orderFlowEx, "Order flow columns still missing after bootstrap; /api/orders will 500 until fixed.");
+        }
+
+        try
+        {
+            await ShopContentSchemaPatches.ForceEnsureAsync(db, logger, cancellationToken);
+        }
+        catch (Exception shopContentEx)
+        {
+            logger.LogError(shopContentEx, "Shop content columns still missing after bootstrap; /api/products and /api/orders will 500 until fixed.");
         }
 
         // The numbers and tokens of older orders: normally run inside the migration step, which may have failed.

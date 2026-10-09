@@ -11,6 +11,10 @@ public class CreateOrderRequest
     /// <summary>Storefront UI language at checkout ("en"/"uk"). Anything else is ignored — the order just falls back to hryvnia-only emails.</summary>
     public string? Locale { get; set; }
 
+    /// <summary>Random id the checkout page makes once per order attempt (16 to 64 of A-Z a-z 0-9 _ -). Pressing Place order again with the same id returns the order already created instead of making another.</summary>
+    [StringLength(64)]
+    public string? ClientRequestId { get; set; }
+
     public int? PaymentMethodId { get; set; }
 
     public int? ShippingAddrId { get; set; }

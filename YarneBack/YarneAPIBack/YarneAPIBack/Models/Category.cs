@@ -9,5 +9,8 @@ public partial class Category
 
     public string Name { get; set; } = null!;
 
+    /// <summary>English name of the category; null = the storefront shows Name.</summary>
+    public string? NameEn { get; set; }
+
     public virtual ICollection<Product> Products { get; set; } = new List<Product>();
 }

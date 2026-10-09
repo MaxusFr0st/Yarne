@@ -106,7 +106,7 @@ export function MakingPhotosBlock({
               />
             ))}
           </div>
-          <p className="text-[0.8rem] text-[#2D241E]/65">{t("orderStatus.photos.added", { date: date(photos[photos.length - 1].createdAt) })}</p>
+          <p className="text-[0.8rem] text-[#2D241E]/[0.68]">{t("orderStatus.photos.added", { date: date(photos[photos.length - 1].createdAt) })}</p>
         </div>
       )}
       {owner && photos.length === 0 && requested && (

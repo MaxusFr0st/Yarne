@@ -17,6 +17,7 @@ import {
 } from "../components/admin/AdminModalShell";
 import { ImageCropDialog } from "../components/admin/ImageCropDialog";
 import { ProductCardPreviewPanel } from "../components/admin/ProductCardPreviewPanel";
+import { AdminLanguageSwitch, type TextLanguage } from "../components/admin/AdminLanguageSwitch";
 import { fileToDataUrl, extractUploadPath, resolveImageSrcForCrop, revokeCropImageSrc } from "../utils/cropImage";
 import {
   buildCropMetaEntry,
@@ -805,8 +806,40 @@ function DeclineOrderModal({
 /* ─────────────────────────────────────────────
    PRODUCT MODAL
 ───────────────────────────────────────────── */
+/** One size's measurements as typed (centimetres); empty string = not set. */
+interface SizeMeasurementForm {
+  width: string;
+  height: string;
+  depth: string;
+  handle: string;
+}
+
+const MEASUREMENT_FIELDS: { key: keyof SizeMeasurementForm; label: string }[] = [
+  { key: "width", label: "Ширина" },
+  { key: "height", label: "Висота" },
+  { key: "depth", label: "Глибина" },
+  { key: "handle", label: "Ручка" },
+];
+const MAX_MEASUREMENT_CM = 500;
+
+/** Empty = not set (null); otherwise the number, or NaN when it is not a valid measurement (0 < value <= 500). */
+function parseMeasurement(raw: string | undefined): number | null {
+  const text = (raw ?? "").trim().replace(",", ".");
+  if (!text) return null;
+  const n = Number(text);
+  return Number.isFinite(n) && n > 0 && n <= MAX_MEASUREMENT_CM ? n : Number.NaN;
+}
+
 interface ProductFormData {
   name: string;
+  /** English texts: optional, shown on the /en storefront; empty = the Ukrainian text is shown there. */
+  nameEn: string;
+  materialEn: string;
+  descriptionEn: string;
+  /** One plain photo for the storefront size panel (public URL), "" = none. */
+  sizePhotoUrl: string;
+  /** Measurements per size: sizeId -> typed values. */
+  sizeMeasurements: Record<number, SizeMeasurementForm>;
   subtitle: string;
   price: string;
   categoryId: number;
@@ -1130,6 +1163,10 @@ function ProductModal({
     const base = product
       ? {
           name: product.name,
+          nameEn: product.nameEn ?? "",
+          materialEn: product.materialEn ?? "",
+          descriptionEn: product.descriptionEn ?? "",
+          sizePhotoUrl: product.sizePhotoUrl ?? "",
           subtitle: product.subtitle,
           price: product.price.toString(),
           categoryId: categories.find((c) => c.name === product.category)?.id ?? categories[0]?.id ?? 0,
@@ -1151,6 +1188,10 @@ function ProductModal({
         }
       : {
           name: "",
+          nameEn: "",
+          materialEn: "",
+          descriptionEn: "",
+          sizePhotoUrl: "",
           subtitle: "",
           price: "",
           categoryId: categories[0]?.id ?? 0,
@@ -1233,8 +1274,16 @@ function ProductModal({
         colorSizeIds[colorId] = Array.from(new Set(collectedSizeIds));
       }
     });
+    const sizeMeasurements: Record<number, SizeMeasurementForm> = {};
+    product?.sizes?.forEach((s) => {
+      const sizeId = sizes.find((x) => x.name === s.name)?.id;
+      if (sizeId == null) return;
+      const show = (n: number | null | undefined) => (n == null ? "" : String(n));
+      sizeMeasurements[sizeId] = { width: show(s.widthCm), height: show(s.heightCm), depth: show(s.depthCm), handle: show(s.handleCm) };
+    });
     return {
       ...base,
+      sizeMeasurements,
       colorIds,
       furnitureColorIds,
       colorSizeIds,
@@ -1252,6 +1301,10 @@ function ProductModal({
   });
 
   const [activeTab, setActiveTab] = useState<ProductModalTab>("details");
+  const [textLanguage, setTextLanguage] = useState<TextLanguage>("uk");
+  const [sizePhotoBusy, setSizePhotoBusy] = useState(false);
+  const [sizePhotoError, setSizePhotoError] = useState<string | null>(null);
+  const sizePhotoInputRef = useRef<HTMLInputElement>(null);
 
   const suggestedProductSet = useMemo(
     () => new Set(form.suggestedProductCodes),
@@ -1365,6 +1418,7 @@ function ProductModal({
     defaultSizeId?: string;
     photos?: string;
     suggestions?: string;
+    measurements?: string;
   }>({});
 
   const nameError = useDebouncedError(form.name, (v) => (!v.trim() ? "This field must not be empty." : undefined), 600, "admin-product-name");
@@ -1627,6 +1681,12 @@ function ProductModal({
     if (variantsWithTooFewPhotos.length > 0) {
       errors.photos = "Each selected color-size record must contain at least 3 photos.";
     }
+    const badMeasurement = selectedSizeIds.some((sizeId) =>
+      MEASUREMENT_FIELDS.some(({ key }) => Number.isNaN(parseMeasurement(form.sizeMeasurements[sizeId]?.[key]))),
+    );
+    if (badMeasurement) {
+      errors.measurements = `Measurements must be numbers greater than 0 and at most ${MAX_MEASUREMENT_CM} cm.`;
+    }
     if (unresolvedSuggestedCodes.length > 0) {
       errors.suggestions = `Remove unknown product codes: ${unresolvedSuggestedCodes.join(", ")}`;
     }
@@ -1728,26 +1788,30 @@ function ProductModal({
           ) : activeTab === "details" ? (
           <>
           {/* Name & Subtitle */}
+          <AdminLanguageSwitch value={textLanguage} onChange={setTextLanguage} label="Texts in" />
           <div className="grid grid-cols-2 gap-4">
             {[
-              { label: "Product Name", key: "name" as const, placeholder: "e.g. Arles Cocoon Sweater" },
-              { label: "Subtitle / Material", key: "subtitle" as const, placeholder: "e.g. 100% cotton yarn" },
-            ].map((field) => (
-              <div key={field.key}>
+              { label: "Product Name", key: "name" as const, enKey: "nameEn" as const, placeholder: "e.g. Arles Cocoon Sweater" },
+              { label: "Subtitle / Material", key: "subtitle" as const, enKey: "materialEn" as const, placeholder: "e.g. 100% cotton yarn" },
+            ].map((field) => {
+              const inEnglish = textLanguage === "en";
+              const fieldKey = inEnglish ? field.enKey : field.key;
+              return (
+              <div key={fieldKey}>
                 <label
-                  htmlFor={`admin-product-${field.key}`}
+                  htmlFor={`admin-product-${fieldKey}`}
                   className="block text-xs mb-2 tracking-widest uppercase"
                   style={{ fontFamily: "'DM Sans', sans-serif", color: "rgba(45,36,30,0.4)", letterSpacing: "0.14em" }}
                 >
-                  {field.label}
+                  {field.label}{inEnglish ? " (English)" : ""}
                 </label>
                 <input
-                  id={`admin-product-${field.key}`}
+                  id={`admin-product-${fieldKey}`}
                   type="text"
-                  {...(field.key === "name" ? nameError.fieldProps : {})}
-                  value={form[field.key] as string}
-                  onChange={(e) => handleChange(field.key, e.target.value)}
-                  placeholder={field.placeholder}
+                  {...(field.key === "name" && !inEnglish ? nameError.fieldProps : {})}
+                  value={form[fieldKey] as string}
+                  onChange={(e) => handleChange(fieldKey, e.target.value)}
+                  placeholder={inEnglish ? "Optional. Empty = the Ukrainian text is shown." : field.placeholder}
                   className="w-full bg-transparent border rounded-[14px] px-4 py-3 text-[#2D241E] focus:outline-none transition-colors duration-200 placeholder:text-[#2D241E]/20"
                   style={{
                     fontFamily: "'DM Sans', sans-serif",
@@ -1757,11 +1821,12 @@ function ProductModal({
                   onFocus={(e) => (e.target.style.borderColor = "#4A0E0E")}
                   onBlur={(e) => {
                     e.target.style.borderColor = "rgba(45,36,30,0.15)";
-                    if (field.key === "name") nameError.reportNow();
+                    if (field.key === "name" && !inEnglish) nameError.reportNow();
                   }}
                 />
               </div>
-            ))}
+              );
+            })}
           </div>
           {(formErrors.name || nameError.error) && (
             <p id="admin-product-name-error" role="alert" className="text-xs text-[#B42318] -mt-2" style={{ fontFamily: "'DM Sans', sans-serif" }}>{formErrors.name || nameError.error}</p>
@@ -2323,6 +2388,125 @@ function ProductModal({
               )}
 
               {form.colorIds.length > 0 && selectedSizeIds.length > 0 && (
+                <div className="space-y-3">
+                  <label className="block text-xs mb-1 tracking-widest uppercase" style={{ fontFamily: "'DM Sans', sans-serif", color: "rgba(45,36,30,0.4)", letterSpacing: "0.14em" }}>
+                    Size measurements, cm
+                  </label>
+                  <p className="text-xs text-[#2D241E]/55" style={{ fontFamily: "'DM Sans', sans-serif" }}>
+                    Optional. Shown in the storefront size panel, once per size (the same for every color).
+                  </p>
+                  {sizes.filter((s) => selectedSizeIds.includes(s.id)).map((s) => (
+                    <div key={`measure-${s.id}`} className="rounded-[12px] p-3" style={{ border: "1px solid rgba(45,36,30,0.08)", backgroundColor: "rgba(45,36,30,0.02)" }}>
+                      <p className="text-sm mb-2 text-[#2D241E]" style={{ fontFamily: "'Cormorant Garamond', serif" }}>
+                        {adminBilingualLabel(s.name, s.nameUk)}
+                      </p>
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                        {MEASUREMENT_FIELDS.map(({ key, label }) => (
+                          <div key={key}>
+                            <label htmlFor={`admin-measure-${s.id}-${key}`} className="block text-[0.68rem] mb-1 text-[#2D241E]/55" style={{ fontFamily: "'DM Sans', sans-serif" }}>
+                              {label}, см
+                            </label>
+                            <input
+                              id={`admin-measure-${s.id}-${key}`}
+                              type="text"
+                              inputMode="decimal"
+                              value={form.sizeMeasurements[s.id]?.[key] ?? ""}
+                              onChange={(e) => {
+                                const value = e.target.value;
+                                setForm((p) => ({
+                                  ...p,
+                                  sizeMeasurements: {
+                                    ...p.sizeMeasurements,
+                                    [s.id]: { ...(p.sizeMeasurements[s.id] ?? { width: "", height: "", depth: "", handle: "" }), [key]: value },
+                                  },
+                                }));
+                                setFormErrors((prev) => ({ ...prev, measurements: undefined }));
+                              }}
+                              className="w-full bg-transparent border rounded-[12px] px-3 py-2 text-[#2D241E] focus:outline-none tabular-nums"
+                              style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "0.85rem", borderColor: "rgba(45,36,30,0.15)" }}
+                              onFocus={(e) => (e.target.style.borderColor = "#4A0E0E")}
+                              onBlur={(e) => (e.target.style.borderColor = "rgba(45,36,30,0.15)")}
+                            />
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                  {formErrors.measurements && (
+                    <p role="alert" className="text-xs text-[#B42318]" style={{ fontFamily: "'DM Sans', sans-serif" }}>{formErrors.measurements}</p>
+                  )}
+
+                  <div>
+                    <label className="block text-xs mb-2 tracking-widest uppercase" style={{ fontFamily: "'DM Sans', sans-serif", color: "rgba(45,36,30,0.4)", letterSpacing: "0.14em" }}>
+                      Size photo
+                    </label>
+                    <div className="flex items-center gap-4">
+                      {form.sizePhotoUrl ? (
+                        <img src={resolveMediaUrl(form.sizePhotoUrl)} alt="" className="w-16 h-16 object-cover rounded-[10px]" style={{ backgroundColor: "rgba(45,36,30,0.06)" }} />
+                      ) : (
+                        <div
+                          className="w-16 h-16 rounded-[10px] flex items-center justify-center text-[10px]"
+                          style={{ backgroundColor: "rgba(45,36,30,0.06)", color: "rgba(45,36,30,0.35)", fontFamily: "'DM Sans', sans-serif" }}
+                        >
+                          None
+                        </div>
+                      )}
+                      <div className="flex gap-2">
+                        <button
+                          type="button"
+                          disabled={sizePhotoBusy}
+                          onClick={() => sizePhotoInputRef.current?.click()}
+                          className="px-4 py-2 rounded-full text-xs uppercase tracking-widest transition-colors duration-200 disabled:opacity-50"
+                          style={{ fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.12em", backgroundColor: "rgba(45,36,30,0.06)", color: "#2D241E" }}
+                        >
+                          {form.sizePhotoUrl ? "Replace" : "Upload"}
+                        </button>
+                        {form.sizePhotoUrl ? (
+                          <button
+                            type="button"
+                            disabled={sizePhotoBusy}
+                            onClick={() => {
+                              if (form.sizePhotoUrl !== (product?.sizePhotoUrl ?? "")) purgeUploadIfOrphaned(form.sizePhotoUrl);
+                              setForm((p) => ({ ...p, sizePhotoUrl: "" }));
+                            }}
+                            className="px-4 py-2 rounded-full text-xs uppercase tracking-widest transition-colors duration-200 disabled:opacity-50"
+                            style={{ fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.12em", backgroundColor: "rgba(74,14,14,0.08)", color: "#4A0E0E" }}
+                          >
+                            Remove
+                          </button>
+                        ) : null}
+                      </div>
+                      <input
+                        ref={sizePhotoInputRef}
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={async (e) => {
+                          const file = e.target.files?.[0];
+                          e.target.value = "";
+                          if (!file) return;
+                          setSizePhotoBusy(true);
+                          setSizePhotoError(null);
+                          try {
+                            const url = await uploadImage(file);
+                            if (form.sizePhotoUrl && form.sizePhotoUrl !== (product?.sizePhotoUrl ?? "")) purgeUploadIfOrphaned(form.sizePhotoUrl);
+                            setForm((p) => ({ ...p, sizePhotoUrl: url }));
+                          } catch (err) {
+                            setSizePhotoError(err instanceof Error ? err.message : "Upload failed");
+                          } finally {
+                            setSizePhotoBusy(false);
+                          }
+                        }}
+                      />
+                    </div>
+                    {sizePhotoError && (
+                      <p className="text-xs mt-2" style={{ fontFamily: "'DM Sans', sans-serif", color: "#4A0E0E" }}>{sizePhotoError}</p>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {form.colorIds.length > 0 && selectedSizeIds.length > 0 && (
                 <div>
                   <div className="flex items-center justify-between mb-3">
                     <label className="block text-xs tracking-widest uppercase" style={{ fontFamily: "'DM Sans', sans-serif", color: "rgba(45,36,30,0.4)", letterSpacing: "0.14em" }}>
@@ -2501,17 +2685,22 @@ function ProductModal({
 
           {/* Description */}
           <div>
-            <label
-              className="block text-xs mb-2 tracking-widest uppercase"
-              style={{ fontFamily: "'DM Sans', sans-serif", color: "rgba(45,36,30,0.4)", letterSpacing: "0.14em" }}
-            >
-              Description
-            </label>
+            <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
+              <label
+                htmlFor="admin-product-description"
+                className="block text-xs tracking-widest uppercase"
+                style={{ fontFamily: "'DM Sans', sans-serif", color: "rgba(45,36,30,0.4)", letterSpacing: "0.14em" }}
+              >
+                Description{textLanguage === "en" ? " (English)" : ""}
+              </label>
+              <AdminLanguageSwitch value={textLanguage} onChange={setTextLanguage} label="Texts in" />
+            </div>
             <textarea
-              value={form.description}
-              onChange={(e) => handleChange("description", e.target.value)}
+              id="admin-product-description"
+              value={textLanguage === "en" ? form.descriptionEn : form.description}
+              onChange={(e) => handleChange(textLanguage === "en" ? "descriptionEn" : "description", e.target.value)}
               rows={3}
-              placeholder="Product description..."
+              placeholder={textLanguage === "en" ? "Optional. Empty = the Ukrainian text is shown." : "Product description..."}
               className="w-full bg-transparent border rounded-[14px] px-4 py-3 text-[#2D241E] focus:outline-none resize-none transition-colors duration-200 placeholder:text-[#2D241E]/20"
               style={{
                 fontFamily: "'DM Sans', sans-serif",
@@ -2868,12 +3057,14 @@ function CategoryModal({
   onClose,
   onSave,
 }: {
-  editing: { id: number; name: string } | null;
+  editing: { id: number; name: string; nameEn?: string | null } | null;
   onClose: () => void;
-  onSave: (name: string) => void;
+  onSave: (name: string, nameEn: string) => void;
 }) {
   const [name, setName] = useState(editing?.name ?? "");
-  useEffect(() => { setName(editing?.name ?? ""); }, [editing?.id, editing?.name]);
+  const [nameEn, setNameEn] = useState(editing?.nameEn ?? "");
+  const [language, setLanguage] = useState<TextLanguage>("uk");
+  useEffect(() => { setName(editing?.name ?? ""); setNameEn(editing?.nameEn ?? ""); }, [editing?.id, editing?.name, editing?.nameEn]);
   const isEditing = !!editing;
   const nameError = useDebouncedError(name, (v) => (!v.trim() ? "Category name is required." : undefined), 600, "admin-category-name");
   return (
@@ -2884,23 +3075,26 @@ function CategoryModal({
       footer={
         <>
           <AdminModalCancelButton onClick={onClose} />
-          <AdminModalPrimaryButton onClick={() => onSave(name)} disabled={!name.trim()}>{isEditing ? "Save" : "Add"}</AdminModalPrimaryButton>
+          <AdminModalPrimaryButton onClick={() => onSave(name, nameEn)} disabled={!name.trim()}>{isEditing ? "Save" : "Add"}</AdminModalPrimaryButton>
         </>
       }
     >
-      <label htmlFor="admin-category-name" className="block text-xs mb-2 tracking-widest uppercase" style={{ fontFamily: "'DM Sans', sans-serif", color: "rgba(45,36,30,0.4)", letterSpacing: "0.14em" }}>Category Name</label>
+      <div className="mb-4">
+        <AdminLanguageSwitch value={language} onChange={setLanguage} label="Name in" />
+      </div>
+      <label htmlFor="admin-category-name" className="block text-xs mb-2 tracking-widest uppercase" style={{ fontFamily: "'DM Sans', sans-serif", color: "rgba(45,36,30,0.4)", letterSpacing: "0.14em" }}>{language === "en" ? "Category Name (English)" : "Category Name"}</label>
       <input
         id="admin-category-name"
         type="text"
-        value={name}
-        onChange={(e) => setName(e.target.value)}
+        value={language === "en" ? nameEn : name}
+        onChange={(e) => (language === "en" ? setNameEn(e.target.value) : setName(e.target.value))}
         onBlur={nameError.reportNow}
-        {...nameError.fieldProps}
-        placeholder="e.g. Sweaters"
+        {...(language === "en" ? {} : nameError.fieldProps)}
+        placeholder={language === "en" ? "Optional. Empty = the Ukrainian name is shown." : "e.g. Sweaters"}
         className="w-full bg-transparent border rounded-[14px] px-4 py-3 text-[#2D241E] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#2D241E]/20 placeholder:text-[#2D241E]/20"
         style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "0.9rem", borderColor: nameError.error ? "#B42318" : "rgba(45,36,30,0.15)" }}
       />
-      {nameError.error && (
+      {language === "uk" && nameError.error && (
         <p {...nameError.errorProps} className="text-xs text-[#B42318] mt-1.5" style={{ fontFamily: "'DM Sans', sans-serif" }}>{nameError.error}</p>
       )}
     </AdminModalShell>
@@ -3478,7 +3672,7 @@ export function AdminPage() {
 
   const [productModal, setProductModal] = useState<{ open: boolean; editing: AdminProduct | null }>({ open: false, editing: null });
   const [userModal, setUserModal] = useState<{ open: boolean }>({ open: false });
-  const [categoryModal, setCategoryModal] = useState<{ open: boolean; editing: { id: number; name: string } | null }>({ open: false, editing: null });
+  const [categoryModal, setCategoryModal] = useState<{ open: boolean; editing: { id: number; name: string; nameEn?: string | null } | null }>({ open: false, editing: null });
   const [colorModal, setColorModal] = useState<{ open: boolean; editing: { id: number; name: string; nameUk?: string | null; hexCode: string } | null }>({ open: false, editing: null });
   const [furnitureModal, setFurnitureModal] = useState<{ open: boolean; editing: { id: number; name: string; nameUk?: string | null; hexCode: string } | null }>({ open: false, editing: null });
   const [sizeModal, setSizeModal] = useState<{ open: boolean; editing: { id: number; name: string; nameUk?: string | null } | null }>({ open: false, editing: null });
@@ -3937,6 +4131,20 @@ export function AdminPage() {
         productCode: data.sku.trim() ? data.sku.trim() : undefined,
         name: data.name,
         description: data.description,
+        nameEn: data.nameEn,
+        descriptionEn: data.descriptionEn,
+        materialEn: data.materialEn,
+        sizePhotoUrl: data.sizePhotoUrl,
+        sizeMeasurements: sizeIds.map((sizeId) => {
+          const m = data.sizeMeasurements?.[sizeId];
+          return {
+            sizeId,
+            widthCm: parseMeasurement(m?.width),
+            heightCm: parseMeasurement(m?.height),
+            depthCm: parseMeasurement(m?.depth),
+            handleCm: parseMeasurement(m?.handle),
+          };
+        }),
         price: deriveBasePrice(colorIds, resolvedDefaultColorId, data.colorPrices ?? {}, Number(data.price) || 0),
         eurPrice: deriveBaseEurPrice(colorIds, resolvedDefaultColorId, data.colorEurPrices ?? {}),
         material: data.subtitle,
@@ -4023,13 +4231,13 @@ export function AdminPage() {
     }
   };
 
-  const handleSaveCategory = async (name: string) => {
+  const handleSaveCategory = async (name: string, nameEn: string) => {
     setSaveError(null);
     try {
       if (categoryModal.editing) {
-        await editCategory(categoryModal.editing.id, name);
+        await editCategory(categoryModal.editing.id, name, nameEn);
       } else {
-        await addCategory(name);
+        await addCategory(name, nameEn);
       }
       setCategoryModal({ open: false, editing: null });
       refetch();

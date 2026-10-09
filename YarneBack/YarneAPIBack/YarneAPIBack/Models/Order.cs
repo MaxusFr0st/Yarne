@@ -30,6 +30,9 @@ public partial class Order
     /// <summary>Storefront UI language at checkout ("en"/"uk") — decides whether order emails show EUR alongside UAH. Null for orders placed before this was tracked.</summary>
     public string? Locale { get; set; }
 
+    /// <summary>Random id the checkout page generated for this order attempt. A retried POST with the same id returns this order instead of creating another. Unique where set.</summary>
+    public string? ClientRequestId { get; set; }
+
     public decimal ExchangeRateToBase { get; set; } = 1m;
 
     public string Status { get; set; } = null!;

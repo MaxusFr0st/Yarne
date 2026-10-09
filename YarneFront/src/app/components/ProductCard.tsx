@@ -12,6 +12,8 @@ import { useMotionEntrance } from "../hooks/useMotionEntrance";
 import { useTouchMobileLayout } from "../hooks/useTouchMobileLayout";
 import { getDefaultColorIndex } from "../utils/productColorIndex";
 import { localizedCatalogName } from "../utils/localizedName";
+import { productName } from "../utils/productText";
+import { productSubtitle } from "../utils/productSubtitle";
 import { resolveDisplayPrice, resolveDisplayEurPrice } from "../utils/variantStock";
 import { quickAddLine } from "../utils/cartLine";
 import { useLangNavigate } from "../i18n/useLangNavigate";
@@ -60,7 +62,6 @@ function ProductCardInner({
   const navigate = useLangNavigate();
   const { disabled: motionDisabled } = useMotionEntrance();
   const touchMobile = useTouchMobileLayout();
-  const [mobilePeek, setMobilePeek] = useState(false);
 
   useEffect(() => {
     if (isControlledColor) return;
@@ -114,41 +115,18 @@ function ProductCardInner({
       : `/product/${product.id}`;
 
   const handleCardClick = (e: MouseEvent<HTMLAnchorElement>) => {
-    if (previewMode) {
-      e.preventDefault();
-      return;
-    }
-    if (!touchMobile) return;
-    if ((e.target as HTMLElement).closest("button")) return;
-    if (!mobilePeek) {
-      e.preventDefault();
-      setMobilePeek(true);
-    }
+    if (previewMode) e.preventDefault();
   };
 
   // Its product page and other colours download while the card is near the screen (one tap away).
   const cardRef = useRef<HTMLDivElement>(null);
   usePrepareProducts(cardRef, previewMode ? [] : [product]);
 
-  useEffect(() => {
-    if (!mobilePeek) return;
-    const resetPeek = (event: Event) => {
-      const target = event.target;
-      if (!(target instanceof Element)) return;
-      if (target.closest(`[data-product-card="${product.id}"]`)) return;
-      setMobilePeek(false);
-    };
-    document.addEventListener("click", resetPeek, true);
-    return () => document.removeEventListener("click", resetPeek, true);
-  }, [mobilePeek, product.id]);
-
-  const showQuickAdd = touchMobile ? mobilePeek : false;
-  const overlayVisibleClass = showQuickAdd
-    ? "opacity-100"
-    : "opacity-0 group-hover/card:opacity-100";
-  const quickAddVisibleClass = showQuickAdd
-    ? "opacity-100 translate-y-0 scale-100"
-    : "opacity-0 translate-y-2 scale-[0.97] group-hover/card:opacity-100 group-hover/card:translate-y-0 group-hover/card:scale-100";
+  // Touch layouts: one tap opens the product, and there is no quick add (no button, no overlay).
+  // The hover quick add belongs to pointer devices only.
+  const overlayVisibleClass = "opacity-0 group-hover/card:opacity-100";
+  const quickAddVisibleClass =
+    "opacity-0 translate-y-2 scale-[0.97] group-hover/card:opacity-100 group-hover/card:translate-y-0 group-hover/card:scale-100";
 
   const useCarouselViewport = inCarousel && viewportRoot;
   const viewport = useCarouselViewport
@@ -179,17 +157,19 @@ function ProductCardInner({
                   ? undefined
                   : { x: activeColorVariant.image.focalX, y: activeColorVariant.image.focalY }
               }
-              alt={`${product.name} in ${activeColorLabel}`}
+              alt={`${productName(product, locale)} – ${activeColorLabel}`}
               className="product-card-image"
             />
           </div>
 
-          <div
-            className={`absolute inset-0 ${imageRadiusClass} transition-opacity duration-[450ms] ease-[cubic-bezier(0.25,0.1,0.25,1)] ${overlayVisibleClass} pointer-events-none`}
-            style={{
-              background: "linear-gradient(to top, rgba(45,36,30,0.48) 0%, transparent 58%)",
-            }}
-          />
+          {!touchMobile && (
+            <div
+              className={`absolute inset-0 ${imageRadiusClass} transition-opacity duration-[450ms] ease-[cubic-bezier(0.25,0.1,0.25,1)] ${overlayVisibleClass} pointer-events-none`}
+              style={{
+                background: "linear-gradient(to top, rgba(45,36,30,0.48) 0%, transparent 58%)",
+              }}
+            />
+          )}
 
           <div className="absolute top-4 left-4 flex flex-col gap-2 pointer-events-none">
             {product.isNew && (
@@ -199,7 +179,7 @@ function ProductCardInner({
                   backgroundColor: "#4A0E0E",
                   fontFamily: "'DM Sans', sans-serif",
                   letterSpacing: "0.12em",
-                  fontSize: "0.65rem",
+                  fontSize: "0.72rem",
                 }}
               >
                 {t("product.badgeNew")}
@@ -213,7 +193,7 @@ function ProductCardInner({
                   color: "#2D241E",
                   fontFamily: "'DM Sans', sans-serif",
                   letterSpacing: "0.1em",
-                  fontSize: "0.65rem",
+                  fontSize: "0.72rem",
                 }}
               >
                 {t("product.badgeBestseller")}
@@ -221,7 +201,7 @@ function ProductCardInner({
             )}
           </div>
 
-          {!previewMode && (
+          {!previewMode && !touchMobile && (
             <button
               onClick={handleQuickAdd}
               className={`absolute bottom-4 left-1/2 -translate-x-1/2 whitespace-nowrap px-6 py-2.5 rounded-full text-white flex items-center gap-2 cursor-pointer transition-[opacity,transform] duration-[380ms] ease-[cubic-bezier(0.25,0.1,0.25,1)] ${quickAddVisibleClass} motion-reduce:transition-none motion-reduce:opacity-100 motion-reduce:translate-y-0 motion-reduce:scale-100`}
@@ -251,13 +231,13 @@ function ProductCardInner({
                   lineHeight: 1.3,
                 }}
               >
-                {product.name}
+                {productName(product, locale)}
               </p>
               <p
-                className={`text-[#2D241E]/50 text-xs mt-0.5 line-clamp-1 ${size === "collection" ? "hidden md:block" : ""}`}
-                style={{ fontFamily: "'DM Sans', sans-serif", fontSize: isCarouselCard ? "0.68rem" : undefined }}
+                className={`text-[#2D241E]/[0.68] text-xs mt-0.5 line-clamp-1 ${size === "collection" ? "hidden md:block" : ""}`}
+                style={{ fontFamily: "'DM Sans', sans-serif", fontSize: isCarouselCard ? "0.72rem" : undefined }}
               >
-                {product.subtitle}
+                {productSubtitle(product, locale)}
               </p>
             </div>
             <PriceTag
@@ -302,7 +282,7 @@ function ProductCardInner({
                 refused to shrink and simply ran out of the card into the one next to it on a
                 two-up mobile grid. It now yields and ellipsises; the swatches keep their size. */}
             <span
-              className="text-[#2D241E]/40 text-xs ml-1 min-w-0 truncate"
+              className="text-[#2D241E]/[0.68] text-xs ml-1 min-w-0 truncate"
               style={{ fontFamily: "'DM Sans', sans-serif" }}
               title={activeColorLabel}
             >

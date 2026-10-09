@@ -125,7 +125,7 @@ export function Home() {
         <div className="relative z-10 w-full max-w-[1400px] mx-auto px-6 md:px-10 pb-14 md:pb-20">
           <div className="max-w-xl md:max-w-2xl">
             <p
-              className="text-white/65 tracking-[0.28em] uppercase text-[0.65rem] mb-5 md:mb-6"
+              className="text-white/65 tracking-[0.28em] uppercase text-[0.72rem] mb-5 md:mb-6"
               style={{ fontFamily: "'DM Sans', sans-serif" }}
             >
               {heroCopy.eyebrow}
@@ -171,9 +171,9 @@ export function Home() {
           </div>
         </div>
 
-        <div className="absolute bottom-8 right-8 md:right-12 hidden md:flex flex-col items-center gap-2 text-white/45">
+        <div className="absolute bottom-8 right-8 md:right-12 hidden md:flex flex-col items-center gap-2 text-white/60">
           <span
-            className="text-[0.62rem] tracking-[0.25em] uppercase"
+            className="text-[0.72rem] tracking-[0.25em] uppercase"
             style={{ writingMode: "vertical-rl", fontFamily: "'DM Sans', sans-serif" }}
           >
             {heroCopy.scroll}
@@ -238,12 +238,12 @@ export function Home() {
                   </SectionTitle>
                 </ScrollReveal>
                 <ScrollReveal delay={0.1}>
-                  <p className="text-[#2D241E]/62 text-[0.92rem] leading-[1.85]" style={{ fontFamily: "'DM Sans', sans-serif" }}>
+                  <p className="text-[#2D241E]/[0.68] text-[0.92rem] leading-[1.85]" style={{ fontFamily: "'DM Sans', sans-serif" }}>
                     {copy.editorial.paragraph1}
                   </p>
                 </ScrollReveal>
                 <ScrollReveal delay={0.14}>
-                  <p className="text-[#2D241E]/62 text-[0.92rem] leading-[1.85]" style={{ fontFamily: "'DM Sans', sans-serif" }}>
+                  <p className="text-[#2D241E]/[0.68] text-[0.92rem] leading-[1.85]" style={{ fontFamily: "'DM Sans', sans-serif" }}>
                     {copy.editorial.paragraph2}
                   </p>
                 </ScrollReveal>

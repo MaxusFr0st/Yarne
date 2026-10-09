@@ -30,7 +30,7 @@ export function CareStepsSection({ id, eyebrow, title, steps }: StepsProps) {
         className="px-6 pb-10 md:px-10 md:pb-28 flex flex-col gap-2 md:gap-8 lg:grid lg:grid-cols-12 lg:gap-x-6 lg:gap-y-0"
       >
         <div className="lg:col-span-4 flex flex-col gap-2 md:gap-3.5">
-          <p className={`${EYEBROW} text-[11px] md:text-xs text-[#4A0E0E]`}>{eyebrow}</p>
+          <p className={`${EYEBROW} text-[0.72rem] md:text-xs text-[#4A0E0E]`}>{eyebrow}</p>
           <h2 id={id} className="mb-2 md:mb-0 font-normal text-[30px] md:text-5xl leading-[1.08] md:leading-[1.05]" style={SERIF}>
             {title}
           </h2>

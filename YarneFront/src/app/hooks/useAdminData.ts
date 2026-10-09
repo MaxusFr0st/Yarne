@@ -84,7 +84,13 @@ function mapProductDtoToProduct(d: ProductDto): Product & { idNum: number; sku: 
     id: d.productCode,
     idNum: d.id,
     name: d.name,
+    nameEn: d.nameEn ?? null,
     subtitle: d.material ?? d.producerName ?? "",
+    material: d.material ?? null,
+    materialEn: d.materialEn ?? null,
+    descriptionEn: d.descriptionEn ?? null,
+    categoryEn: d.categoryNameEn ?? null,
+    sizePhotoUrl: d.sizePhotoUrl ?? null,
     price: Number(d.price),
     eurPrice: d.eurPrice ?? undefined,
     category: d.categoryName,
@@ -92,7 +98,14 @@ function mapProductDtoToProduct(d: ProductDto): Product & { idNum: number; sku: 
     isBestseller: d.isBestseller ?? false,
     lace: d.lace ?? false,
     sizes: d.sizes?.length
-      ? d.sizes.map((s) => ({ name: s.name, nameUk: s.nameUk ?? null }))
+      ? d.sizes.map((s) => ({
+          name: s.name,
+          nameUk: s.nameUk ?? null,
+          widthCm: s.widthCm ?? null,
+          heightCm: s.heightCm ?? null,
+          depthCm: s.depthCm ?? null,
+          handleCm: s.handleCm ?? null,
+        }))
       : [
           { name: "XS" },
           { name: "S" },
@@ -392,14 +405,14 @@ export function useAdminData() {
     setProducts((prev) => prev.filter((p) => p.idNum !== id));
   }, []);
 
-  const addCategory = useCallback(async (name: string) => {
-    const created = await createCategory(name);
+  const addCategory = useCallback(async (name: string, nameEn?: string) => {
+    const created = await createCategory(name, nameEn);
     setCategories((prev) => [...prev, created].sort((a, b) => a.name.localeCompare(b.name)));
     return created;
   }, []);
 
-  const editCategory = useCallback(async (id: number, name: string) => {
-    const updated = await updateCategory(id, name);
+  const editCategory = useCallback(async (id: number, name: string, nameEn?: string) => {
+    const updated = await updateCategory(id, name, nameEn);
     setCategories((prev) =>
       prev.map((c) => (c.id === id ? updated : c)).sort((a, b) => a.name.localeCompare(b.name))
     );

@@ -52,7 +52,7 @@ export function StaticContentPage({ pageKey }: Props) {
                 ))}
             </div>
             {pageKey === "terms" && (
-              <p className="text-[#2D241E]/40 text-xs mt-10" style={{ fontFamily: "'DM Sans', sans-serif" }}>
+              <p className="text-[#2D241E]/[0.68] text-xs mt-10" style={{ fontFamily: "'DM Sans', sans-serif" }}>
                 {t("pages.terms.lastUpdated")}
               </p>
             )}

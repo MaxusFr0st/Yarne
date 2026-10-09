@@ -97,8 +97,21 @@ export interface CreateOrderItemRequest {
   withLace?: boolean | null;
 }
 
+/**
+ * A random id for one order attempt (the server accepts 16 to 64 of A-Z a-z 0-9 _ -). The same id on a retried
+ * request makes the server hand back the order it already created instead of creating a second one.
+ */
+export function newClientRequestId(): string {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") return crypto.randomUUID();
+  const bytes = new Uint8Array(16);
+  crypto.getRandomValues(bytes);
+  return Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
+}
+
 export interface CreateOrderRequest {
   items: CreateOrderItemRequest[];
+  /** One id per order attempt, reused when the customer presses Place order again after a failure. */
+  clientRequestId?: string;
   /** Storefront UI language at checkout ("en"/"uk") — lets order emails show EUR alongside hryvnia. */
   locale?: string;
   phoneNumber: string;

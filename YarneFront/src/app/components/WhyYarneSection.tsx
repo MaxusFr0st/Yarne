@@ -717,7 +717,7 @@ export function WhyYarneSection() {
               fontSize: isNarrow ? 9 : 10,
               textTransform: "uppercase",
               letterSpacing: "0.34em",
-              color: "rgba(30,27,24,0.58)",
+              color: "rgba(30,27,24,0.68)",
             }}
           >
             {copy.heading}

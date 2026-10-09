@@ -23,6 +23,22 @@ public class CreateProductRequest
     [StringLength(100)]
     public string? Material { get; set; }
 
+    [StringLength(255)]
+    public string? NameEn { get; set; }
+
+    [StringLength(10000)]
+    public string? DescriptionEn { get; set; }
+
+    [StringLength(100)]
+    public string? MaterialEn { get; set; }
+
+    /// <summary>Public URL of an already uploaded photo for the size panel.</summary>
+    [StringLength(500)]
+    public string? SizePhotoUrl { get; set; }
+
+    /// <summary>Measurements per chosen size (all optional).</summary>
+    public List<SizeMeasurementInput>? SizeMeasurements { get; set; }
+
     [Required]
     public int CategoryId { get; set; }
 
@@ -65,6 +81,20 @@ public class CreateProductRequest
     /// <summary>Product codes for per-product suggested items (max 10, each max 50 chars).</summary>
     [MaxLength(10)]
     public List<string>? SuggestedProductCodes { get; set; }
+}
+
+public class SizeMeasurementInput
+{
+    public int SizeId { get; set; }
+
+    // Range checked in ProductMeasurements.Validate (0 < value <= 500).
+    public decimal? WidthCm { get; set; }
+
+    public decimal? HeightCm { get; set; }
+
+    public decimal? DepthCm { get; set; }
+
+    public decimal? HandleCm { get; set; }
 }
 
 public class ColorVariantInput

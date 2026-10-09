@@ -182,11 +182,11 @@ export function BestSellersCarousel() {
           className="shrink-0 mb-3 sm:mb-4 md:mb-6"
         >
           <p
-            className="text-[#2D241E]/40 uppercase mb-1.5"
+            className="text-[#2D241E]/[0.68] uppercase mb-1.5"
             style={{
               fontFamily: "'DM Sans', sans-serif",
               letterSpacing: "0.22em",
-              fontSize: "0.65rem",
+              fontSize: "0.72rem",
             }}
           >
             {copy.bestSellers.eyebrow}

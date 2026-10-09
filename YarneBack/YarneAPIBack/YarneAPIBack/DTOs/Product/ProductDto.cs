@@ -17,6 +17,18 @@ public class ProductDto
 
     public string? Material { get; set; }
 
+    /// <summary>English texts; null = not written yet (the storefront then shows the Ukrainian ones).</summary>
+    public string? NameEn { get; set; }
+
+    public string? DescriptionEn { get; set; }
+
+    public string? MaterialEn { get; set; }
+
+    public string? CategoryNameEn { get; set; }
+
+    /// <summary>One plain photo for the size panel.</summary>
+    public string? SizePhotoUrl { get; set; }
+
     public ProductImageDto? PrimaryImage { get; set; }
 
     /// <summary>Dedicated photo for link-share previews and order emails. Null = falls back to PrimaryImage.</summary>

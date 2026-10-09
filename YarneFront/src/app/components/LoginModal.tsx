@@ -9,6 +9,7 @@ import { isGoogleOAuthEnabled, isOAuthEnabled } from "../config/oauth";
 import { LoginGoogleButton } from "./LoginGoogleButton";
 
 const easing = [0.25, 0.1, 0.25, 1] as const;
+const FOCUSABLE = 'a[href], button:not([disabled]), input:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
 type AuthMode = "login" | "register";
 
@@ -41,7 +42,7 @@ function AuthField({
     <div className={className}>
       <label
         htmlFor={id}
-        className="block text-[#2D241E]/55 text-[11px] uppercase tracking-[0.14em] mb-1.5"
+        className="block text-[#2D241E]/[0.68] text-[0.72rem] uppercase tracking-[0.14em] mb-1.5"
         style={{ fontFamily: "'DM Sans', sans-serif" }}
       >
         {label}
@@ -120,7 +121,25 @@ export function LoginModal() {
     }
 
     const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") closeLogin();
+      if (e.key === "Escape") {
+        closeLogin();
+        return;
+      }
+      if (e.key !== "Tab") return;
+      const items = panelRef.current?.querySelectorAll<HTMLElement>(FOCUSABLE);
+      if (!items?.length) return;
+      const first = items[0];
+      const last = items[items.length - 1];
+      if (!panelRef.current?.contains(document.activeElement)) {
+        e.preventDefault();
+        first.focus();
+      } else if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault();
+        first.focus();
+      }
     };
 
     document.addEventListener("keydown", onKeyDown);
@@ -135,6 +154,16 @@ export function LoginModal() {
       window.clearTimeout(focusTimer);
     };
   }, [loginOpen, closeLogin, resetForm, reduceMotion]);
+
+  // Focus goes back to whatever opened the dialog. Its own effect, keyed on open alone, so the
+  // opener is read once, before focus moves in.
+  useEffect(() => {
+    if (!loginOpen) return;
+    const opener = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    return () => {
+      if (opener?.isConnected) opener.focus({ preventScroll: true });
+    };
+  }, [loginOpen]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -254,7 +283,7 @@ export function LoginModal() {
                   Yarné
                 </p>
                 <p
-                  className="text-[#2D241E]/40 tracking-widest uppercase text-xs mb-2 [@media(max-height:820px)]:hidden"
+                  className="text-[#2D241E]/[0.68] tracking-widest uppercase text-xs mb-2 [@media(max-height:820px)]:hidden"
                   style={{ fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.2em" }}
                 >
                   {t("auth.brandTagline")}
@@ -337,7 +366,7 @@ export function LoginModal() {
 
                           <div className="flex items-center gap-3 pt-1">
                             <div className="flex-1 h-px bg-[#2D241E]/10" />
-                            <span className="text-xs text-[#2D241E]/35" style={{ fontFamily: "'DM Sans', sans-serif" }}>{t("auth.or")}</span>
+                            <span className="text-xs text-[#2D241E]/[0.68]" style={{ fontFamily: "'DM Sans', sans-serif" }}>{t("auth.or")}</span>
                             <div className="flex-1 h-px bg-[#2D241E]/10" />
                           </div>
                         </div>
@@ -529,7 +558,7 @@ export function LoginModal() {
               </LayoutGroup>
 
               <p
-                className="text-center text-[#2D241E]/40 text-xs mt-6 [@media(max-height:820px)]:mt-4 leading-relaxed"
+                className="text-center text-[#2D241E]/[0.68] text-xs mt-6 [@media(max-height:820px)]:mt-4 leading-relaxed"
                 style={{ fontFamily: "'DM Sans', sans-serif" }}
               >
                 {t("auth.agreePrefix")} {t("auth.terms")} {t("auth.and")} {t("auth.privacyPolicy")}.

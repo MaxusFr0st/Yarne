@@ -46,11 +46,11 @@ export function MobileRelatedProducts({ products }: MobileRelatedProductsProps) 
   return (
     <section className="md:hidden px-[clamp(14px,3.6vw,22px)] pt-[clamp(20px,5vw,28px)] pb-[clamp(16px,4vw,24px)]">
       <p
-        className="text-[#2D241E]/45 uppercase mb-1"
+        className="text-[#2D241E]/[0.68] uppercase mb-1"
         style={{
           fontFamily: "'DM Sans', sans-serif",
           letterSpacing: "0.18em",
-          fontSize: "clamp(0.58rem, 2.3vw, 0.68rem)",
+          fontSize: "clamp(0.72rem, 2.3vw, 0.72rem)",
         }}
       >
         {t("product.relatedEyebrow", { defaultValue: "You may also like" })}

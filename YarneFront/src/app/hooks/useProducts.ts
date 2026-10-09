@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useSyncExternalStore } from "react";
-import { fetchProducts, fetchProduct, type ProductDto, type ProductDetailDto, type ColorVariantDto, type SuggestedProductDto, type ProductImageDto } from "../api/products";
+import { fetchProducts, fetchProduct, type ProductDto, type ProductDetailDto, type ColorVariantDto, type SuggestedProductDto, type ProductImageDto, type SizeOptionDto } from "../api/products";
 import type { Product, ProductImage, ColorVariant } from "../types/product";
 import { normalizeLaceVariants } from "../utils/variantStock";
 import {
@@ -23,9 +23,16 @@ const FALLBACK_SIZES = [
   { name: "XL" },
 ];
 
-function mapSizes(sizes?: { name: string; nameUk?: string | null }[] | null) {
+function mapSizes(sizes?: SizeOptionDto[] | null) {
   if (!sizes?.length) return FALLBACK_SIZES;
-  return sizes.map((s) => ({ name: s.name, nameUk: s.nameUk ?? null }));
+  return sizes.map((s) => ({
+    name: s.name,
+    nameUk: s.nameUk ?? null,
+    widthCm: s.widthCm ?? null,
+    heightCm: s.heightCm ?? null,
+    depthCm: s.depthCm ?? null,
+    handleCm: s.handleCm ?? null,
+  }));
 }
 
 function toProductImage(dto: ProductImageDto | null | undefined): ProductImage {
@@ -90,7 +97,14 @@ function mapToFrontendProduct(d: ProductDto): Product {
   return {
     id: d.productCode,
     name: d.name,
+    nameEn: d.nameEn ?? null,
     subtitle: d.material ?? d.producerName ?? "",
+    material: d.material ?? null,
+    materialEn: d.materialEn ?? null,
+    descriptionEn: d.descriptionEn ?? null,
+    categoryEn: d.categoryNameEn ?? null,
+    collectionName: d.collectionName ?? null,
+    sizePhotoUrl: d.sizePhotoUrl ?? null,
     price: Number(d.price),
     eurPrice: d.eurPrice ?? undefined,
     category: d.categoryName,
@@ -121,10 +135,12 @@ function mapSuggestedToProduct(s: SuggestedProductDto): Product {
   return {
     id: s.productCode,
     name: s.name,
+    nameEn: s.nameEn ?? null,
     subtitle: s.categoryName,
     price: Number(s.price),
     eurPrice: s.eurPrice ?? undefined,
     category: s.categoryName,
+    categoryEn: s.categoryNameEn ?? null,
     isNew: s.isNew,
     isBestseller: s.isBestseller,
     sizes: FALLBACK_SIZES,
@@ -145,7 +161,14 @@ function mapDetailToFrontend(d: ProductDetailDto): Product {
   return {
     id: d.productCode,
     name: d.name,
+    nameEn: d.nameEn ?? null,
     subtitle: d.subtitle ?? d.material ?? "",
+    material: d.material ?? null,
+    materialEn: d.materialEn ?? null,
+    descriptionEn: d.descriptionEn ?? null,
+    categoryEn: d.categoryNameEn ?? null,
+    collectionName: d.collectionName ?? null,
+    sizePhotoUrl: d.sizePhotoUrl ?? null,
     price: Number(d.price),
     eurPrice: d.eurPrice ?? undefined,
     category: d.categoryName,

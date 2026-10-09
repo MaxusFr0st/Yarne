@@ -27,7 +27,7 @@ export function NotFound() {
           {t("notFound.title")}
         </h1>
         <p
-          className="text-[#2D241E]/50 mb-10 max-w-sm"
+          className="text-[#2D241E]/[0.68] mb-10 max-w-sm"
           style={{ fontFamily: "'DM Sans', sans-serif", lineHeight: 1.7, fontSize: "0.9rem" }}
         >
           {t("notFound.text")}

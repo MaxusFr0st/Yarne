@@ -97,7 +97,7 @@ export function CareGuaranteePage() {
 
         <section className="px-3 pt-[22px] pb-9 md:px-10 md:pt-10 md:pb-24 flex flex-col gap-7 md:gap-10 lg:grid lg:grid-cols-12 lg:gap-x-6 lg:gap-y-0 lg:items-center">
           <div className="px-3 md:px-0 lg:col-span-7 flex flex-col gap-3.5 md:gap-6 items-start">
-            <p className={`inline-flex items-center gap-2 md:gap-2.5 ${EYEBROW} text-[11px] md:text-xs text-[#4A0E0E]`}>
+            <p className={`inline-flex items-center gap-2 md:gap-2.5 ${EYEBROW} text-[0.72rem] md:text-xs text-[#4A0E0E]`}>
               <ShieldCheck size={18} strokeWidth={1.5} className="shrink-0" aria-hidden />
               {t("care.guarantee.eyebrow")}
             </p>
@@ -139,7 +139,7 @@ export function CareGuaranteePage() {
                       key={index}
                       className="flex flex-col gap-[3px] py-3 md:py-3.5 border-t border-[#2D241E]/14 md:grid md:grid-cols-[120px_minmax(0,1fr)] md:gap-4"
                     >
-                      <dt className={`${LABEL} text-[10px] md:text-[11.5px] text-[#2D241E]/72`}>{text(row.label)}</dt>
+                      <dt className={`${LABEL} text-[0.72rem] md:text-[11.5px] text-[#2D241E]/72`}>{text(row.label)}</dt>
                       <dd className="text-[14.5px] md:text-[15px] leading-[1.45] md:leading-[1.5]">{text(row.value)}</dd>
                     </div>
                   ))}
@@ -161,7 +161,7 @@ export function CareGuaranteePage() {
             <section aria-labelledby="guarantee-includes" className="px-3 pb-10 md:px-10 md:pb-28 flex flex-col gap-2.5 md:gap-10">
               <div className="px-3 pb-1.5 md:p-0 flex flex-col gap-4 lg:flex-row lg:justify-between lg:items-end lg:gap-10">
                 <div className="flex flex-col gap-2 md:gap-3.5">
-                  <p className={`${EYEBROW} text-[11px] md:text-xs text-[#4A0E0E]`}>{t("care.guarantee.includesEyebrow")}</p>
+                  <p className={`${EYEBROW} text-[0.72rem] md:text-xs text-[#4A0E0E]`}>{t("care.guarantee.includesEyebrow")}</p>
                   <h2 id="guarantee-includes" className="font-normal text-[32px] md:text-[56px] leading-[1.06] md:leading-[1.04]" style={SERIF}>
                     {t("care.guarantee.includesTitle")}
                   </h2>
@@ -182,7 +182,7 @@ export function CareGuaranteePage() {
                         {text(item.title)}
                       </span>
                       <span className="text-[13.5px] md:text-[14.5px] leading-[1.55] md:leading-[1.6] text-[#2D241E]/72">{text(item.text)}</span>
-                      <span className={`mt-1 md:mt-auto md:pt-2 ${LABEL} text-[10px] md:text-[11.5px] text-[#4A0E0E]`}>{text(item.tag)}</span>
+                      <span className={`mt-1 md:mt-auto md:pt-2 ${LABEL} text-[0.72rem] md:text-[11.5px] text-[#4A0E0E]`}>{text(item.tag)}</span>
                     </span>
                   </div>
                 ))}
@@ -194,14 +194,14 @@ export function CareGuaranteePage() {
         <ScrollReveal>
           <section className="px-3 pb-10 md:px-10 md:pb-28 flex flex-col gap-2.5 md:grid md:grid-cols-2 md:gap-6">
             <div className="px-5 py-6 rounded-[26px] md:p-11 md:rounded-[32px] border border-[#2D241E]/15 flex flex-col gap-2.5 md:gap-5">
-              <p className={`${EYEBROW} text-[11px] md:text-xs text-[#315B42]`}>{t("care.guarantee.covered")}</p>
+              <p className={`${EYEBROW} text-[0.72rem] md:text-xs text-[#315B42]`}>{t("care.guarantee.covered")}</p>
               <h2 className="mb-1 md:mb-0 font-normal text-[28px] md:text-[40px] leading-[1.05]" style={SERIF}>
                 {t("care.guarantee.coveredTitle")}
               </h2>
               {coverageList(terms.covered.map(text), true)}
             </div>
             <div className="px-5 py-6 rounded-[26px] md:p-11 md:rounded-[32px] bg-[#EDE9E2] flex flex-col gap-2.5 md:gap-5">
-              <p className={`${EYEBROW} text-[11px] md:text-xs text-[#2D241E]/72`}>{t("care.guarantee.notCovered")}</p>
+              <p className={`${EYEBROW} text-[0.72rem] md:text-xs text-[#2D241E]/72`}>{t("care.guarantee.notCovered")}</p>
               <h2 className="mb-1 md:mb-0 font-normal text-[28px] md:text-[40px] leading-[1.05]" style={SERIF}>
                 {t("care.guarantee.notCoveredTitle")}
               </h2>
@@ -229,7 +229,7 @@ export function CareGuaranteePage() {
               className="px-6 pb-10 md:px-10 md:pb-28 flex flex-col gap-2 md:gap-8 lg:grid lg:grid-cols-12 lg:gap-x-6 lg:gap-y-0"
             >
               <div className="lg:col-span-4 flex flex-col gap-2 md:gap-3.5">
-                <p className={`${EYEBROW} text-[11px] md:text-xs text-[#4A0E0E]`}>{t("care.guarantee.faqEyebrow")}</p>
+                <p className={`${EYEBROW} text-[0.72rem] md:text-xs text-[#4A0E0E]`}>{t("care.guarantee.faqEyebrow")}</p>
                 <h2 id="guarantee-faq" className="mb-2 md:mb-0 font-normal text-[30px] md:text-5xl leading-[1.05]" style={SERIF}>
                   {t("care.guarantee.faqTitle")}
                 </h2>
@@ -276,7 +276,7 @@ export function CareGuaranteePage() {
             style={{ backgroundColor: "#2D241E", color: "#F5F2ED" }}
           >
             <div className="flex flex-col gap-3.5 max-w-[620px]">
-              <p className={`${EYEBROW} text-[11px] md:text-xs opacity-80`}>{t("care.guarantee.ctaEyebrow")}</p>
+              <p className={`${EYEBROW} text-[0.72rem] md:text-xs opacity-80`}>{t("care.guarantee.ctaEyebrow")}</p>
               <h2 className="font-normal text-[32px] md:text-[52px] leading-[1.06] md:leading-[1.04]" style={SERIF}>
                 {t("care.guarantee.ctaTitle")} <span className="italic font-light">{t("care.guarantee.ctaTitleAccent")}</span>
               </h2>
@@ -297,7 +297,7 @@ export function CareGuaranteePage() {
               </a>
               <LangLink
                 to={CARE_REQUEST_PATH}
-                className={`min-h-11 flex items-center justify-center ${LABEL} text-[11px] md:text-[11.5px] text-[#F5F2ED] underline underline-offset-4 hover:opacity-80 rounded-sm ${FOCUS_RING_ON_INK}`}
+                className={`min-h-11 flex items-center justify-center ${LABEL} text-[0.72rem] md:text-[11.5px] text-[#F5F2ED] underline underline-offset-4 hover:opacity-80 rounded-sm ${FOCUS_RING_ON_INK}`}
               >
                 {t("care.guarantee.allWays")}
               </LangLink>

@@ -1,3 +1,4 @@
+import { useEffect, useId, useMemo, useRef } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { X, Minus, Plus, ShoppingBag, ArrowRight } from "lucide-react";
 import { useTranslation } from "react-i18next";
@@ -8,6 +9,11 @@ import { PriceTag } from "./PriceTag";
 import { useLocale } from "../i18n/useLocale";
 import { useTouchMobileLayout } from "../hooks/useTouchMobileLayout";
 import { useBodyScrollLock } from "../hooks/useBodyScrollLock";
+import { useProducts } from "../hooks/useProducts";
+import { localizedCatalogName } from "../utils/localizedName";
+import { productName } from "../utils/productText";
+
+const FOCUSABLE = 'a[href], button:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
 export function CartDrawer() {
   const { t } = useTranslation();
@@ -17,6 +23,53 @@ export function CartDrawer() {
   const { cartOpen, closeCart } = useOverlay();
   const { cartItems, removeFromCart, updateQuantity, cartTotal, cartEurTotal } = useCart();
   useBodyScrollLock(cartOpen);
+  const titleId = useId();
+  const drawerRef = useRef<HTMLDivElement>(null);
+  const closeRef = useRef<HTMLButtonElement>(null);
+  const { products } = useProducts();
+  const liveById = useMemo(() => new Map(products.map((product) => [product.id, product])), [products]);
+  // The live product, so the name follows the language; a line whose product is gone keeps the name it was added with.
+  const lineName = (item: (typeof cartItems)[number]) => {
+    const live = liveById.get(item.productId);
+    return live ? productName(live, locale) : item.name;
+  };
+
+  // A dialog: Escape closes it, Tab stays inside it, focus goes in on open and back to whatever
+  // opened it on close. preventScroll: the drawer is still off screen when it takes focus, and
+  // the browser would scroll the page to reach it.
+  useEffect(() => {
+    if (!cartOpen) return;
+    const opener = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    closeRef.current?.focus({ preventScroll: true });
+
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        closeCart();
+        return;
+      }
+      if (event.key !== "Tab") return;
+      const items = drawerRef.current?.querySelectorAll<HTMLElement>(FOCUSABLE);
+      if (!items?.length) return;
+      const first = items[0];
+      const last = items[items.length - 1];
+      if (!drawerRef.current?.contains(document.activeElement)) {
+        event.preventDefault();
+        first.focus({ preventScroll: true });
+      } else if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus({ preventScroll: true });
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus({ preventScroll: true });
+      }
+    };
+    document.addEventListener("keydown", onKeyDown);
+
+    return () => {
+      document.removeEventListener("keydown", onKeyDown);
+      if (opener?.isConnected) opener.focus({ preventScroll: true });
+    };
+  }, [cartOpen, closeCart]);
 
   return (
     <AnimatePresence>
@@ -52,6 +105,10 @@ export function CartDrawer() {
           {/* Drawer: same sizing as the backdrop; the strip is bottom padding so the checkout
               actions sit above the bar instead of under its glass. */}
           <motion.div
+            ref={drawerRef}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby={titleId}
             className="fixed top-0 right-0 z-50 w-full max-w-[480px] flex flex-col"
             style={{
               height: "calc(var(--app-svh) + var(--browser-bar-b))",
@@ -68,19 +125,21 @@ export function CartDrawer() {
             <div className="flex items-center justify-between px-5 py-4 md:px-8 md:py-7 border-b border-[#2D241E]/10">
               <div>
                 <h2
+                  id={titleId}
                   className="text-[#2D241E]"
                   style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "clamp(1.2rem, 5vw, 1.5rem)", fontWeight: 500 }}
                 >
                   {t("cart.title")}
                 </h2>
                 <p
-                  className="text-[#2D241E]/50 text-xs tracking-widest uppercase mt-0.5"
+                  className="text-[#2D241E]/[0.68] text-xs tracking-widest uppercase mt-0.5"
                   style={{ fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.15em" }}
                 >
                   {t("cart.itemCount", { count: cartItems.length })}
                 </p>
               </div>
               <button
+                ref={closeRef}
                 onClick={closeCart}
                 aria-label={t("cart.closeDrawer")}
                 className="w-9 h-9 md:w-10 md:h-10 rounded-full flex items-center justify-center hover:bg-[#2D241E]/8 transition-colors duration-200 text-[#2D241E]/70 hover:text-[#2D241E]"
@@ -107,7 +166,7 @@ export function CartDrawer() {
                       {t("cart.emptyTitle")}
                     </p>
                     <p
-                      className="text-[#2D241E]/50 mt-2 text-sm"
+                      className="text-[#2D241E]/[0.68] mt-2 text-sm"
                       style={{ fontFamily: "'DM Sans', sans-serif" }}
                     >
                       {t("cart.emptySubtitle")}
@@ -134,7 +193,7 @@ export function CartDrawer() {
                       <div className="w-16 h-20 md:w-24 md:h-32 rounded-xl md:rounded-2xl overflow-hidden flex-shrink-0 bg-[#EDE9E2]">
                         <ImageWithFallback
                           src={item.image}
-                          alt={item.name}
+                          alt={lineName(item)}
                           className="w-full h-full object-cover"
                         />
                       </div>
@@ -146,7 +205,7 @@ export function CartDrawer() {
                             className="text-[#2D241E] truncate"
                             style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "clamp(0.92rem, 3.6vw, 1.05rem)", fontWeight: 500, lineHeight: 1.3 }}
                           >
-                            {item.name}
+                            {lineName(item)}
                           </p>
                           <div className="flex items-center gap-1.5 md:gap-2 mt-1 md:mt-1.5">
                             <span
@@ -160,13 +219,13 @@ export function CartDrawer() {
                               />
                             ) : null}
                             <span
-                              className="text-[#2D241E]/60 text-xs truncate"
+                              className="text-[#2D241E]/[0.68] text-xs truncate"
                               style={{ fontFamily: "'DM Sans', sans-serif" }}
                             >
-                              {item.color}
-                              {item.furnitureColor ? ` · ${item.furnitureColor}` : ""}
+                              {localizedCatalogName(item.color, item.colorUk, locale)}
+                              {item.furnitureColor ? ` · ${localizedCatalogName(item.furnitureColor, item.furnitureColorUk, locale)}` : ""}
                               {" · "}
-                              {t("cart.size")} {item.size}
+                              {t("cart.size")} {localizedCatalogName(item.size, item.sizeUk, locale)}
                             </span>
                           </div>
                         </div>
@@ -222,7 +281,7 @@ export function CartDrawer() {
               <div className="px-5 py-4 md:px-8 md:py-7 border-t border-[#2D241E]/10 space-y-3 md:space-y-4">
                 <div className="flex items-center justify-between">
                   <span
-                    className="text-[#2D241E]/60 text-sm tracking-widest uppercase"
+                    className="text-[#2D241E]/[0.68] text-sm tracking-widest uppercase"
                     style={{ fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.12em" }}
                   >
                     {t("cart.subtotal")}
@@ -230,7 +289,7 @@ export function CartDrawer() {
                   <PriceTag amount={cartTotal} eurAmount={cartEurTotal} locale={locale} variant="emphasis" withUnit />
                 </div>
                 <p
-                  className="text-[#2D241E]/40 text-xs text-center"
+                  className="text-[#2D241E]/[0.68] text-xs text-center"
                   style={{ fontFamily: "'DM Sans', sans-serif" }}
                 >
                   {t("cart.shippingTaxesCheckout")}

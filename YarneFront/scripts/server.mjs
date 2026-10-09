@@ -97,6 +97,14 @@ function paragraphsOf(value) {
     .filter(Boolean);
 }
 
+// A product's text in the page's language: the owner's English text on /en when there is one,
+// the Ukrainian (base) text otherwise (src/app/utils/productText.ts does the same in the app).
+const inLang = (lang, base, en, clean = cleanText) => (lang === "en" && clean(en) ? en : base);
+const productName = (product, lang) => cleanText(inLang(lang, product.name, product.nameEn));
+const productDescription = (product, lang) => inLang(lang, product.description, product.descriptionEn);
+const productMaterial = (product, lang) => cleanText(inLang(lang, product.material, product.materialEn));
+const productCategory = (product, lang) => cleanText(inLang(lang, product.categoryName, product.categoryNameEn));
+
 // JSON-LD sits inside a <script>: "<" must never be able to close it.
 function jsonLdScript(data) {
   const json = JSON.stringify(data)
@@ -616,17 +624,17 @@ function productListHtml(products, lang) {
   return list(
     products.map((product) => {
       const color = defaultColorOf(product);
-      const material = cleanText(product.material);
-      return `${link(lang, `/product/${encodeURIComponent(product.productCode)}`, cleanText(product.name))} — ${escapeHtml(formatPrice(priceOf(product, color, false), lang))}${material ? ` (${escapeHtml(material)})` : ""}`;
+      const material = productMaterial(product, lang);
+      return `${link(lang, `/product/${encodeURIComponent(product.productCode)}`, productName(product, lang))} — ${escapeHtml(formatPrice(priceOf(product, color, false), lang))}${material ? ` (${escapeHtml(material)})` : ""}`;
     }),
   );
 }
 
 function productContent(product, lang, extras) {
   const w = WORDS[lang];
-  const name = cleanText(product.name);
+  const name = productName(product, lang);
   const color = defaultColorOf(product);
-  const material = cleanText(product.subtitle) || cleanText(product.material);
+  const material = lang === "en" && cleanText(product.materialEn) ? cleanText(product.materialEn) : cleanText(product.subtitle) || cleanText(product.material);
   const colors = (product.colors ?? []).map((item) => catalogName(item.name, item.nameUk, lang)).filter(Boolean);
   const sizes = (product.sizes ?? []).map((item) => catalogName(item.name, item.nameUk, lang)).filter(Boolean);
   const hardware = (product.furnitureColors ?? []).map((item) => catalogName(item.name, item.nameUk, lang)).filter(Boolean);
@@ -654,7 +662,7 @@ function productContent(product, lang, extras) {
 
   return contentBlock(
     `<h1>${escapeHtml(name)}</h1>` +
-      paragraphsOf(product.description).map(para).join("") +
+      paragraphsOf(productDescription(product, lang)).map(para).join("") +
       list(facts) +
       (details.length ? `<h2>${escapeHtml(w.details)}</h2>${list(details.map(escapeHtml))}` : "") +
       (guaranteeText ? `<h2>${escapeHtml(guaranteeTitle)}</h2>${para(guaranteeText)}` : "") +
@@ -664,22 +672,22 @@ function productContent(product, lang, extras) {
 
 function productLd(product, lang, canonical) {
   const color = defaultColorOf(product);
-  const material = cleanText(product.material) || cleanText(product.subtitle);
+  const material = productMaterial(product, lang) || cleanText(product.subtitle);
   const images = [...new Set([product.primaryImage?.src, ...(product.images ?? []).map((image) => image?.src)].filter(Boolean))]
     .slice(0, 6)
     .map((src) => toAbsoluteImageUrl(src, undefined));
   const colors = (product.colors ?? []).map((item) => catalogName(item.name, item.nameUk, lang)).filter(Boolean);
-  const description = cleanText(product.description);
+  const description = cleanText(productDescription(product, lang));
   return {
     "@context": "https://schema.org",
     "@type": "Product",
-    name: cleanText(product.name),
+    name: productName(product, lang),
     sku: product.productCode,
     ...(images.length ? { image: images } : {}),
     ...(description ? { description } : {}),
     ...(material ? { material } : {}),
     ...(colors.length ? { color: colors.join(", ") } : {}),
-    ...(cleanText(product.categoryName) ? { category: cleanText(product.categoryName) } : {}),
+    ...(productCategory(product, lang) ? { category: productCategory(product, lang) } : {}),
     brand: { "@type": "Brand", name: SITE_NAME },
     offers: {
       "@type": "Offer",
@@ -908,7 +916,7 @@ async function describePage(route, reqUrl) {
 
       const pieceId = new URL(reqUrl, "http://placeholder").searchParams.get("piece");
       const piece = pieceId ? await fetchProduct(pieceId) : null;
-      const name = cleanText(piece?.name) || (material ? localized(material.name, lang) : "");
+      const name = (piece ? productName(piece, lang) : "") || (material ? localized(material.name, lang) : "");
       const title = name ? CARE_TITLES[lang].guide(name) : CARE_TITLES[lang].landing;
       const suffix = `/pages/care/${encodeURIComponent(route.slug)}`;
       return {
@@ -932,7 +940,7 @@ async function describePage(route, reqUrl) {
         return { status: 200, lang, title: DEFAULT_TITLE, description: seo.home.description, noindex: true };
       }
       const product = result.product;
-      const name = cleanText(product.name);
+      const name = productName(product, lang);
       const suffix = `/product/${encodeURIComponent(product.productCode)}`;
       const canonical = `${SITE_ORIGIN}${pagePath(lang, suffix)}`;
       const [care, guarantee] = await Promise.all([careMaterials(), getSetting(PRODUCT_GUARANTEE_KEY)]);
@@ -941,7 +949,7 @@ async function describePage(route, reqUrl) {
         status: 200,
         lang,
         title: withSiteName(name),
-        description: cleanText(product.description),
+        description: cleanText(productDescription(product, lang)),
         imageUrl: product.shareImageUrl || toAbsoluteImageUrl(product.primaryImage?.src, undefined),
         suffix,
         ogType: "product",
@@ -967,7 +975,7 @@ async function careContent(kind, lang) {
       const pieces = (material.pieceProductIds ?? [])
         .map((id) => byCode.get(id))
         .filter(Boolean)
-        .map((product) => link(lang, `/product/${encodeURIComponent(product.productCode)}`, cleanText(product.name)));
+        .map((product) => link(lang, `/product/${encodeURIComponent(product.productCode)}`, productName(product, lang)));
       return `${link(lang, `/pages/care/${encodeURIComponent(material.slug)}`, name)}${para(localized(material.intro, lang))}${pieces.length ? `${escapeHtml(w.pieces)}: ${pieces.join(", ")}` : ""}`;
     });
     return contentBlock(
@@ -1113,8 +1121,8 @@ async function buildLlms() {
     "",
   ];
   for (const product of products ?? []) {
-    const material = cleanText(product.material);
-    lines.push(`- [${cleanText(product.name)}](${url(`/product/${encodeURIComponent(product.productCode)}`)}): ${priceOf(product, defaultColorOf(product), false)} UAH${material ? `, ${material}` : ""}`);
+    const material = productMaterial(product, "en");
+    lines.push(`- [${productName(product, "en")}](${url(`/product/${encodeURIComponent(product.productCode)}`)}): ${priceOf(product, defaultColorOf(product), false)} UAH${material ? `, ${material}` : ""}`);
   }
   lines.push(`- [All products](${url("/collection")})`, "", "## Care guides", "");
   lines.push(`- [Yarné Care](${url("/pages/care")}): step-by-step care for each material`);
@@ -1162,6 +1170,21 @@ function sendText(res, body, type) {
   res.end(body);
 }
 
+// A product has one address, /{lang}/product/{productCode}. The numeric id still opens it, but is sent on there
+// (a permanent redirect, query string kept). Unknown ids stay a 404 and an unreachable API serves the page as before.
+async function numericProductRedirect(pathname, search) {
+  const segments = pathname.split("/").filter(Boolean);
+  if (!LOCALES.includes(segments[0])) return null;
+  const route = resolveRoute(pathname);
+  if (route.kind !== "product" || !/^\d+$/.test(route.id)) return null;
+  const result = await getProduct(route.id);
+  if (result.status !== "ok") return null;
+  const code = String(result.product.productCode ?? "");
+  // A code made only of digits would itself be read as an id, so it cannot be a redirect target.
+  if (!code || code === route.id || /^d+$/.test(code)) return null;
+  return `${pagePath(route.lang, `/product/${encodeURIComponent(code)}`)}${search}`;
+}
+
 const server = createServer(async (req, res) => {
   try {
     const url = new URL(req.url, "http://placeholder");
@@ -1185,6 +1208,14 @@ const server = createServer(async (req, res) => {
     // Any path with a file extension is a static asset (js/css/images/...).
     if (extname(pathname)) {
       await serveStaticFile(req, res, pathname);
+      return;
+    }
+
+    const redirectTo = await numericProductRedirect(pathname, url.search);
+    if (redirectTo) {
+      applyCommonHeaders(res);
+      res.writeHead(301, { Location: redirectTo, "Cache-Control": "public, max-age=300" });
+      res.end();
       return;
     }
 

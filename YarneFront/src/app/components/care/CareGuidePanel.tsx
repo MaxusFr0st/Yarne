@@ -284,7 +284,7 @@ export function CareGuidePanel({ material, topic, pieces, piece, onClose, onTopi
           )}
           <div
             className="flex items-center justify-between gap-4 pt-2 pr-4 pb-2 pl-6 md:h-[72px] md:py-0 md:pr-6 md:pl-10 md:border-b md:border-[#2D241E]/10">
-            <p className={`${EYEBROW} text-[11px] md:text-xs text-[#4A0E0E]`}>
+            <p className={`${EYEBROW} text-[0.72rem] md:text-xs text-[#4A0E0E]`}>
               {t("care.panel.eyebrow", { material: materialName, topic: careText(topic.title, locale) })}
             </p>
             <button
@@ -311,7 +311,7 @@ export function CareGuidePanel({ material, topic, pieces, piece, onClose, onTopi
               <div className="px-4 py-3.5 md:px-5 md:py-[18px] rounded-[14px] flex gap-3 md:gap-3.5" style={{ backgroundColor: "rgba(155,107,46,0.1)" }}>
                 <TriangleAlert size={narrow ? 18 : 20} strokeWidth={1.75} className="shrink-0 mt-px text-[#9B6B2E]" aria-hidden />
                 <div className="flex flex-col gap-1">
-                  <p className={`${LABEL} font-semibold text-[10.5px] md:text-[11.5px] text-[#75482E]`}>{t("care.panel.beforeYouStart")}</p>
+                  <p className={`${LABEL} font-semibold text-[0.72rem] md:text-[11.5px] text-[#75482E]`}>{t("care.panel.beforeYouStart")}</p>
                   <p className="text-[13.5px] md:text-sm leading-[1.55] md:leading-[1.6]">{warning}</p>
                 </div>
               </div>
@@ -321,7 +321,7 @@ export function CareGuidePanel({ material, topic, pieces, piece, onClose, onTopi
               <div className="px-4 py-3.5 md:px-5 md:py-[18px] rounded-[14px] flex gap-3 md:gap-3.5" style={{ backgroundColor: "rgba(74,14,14,0.08)" }}>
                 <ShoppingBag size={narrow ? 18 : 20} strokeWidth={1.75} className="shrink-0 mt-px text-[#4A0E0E]" aria-hidden />
                 <div className="flex flex-col gap-1">
-                  <p className={`${LABEL} font-semibold text-[10.5px] md:text-[11.5px] text-[#4A0E0E]`}>
+                  <p className={`${LABEL} font-semibold text-[0.72rem] md:text-[11.5px] text-[#4A0E0E]`}>
                     {t("care.panel.onlyFor", { piece: piece.name })}
                   </p>
                   <p className="text-[13.5px] md:text-sm leading-[1.55] md:leading-[1.6]">{note}</p>
@@ -335,7 +335,7 @@ export function CareGuidePanel({ material, topic, pieces, piece, onClose, onTopi
 
             {need.length > 0 && (
               <div className="flex flex-wrap gap-1.5 md:gap-2 items-center">
-                <p className={`${LABEL} text-[10.5px] md:text-[11.5px] text-[#2D241E]/72 mr-1`}>{t("care.panel.youllNeed")}</p>
+                <p className={`${LABEL} text-[0.72rem] md:text-[11.5px] text-[#2D241E]/72 mr-1`}>{t("care.panel.youllNeed")}</p>
                 {need.map((item, i) => (
                   <span key={i} className="px-3 py-1.5 md:px-[13px] md:py-[7px] rounded-full border border-[#2D241E]/20 text-[12.5px] md:text-[13px]">
                     {item}
@@ -378,7 +378,7 @@ export function CareGuidePanel({ material, topic, pieces, piece, onClose, onTopi
               <button
                 type="button"
                 onClick={() => onTopic(previous.id)}
-                className={`h-12 md:h-11 px-3 md:pl-3.5 md:pr-5 inline-flex items-center justify-center gap-2 rounded-full border border-[#2D241E]/20 ${LABEL} text-[11px] md:text-[11.5px] cursor-pointer hover:bg-[#2D241E]/5 transition-colors ${FOCUS_RING}`}
+                className={`h-12 md:h-11 px-3 md:pl-3.5 md:pr-5 inline-flex items-center justify-center gap-2 rounded-full border border-[#2D241E]/20 ${LABEL} text-[0.72rem] md:text-[11.5px] cursor-pointer hover:bg-[#2D241E]/5 transition-colors ${FOCUS_RING}`}
               >
                 {narrow ? <ArrowLeft size={14} strokeWidth={1.5} aria-hidden /> : <ChevronLeft size={14} strokeWidth={1.5} aria-hidden />}
                 <span className="truncate">{careText(previous.title, locale)}</span>
@@ -386,7 +386,7 @@ export function CareGuidePanel({ material, topic, pieces, piece, onClose, onTopi
               <button
                 type="button"
                 onClick={() => onTopic(next.id)}
-                className={`h-12 md:h-11 px-3 md:pl-5 md:pr-3.5 inline-flex items-center justify-center gap-2 rounded-full bg-[#2D241E] text-[#F5F2ED] ${LABEL} text-[11px] md:text-[11.5px] cursor-pointer hover:opacity-90 transition-opacity ${FOCUS_RING}`}
+                className={`h-12 md:h-11 px-3 md:pl-5 md:pr-3.5 inline-flex items-center justify-center gap-2 rounded-full bg-[#2D241E] text-[#F5F2ED] ${LABEL} text-[0.72rem] md:text-[11.5px] cursor-pointer hover:opacity-90 transition-opacity ${FOCUS_RING}`}
               >
                 <span className="truncate">{careText(next.title, locale)}</span>
                 {narrow ? <ArrowRight size={14} strokeWidth={1.5} aria-hidden /> : <ChevronRight size={14} strokeWidth={1.5} aria-hidden />}

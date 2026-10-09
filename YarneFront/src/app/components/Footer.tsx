@@ -25,7 +25,7 @@ function TikTokIcon({ size = 18 }: { size?: number }) {
 }
 
 const linkClassName =
-  "text-[#2D241E]/55 hover:text-[#4A0E0E] transition-colors duration-300 text-sm";
+  "text-[#2D241E]/[0.68] hover:text-[#4A0E0E] transition-colors duration-300 text-sm";
 
 export function Footer() {
   const { t } = useTranslation();
@@ -86,7 +86,7 @@ export function Footer() {
         <div className="flex flex-col items-center text-center mb-16">
           <Logo title="Yarné" className="h-10 w-auto mb-4 text-[#2D241E] opacity-80" />
           <p
-            className="text-[#2D241E]/40 max-w-xs"
+            className="text-[#2D241E]/[0.68] max-w-xs"
             style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "1rem", fontStyle: "italic" }}
           >
             {t("footer.tagline")}
@@ -135,7 +135,7 @@ export function Footer() {
 
         <div className="flex flex-col md:flex-row items-center justify-between gap-4 pt-8 border-t border-[#2D241E]/8">
           <p
-            className="text-[#2D241E]/35 text-xs"
+            className="text-[#2D241E]/[0.68] text-xs"
             style={{ fontFamily: "'DM Sans', sans-serif" }}
           >
             {t("footer.rights", { year: new Date().getFullYear() })}
@@ -145,7 +145,7 @@ export function Footer() {
               href={INSTAGRAM_URL}
               target="_blank"
               rel="noopener noreferrer"
-              className="text-[#2D241E]/40 hover:text-[#4A0E0E] transition-colors cursor-pointer"
+              className="text-[#2D241E]/[0.68] hover:text-[#4A0E0E] transition-colors cursor-pointer"
               aria-label="Instagram"
             >
               <Instagram size={18} strokeWidth={1.5} />
@@ -154,7 +154,7 @@ export function Footer() {
               href={TIKTOK_URL}
               target="_blank"
               rel="noopener noreferrer"
-              className="text-[#2D241E]/40 hover:text-[#4A0E0E] transition-colors cursor-pointer"
+              className="text-[#2D241E]/[0.68] hover:text-[#4A0E0E] transition-colors cursor-pointer"
               aria-label="TikTok"
             >
               <TikTokIcon size={18} />

@@ -101,7 +101,7 @@ const uk: Translations = {
     colour: "Колір",
     furniture: "Фурнітура",
     size: "Розмір",
-    sizeGuide: "Розмірна сітка",
+    sizeGuide: "Розміри виробу",
     selectSize: "Оберіть розмір, щоб продовжити.",
     addToBag: "Додати до кошика",
     addedToBag: "Додано до кошика",
@@ -292,17 +292,6 @@ const uk: Translations = {
     tabs: {
       allPieces: "Усі речі",
     },
-    sort: {
-      featured: "Рекомендовані",
-      priceLowToHigh: "Ціна: від нижчої до вищої",
-      priceHighToLow: "Ціна: від вищої до нижчої",
-      newest: "Новинки",
-    },
-    availability: {
-      allItems: "Усі товари",
-      newOnly: "Лише новинки",
-      bestsellers: "Бестселери",
-    },
     header: {
       newArrivalsEyebrow: "Нові надходження",
       collectionEyebrow: "Колекція",
@@ -315,13 +304,42 @@ const uk: Translations = {
       pieceCount_many: "{{count}} моделей — ручної роботи, на замовлення",
       pieceCount_other: "{{count}} моделі — створені з найкращих натуральних волокон світу",
     },
-    filter: {
-      button: "Фільтр",
-      priceRange: "Діапазон ціни",
-      availability: "Наявність",
-      close: "Закрити",
-    },
     empty: "У цій добірці товарів не знайдено.",
+  },
+  // Round nine, agent B: live search, size panel, delivery note.
+  searchPanel: {
+    browseAll: "Переглянути всю колекцію →",
+    found: "Знайдено: {{count}}",
+    showAll: "Показати всі ({{count}})",
+    noResultsTitle: "Нічого не знайдено за «{{term}}»",
+    noResultsHint: "Спробуйте іншу назву, колір або матеріал.",
+    goToCollection: "Перейти до всієї колекції",
+    colour: "Колір: {{value}}",
+    material: "Матеріал: {{value}}",
+    resultsLabel: "Результати пошуку",
+    collectionResultsFor: "Результати для «{{term}}»",
+    collectionClear: "Очистити",
+    collectionEmptyTitle: "Нічого не знайдено",
+    collectionShowAll: "Показати всю колекцію",
+  },
+  sizePanel: {
+    title: "Розміри виробу",
+    sizeSwitch: "Розмір",
+    photoAlt: "Фото з розмірами",
+    width: "Ширина",
+    height: "Висота",
+    depth: "Глибина",
+    handle: "Ручка",
+    cm: "{{value}} см",
+    note: "Ручна робота: розміри можуть відрізнятися на 1–2 см.",
+    close: "Закрити",
+  },
+  mobileMenu: {
+    label: "Меню",
+  },
+  deliveryNote: {
+    text: "На замовлення, відправка до 5 робочих днів · ",
+    link: "Доставка, оплата й повернення",
   },
   account: {
     guest: {

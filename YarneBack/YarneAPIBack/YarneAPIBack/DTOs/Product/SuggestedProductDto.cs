@@ -6,6 +6,8 @@ public class SuggestedProductDto
 
     public string Name { get; set; } = null!;
 
+    public string? NameEn { get; set; }
+
     public decimal Price { get; set; }
 
     public decimal? EurPrice { get; set; }
@@ -13,6 +15,8 @@ public class SuggestedProductDto
     public ProductImageDto? PrimaryImage { get; set; }
 
     public string CategoryName { get; set; } = null!;
+
+    public string? CategoryNameEn { get; set; }
 
     public bool IsNew { get; set; }
 

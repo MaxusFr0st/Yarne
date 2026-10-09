@@ -225,6 +225,10 @@ public class OrdersController : ControllerBase
         if (request.Items == null || request.Items.Count == 0)
             return BadRequest(new { message = "Order must include at least one item." });
 
+        var clientRequestId = NormalizeClientRequestId(request.ClientRequestId, out var clientRequestIdError);
+        if (clientRequestIdError != null)
+            return BadRequest(new { message = clientRequestIdError });
+
         var customerId = GetCurrentCustomerId();
         Customer? customer = null;
         string? guestEmail = null;
@@ -240,6 +244,14 @@ public class OrdersController : ControllerBase
             guestEmail = request.Email?.Trim();
             if (string.IsNullOrWhiteSpace(guestEmail))
                 return BadRequest(new { message = "Email is required to place an order." });
+        }
+
+        // A retry of an order that already went through: hand back that order, create nothing, send nothing.
+        if (clientRequestId != null)
+        {
+            var already = await FindOrderByClientRequestIdAsync(clientRequestId, customerId, guestEmail, ct);
+            if (already.Found)
+                return already.Result!;
         }
 
         var contactPhone = NormalizePhone(request.PhoneNumber);
@@ -435,6 +447,7 @@ public class OrdersController : ControllerBase
             CurrencyCode = "UAH",
             ExchangeRateToBase = 1m,
             Locale = NormalizeLocale(request.Locale),
+            ClientRequestId = clientRequestId,
             Status = "Pending",
             TotalCents = orderTotalCents,
             OrderDate = now,
@@ -460,6 +473,14 @@ public class OrdersController : ControllerBase
             }
             catch (DbUpdateException)
             {
+                // Two presses of Place order at once: the unique index let the first through, so this one returns that order.
+                if (clientRequestId != null)
+                {
+                    var raced = await FindOrderByClientRequestIdAsync(clientRequestId, customerId, guestEmail, ct);
+                    if (raced.Found)
+                        return raced.Result!;
+                }
+
                 if (attempt >= 6 || !await OrderPublicIdentifiers.IsNumberTakenAsync(_context, order.OrderNumber, ct))
                     throw;
 
@@ -484,6 +505,45 @@ public class OrdersController : ControllerBase
         }
 
         return StatusCode(StatusCodes.Status201Created, MapOrder(createdOrder));
+    }
+
+    /// <summary>Null when absent; 16 to 64 characters of A-Z a-z 0-9 _ - otherwise, or an error.</summary>
+    internal static string? NormalizeClientRequestId(string? raw, out string? error)
+    {
+        error = null;
+        if (raw == null)
+            return null;
+
+        var id = raw.Trim();
+        if (id.Length is < 16 or > 64 || !id.All(c => c is (>= 'A' and <= 'Z') or (>= 'a' and <= 'z') or (>= '0' and <= '9') or '_' or '-'))
+        {
+            error = "clientRequestId must be 16 to 64 letters, digits, underscores or hyphens.";
+            return null;
+        }
+
+        return id;
+    }
+
+    /// <summary>
+    /// The order a retried POST already created. Only the full random id counts (never a prefix, never the
+    /// query string), and it is only returned to the same account, or for a guest to the same email, so the id
+    /// cannot be used to read someone else's order. The reply is exactly the one the creator got the first time.
+    /// </summary>
+    private async Task<(bool Found, ActionResult<OrderDto>? Result)> FindOrderByClientRequestIdAsync(
+        string clientRequestId, int? customerId, string? guestEmail, CancellationToken ct)
+    {
+        var existing = await BuildOrderQuery().FirstOrDefaultAsync(o => o.ClientRequestId == clientRequestId, ct);
+        if (existing == null)
+            return (false, null);
+
+        var sameOwner = customerId != null
+            ? existing.CustomerId == customerId
+            : existing.CustomerId == null
+                && string.Equals(existing.GuestEmail, guestEmail, StringComparison.OrdinalIgnoreCase);
+        if (!sameOwner)
+            return (true, BadRequest(new { message = "This order request id is already in use." }));
+
+        return (true, StatusCode(StatusCodes.Status201Created, MapOrder(existing)));
     }
 
     [HttpPatch("{id:int}/status")]

@@ -14,7 +14,7 @@ export function CareWorkshopBand() {
     { title: t("care.landing.band.washTitle"), text: t("care.landing.band.washText") },
     { title: t("care.landing.band.returnsTitle"), text: t("care.landing.band.returnsText") },
   ];
-  const termsLink = `${LABEL} text-[11px] md:text-[11.5px] text-[#F5F2ED] underline underline-offset-4 hover:opacity-80 rounded-sm ${FOCUS_RING_ON_INK}`;
+  const termsLink = `${LABEL} text-[0.72rem] md:text-[11.5px] text-[#F5F2ED] underline underline-offset-4 hover:opacity-80 rounded-sm ${FOCUS_RING_ON_INK}`;
 
   return (
     <ScrollReveal className="mx-4 md:mx-10">
@@ -23,7 +23,7 @@ export function CareWorkshopBand() {
         style={{ backgroundColor: "#2D241E", color: "#F5F2ED", ...SANS }}
       >
         <div className="flex flex-col gap-3.5 md:col-span-3 lg:col-span-1 md:items-start">
-          <p className={`${EYEBROW} text-[11px] md:text-xs opacity-[0.72]`}>{t("care.landing.band.eyebrow")}</p>
+          <p className={`${EYEBROW} text-[0.72rem] md:text-xs opacity-[0.72]`}>{t("care.landing.band.eyebrow")}</p>
           <h2 className="font-normal text-[28px] md:text-[32px] leading-[1.12]" style={SERIF}>
             {t("care.landing.band.title")}
           </h2>

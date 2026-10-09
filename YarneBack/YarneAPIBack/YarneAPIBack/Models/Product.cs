@@ -14,6 +14,16 @@ public partial class Product
 
     public string? Description { get; set; }
 
+    /// <summary>English texts, written by the owner. Null/empty = the storefront shows the Ukrainian text.</summary>
+    public string? NameEn { get; set; }
+
+    public string? DescriptionEn { get; set; }
+
+    public string? MaterialEn { get; set; }
+
+    /// <summary>One plain photo for the storefront size panel (public storage, same as other product photos).</summary>
+    public string? SizePhotoUrl { get; set; }
+
     public decimal Price { get; set; }
 
     /// <summary>Manually-entered EUR price, shown on the storefront when the shopper is browsing in English. Null = no EUR price set yet.</summary>

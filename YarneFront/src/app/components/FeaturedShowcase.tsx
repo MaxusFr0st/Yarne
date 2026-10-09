@@ -8,6 +8,7 @@ import { ImageWithFallback as Img } from "./figma/ImageWithFallback";
 import { LangLink } from "../i18n/LangLink";
 import { useLocale } from "../i18n/useLocale";
 import { PriceTag } from "./PriceTag";
+import { productName } from "../utils/productText";
 import { resolveMediaUrl } from "../utils/storefrontMedia";
 import { useHomePageCopyAll } from "../hooks/useHomePageCopy";
 import { fetchProducts } from "../api/products";
@@ -51,7 +52,7 @@ function ProductTile({ slot, product, fallbackTitle, variant, priority = false }
   const touch = useTouchMobileLayout();
   // A tile linked to a product shows nothing until that product has loaded, never a built-in
   // name that gets swapped for the real one. The built-in name is only for an unconfigured tile.
-  const title = product?.name ?? (slot.productCode ? "" : fallbackTitle);
+  const title = product ? productName(product, locale) : (slot.productCode ? "" : fallbackTitle);
   const price = product?.price;
   const eurPrice = product?.eurPrice;
   const targetImageSrc = useMemo(
@@ -167,7 +168,7 @@ function ProductTile({ slot, product, fallbackTitle, variant, priority = false }
             style={{
               fontFamily: "'DM Sans', sans-serif",
               letterSpacing: "0.2em",
-              fontSize: "clamp(0.48rem, 2vw, 0.68rem)",
+              fontSize: "clamp(0.72rem, 2vw, 0.72rem)",
             }}
           >
             {eyebrow}
@@ -213,7 +214,7 @@ function ProductTile({ slot, product, fallbackTitle, variant, priority = false }
             className="lg:hidden mt-[clamp(6px,1.6vw,10px)] self-start inline-flex items-center justify-center rounded-full uppercase tracking-widest text-[#2D241E]"
             style={{
               fontFamily: "'DM Sans', sans-serif",
-              fontSize: "clamp(0.54rem, 2.2vw, 0.78rem)",
+              fontSize: "clamp(0.72rem, 2.2vw, 0.78rem)",
               letterSpacing: "0.14em",
               backgroundColor: "rgba(245,242,237,0.94)",
               padding: "clamp(6px, 1.6vw, 11px) clamp(12px, 3.2vw, 22px)",
@@ -272,7 +273,7 @@ function TextTile({ slot }: TextTileProps) {
               style={{
                 fontFamily: "'DM Sans', sans-serif",
                 letterSpacing: "0.18em",
-                fontSize: "clamp(0.48rem, 2vw, 0.72rem)",
+                fontSize: "clamp(0.72rem, 2vw, 0.72rem)",
               }}
             >
               {eyebrow}
@@ -299,7 +300,7 @@ function TextTile({ slot }: TextTileProps) {
             className="inline-flex items-center gap-1 text-white/85 group-hover:text-white transition-colors duration-300 mt-2 md:mt-6"
             style={{
               fontFamily: "'DM Sans', sans-serif",
-              fontSize: "clamp(0.62rem, 2.4vw, 0.95rem)",
+              fontSize: "clamp(0.72rem, 2.4vw, 0.95rem)",
               letterSpacing: "0.04em",
             }}
           >
@@ -484,11 +485,11 @@ export function FeaturedShowcase() {
   const sectionHeader = (
     <>
       <p
-        className="text-[#2D241E]/40 uppercase mb-[clamp(4px,1vw,8px)]"
+        className="text-[#2D241E]/[0.68] uppercase mb-[clamp(4px,1vw,8px)]"
         style={{
           fontFamily: "'DM Sans', sans-serif",
           letterSpacing: "0.2em",
-          fontSize: "clamp(0.52rem, 2.2vw, 0.75rem)",
+          fontSize: "clamp(0.72rem, 2.2vw, 0.75rem)",
         }}
       >
         {eyebrow}
