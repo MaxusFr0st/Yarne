@@ -302,7 +302,9 @@ function ProductCardInner({
       viewport={motionDisabled ? undefined : (useCarouselViewport || !inCarousel ? viewport : undefined)}
       transition={{
         duration: touchMobile ? 0.72 : 0.5,
-        delay: inCarousel || touchMobile ? 0 : index * 0.08,
+        // A cascade across the row, not down the whole list: by absolute position the ninth
+        // card waited two thirds of a second after scrolling into view before it began to appear.
+        delay: inCarousel || touchMobile ? 0 : (index % 3) * 0.08 + (index < 6 ? Math.floor(index / 3) * 0.12 : 0),
         ease: [0.25, 0.1, 0.25, 1],
       }}
       className={`group/card ${isCarouselCard ? "overflow-visible" : ""}`}

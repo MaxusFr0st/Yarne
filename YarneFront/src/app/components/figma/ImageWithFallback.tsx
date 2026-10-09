@@ -1,6 +1,6 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { resolveMediaUrl } from "../../utils/storefrontMedia";
-import { isPhotoLoaded, markPhotoLoaded } from "../../utils/photoQueue";
+import { isDesktop, isPhotoLoaded, markPhotoLoaded } from "../../utils/photoQueue";
 import { drawSnapshot, hasSnapshot, snapshotPhoto } from "../../utils/photoSnapshots";
 
 const ERROR_IMG_SRC =
@@ -117,8 +117,14 @@ export function ImageWithFallback({ priority, focal, fadeIn = false, poster = fa
 
   const imgLoading: React.ImgHTMLAttributes<HTMLImageElement>["loading"] =
     loading ?? (priority ? "eager" : "lazy");
+  // "async" lets the browser paint the page first and the photo a frame or more later. For a
+  // photo still downloading that is right. For one this visit already has, on a page the visitor
+  // came back to, it is the empty tile that flashes before the photo "reloads" whenever there is
+  // no ready-to-draw copy to cover it (a product opened before the copies were made). "sync"
+  // makes a computer paint such a photo in the same frame as the page around it. Phones keep
+  // "async" and the copy: unpacking a full-size photo there is slow enough to stall the page.
   const imgDecoding: React.ImgHTMLAttributes<HTMLImageElement>["decoding"] =
-    decoding ?? (priority ? "auto" : "async");
+    decoding ?? (priority ? "auto" : isPhotoLoaded(resolvedSrc) && isDesktop() ? "sync" : "async");
 
   const focalPosition = focal
     ? `${(focal.x * 100).toFixed(1)}% ${(focal.y * 100).toFixed(1)}%`

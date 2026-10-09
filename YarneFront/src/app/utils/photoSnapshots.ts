@@ -19,6 +19,8 @@ const MAX_WIDTH = 800;
 const MAX_DENSITY = 2;
 const FIRST_DELAY_MS = 300;
 const GAP_MS = 80;
+/** decode() may never settle (a photo taken off the page mid-way); the queue must move on. */
+const DECODE_CAP_MS = 1500;
 
 /** Insertion order is least recently used first. */
 const shots = new Map<string, HTMLCanvasElement>();
@@ -57,8 +59,10 @@ async function work(): Promise<void> {
     try {
       // Unpacked already if the photo is on screen; otherwise this does it off the main thread,
       // so the draw below is only a resize.
-      if (typeof img.decode === "function") await img.decode();
-      if (img.naturalWidth > 0) {
+      if (typeof img.decode === "function") {
+        await Promise.race([img.decode(), new Promise((resolve) => window.setTimeout(resolve, DECODE_CAP_MS))]);
+      }
+      if (img.complete && img.naturalWidth > 0) {
         const canvas = document.createElement("canvas");
         canvas.width = width;
         canvas.height = Math.max(1, Math.round((width * img.naturalHeight) / img.naturalWidth));
