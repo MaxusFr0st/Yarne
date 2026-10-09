@@ -1,3 +1,4 @@
+using System.Net;
 using System.Threading.RateLimiting;
 
 namespace YarneAPIBack.Configuration;
@@ -11,6 +12,21 @@ namespace YarneAPIBack.Configuration;
 /// </summary>
 public static class RateLimits
 {
+    /// <summary>
+    /// Whose counter a request falls under. Behind Railway the edge states the visitor's address in
+    /// X-Real-IP; X-Forwarded-For arrives as the visitor sent it, so a made-up value there gave
+    /// every request a counter of its own and no limit ever applied. If a caller sends its own
+    /// X-Real-IP as well, the edge's copy is the last one.
+    /// </summary>
+    public static string ClientKey(HttpContext context)
+    {
+        var stated = context.Request.Headers["X-Real-IP"];
+        var last = stated.Count > 0 ? stated[^1]?.Split(',')[^1].Trim() : null;
+        if (!string.IsNullOrEmpty(last) && IPAddress.TryParse(last, out var address))
+            return address.ToString();
+        return context.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+    }
+
     /// <summary>Slices of about ten seconds for a short window, and never more than ten.</summary>
     public static int SegmentsFor(TimeSpan window) =>
         (int)Math.Clamp(Math.Round(window.TotalSeconds / 10), 2, 10);

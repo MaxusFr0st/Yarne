@@ -123,42 +123,42 @@ builder.Services.AddRateLimiter(options =>
         if (context.Request.Path.StartsWithSegments("/healthz"))
             return RateLimitPartition.GetNoLimiter("healthz");
 
-        var key = context.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+        var key = RateLimits.ClientKey(context);
         return RateLimits.SlidingWindow(key, 120, TimeSpan.FromMinutes(1));
     });
     // The public order status page: a token is unguessable, but a limit still stops anyone hammering the lookup.
     options.AddPolicy("order-status", context =>
     {
-        var key = context.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+        var key = RateLimits.ClientKey(context);
         return RateLimits.SlidingWindow(key, 30, TimeSpan.FromMinutes(1));
     });
     // Receipt uploads are heavy: a few a minute is plenty for a customer.
     options.AddPolicy("order-receipt", context =>
     {
-        var key = context.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+        var key = RateLimits.ClientKey(context);
         return RateLimits.SlidingWindow(key, 5, TimeSpan.FromMinutes(1));
     });
     // Reset emails cost money and fill inboxes: a few asks per IP, on top of the per-account limit in PasswordResetService.
     options.AddPolicy("auth-forgot", context =>
     {
-        var key = context.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+        var key = RateLimits.ClientKey(context);
         return RateLimits.SlidingWindow(key, 5, TimeSpan.FromMinutes(10));
     });
     options.AddPolicy("auth-reset", context =>
     {
-        var key = context.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+        var key = RateLimits.ClientKey(context);
         return RateLimits.SlidingWindow(key, 10, TimeSpan.FromMinutes(10));
     });
     // Placing an order: a customer needs a handful of tries at most (a retry with the same clientRequestId counts too).
     // Not tighter than this: mobile carriers put many customers behind one address.
     options.AddPolicy("order-create", context =>
     {
-        var key = context.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+        var key = RateLimits.ClientKey(context);
         return RateLimits.SlidingWindow(key, 15, TimeSpan.FromMinutes(10));
     });
     options.AddPolicy("auth-login", context =>
     {
-        var key = context.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+        var key = RateLimits.ClientKey(context);
         return RateLimits.SlidingWindow(key, 8, TimeSpan.FromMinutes(1));
     });
 });
