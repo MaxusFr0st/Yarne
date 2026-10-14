@@ -27,6 +27,7 @@ import { clearScrollForRoute } from "../utils/scrollRestoration";
 import { localizedCatalogName } from "../utils/localizedName";
 import { productDescription, productName } from "../utils/productText";
 import { CategoryLink } from "../components/CategoryLink";
+import { ProductPageSkeleton } from "../components/ProductPageSkeleton";
 import { productSubtitle } from "../utils/productSubtitle";
 import { SizePanel, hasSizeMeasurements } from "../components/SizePanel";
 import {
@@ -72,6 +73,18 @@ export function ProductDetail() {
   const [activeLace, setActiveLace] = useState(false);
   const [addedToBag, setAddedToBag] = useState(false);
   const [detailsOpen, setDetailsOpen] = useState(false);
+  const [photoZoomed, setPhotoZoomed] = useState(false);
+  const zoomRef = useRef<HTMLDivElement>(null);
+  /** Points the zoom at the mouse: set directly on the element, so moving the mouse never re-renders. */
+  const aimZoom = (event: React.MouseEvent<HTMLDivElement>) => {
+    const box = zoomRef.current;
+    if (!box) return;
+    // Measured on the photo frame, which never scales, so the point is the same zoomed or not.
+    const rect = (box.parentElement ?? box).getBoundingClientRect();
+    const x = ((event.clientX - rect.left) / rect.width) * 100;
+    const y = ((event.clientY - rect.top) / rect.height) * 100;
+    box.style.transformOrigin = `${Math.min(100, Math.max(0, x))}% ${Math.min(100, Math.max(0, y))}%`;
+  };
   // Whether an earlier page of this shop is behind this one in the tab's history. React Router counts
   // its own entries (idx); 0 means the visitor arrived here directly, from Instagram, Google or a link.
   const cameFromSite = useMemo(
@@ -298,7 +311,7 @@ export function ProductDetail() {
           narrowed to a loaded product. The flag version rendered exactly the same thing but told
           the type checker nothing, which is why the branch was littered with `product!`. */}
       {product === null ? (
-        <div className="min-h-[calc(var(--app-svh)*0.5)]" aria-busy="true" />
+        <ProductPageSkeleton />
       ) : (
         <>
       <MobileProductDetailView
@@ -380,12 +393,38 @@ export function ProductDetail() {
               style={{ boxShadow: "0 20px 44px -20px rgba(45,36,30,0.18)" }}
             >
               {images.length > 0 && (
-                <CrossfadeImage
-                  src={images[safeImageIndex].src}
-                  focal={{ x: images[safeImageIndex].focalX, y: images[safeImageIndex].focalY }}
-                  alt={`${productName(product!, locale)} – ${selectedColorLabel}`}
-                  priority
-                />
+                // Click to look closer: the photo zooms in place and follows the mouse; a second
+                // click or leaving the photo zooms back out.
+                <div
+                  ref={zoomRef}
+                  className={`absolute inset-0 ${photoZoomed ? "cursor-zoom-out" : "cursor-zoom-in"}`}
+                  onClick={(event) => {
+                    aimZoom(event);
+                    setPhotoZoomed((zoomed) => !zoomed);
+                  }}
+                  onMouseMove={(event) => { if (photoZoomed) aimZoom(event); }}
+                  onMouseLeave={() => setPhotoZoomed(false)}
+                  style={{
+                    transform: photoZoomed ? "scale(2)" : "scale(1)",
+                    transition: reduceMotion ? undefined : "transform 0.35s cubic-bezier(0.25, 0.1, 0.25, 1)",
+                  }}
+                >
+                  <CrossfadeImage
+                    src={images[safeImageIndex].src}
+                    focal={{ x: images[safeImageIndex].focalX, y: images[safeImageIndex].focalY }}
+                    alt={`${productName(product!, locale)} – ${selectedColorLabel}`}
+                    priority
+                  />
+                </div>
+              )}
+              {images.length > 0 && !photoZoomed && (
+                <span
+                  aria-hidden="true"
+                  className="pointer-events-none absolute bottom-4 right-4 rounded-full bg-white/90 px-3 py-1.5 text-[#2D241E] uppercase"
+                  style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "0.62rem", letterSpacing: "0.12em" }}
+                >
+                  ⤢ {t("product.zoomHint")}
+                </span>
               )}
 
               {/* Badges */}

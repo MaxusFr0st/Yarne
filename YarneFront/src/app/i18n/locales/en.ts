@@ -110,6 +110,8 @@ const en = {
     addToBag: "Add to Bag",
     addedToBag: "Added to Bag",
     detailsTitle: "Product Details",
+    closePhotos: "Close photos",
+    zoomHint: "Zoom",
     madeBy: "Made by {{name}}",
     guarantee: {
       title: "Quality Guarantee",

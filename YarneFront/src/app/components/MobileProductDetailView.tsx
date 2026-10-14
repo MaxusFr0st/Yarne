@@ -17,6 +17,7 @@ import { useTouchMobileLayout } from "../hooks/useTouchMobileLayout";
 import { localizedCatalogName } from "../utils/localizedName";
 import { productDescription, productName } from "../utils/productText";
 import { CategoryLink } from "./CategoryLink";
+import { PhotoViewer } from "./PhotoViewer";
 import { productSubtitle } from "../utils/productSubtitle";
 import { SizePanel, hasSizeMeasurements } from "./SizePanel";
 import { LangLink } from "../i18n/LangLink";
@@ -146,6 +147,11 @@ export function MobileProductDetailView({
     window.addEventListener("resize", onResize);
     return () => window.removeEventListener("resize", onResize);
   }, []);
+
+  // Which photo the full-screen viewer shows, or null when it is closed.
+  const [viewerIndex, setViewerIndex] = useState<number | null>(null);
+  const tapStart = useRef<{ x: number; y: number } | null>(null);
+  const galleryBoxRef = useRef<HTMLDivElement>(null);
 
   const [emblaRef, emblaApi] = useEmblaCarouselWithGestures({
     loop: canLoop,
@@ -326,12 +332,42 @@ export function MobileProductDetailView({
 
   return (
     <div className="md:hidden relative pt-[var(--main-header-h)]">
+      {viewerIndex !== null && (
+        <PhotoViewer
+          photos={galleryImages}
+          startIndex={viewerIndex}
+          alt={`${productName(product, locale)} – ${activeColorLabel}`}
+          // The gallery box on the page, cropped the way the gallery crops each photo.
+          getOrigin={(i) => {
+            const box = galleryBoxRef.current;
+            const photo = galleryImages[i];
+            if (!box || !photo) return null;
+            return { rect: box.getBoundingClientRect(), objectPosition: `${(photo.focalX ?? 0.5) * 100}% ${(photo.focalY ?? 0.5) * 100}%` };
+          }}
+          // Back on the photo the shopper ended on, without a slide, so the viewer shrinks onto it.
+          onBeforeClose={(i) => emblaApi?.scrollTo(i, true)}
+          onClose={() => setViewerIndex(null)}
+        />
+      )}
       {/* Gallery — sticks under the header while the info sheet below scrolls up over it */}
       <div
+        ref={galleryBoxRef}
         className="sticky z-0 w-full bg-[#EDE9E2] overflow-hidden"
         style={{ top: "var(--main-header-h)", height: imageBoxHeight }}
       >
-        <div ref={emblaRef} className="h-full overflow-hidden">
+        <div
+          ref={emblaRef}
+          className="h-full overflow-hidden"
+          // A tap, not the end of a swipe (the finger moved less than 8px), opens the photos over the whole screen.
+          onPointerDown={(event) => { tapStart.current = { x: event.clientX, y: event.clientY }; }}
+          onClick={(event) => {
+            const start = tapStart.current;
+            tapStart.current = null;
+            if (!start || !galleryImages.length) return;
+            if (Math.hypot(event.clientX - start.x, event.clientY - start.y) > 8) return;
+            setViewerIndex(safeGalleryIndex);
+          }}
+        >
           <div className="flex h-full [touch-action:pan-y_pinch-zoom]" style={touchMobile ? undefined : { willChange: "transform" }}>
             {gallerySlides.map((src, i) => (
               <div

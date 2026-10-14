@@ -154,7 +154,7 @@ export function Home() {
             <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 mt-8 md:mt-10 w-full max-w-lg">
               <LangLink
                 to="/collection"
-                className="flex items-center justify-center gap-2.5 w-full sm:w-auto px-7 py-3.5 rounded-full bg-[#F5F2ED] text-[#2D241E] hover:bg-white transition-colors duration-200 group cursor-pointer"
+                className="flex items-center justify-center gap-2.5 w-full sm:w-auto px-8 py-4 rounded-full bg-[#F5F2ED] text-[#2D241E] font-semibold shadow-[0_8px_24px_rgba(0,0,0,0.25)] hover:bg-white hover:-translate-y-px transition-[background-color,transform] duration-200 group cursor-pointer"
                 style={{ fontSize: "0.75rem", letterSpacing: "0.16em" }}
               >
                 <span className="uppercase tracking-widest">{heroCopy.ctaPrimary}</span>

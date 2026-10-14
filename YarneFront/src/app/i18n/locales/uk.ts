@@ -110,6 +110,8 @@ const uk: Translations = {
     addToBag: "Додати до кошика",
     addedToBag: "Додано до кошика",
     detailsTitle: "Деталі товару",
+    closePhotos: "Закрити фото",
+    zoomHint: "Збільшити",
     madeBy: "Виробник: {{name}}",
     guarantee: {
       title: "Гарантія якості",

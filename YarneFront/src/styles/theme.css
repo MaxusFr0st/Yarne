@@ -332,6 +332,11 @@
    of the fade into the first 40ms and then spent 160ms creeping from 0.97 to 1.0, so a nominal
    320ms entrance read as a flash. Opacity carries no sense of momentum; it wants a curve that
    spends its time on screen. */
+/* The phone photo viewer's background fading in under the photo as it grows (PhotoViewer.tsx). */
+@keyframes photo-viewer-in {
+  from { background-color: rgba(243, 239, 232, 0); }
+}
+
 @keyframes yarne-route-in {
   from { opacity: 0; }
   to   { opacity: 1; }
