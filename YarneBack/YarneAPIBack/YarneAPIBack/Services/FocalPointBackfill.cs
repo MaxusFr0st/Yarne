@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using SixLabors.ImageSharp;
+using YarneAPIBack.Configuration;
 using SixLabors.ImageSharp.PixelFormats;
 using YarneAPIBack.Data;
 
@@ -90,7 +91,7 @@ public static class FocalPointBackfill
         try
         {
             await using var stream = File.OpenRead(filePath);
-            using var image = await Image.LoadAsync<Rgba32>(stream, ct);
+            using var image = await Image.LoadAsync<Rgba32>(SafeImageDecoding.Options, stream, ct);
             var (fx, fy) = FocalPointDetector.Detect(image);
             return (true, fx, fy);
         }

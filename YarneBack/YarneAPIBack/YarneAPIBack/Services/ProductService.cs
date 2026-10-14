@@ -813,7 +813,7 @@ public class ProductService : IProductService
         try
         {
             using var stream = File.OpenRead(filePath);
-            using var image = Image.Load<Rgba32>(stream);
+            using var image = Image.Load<Rgba32>(SafeImageDecoding.Options, stream);
             return FocalPointDetector.Detect(image);
         }
         catch

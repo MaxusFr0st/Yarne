@@ -1,4 +1,5 @@
 using SixLabors.ImageSharp;
+using YarneAPIBack.Configuration;
 using SixLabors.ImageSharp.Formats.Jpeg;
 using SixLabors.ImageSharp.Formats.Webp;
 using SixLabors.ImageSharp.PixelFormats;
@@ -14,7 +15,7 @@ public sealed class ImageUploadNormalizer : IImageUploadNormalizer
 
     public async Task<NormalizedUploadImage> NormalizeAsync(Stream input, CancellationToken ct = default)
     {
-        using var image = await Image.LoadAsync<Rgba32>(input, ct);
+        using var image = await Image.LoadAsync<Rgba32>(SafeImageDecoding.Options, input, ct);
 
         // Animated GIFs: keep first frame only for product photos.
         if (image.Frames.Count > 1)
