@@ -25,7 +25,8 @@ import { dropPhotos, Priority, queuePhotos } from "../utils/photoQueue";
 import { productPagePhotos } from "../utils/productPhotos";
 import { clearScrollForRoute } from "../utils/scrollRestoration";
 import { localizedCatalogName } from "../utils/localizedName";
-import { productCategory, productDescription, productName } from "../utils/productText";
+import { productDescription, productName } from "../utils/productText";
+import { CategoryLink } from "../components/CategoryLink";
 import { productSubtitle } from "../utils/productSubtitle";
 import { SizePanel, hasSizeMeasurements } from "../components/SizePanel";
 import {
@@ -71,6 +72,13 @@ export function ProductDetail() {
   const [activeLace, setActiveLace] = useState(false);
   const [addedToBag, setAddedToBag] = useState(false);
   const [detailsOpen, setDetailsOpen] = useState(false);
+  // Whether an earlier page of this shop is behind this one in the tab's history. React Router counts
+  // its own entries (idx); 0 means the visitor arrived here directly, from Instagram, Google or a link.
+  const cameFromSite = useMemo(
+    () => typeof window !== "undefined" && Number(window.history.state?.idx ?? 0) > 0,
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [location.key],
+  );
   const [sizeError, setSizeError] = useState(false);
   const [sizePanelOpen, setSizePanelOpen] = useState(false);
   // Going back or forward to another product must not carry an open panel over to it.
@@ -308,7 +316,7 @@ export function ProductDetail() {
         laceEnabled={product!.lace === true}
         activeLace={activeLace}
         onLaceChange={handleLaceChange}
-        onBack={() => navigate(-1)}
+        onBack={cameFromSite ? () => navigate(-1) : undefined}
         onColorChange={handleColorChange}
         onFurnitureChange={handleFurnitureChange}
         onSizeChange={(size) => { setActiveSize(size); setSizeError(false); }}
@@ -320,10 +328,15 @@ export function ProductDetail() {
 
       {/* ── Desktop layout ── */}
       <div className="hidden md:block max-w-[1360px] mx-auto px-6 md:px-12 pt-[calc(var(--main-header-h)+16px)] pb-[120px]">
+        {/* Kept in place but hidden for a visitor who opened this page directly: there is no page of
+            ours to go back to, and the browser's back would leave the shop. */}
         <button
           type="button"
           onClick={() => navigate(-1)}
-          className="flex items-center gap-2 text-[#2D241E]/[0.68] hover:text-[#2D241E] transition-colors duration-300 mb-5 group"
+          disabled={!cameFromSite}
+          aria-hidden={!cameFromSite || undefined}
+          tabIndex={cameFromSite ? undefined : -1}
+          className={`flex items-center gap-2 text-[#2D241E]/[0.68] hover:text-[#2D241E] transition-colors duration-300 mb-5 group${cameFromSite ? "" : " invisible"}`}
           style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "0.76rem", letterSpacing: "0.1em" }}
         >
           <ArrowLeft size={15} strokeWidth={1.5} className="group-hover:-translate-x-1 transition-transform duration-300" />
@@ -426,12 +439,12 @@ export function ProductDetail() {
             className="flex flex-col gap-3 md:sticky md:top-[calc(var(--main-header-h)+24px)]"
           >
             <div>
-              <p
+              <CategoryLink
+                product={product}
+                locale={locale}
                 className="text-[#2D241E]/[0.68] uppercase"
                 style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "0.72rem", letterSpacing: "0.18em" }}
-              >
-                {productCategory(product, locale)}
-              </p>
+              />
               <h1
                 className="text-[#2D241E] text-pretty mt-2.5"
                 style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "clamp(1.9rem, 3.4vw, 2.7rem)", fontWeight: 500, lineHeight: 1.05 }}
@@ -755,6 +768,7 @@ export function ProductDetail() {
               <div>
                 <button
                   onClick={() => setDetailsOpen(!detailsOpen)}
+                  aria-expanded={detailsOpen}
                   className="w-full flex items-center justify-between pb-3 text-left group"
                   style={{ borderBottom: "1px solid rgba(45,36,30,0.1)" }}
                 >

@@ -83,7 +83,9 @@ export const router = createBrowserRouter([
         element: <Outlet />,
         children: [
           { index: true, Component: Home },
-          { path: "collection", Component: Collection },
+          // One route for the whole collection and for each collection's own address, so changing
+          // tabs keeps the page mounted.
+          { path: "collection/:slug?", Component: Collection },
           { path: "product/:id", Component: ProductDetail },
           { path: "checkout", lazy: async () => ({ Component: (await import("./pages/CheckoutPage")).CheckoutPage }) },
           { path: "account", lazy: async () => ({ Component: (await import("./pages/AccountPage")).AccountPage }) },

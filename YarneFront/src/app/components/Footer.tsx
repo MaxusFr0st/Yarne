@@ -7,6 +7,7 @@ import { LangLink } from "../i18n/LangLink";
 import { useProductCarePath } from "./care/CareProductLink";
 import { useLocale, withLocale } from "../i18n/useLocale";
 import { fetchCollections, type CollectionDto } from "../api/collections";
+import { collectionSlug } from "../utils/collectionSlug";
 
 const INSTAGRAM_URL = "https://www.instagram.com/yarne.acc/";
 const TIKTOK_URL = "https://www.tiktok.com/@yarne.acc";
@@ -50,7 +51,7 @@ export function Footer() {
     { label: t("footer.links.newArrivals"), to: "/collection?filter=new" },
     ...collections.map((collection) => ({
       label: collection.name,
-      to: `/collection?collection=${collection.id}`,
+      to: `/collection/${collectionSlug(collection.name)}`,
     })),
     { label: t("footer.links.allPieces"), to: "/collection" },
   ];

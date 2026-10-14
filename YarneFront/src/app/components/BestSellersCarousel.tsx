@@ -15,6 +15,7 @@ import { useSeenLock } from "../hooks/useSeenLock";
 import { Priority, queuePhotos } from "../utils/photoQueue";
 import { defaultPhoto } from "../utils/productPhotos";
 import { useLocale } from "../i18n/useLocale";
+import { useTranslation } from "react-i18next";
 import { getHomePageCopyForLocale, HOME_PAGE_COPY_KEY, loadHomePageCopy } from "../utils/homePageCopy";
 import { hasPersistedProducts, loadProductsList, productsQueryKey } from "../utils/productsCache";
 
@@ -24,6 +25,7 @@ const easing = [0.25, 0.1, 0.25, 1] as const;
 let leftAtSlide = 0;
 
 export function BestSellersCarousel() {
+  const { t } = useTranslation();
   const locale = useLocale();
   const liveCopy = useHomePageCopyAll();
   const sectionRef = useRef<HTMLElement>(null);
@@ -304,7 +306,7 @@ export function BestSellersCarousel() {
                       ? "#4A0E0E"
                       : "rgba(45,36,30,0.2)",
                 }}
-                aria-label={`Go to slide ${index + 1}`}
+                aria-label={t("common.carouselSlide", { number: index + 1 })}
                 aria-current={index === selectedIndex}
               />
             ))}

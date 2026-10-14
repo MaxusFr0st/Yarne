@@ -1,4 +1,6 @@
+import { SkipToContent } from "../components/SkipToContent";
 import { Outlet, useLocation, useNavigationType } from "react-router";
+import { MotionConfig } from "motion/react";
 import { useEffect, useLayoutEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { Header } from "../components/Header";
@@ -213,12 +215,18 @@ export function Root() {
 
   return (
     <div className="relative" style={{ backgroundColor: "#F5F2ED", minHeight: "var(--app-svh)" }}>
-      <Header />
+      <SkipToContent />
+      {/* "Reduce motion" on the device: the menu and the bag appear without sliding. Nothing changes otherwise. */}
+      <MotionConfig reducedMotion="user">
+        <Header />
+      </MotionConfig>
       <PageTransition>
         <Outlet />
       </PageTransition>
       <Footer />
-      <CartDrawer />
+      <MotionConfig reducedMotion="user">
+        <CartDrawer />
+      </MotionConfig>
       <LoginModal />
       <Toaster />
       {!location.pathname.startsWith("/admin") && <SitePrefetch />}

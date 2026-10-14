@@ -35,6 +35,13 @@ export function LanguageSwitcher({
     ? (i18n.language as Locale)
     : "en";
 
+  /** The same page in the other language: a real address, so search engines can follow it. */
+  const hrefFor = (code: Locale) => {
+    if (location.pathname === "/admin" || location.pathname.startsWith("/admin/")) return "/admin";
+    const rest = stripLocaleFromPath(location.pathname);
+    return `/${code}${rest === "/" ? "" : rest}${location.search}${location.hash}`;
+  };
+
   const change = (next: Locale) => {
     if (next === active) return;
     if (typeof window !== "undefined") {
@@ -67,14 +74,20 @@ export function LanguageSwitcher({
         const display = LOCALE_DISPLAY[code];
         const isActive = code === active;
         return (
-          <button
+          // A link for crawlers; a plain click still switches in place exactly as before (no reload).
+          <a
             key={code}
-            type="button"
-            onClick={() => change(code)}
-            aria-pressed={isActive}
+            href={hrefFor(code)}
+            hrefLang={code}
+            onClick={(event) => {
+              if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.button !== 0) return;
+              event.preventDefault();
+              change(code);
+            }}
+            aria-current={isActive ? "true" : undefined}
             aria-label={display.native}
             title={display.native}
-            className="relative text-xs uppercase tracking-widest px-1.5 py-0.5 cursor-pointer bg-transparent border-0 rounded-[2px] focus:outline-none focus-visible:[outline:2px_solid_#2D241E] focus-visible:[outline-offset:2px]"
+            className="relative inline-block text-xs uppercase tracking-widest px-1.5 py-0.5 cursor-pointer bg-transparent border-0 rounded-[2px] focus:outline-none focus-visible:[outline:2px_solid_#2D241E] focus-visible:[outline-offset:2px]"
             style={{ WebkitTapHighlightColor: "transparent" }}
           >
             <motion.span
@@ -104,7 +117,7 @@ export function LanguageSwitcher({
               animate={{ scaleX: isActive ? 1 : 0, opacity: isActive ? 1 : 0 }}
               transition={{ duration: 0.25, ease: TEXT_EASING }}
             />
-          </button>
+          </a>
         );
       })}
     </div>

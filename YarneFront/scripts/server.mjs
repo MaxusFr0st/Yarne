@@ -27,7 +27,8 @@ const SITE_ORIGIN = (process.env.SITE_ORIGIN || "https://yarne-acc.com").replace
 const SITE_NAME = "Yarné";
 const DEFAULT_TITLE = "Yarné";
 const DEFAULT_DESCRIPTION = "Handmade knitted bags, hats and beach sets, made to order.";
-const DEFAULT_IMAGE_URL = "https://pub-c4e2daa0ab484582b5f8eed726b07e2c.r2.dev/LogoMainShareFinal.jpg_202608181106.jpg";
+// The link-preview picture (1200x634, about 220 KB: messengers skip heavier ones). Served from public/.
+const DEFAULT_IMAGE_URL = `${SITE_ORIGIN}/share-default.jpg`;
 const LOGO_PATH = "/LogoWhiteMainAndroid.png";
 const FAVICON_PATH = "/LogoWhiteMainIG-Google.png";
 // The links the footer shows (src/app/components/Footer.tsx).
@@ -224,6 +225,49 @@ async function getProducts() {
   return productList.value;
 }
 
+// The shop's collections ([{ id, name }]), or null when the API cannot be reached (and nothing is cached).
+const collectionList = { value: null, fetchedAt: 0 };
+async function getCollections() {
+  if (!apiUrl) return null;
+  if (collectionList.value && Date.now() - collectionList.fetchedAt <= CACHE_TTL_MS) return collectionList.value;
+  await once("collections", async () => {
+    try {
+      const res = await fetch(`${apiUrl}/api/collections`);
+      if (res.ok) {
+        const json = await res.json();
+        if (Array.isArray(json)) {
+          collectionList.value = json.filter((item) => item && item.name);
+          collectionList.fetchedAt = Date.now();
+        }
+      }
+    } catch {
+      // keep the previous list on failure
+    }
+  });
+  return collectionList.value;
+}
+
+// src/app/utils/collectionSlug.ts: "Beach capsule collection" -> "beach-capsule". Keep in step.
+const CYRILLIC = {
+  а: "a", б: "b", в: "v", г: "h", ґ: "g", д: "d", е: "e", є: "ie", ж: "zh", з: "z", и: "y", і: "i",
+  ї: "i", й: "i", к: "k", л: "l", м: "m", н: "n", о: "o", п: "p", р: "r", с: "s", т: "t", у: "u",
+  ф: "f", х: "kh", ц: "ts", ч: "ch", ш: "sh", щ: "shch", ь: "", ю: "iu", я: "ia", ы: "y", э: "e", ё: "e", ъ: "",
+};
+function slugify(text) {
+  return String(text ?? "")
+    .toLowerCase()
+    .replace(/[а-яёіїєґ]/g, (letter) => CYRILLIC[letter] ?? "")
+    .normalize("NFKD")
+    .replace(/[̀-ͯ]/g, "")
+    .replace(/['’`]/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+function collectionSlug(name) {
+  const slug = slugify(name);
+  return slug.replace(/-collection$/, "") || slug;
+}
+
 function rememberProduct(keys, entry) {
   for (const key of keys) {
     productCache.delete(key);
@@ -288,6 +332,7 @@ function matchPage(rest, lang) {
   if (rest.length === 1 && ["collection", "checkout", "account", "admin"].includes(a)) {
     return { kind: a === "admin" ? "admin" : a, lang };
   }
+  if (rest.length === 2 && a === "collection") return { kind: "collectionItem", lang, slug: b };
   if (rest.length === 2 && a === "product") return { kind: "product", lang, id: rest[1] };
   if (rest.length === 2 && a === "order") return { kind: "order", lang };
   if (rest.length === 1 && a === "reset-password") return { kind: "reset-password", lang };
@@ -888,6 +933,36 @@ function privatePage(lang, title) {
   };
 }
 
+// src/app/utils/collectionSlug.ts categorySlug: from the English category name, the same in both languages.
+const categorySlugOf = (product) => slugify(cleanText(product.categoryNameEn) || cleanText(product.categoryName));
+
+const CATEGORY_WORDS = {
+  uk: {
+    title: (name) => `${name} ручної роботи — в'язані вироби`,
+    description: (name) => `${name} Yarné: в'язані вироби ручної роботи. Оберіть колір і замовте — кожен виріб виготовляємо під замовлення, доставка по Україні та за кордон.`,
+  },
+  en: {
+    title: (name) => `Handmade knitted ${name.toLowerCase()}`,
+    description: (name) => `${name} by Yarné: handmade knitted pieces. Pick your colour and order; every piece is made to order and ships across Ukraine and abroad.`,
+  },
+};
+
+// One category's page, /{lang}/collection/<slug>: what the shop sells in it.
+function categoryPage(lang, slug, products, crumbs) {
+  const w = WORDS[lang];
+  const name = productCategory(products[0], lang);
+  const suffix = `/collection/${slug}`;
+  return {
+    status: 200,
+    lang,
+    title: withSiteName(CATEGORY_WORDS[lang].title(name)),
+    description: CATEGORY_WORDS[lang].description(name),
+    suffix,
+    jsonLd: [breadcrumbLd(lang, [...crumbs, [w.collection, pagePath(lang, "/collection")], [name, pagePath(lang, suffix)]])],
+    content: contentBlock(`<h1>${escapeHtml(name)}</h1>` + para(w.collectionIntro) + productListHtml(products, lang) + siteLinks(lang)),
+  };
+}
+
 async function describePage(route, reqUrl) {
   const lang = route.lang;
   const w = WORDS[lang];
@@ -931,6 +1006,40 @@ async function describePage(route, reqUrl) {
         suffix: "/collection",
         content: await catalogueContent(lang, w.collectionIntro, w.collection),
       };
+
+    // One collection's own page, /{lang}/collection/<slug>.
+    case "collectionItem": {
+      const [collections, allProducts] = await Promise.all([getCollections(), getProducts()]);
+      const found = collections?.find((item) => collectionSlug(item.name) === route.slug);
+      if (!found) {
+        // Not a collection: perhaps a category, /collection/clutches.
+        const inCategory = (allProducts ?? []).filter((product) => categorySlugOf(product) === route.slug);
+        if (inCategory.length) return categoryPage(lang, route.slug, inCategory, crumbs);
+        // Only lists that were really fetched may turn an unknown word into a 404: an outage must not.
+        return collections && allProducts
+          ? notFoundPage(lang)
+          : { status: 200, lang, title: withSiteName(seo.collection.title), description: seo.collection.description, suffix: "/collection", content: "" };
+      }
+      const name = cleanText(found.name);
+      const products = (await getProducts())?.filter((product) => cleanText(product.collectionName) === name) ?? null;
+      const suffix = `/collection/${collectionSlug(found.name)}`;
+      return {
+        status: 200,
+        lang,
+        title: withSiteName(`${name} — ${w.collection}`),
+        description: lang === "uk"
+          ? `${name}: в'язані речі ручної роботи від Yarné. Оберіть колір і замовте — кожен виріб виготовляємо під замовлення.`
+          : `${name}: handmade knitted pieces by Yarné. Pick your colour and order; every piece is made to order for you.`,
+        suffix,
+        jsonLd: [breadcrumbLd(lang, [...crumbs, [w.collection, pagePath(lang, "/collection")], [name, pagePath(lang, suffix)]])],
+        content: contentBlock(
+          `<h1>${escapeHtml(name)}</h1>` +
+            para(w.collectionIntro) +
+            (products?.length ? productListHtml(products, lang) : "") +
+            siteLinks(lang),
+        ),
+      };
+    }
 
     case "ourHistory": {
       const copy = (await getSetting(STATIC_PAGES_KEY))?.ourHistory?.[lang];
@@ -1179,10 +1288,15 @@ function sitemapEntry(suffix, lastmod) {
 
 async function buildSitemap() {
   if (sitemapCache.xml && Date.now() - sitemapCache.fetchedAt <= CACHE_TTL_MS) return sitemapCache.xml;
-  const [products, materials] = await Promise.all([getProducts(), careMaterials()]);
+  const [products, materials, collections] = await Promise.all([getProducts(), careMaterials(), getCollections()]);
   const slugs = (materials ?? CARE_SEED_SLUGS.map((slug) => ({ slug }))).map((material) => material.slug);
   const entries = [
     ...STATIC_SITEMAP_SUFFIXES.map((suffix) => sitemapEntry(suffix)),
+    ...(collections ?? []).map((item) => sitemapEntry(`/collection/${collectionSlug(item.name)}`)),
+    // Every category with at least one product (a collection of the same word wins, as on the page).
+    ...[...new Set((products ?? []).map(categorySlugOf).filter(Boolean))]
+      .filter((slug) => !(collections ?? []).some((item) => collectionSlug(item.name) === slug))
+      .map((slug) => sitemapEntry(`/collection/${slug}`)),
     ...slugs.map((slug) => sitemapEntry(`/pages/care/${encodeURIComponent(slug)}`)),
     // The API gives no "last changed" date, only when the product was created.
     ...(products ?? []).map((product) =>
@@ -1251,6 +1365,74 @@ function applyCommonHeaders(res) {
 // Vite names everything in /assets/ after its content (index-BdRXgK3R.js), so those files never change under
 // the same address and can be kept for a year; fonts too. The service worker must be re-checked every time,
 // or a new release would not reach people who already have the old one. Anything else keeps the CDN default.
+// ---------------------------------------------------------------------------------------------
+// Google Merchant Center product feeds: /feeds/google-uk.xml (Ukrainian, UAH) and
+// /feeds/google-en.xml (English, EUR). One item per colour, grouped by product code.
+// ---------------------------------------------------------------------------------------------
+
+const FEED_LOCALES = { uk: "UAH", en: "EUR" };
+const feedCache = new Map();
+
+const xmlText = (value) => escapeHtml(cleanText(value));
+
+function feedImages(color, product) {
+  // Only this colour's photos, so an ivory item never shows the grey bag; the product's own photos
+  // only when the colour has none.
+  const sizePhotos = Object.values(color?.sizeImages ?? {}).flat();
+  const own = [color?.image, ...(color?.images ?? []), ...sizePhotos].map((image) => image?.src).filter(Boolean);
+  const shared = [product.primaryImage?.src, ...(product.images ?? []).map((image) => image?.src)].filter(Boolean);
+  return [...new Set(own.length ? own : shared)].map((src) => toAbsoluteImageUrl(src, undefined)).slice(0, 11);
+}
+
+function feedItems(product, lang) {
+  const currency = FEED_LOCALES[lang];
+  const colors = Array.isArray(product.colors) && product.colors.length ? product.colors : [null];
+  const name = productName(product, lang);
+  const description = truncate(cleanText(productDescription(product, lang)) || name, 5000);
+  const material = productMaterial(product, lang);
+  const category = productCategory(product, lang);
+  const items = [];
+  for (const color of colors) {
+    const amount = currency === "EUR" ? (color?.eurPrice ?? product.eurPrice) : (color?.price ?? product.price);
+    // No price in that currency (a product without a € price yet): leave it out rather than send a wrong one.
+    if (amount == null || !(Number(amount) > 0)) continue;
+    const colorName = color ? catalogName(color.name, color.nameUk, lang) : "";
+    const images = feedImages(color, product);
+    if (!images.length) continue;
+    const query = color?.name ? `?color=${encodeURIComponent(color.name)}` : "";
+    const fields = [
+      ["g:id", `${product.productCode}${color?.colorId != null ? `-${color.colorId}` : ""}`],
+      ["g:item_group_id", product.productCode],
+      ["g:title", colorName ? `${name} — ${colorName}` : name],
+      ["g:description", description],
+      ["g:link", `${SITE_ORIGIN}${pagePath(lang, `/product/${encodeURIComponent(product.productCode)}`)}${query}`],
+      ["g:image_link", images[0]],
+      ...images.slice(1).map((src) => ["g:additional_image_link", src]),
+      ["g:availability", "in_stock"],
+      ["g:price", `${Number(amount).toFixed(2)} ${currency}`],
+      ["g:brand", SITE_NAME],
+      ["g:condition", "new"],
+      ["g:identifier_exists", "no"],
+      ...(colorName ? [["g:color", colorName]] : []),
+      ...(material ? [["g:material", truncate(material, 200)]] : []),
+      ...(category ? [["g:product_type", category]] : []),
+    ];
+    items.push(`<item>${fields.map(([tag, value]) => `<${tag}>${xmlText(value)}</${tag}>`).join("")}</item>`);
+  }
+  return items;
+}
+
+async function buildFeed(lang) {
+  const cached = feedCache.get(lang);
+  if (cached && Date.now() - cached.fetchedAt <= CACHE_TTL_MS) return cached.xml;
+  const products = await getProducts();
+  const items = (products ?? []).filter((product) => !product.isInternalComponent).flatMap((product) => feedItems(product, lang));
+  const title = lang === "uk" ? "Yarné — в'язані сумки ручної роботи" : "Yarné — handmade knitted bags";
+  const xml = `<?xml version="1.0" encoding="UTF-8"?>\n<rss version="2.0" xmlns:g="http://base.google.com/ns/1.0"><channel><title>${xmlText(title)}</title><link>${escapeHtml(`${SITE_ORIGIN}/${lang}`)}</link><description>${xmlText(title)}</description>\n${items.join("\n")}\n</channel></rss>\n`;
+  if (products) feedCache.set(lang, { xml, fetchedAt: Date.now() });
+  return xml;
+}
+
 const HASHED_ASSET = /^\/assets\/.+-[\w-]{8}\.[a-z0-9]+$/i;
 const FONT_FILE = /\.(woff2?|ttf|otf)$/i;
 
@@ -1303,6 +1485,21 @@ async function numericProductRedirect(pathname, search) {
   return `${pagePath(route.lang, `/product/${encodeURIComponent(code)}`)}${search}`;
 }
 
+// Old collection links, /{lang}/collection?collection=<id>, are sent on to /{lang}/collection/<slug>
+// (other query words kept). An unknown id or an unreachable API serves the page as before.
+async function legacyCollectionRedirect(pathname, params) {
+  const id = params.get("collection");
+  if (!id) return null;
+  const route = resolveRoute(pathname);
+  if (route.kind !== "collection" || !LOCALES.includes(pathname.split("/").filter(Boolean)[0])) return null;
+  const found = (await getCollections())?.find((item) => String(item.id) === id);
+  if (!found) return null;
+  const rest = new URLSearchParams(params);
+  rest.delete("collection");
+  const query = rest.toString();
+  return `${pagePath(route.lang, `/collection/${encodeURIComponent(collectionSlug(found.name))}`)}${query ? `?${query}` : ""}`;
+}
+
 const server = createServer(async (req, res) => {
   try {
     const url = new URL(req.url, "http://placeholder");
@@ -1318,6 +1515,8 @@ const server = createServer(async (req, res) => {
     if (pathname === "/sitemap.xml") return sendText(res, await buildSitemap(), "application/xml; charset=utf-8");
     if (pathname === "/robots.txt") return sendText(res, buildRobots(), "text/plain; charset=utf-8");
     if (pathname === "/llms.txt") return sendText(res, await buildLlms(), "text/plain; charset=utf-8");
+    if (pathname === "/feeds/google-uk.xml") return sendText(res, await buildFeed("uk"), "application/xml; charset=utf-8");
+    if (pathname === "/feeds/google-en.xml") return sendText(res, await buildFeed("en"), "application/xml; charset=utf-8");
     if (pathname === "/favicon.ico") {
       await serveStaticFile(req, res, FAVICON_PATH);
       return;
@@ -1329,7 +1528,7 @@ const server = createServer(async (req, res) => {
       return;
     }
 
-    const redirectTo = await numericProductRedirect(pathname, url.search);
+    const redirectTo = (await numericProductRedirect(pathname, url.search)) ?? (await legacyCollectionRedirect(pathname, url.searchParams));
     if (redirectTo) {
       applyCommonHeaders(res);
       res.writeHead(301, { Location: redirectTo, "Cache-Control": "public, max-age=300" });

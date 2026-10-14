@@ -111,7 +111,7 @@ export function Home() {
               src={heroImageSrc}
               fadeIn
               poster
-              alt="Yarné Hero"
+              alt={t("home.hero.imageAlt")}
               className="absolute inset-0 h-full w-full object-cover"
               style={{ objectPosition: `${(homePageMedia.heroFocalX * 100).toFixed(1)}% ${(homePageMedia.heroFocalY * 100).toFixed(1)}%` }}
               priority

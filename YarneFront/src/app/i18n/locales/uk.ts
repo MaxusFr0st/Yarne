@@ -5,6 +5,8 @@ import type { Translations } from "./en";
 const uk: Translations = {
   common: {
     viewAll: "Переглянути все",
+    skipToContent: "Перейти до змісту",
+    carouselSlide: "Слайд {{number}}",
     updateAvailable: "Доступна нова версія Yarné.",
     refresh: "Оновити",
     serverUnreachable: "Не вдалося з'єднатися із сервером. Перевірте інтернет і спробуйте ще раз.",
@@ -30,6 +32,7 @@ const uk: Translations = {
   },
   home: {
     hero: {
+      imageAlt: "В'язана сумка Yarné ручної роботи",
       eyebrow: "Нова Колекція — літо 2026",
       titleLine1: "Your unique bag,",
       titleAccent: "ma chérie!",
@@ -291,6 +294,7 @@ const uk: Translations = {
     },
   },
   collection: {
+    removeCategory: "Показати всі речі, не лише {{name}}",
     tabs: {
       allPieces: "Усі речі",
     },

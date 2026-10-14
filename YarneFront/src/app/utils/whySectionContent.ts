@@ -1,6 +1,6 @@
 import { fetchStorefrontSetting, peekStorefrontSetting, saveStorefrontSetting } from "../api/storefrontSettings";
 import type { Locale } from "../i18n/config";
-import en from "../i18n/locales/en";
+import en, { type Translations } from "../i18n/locales/en";
 import uk from "../i18n/locales/uk";
 
 // The storage key stays at v1: the backend whitelists keys, and everything a v1 save held
@@ -48,7 +48,7 @@ export type WhySectionContent = {
   uk: WhySectionLocale;
 };
 
-function pickLocale(home: typeof en.home): WhySectionLocale {
+function pickLocale(home: Translations["home"]): WhySectionLocale {
   const why = home.why;
   const items = why.items.map((item) => ({
     word: item.word,

@@ -15,7 +15,8 @@ import type { ProductGuaranteeContent } from "../utils/productGuaranteeContent";
 import { getSupplementaryProductDetails, hasSupplementaryProductDetails } from "../utils/productDetails";
 import { useTouchMobileLayout } from "../hooks/useTouchMobileLayout";
 import { localizedCatalogName } from "../utils/localizedName";
-import { productCategory, productDescription, productName } from "../utils/productText";
+import { productDescription, productName } from "../utils/productText";
+import { CategoryLink } from "./CategoryLink";
 import { productSubtitle } from "../utils/productSubtitle";
 import { SizePanel, hasSizeMeasurements } from "./SizePanel";
 import { LangLink } from "../i18n/LangLink";
@@ -52,7 +53,8 @@ type MobileProductDetailViewProps = {
   laceEnabled: boolean;
   activeLace: boolean;
   onLaceChange: (next: boolean) => void;
-  onBack: () => void;
+  /** Missing when the visitor arrived on this page directly: then there is no back button. */
+  onBack?: () => void;
   onColorChange: (index: number) => void;
   onFurnitureChange: (index: number) => void;
   onSizeChange: (size: string) => void;
@@ -364,6 +366,7 @@ export function MobileProductDetailView({
           </div>
         </div>
 
+        {onBack && (
         <button
           type="button"
           onClick={onBack}
@@ -373,6 +376,7 @@ export function MobileProductDetailView({
         >
           <ArrowLeft size={18} strokeWidth={1.5} className="text-[#2D241E]" />
         </button>
+        )}
 
         {galleryImages.length > 1 && (
           // The dots' touch area grows only 8px above and below the dot: taller, it sat over the photo and a swipe that began there no longer moved the gallery.
@@ -407,16 +411,16 @@ export function MobileProductDetailView({
         }}
       >
         <div className="flex flex-col gap-[clamp(6px,1.6vw,9px)]">
-          <p
+          <CategoryLink
+            product={product}
+            locale={locale}
             className="text-[#2D241E]/[0.68] uppercase shrink-0"
             style={{
               fontFamily: "'DM Sans', sans-serif",
               letterSpacing: "0.18em",
               fontSize: "clamp(0.72rem, 2.4vw, 0.74rem)",
             }}
-          >
-            {productCategory(product, locale)}
-          </p>
+          />
 
           <h1
             className="text-[#2D241E] min-w-0 shrink-0"

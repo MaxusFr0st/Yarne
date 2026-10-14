@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
-import { useSearchParams } from "react-router";
-import { motion } from "motion/react";
+import { useParams, useSearchParams } from "react-router";
+import { motion, MotionConfig } from "motion/react";
 import { useTranslation } from "react-i18next";
 import { useProducts } from "../hooks/useProducts";
 import { ProductCard } from "../components/ProductCard";
@@ -8,6 +8,13 @@ import { Skeleton } from "../components/ui/skeleton";
 import { usePageTitle } from "../hooks/usePageTitle";
 import { fetchCollections, type CollectionDto } from "../api/collections";
 import { searchProducts } from "../utils/productSearch";
+import { categorySlug, collectionSlug } from "../utils/collectionSlug";
+import { productCategory } from "../utils/productText";
+import { useLocale } from "../i18n/useLocale";
+import { useLangNavigate } from "../i18n/useLangNavigate";
+
+/** The collections from the last visit to this page, so a collection's address opens without waiting. */
+let cachedCollections: CollectionDto[] | null = null;
 
 /** Where `overflow-x: clip` is not understood the page falls back to `hidden`, which cannot keep the bar sticky. */
 const CLIP_X = typeof CSS !== "undefined" && CSS.supports("overflow-x", "clip") ? "clip" : "hidden";
@@ -43,31 +50,68 @@ function CollectionCardSkeleton() {
   );
 }
 
+/** "Reduce motion" on the device: the page's animations settle without moving. Nothing changes otherwise. */
 export function Collection() {
+  return (
+    <MotionConfig reducedMotion="user">
+      <CollectionPage />
+    </MotionConfig>
+  );
+}
+
+function CollectionPage() {
   const { t } = useTranslation();
   usePageTitle(t("seo.collectionTitle"));
   const [searchParams, setSearchParams] = useSearchParams();
+  const navigate = useLangNavigate();
+  const locale = useLocale();
+  // A collection has its own address, /collection/<slug>; the one route serves both, so picking a
+  // tab does not remount the page.
+  const { slug } = useParams();
   const filterParam = searchParams.get("filter");
+  // Old links: /collection?collection=<id>. Sent on to the collection's address once it is known.
   const collectionParam = searchParams.get("collection");
   // The header's search sends shoppers here as ?q=<words>.
   const searchTerm = (searchParams.get("q") ?? "").trim();
-  const collectionId = collectionParam ? Number.parseInt(collectionParam, 10) : undefined;
-  const validCollectionId = collectionId && !Number.isNaN(collectionId) ? collectionId : undefined;
-  const [collections, setCollections] = useState<CollectionDto[]>([]);
-
-  const activeTab = validCollectionId ? String(validCollectionId) : ALL_PRODUCTS_TAB;
+  const [collections, setCollections] = useState<CollectionDto[]>(() => cachedCollections ?? []);
+  const [collectionsLoaded, setCollectionsLoaded] = useState(() => cachedCollections !== null);
 
   useEffect(() => {
     let cancelled = false;
     void fetchCollections()
       .then((data) => {
+        cachedCollections = data;
         if (!cancelled) setCollections(data);
       })
-      .catch(() => {});
+      .catch(() => {})
+      .finally(() => {
+        if (!cancelled) setCollectionsLoaded(true);
+      });
     return () => {
       cancelled = true;
     };
   }, []);
+
+  const slugCollection = useMemo(
+    () => (slug ? collections.find((collection) => collectionSlug(collection.name) === slug.toLowerCase()) ?? null : null),
+    [collections, slug],
+  );
+  const validCollectionId = slugCollection?.id;
+  // An address with a collection word waits for the list of collections before choosing products.
+  const waitingForSlug = Boolean(slug) && !slugCollection && !collectionsLoaded;
+
+  // Old ?collection=<id> links, and an address word that matches no collection.
+  useEffect(() => {
+    if (!collectionsLoaded) return;
+    const next = new URLSearchParams(searchParams);
+    if (collectionParam) {
+      next.delete("collection");
+      const legacy = collections.find((collection) => String(collection.id) === collectionParam);
+      const query = next.toString();
+      navigate(`/collection${legacy ? `/${collectionSlug(legacy.name)}` : ""}${query ? `?${query}` : ""}`, { replace: true });
+      return;
+    }
+  }, [collectionsLoaded, collectionParam, collections, searchParams, navigate]);
 
   const productQuery = useMemo(() => {
     if (validCollectionId) return { collectionId: validCollectionId };
@@ -75,7 +119,28 @@ export function Collection() {
     return undefined;
   }, [validCollectionId, filterParam]);
 
-  const { products, loading, error, refetch } = useProducts(productQuery);
+  const { products, loading: productsLoading, error, refetch } = useProducts(waitingForSlug ? undefined : productQuery);
+  const loading = productsLoading || waitingForSlug;
+
+  // Not a collection: perhaps a category, /collection/clutches. Read from the products themselves.
+  const slugCategory = useMemo(() => {
+    if (!slug || slugCollection || waitingForSlug) return null;
+    const wanted = slug.toLowerCase();
+    const sample = products.find((product) => categorySlug(product.categoryEn, product.category) === wanted);
+    return sample ? { slug: wanted, name: productCategory(sample, locale) } : null;
+  }, [slug, slugCollection, waitingForSlug, products, locale]);
+
+  // An address word that is neither a collection nor a category: back to the whole collection.
+  useEffect(() => {
+    if (!slug || slugCollection || slugCategory || waitingForSlug || productsLoading || error) return;
+    const next = new URLSearchParams(searchParams);
+    next.delete("collection");
+    const query = next.toString();
+    navigate(`/collection${query ? `?${query}` : ""}`, { replace: true });
+  }, [slug, slugCollection, slugCategory, waitingForSlug, productsLoading, error, searchParams, navigate]);
+
+  // A category page has no tab of its own: none is highlighted, and its name shows as a chip instead.
+  const activeTab = slugCategory ? "" : validCollectionId ? String(validCollectionId) : ALL_PRODUCTS_TAB;
   // The list could not be loaded (not just empty): offer to try again instead of "no pieces".
   const loadFailed = !loading && Boolean(error) && products.length === 0;
   const activeCollection = useMemo(
@@ -94,12 +159,10 @@ export function Collection() {
   const selectTab = (tabId: string) => {
     const next = new URLSearchParams(searchParams);
     next.delete("filter");
-    if (tabId === ALL_PRODUCTS_TAB) {
-      next.delete("collection");
-    } else {
-      next.set("collection", tabId);
-    }
-    setSearchParams(next, { replace: true });
+    next.delete("collection");
+    const picked = collections.find((collection) => String(collection.id) === tabId);
+    const query = next.toString();
+    navigate(`/collection${picked ? `/${collectionSlug(picked.name)}` : ""}${query ? `?${query}` : ""}`, { replace: true });
   };
 
   /** Drops the search words and keeps every other parameter. */
@@ -110,10 +173,14 @@ export function Collection() {
   };
 
   /** Back to the whole collection: no search, no tab, no "new" filter. */
-  const showWholeCollection = () => setSearchParams(new URLSearchParams(), { replace: true });
+  const showWholeCollection = () => navigate("/collection", { replace: true });
 
   // Products keep the order the list came in; a search puts the best match first.
-  const listed = filterParam === "new" ? products.filter((p) => p.isNew) : products;
+  const listed = slugCategory
+    ? products.filter((p) => categorySlug(p.categoryEn, p.category) === slugCategory.slug)
+    : filterParam === "new"
+      ? products.filter((p) => p.isNew)
+      : products;
   const filtered = searchTerm ? searchProducts(listed, searchTerm).map((hit) => hit.product) : listed;
 
   return (
@@ -125,7 +192,7 @@ export function Collection() {
               className="text-[#2D241E]/[0.68] tracking-widest uppercase text-xs mb-4"
               style={{ fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.2em" }}
             >
-              {activeCollection
+              {activeCollection || slugCategory
                 ? t("collection.header.collectionEyebrow")
                 : filterParam === "new"
                   ? t("collection.header.newArrivalsEyebrow")
@@ -140,7 +207,9 @@ export function Collection() {
                 lineHeight: 1.1,
               }}
             >
-              {activeCollection ? (
+              {slugCategory ? (
+                <>{slugCategory.name}</>
+              ) : activeCollection ? (
                 <>{activeCollection.name}</>
               ) : filterParam === "new" ? (
                 <>{t("collection.header.newArrivalsTitleLead")} <em style={{ fontStyle: "italic", fontWeight: 300 }}>{t("collection.header.newArrivalsTitleAccent")}</em></>
@@ -195,6 +264,7 @@ export function Collection() {
                   key={tab.id}
                   type="button"
                   onClick={() => selectTab(tab.id)}
+                  aria-pressed={activeTab === tab.id}
                   className="px-5 py-2 rounded-full text-xs transition-all duration-300 whitespace-nowrap"
                   style={{
                     fontFamily: "'DM Sans', sans-serif",
@@ -207,6 +277,18 @@ export function Collection() {
                   {tab.label}
                 </button>
               ))}
+              {slugCategory && (
+                <button
+                  type="button"
+                  onClick={showWholeCollection}
+                  aria-label={t("collection.removeCategory", { name: slugCategory.name })}
+                  className="inline-flex items-center gap-2 px-5 py-2 rounded-full text-xs whitespace-nowrap text-[#2D241E] cursor-pointer hover:bg-[#2D241E]/5 transition-colors duration-300"
+                  style={{ fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.1em", border: "1.5px solid #2D241E" }}
+                >
+                  {slugCategory.name}
+                  <span aria-hidden="true" className="text-[0.95rem] leading-none">×</span>
+                </button>
+              )}
             </div>
           </div>
         </div>

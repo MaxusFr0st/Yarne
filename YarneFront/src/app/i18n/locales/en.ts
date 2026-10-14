@@ -5,6 +5,8 @@
 const en = {
   common: {
     viewAll: "View All",
+    skipToContent: "Skip to content",
+    carouselSlide: "Slide {{number}}",
     updateAvailable: "A new version of Yarné is available.",
     refresh: "Refresh",
     serverUnreachable: "Couldn't reach the server. Check your connection and try again.",
@@ -30,6 +32,7 @@ const en = {
   },
   home: {
     hero: {
+      imageAlt: "Handmade knitted Yarné bag",
       eyebrow: "New Collection — Summer 2026",
       titleLine1: "Your unique bag,",
       titleAccent: "ma chérie!",
@@ -287,6 +290,7 @@ const en = {
     },
   },
   collection: {
+    removeCategory: "Show all pieces, not only {{name}}",
     tabs: {
       allPieces: "All Pieces",
     },
@@ -868,4 +872,11 @@ const en = {
 } as const;
 
 export default en;
-export type Translations = typeof en;
+/** Same keys as English, any wording: `as const` above would otherwise demand the English words themselves. */
+type Wording<T> = T extends string
+  ? string
+  : { readonly [K in keyof T]: Wording<T[K]> } & {
+      // Ukrainian plurals need two more forms than English: `x_one` also allows `x_few` and `x_many`.
+      readonly [K in keyof T as K extends `${infer Base}_one` ? `${Base}_few` | `${Base}_many` : never]?: string;
+    };
+export type Translations = Wording<typeof en>;

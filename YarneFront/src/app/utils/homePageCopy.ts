@@ -1,6 +1,6 @@
 import { fetchStorefrontSetting, peekCurrentStorefrontSetting, saveStorefrontSetting } from "../api/storefrontSettings";
 import type { Locale } from "../i18n/config";
-import en from "../i18n/locales/en";
+import en, { type Translations } from "../i18n/locales/en";
 import uk from "../i18n/locales/uk";
 
 export const HOME_PAGE_COPY_KEY = "yarne.home.copy.v1";
@@ -36,8 +36,8 @@ export type HomePageCopyLocale = {
 export type HomePageCopy = Record<Locale, HomePageCopyLocale>;
 
 function pickLocaleCopy(
-  home: typeof en.home,
-  showcase: typeof en.showcase,
+  home: Translations["home"],
+  showcase: Translations["showcase"],
 ): HomePageCopyLocale {
   return {
     hero: {
