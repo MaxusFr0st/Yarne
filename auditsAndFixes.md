@@ -1,6 +1,6 @@
 # Yarné: audits, TLDRs and fixes still to do
 
-Written 9 October 2026. The audits ran on 6 October 2026 against the live site `https://yarne-acc.com` and the code.
+Written 9 October 2026, status updated the same evening. The audits ran on 6 October 2026 against the live site `https://yarne-acc.com` and the code.
 Everything in parts 1 to 3 is a summary; the three full audit reports are copied word for word in part 6.
 
 Contents
@@ -8,8 +8,8 @@ Contents
 1. TLDR scores
 2. What the audits found (summary)
 3. What has been fixed since
-4. Fixes still to do
-5. Built but not yet tested on the live site, and setup only the owner can do
+4. Status of every fix
+5. Not yet tested on the live site, and setup only the owner can do
 6. The three full audit reports (SEO and AI, purchase funnel, design and accessibility)
 
 ---
@@ -28,7 +28,7 @@ Scores as given on 6 October, before any fixes. They are a judgement from the th
 | Trust and persuasion | 3.5/10 | No payment explanation, placeholder policy page, no reviews, no guest tracking |
 | **Overall** | **4.5/10** | The shop looks good and ordering is short; what's missing is everything around it |
 
-The SEO, AI visibility, ordering and trust rows are the ones the work since then was aimed at. Accessibility and visual design are untouched.
+The SEO, AI visibility, ordering and trust rows are the ones the work since then was aimed at. Accessibility has been worked on since too (contrast, dialogs, touch areas). Visual design was deliberately left alone.
 
 ---
 
@@ -136,89 +136,144 @@ Added beyond the audits: accept and decline with a reason in admin, admin chips 
 
 ---
 
-## 4. Fixes still to do
+## 4. Status of every fix
 
-Nothing here is started. Items marked **design** change how the site looks or behaves, so they need the owner's approval before any work.
+Rechecked against the code on 9 October 2026 (evening). Everything marked Done is pushed to `main` and live.
+
+How to read the status column:
+
+- **Done**: built and live.
+- **Open**: nobody has worked on it yet.
+- **Skipped**: the owner decided not to do it.
+- **Later**: the owner wants it, but not now.
 
 ### Do first
 
-| # | Fix | Why it matters | Design approval |
+| # | Fix | Status | In simple words |
 |---|---|---|---|
-| 1 | **Privacy page**, and link the "Terms and Privacy Policy" line in the login window | The site collects names, phones, emails and receipt photos; there is no privacy page at all | Text only, new page in the existing style |
-| 2 | **Size guide button** does nothing on the product page | A dead button next to the buy button | Yes: what it opens |
-| 3 | **Developer wording shown to customers**: "The backend may be down — check Railway deploy logs" in `YarneFront/src/app/api/client.ts:90` | Any page that loads data can show it on a timeout | No |
-| 4 | **Duplicate order on retry after a timeout** | Inferred from code on 6 October, never reproduced and not rechecked since | No |
-| 5 | **Seller details** on the site (who sells, how to reach them) | Trust; also needed beside a privacy page | Text only |
+| 1 | Privacy page, and links from the login window and footer | Done | The site now says what personal data it keeps and why. |
+| 2 | Size guide button did nothing | Done | It opens a panel with the bag's measurements. The owner still has to type the measurements and add a size photo in admin. |
+| 3 | Developer wording shown to customers | Done | A failed load now shows a normal message in the customer's language. |
+| 4 | Duplicate order on retry after a timeout | Done | Pressing "Place order" twice, or a retry on a slow connection, can no longer create two orders. |
+| 5 | Seller details | Closed | The owner says the care request page already covers it. |
 
 ### Product and collection pages
 
-| # | Fix | Design approval |
+| # | Fix | Status | In simple words |
+|---|---|---|---|
+| 6 | Nothing near the buy button about delivery | Done | A delivery line now sits by the button. |
+| 7 | No reviews or customer photos | Skipped | Owner's decision. |
+| 8 | Phones: no sticky buy bar | Skipped | Owner's decision. |
+| 9 | Product details only exist on the page when the accordion is opened | Skipped | Not needed, owner's decision. Only the small "Деталі товару" list, on products with a maker or extra points; Google gets it from the server. The phone description stays folded under "Опис" on purpose. |
+| 10 | Collection on phones: Filter and Sort off-screen, two taps to open a card | Done | Filter and Sort were removed; one tap opens a product. Quick add was removed on phones. |
+| 11 | Collection bar never sticks on desktop | Done | |
+| 12a | Collection renders every product twice | Done | One grid now. |
+| 12b | Product page has two `h1` | Skipped | Owner's decision. |
+| 13a | Server failure looks like an empty shop | Done | A "Try again" message appears on the collection and product pages. |
+| 13b | Blank space while a product loads | Open (minor) | Only seen when a product link is opened directly on a slow connection. A placeholder would be visual and needs approval. |
+| 14 | No "results for X" on a collection search | Done | |
+
+### Search
+
+| Fix | Status | In simple words |
 |---|---|---|
-| 6 | Nothing near the buy button about delivery, payment, returns or making time | Yes |
-| 7 | No reviews or customer photos anywhere | Yes |
-| 8 | Phones: "Add to bag" at or below the fold, no sticky buy bar, description collapsed | Yes |
-| 9 | Product details only rendered when the accordion is opened | No visible change |
-| 10 | Collection on phones: Filter and Sort pushed off-screen; cards need two taps to open | Yes |
-| 11 | Collection filter bar never sticks on desktop | Yes (behaviour) |
-| 12 | Collection renders every product twice; product page has two `h1` | No visible change |
-| 13 | API failure looks like an empty catalogue, no retry; product page loads as a blank half-screen | Yes: error and loading states |
-| 14 | No "results for X / clear" on a collection search | Yes |
+| Search did nothing | Done | Live search on desktop: results appear from the first letter, matching the start of words. No search icon on phones, by the owner's decision. |
 
 ### English content
 
-| # | Fix | Design approval |
-|---|---|---|
-| 15 | English product pages show Ukrainian names and descriptions; products need English fields in the backend and admin | Admin form only |
-| 16 | Each product still has two URLs (`/product/22` and `/product/YRN-…`); pick one form, ideally with a name slug | No |
-| 17 | English wording inconsistent: "Bag" vs "Cart", "Sign in" vs "Sign In", mixed case | Text only |
+| # | Fix | Status | In simple words |
+|---|---|---|---|
+| 15 | English pages showed Ukrainian names and descriptions | Done | Each product has English name, description and material, editable in admin. The English texts are worth a read-through. |
+| 16 | Two URLs per product | Done | The numeric address redirects to the product-code one. The URL has no product name in it. |
+| 17 | Inconsistent English wording | Open (small) | "Sign In" is consistent now. "View All" and "View all" both remain. The owner will revisit wording later. |
 
 ### Accessibility
 
-| # | Fix | Design approval |
-|---|---|---|
-| 18 | Low-contrast text: about 94 text styles under 4.5:1, many at 10–11px | Yes: colours and sizes change slightly |
-| 19 | Keyboard focus nearly invisible; checkout inputs have no focus style | Yes: a visible focus ring |
-| 20 | Mobile menu, cart drawer and login modal are not real dialogs (focus trap, Escape, background scroll) | Behaviour only |
-| 21 | Small tap targets: header icons, swatches, gallery dots, language buttons | Yes |
-| 22 | No skip link | Hidden until keyboard use |
+| # | Fix | Status | In simple words |
+|---|---|---|---|
+| 18 | Low-contrast small text | Done | Pale grey text was darkened so it can be read. |
+| 19 | Keyboard focus nearly invisible | Skipped | Owner's decision: leave focus as it is. |
+| 20 | Menu, cart and login were not real dialogs | Done | Escape closes them and keyboard focus stays inside. |
+| 21 | Small tap targets on phones | Done | The area that reacts to a finger is bigger; nothing looks different. Not yet tried on a real phone. |
+| 22 | No skip link | Open | A hidden link that lets keyboard users jump past the menu. |
 
 ### Cart, account, home
 
-| # | Fix | Design approval |
-|---|---|---|
-| 23 | Cart line "Shipping & taxes calculated at checkout" is untrue (still in `locales/en.ts`) | Text only |
-| 24 | Cart shows colour and size in English on the Ukrainian site; saved prices can go stale; no quantity cap | No |
-| 25 | Account: "Save changes" only flashes "Saved!"; no password reset | Yes for password reset |
-| 26 | Home: one empty `h2`; clipped headline word in the story section; English hero headline on `/uk` with no "knitted bag" keyword; weak hero button | Yes for headline and button |
-| 27 | Opening a page by URL can land scrolled down | No |
+| # | Fix | Status | In simple words |
+|---|---|---|---|
+| 23 | Untrue "Shipping & taxes calculated at checkout" line | Done | |
+| 24a | Cart showed colour and size in English on the Ukrainian site | Done | |
+| 24b | Saved prices can go stale; no quantity cap | Skipped | Owner's decision. The server always charges the current price. |
+| 25a | "Save changes" in the account only flashed "Saved!" | Done | Name and phone are really saved. Email is read-only. |
+| 25b | No password reset | Done | "Forgot password?" sends a link that works once and lasts 30 minutes. Not yet tested with a real email. |
+| 26a | Home: clipped headline word; no heading with "knitted bag" for Google | Done | |
+| 26b | Home: one empty `h2` | Skipped | Owner's decision. |
+| 26c | Home: weak hero button | Open | Visual, needs approval. |
+| 27 | Opening a page by URL landed scrolled down | Done | Awaiting the owner's confirmation on the live site. |
 
 ### Speed and code health
 
-| # | Fix | Design approval |
+| # | Fix | Status | In simple words |
+|---|---|---|---|
+| 28 | Photos are full-size originals with no smaller versions | **Open, biggest remaining fix** | This is why small photos look blurry and why phones download more than they need. The owner asked to be reminded of this whenever global fixes come up. |
+| 29 | Built files cached for only 4 hours | Done | Returning visitors load the site faster. |
+| 30 | Unused packages | Done | 46 packages and 45 unused files removed. |
+| 31 | Design system not tokenised | Skipped | Owner's decision. |
+| 32 | Type check errors in `locales/uk.ts` | Open | The site builds and works; a developer check complains. |
+
+### Security, added beyond the audits
+
+| Fix | Status | In simple words |
 |---|---|---|
-| 28 | Images are full-size originals; no responsive sizes for phones (no `srcSet` anywhere in the code) | No visible change |
-| 29 | Cache lifetime of built files was 4 hours on 6 October; not rechecked | No |
-| 30 | Unused dependencies still in `package.json`: MUI, Emotion, react-slick, next-themes | No |
-| 31 | Design system not tokenised (720 hardcoded colours, about 40 font sizes, eleven radii) | Should be invisible, but a large refactor |
-| 32 | Type check fails on `main` with errors in `locales/uk.ts` only; the build passes | No |
+| Request limits count over a sliding window | Done | Someone can no longer send a double burst around the turn of the minute. |
+| Limit on creating orders | Done | At most 15 orders per 10 minutes from one visitor. |
+| Limits could be dodged with a made-up address | Done | Tested live: 30 of 60 requests refused in every case. Worth re-running after any Railway platform change. |
+| Restricting image URLs in admin | Skipped | Owner's decision. |
 
-### Larger features, not started
+### Loading and animation, added beyond the audits
 
-| # | Feature | Notes |
+| Fix | Status | In simple words |
 |---|---|---|
-| 33 | Analytics tab in admin | Plan in `finalPolish.md` |
-| 34 | Consent banner | Only needed once analytics exist |
-| 35 | Newsletter signup; wishlist, promo codes, abandoned-cart emails | Only if campaigns are planned |
-| 36 | Google Merchant Center product feed, Bing verification, `favicon.ico`, smaller default share image | |
-| 37 | Real URLs for categories and for the language switcher (both are buttons, so Google has no links to follow) | |
+| Photos flashed white on going back | Done | Awaiting the owner's confirmation; it could not be reproduced in the test browser. |
+| Product cards appeared late on scroll | Done | Same: awaiting confirmation. |
 
-Status of the items in this part: taken from the 6 October audits minus everything fixed in part 3. Items 3, 23, 28 and 30 were re-confirmed in the code on 9 October. The others were not rechecked one by one.
+### Larger features
+
+| # | Feature | Status |
+|---|---|---|
+| 33 | Analytics tab in admin | Later. Design is ready, plan in `finalPolish.md`. |
+| 34 | Consent banner | Later. Only needed once analytics exist. |
+| 35 | Newsletter signup; wishlist, promo codes, abandoned-cart emails | Open. Only if campaigns are planned. |
+| 36 | Google Merchant Center product feed, Bing verification, `favicon.ico`, smaller default share image | Open |
+| 37 | Real URLs for categories and for the language switcher | Open |
+| | Changing the account email | Open |
+
+### Smaller findings from the full reports that are still open
+
+| Finding | In simple words |
+|---|---|
+| No error page | If a screen crashes the visitor sees a blank page. |
+| Product page Back button | For someone who arrived straight from Google it leaves the site. |
+| Hard-coded English labels | "Go to slide n" on the carousel and "Yarné Hero" on the hero image show in English on the Ukrainian site, to screen readers. |
+| Swatch buttons sit inside the card link | Invalid page structure; works, but assistive tools can misread it. |
+| Missing state labels | Collection tabs and the desktop details accordion do not tell screen readers whether they are selected or open. |
+| Reduced-motion setting ignored | In the header, cart and collection. |
+| Checkout fields use placeholders as labels | The checkout design is frozen by the owner's decision. |
+| No image zoom on desktop | Visual, needs approval. |
+
+### Suggested order for what is left
+
+1. Photo sizes (28).
+2. One invisible batch: skip link, error page, Back button, the two English labels, type check errors, `favicon.ico`.
+3. Merchant Center feed and category URLs (36, 37) for search traffic.
 
 ---
 
-## 5. Built but not yet tested on the live site, and owner setup
+## 5. Not yet tested on the live site, and owner setup
 
 ### Not yet tested on the live site by anyone
+
+Order flow:
 
 - A full Ukraine order and a full order abroad, with € totals on the confirmation, emails, order page and admin.
 - Admin chips ("Says paid", "Paid", "Photos requested") and the set / reset payment actions.
@@ -226,23 +281,34 @@ Status of the items in this part: taken from the 6 October audits minus everythi
 - The photo request for a guest who then creates an account.
 - Emails for one order arriving as one conversation in a real inbox; owner emails starting with "[Адмін]".
 - Place order on an empty checkout pointing at the first missing field.
-- Care page: the email address not breaking mid-word.
 - Real storage of receipts and photos (depends on the Railway setting below).
+
+Newer work:
+
+- Password reset from start to finish with a real email.
+- The privacy page text and its links from the footer and login window.
+- The account page after the removals; saving name and phone.
+- Touch areas on a real phone (header icons, colour swatches, gallery dots).
+- The size panel with real measurements, and the English and measurement fields in admin.
+- No white flash when going back; cards appearing on time on scroll; pages opening at the top.
 
 ### Setup only the owner can do
 
 - **Railway:** set `R2_PRIVATE_BUCKET_NAME`. Receipts and making-of photos need it.
 - **Admin → Care → Payment details:** fill in the EUR group and the UAH payment reference.
-- **Every product:** add a € price.
+- **Every product:** add a € price, the measurements per size and a size photo; read through the English texts.
 - **Admin → Care → Contact details:** replace `hello@yarne.acc` if it still shows.
 - **Admin home text:** the English paragraphs about Scottish and Peruvian wool mills, and the "wool washing" line in the Why Yarné block.
 - **Admin content typo:** "сторювати".
-- **Google Search Console:** submit the sitemap (about five minutes).
+- **Google Search Console:** the sitemap is submitted and indexing was requested for the four main pages on 9 October. Check the sitemap status the next day and the Pages report after about a week.
 
 ### Decisions already made (do not reopen without the owner)
 
 - No design, UX or animation change without approval. The checkout design stays as it is.
 - No search icon on phones.
+- No reviews, no sticky buy bar on phones, no Filter and Sort on the collection, no quick add on phones.
+- Keyboard focus styles stay as they are.
+- Analytics later; photo sizes later (remind the owner whenever global fixes come up).
 - No payment choice at checkout and no auto-accept; the choice comes after the owner accepts.
 - Making-of photos are deleted as soon as the order is marked Received.
 - No owner email on "I have paid"; admin chips only.
