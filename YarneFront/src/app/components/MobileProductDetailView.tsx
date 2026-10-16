@@ -152,6 +152,7 @@ export function MobileProductDetailView({
   const [viewerIndex, setViewerIndex] = useState<number | null>(null);
   const tapStart = useRef<{ x: number; y: number } | null>(null);
   const galleryBoxRef = useRef<HTMLDivElement>(null);
+  const infoSheetRef = useRef<HTMLDivElement>(null);
 
   const [emblaRef, emblaApi] = useEmblaCarouselWithGestures({
     loop: canLoop,
@@ -342,7 +343,14 @@ export function MobileProductDetailView({
             const box = galleryBoxRef.current;
             const photo = galleryImages[i];
             if (!box || !photo) return null;
-            return { rect: box.getBoundingClientRect(), objectPosition: `${(photo.focalX ?? 0.5) * 100}% ${(photo.focalY ?? 0.5) * 100}%` };
+            const rect = box.getBoundingClientRect();
+            // The info sheet's rounded top overlaps the photo; the copy stops where the sheet starts, so it never covers it.
+            const sheetTop = infoSheetRef.current?.getBoundingClientRect().top ?? rect.bottom;
+            return {
+              rect,
+              objectPosition: `${(photo.focalX ?? 0.5) * 100}% ${(photo.focalY ?? 0.5) * 100}%`,
+              coveredBottom: Math.max(0, Math.min(rect.height, rect.bottom - sheetTop)),
+            };
           }}
           // Back on the photo the shopper ended on, without a slide, so the viewer shrinks onto it.
           onBeforeClose={(i) => emblaApi?.scrollTo(i, true)}
@@ -440,6 +448,7 @@ export function MobileProductDetailView({
       {/* Info sheet — overlaps further up than its rounded corner radius so the corner never
           exposes bare image-container background under it */}
       <div
+        ref={infoSheetRef}
         className="relative z-10 -mt-[clamp(24px,6vw,32px)] rounded-t-[clamp(20px,5vw,28px)] px-[clamp(14px,3.6vw,22px)] pt-[clamp(14px,3.5vw,18px)] pb-[clamp(14px,3.5vw,20px)]"
         style={{
           backgroundColor: "#F3EFE8",

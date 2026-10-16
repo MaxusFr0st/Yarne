@@ -5,7 +5,12 @@ import { X } from "lucide-react";
 import { useReducedMotion } from "motion/react";
 
 /** Where a photo sits on the page, so the viewer can grow out of it and shrink back into it. */
-export type PhotoOrigin = { rect: DOMRect; objectPosition: string };
+export type PhotoOrigin = {
+  rect: DOMRect;
+  objectPosition: string;
+  /** How much of the photo's bottom the page covers (the info sheet overlaps it); the copy is cut there on the page end. */
+  coveredBottom?: number;
+};
 
 type PhotoViewerProps = {
   photos: { src: string; focalX?: number; focalY?: number }[];
@@ -47,8 +52,9 @@ function nextFrame(cb: () => void): () => void {
 /**
  * Phones: a product's photos over the whole screen (opened by a tap on the gallery). Swipe between
  * photos, two fingers to zoom in (1x to 4x) and one finger to look around while zoomed. No double
- * tap. Its height is the page's frozen screen height (--app-svh), so the photo does not resize
- * while the browser's own bars slide in and out.
+ * tap. It is as tall as the screen with the browser's bars hidden (100lvh), so it runs under
+ * Safari's floating bars like the page does, and that height never changes while the bars slide
+ * in and out, so the photo does not resize.
  */
 export function PhotoViewer({ photos, startIndex, alt, getOrigin, onBeforeClose, onClose }: PhotoViewerProps) {
   const { t } = useTranslation();
@@ -131,6 +137,8 @@ export function PhotoViewer({ photos, startIndex, alt, getOrigin, onBeforeClose,
       to: { left: number; top: number; width: number; height: number },
       fromPosition: string,
       toPosition: string,
+      fromCut: number,
+      toCut: number,
       done: () => void,
     ) => {
       const fly = flyRef.current;
@@ -145,15 +153,18 @@ export function PhotoViewer({ photos, startIndex, alt, getOrigin, onBeforeClose,
         fly.style.height = `${box.height}px`;
         img.style.objectPosition = position;
       };
+      const cut = (px: number) => `inset(0 0 ${px}px 0)`;
       fly.style.transition = "none";
       img.style.transition = "none";
       set(from, fromPosition);
+      fly.style.clipPath = cut(fromCut);
       fly.style.visibility = "visible";
       void fly.offsetWidth; // start from `from` before moving
       const motion = `${FLIGHT_MS}ms ${EASE}`;
-      fly.style.transition = `transform ${motion}, width ${motion}, height ${motion}`;
+      fly.style.transition = `transform ${motion}, width ${motion}, height ${motion}, clip-path ${motion}`;
       img.style.transition = `object-position ${motion}`;
       set(to, toPosition);
+      fly.style.clipPath = cut(toCut);
       let finished = false;
       const finish = () => {
         if (finished) return;
@@ -184,7 +195,7 @@ export function PhotoViewer({ photos, startIndex, alt, getOrigin, onBeforeClose,
         onClose(index);
         return;
       }
-      flight(landedRect(index), origin.rect, "50% 50%", origin.objectPosition, () => onClose(index));
+      flight(landedRect(index), origin.rect, "50% 50%", origin.objectPosition, 0, origin.coveredBottom ?? 0, () => onClose(index));
     });
   }, [phase, index, photos, getOrigin, onBeforeClose, onClose, flight, landedRect, resetZoom]);
 
@@ -196,7 +207,7 @@ export function PhotoViewer({ photos, startIndex, alt, getOrigin, onBeforeClose,
         setPhase("open");
         return;
       }
-      flight(origin.rect, landedRect(startIndex), origin.objectPosition, "50% 50%", () => setPhase("open"));
+      flight(origin.rect, landedRect(startIndex), origin.objectPosition, "50% 50%", origin.coveredBottom ?? 0, 0, () => setPhase("open"));
     });
     closeRef.current?.focus({ preventScroll: true });
     const onKey = (event: KeyboardEvent) => {
@@ -341,9 +352,8 @@ export function PhotoViewer({ photos, startIndex, alt, getOrigin, onBeforeClose,
       role="dialog"
       aria-modal="true"
       aria-label={alt}
-      className="fixed left-0 top-0 z-[120] w-full overflow-hidden select-none"
+      className="fixed left-0 top-0 z-[120] h-[var(--app-svh)] supports-[height:100lvh]:h-lvh w-full overflow-hidden select-none"
       style={{
-        height: "var(--app-svh)",
         backgroundColor: `rgba(${BACKGROUND}, ${phase === "closing" ? 0 : 1})`,
         animation: phase === "opening" && duration ? `photo-viewer-in ${FLIGHT_MS}ms ${EASE} both` : undefined,
         transition: duration ? `background-color ${FLIGHT_MS}ms ${EASE}` : undefined,
@@ -386,7 +396,7 @@ export function PhotoViewer({ photos, startIndex, alt, getOrigin, onBeforeClose,
       {photos.length > 1 && (
         <div
           className="absolute left-1/2 -translate-x-1/2 flex gap-1 transition-opacity duration-200"
-          style={{ bottom: "calc(env(safe-area-inset-bottom, 0px) + 18px)", opacity: phase === "open" ? 1 : 0 }}
+          style={{ bottom: "calc(max(100lvh - 100svh, env(safe-area-inset-bottom, 0px)) + 18px)", opacity: phase === "open" ? 1 : 0 }}
           aria-hidden="true"
         >
           {photos.map((_, i) => (
