@@ -175,6 +175,16 @@ export function ProductDetail() {
   useEffect(() => {
     checkRail();
   }, [checkRail, photoBoxHeight, product]);
+  // Sticky only when the column fits on the screen. Taller than the screen it could never stick
+  // anyway, and Safari on iPad drew a sticky layer that tall only bit by bit while scrolling, so
+  // the buy box appeared piece by piece.
+  const [viewportHeight, setViewportHeight] = useState(() => (typeof window === "undefined" ? 0 : window.innerHeight));
+  useEffect(() => {
+    const onResize = () => setViewportHeight(window.innerHeight);
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
+  const infoColFits = infoColHeight !== null && infoColHeight + 24 + 80 <= viewportHeight;
   const supplementaryDetails = useMemo(
     () => (product ? getSupplementaryProductDetails(product) : []),
     [product]
@@ -568,7 +578,7 @@ export function ProductDetail() {
           {/* Col 3: Product Info */}
           <div
             ref={infoColRef}
-            className="flex flex-col gap-3 md:sticky md:top-[calc(var(--main-header-h)+24px)]"
+            className={`flex flex-col gap-3${infoColFits ? " md:sticky md:top-[calc(var(--main-header-h)+24px)]" : ""}`}
           >
             <div>
               <CategoryLink
