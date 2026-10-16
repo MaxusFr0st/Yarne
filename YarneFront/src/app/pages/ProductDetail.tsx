@@ -28,6 +28,7 @@ import { localizedCatalogName } from "../utils/localizedName";
 import { productDescription, productName } from "../utils/productText";
 import { CategoryLink } from "../components/CategoryLink";
 import { ProductPageSkeleton } from "../components/ProductPageSkeleton";
+import { PhotoViewer } from "../components/PhotoViewer";
 import { productSubtitle } from "../utils/productSubtitle";
 import { SizePanel, hasSizeMeasurements } from "../components/SizePanel";
 import {
@@ -75,6 +76,22 @@ export function ProductDetail() {
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [photoZoomed, setPhotoZoomed] = useState(false);
   const zoomRef = useRef<HTMLDivElement>(null);
+  // A finger on the photo (iPad, touch screens) opens the full-screen photos, as on phones; a mouse
+  // or trackpad keeps the zoom in place. Decided per tap from the pointer that made it.
+  const lastPointer = useRef<string>("mouse");
+  const [viewerIndex, setViewerIndex] = useState<number | null>(null);
+  const photoBoxRef = useRef<HTMLDivElement>(null);
+  // The thumbnail column is never taller than the photo: when the thumbnails do not fit beside it
+  // (an iPad, a short window, many photos) it scrolls, with a fade while more sit below. When they
+  // fit, nothing about it changes.
+  const railRef = useRef<HTMLDivElement>(null);
+  const [photoBoxHeight, setPhotoBoxHeight] = useState<number | null>(null);
+  const [railHasMore, setRailHasMore] = useState(false);
+  const checkRail = useCallback(() => {
+    const rail = railRef.current;
+    if (!rail) return;
+    setRailHasMore(rail.scrollHeight - rail.scrollTop - rail.clientHeight > 1);
+  }, []);
   /** Points the zoom at the mouse: set directly on the element, so moving the mouse never re-renders. */
   const aimZoom = (event: React.MouseEvent<HTMLDivElement>) => {
     const box = zoomRef.current;
@@ -106,6 +123,8 @@ export function ProductDetail() {
     infoColObserverRef.current?.disconnect();
     infoColObserverRef.current = null;
     if (!el) return;
+    // Measured right away (before the first paint), so the photo opens at its height instead of growing to it.
+    setInfoColHeight(el.getBoundingClientRect().height);
     const observer = new ResizeObserver(([entry]) => {
       setInfoColHeight(entry.contentRect.height);
     });
@@ -122,12 +141,32 @@ export function ProductDetail() {
     furnitureObserverRef.current?.disconnect();
     furnitureObserverRef.current = null;
     if (!el) return;
+    // Same: the strap choice is open at its height on the first paint, not sliding open after it.
+    setFurnitureContentHeight(el.getBoundingClientRect().height);
     const observer = new ResizeObserver(([entry]) => {
       setFurnitureContentHeight(entry.contentRect.height);
     });
     observer.observe(el);
     furnitureObserverRef.current = observer;
   }, []);
+  // Sizes change without animation until the page has painted once: the first measurements are
+  // where things already are, not a change the shopper made.
+  const [settled, setSettled] = useState(false);
+  useEffect(() => {
+    if (!product) return;
+    const frame = requestAnimationFrame(() => requestAnimationFrame(() => setSettled(true)));
+    return () => cancelAnimationFrame(frame);
+  }, [product]);
+  useEffect(() => {
+    const box = photoBoxRef.current;
+    if (!box) return;
+    const observer = new ResizeObserver(([entry]) => setPhotoBoxHeight(entry.contentRect.height));
+    observer.observe(box);
+    return () => observer.disconnect();
+  }, [product]);
+  useEffect(() => {
+    checkRail();
+  }, [checkRail, photoBoxHeight, product]);
   const supplementaryDetails = useMemo(
     () => (product ? getSupplementaryProductDetails(product) : []),
     [product]
@@ -358,12 +397,21 @@ export function ProductDetail() {
 
         <div className="grid md:grid-cols-2 lg:grid-cols-[88px_1fr_420px] gap-6 items-stretch mt-0">
           {/* Col 1: thumbnail rail (lg+) — fixed-size thumbs, doesn't stretch */}
-          <div className="hidden lg:flex flex-col gap-2.5 self-start">
+          <div className="hidden lg:block relative self-start">
+          <div
+            ref={railRef}
+            onScroll={checkRail}
+            className="flex flex-col gap-2.5 overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden p-[2px] -m-[2px]"
+            style={{ maxHeight: photoBoxHeight ? photoBoxHeight + 4 : undefined }}
+          >
             {images.map((img, i) => (
               <button
                 key={i}
-                onClick={() => setActiveImage(i)}
-                className="rounded-2xl overflow-hidden aspect-square cursor-pointer transition-opacity duration-300"
+                onClick={(event) => {
+                  setActiveImage(i);
+                  event.currentTarget.scrollIntoView({ block: "nearest", behavior: reduceMotion ? "auto" : "smooth" });
+                }}
+                className="shrink-0 rounded-2xl overflow-hidden aspect-square cursor-pointer transition-opacity duration-300"
                 style={{ boxShadow: safeImageIndex === i ? "0 0 0 2px #2D241E" : "none", opacity: safeImageIndex === i ? 1 : 0.55 }}
               >
                 <ImageWithFallback
@@ -374,6 +422,14 @@ export function ProductDetail() {
                 />
               </button>
             ))}
+          </div>
+            {railHasMore && (
+              <div
+                aria-hidden="true"
+                className="pointer-events-none absolute inset-x-0 bottom-0 h-16 rounded-b-2xl"
+                style={{ background: "linear-gradient(to bottom, rgba(245,242,237,0), #F5F2ED)" }}
+              />
+            )}
           </div>
 
           {/* Col 2: main image — height tracks the info column so it resizes with the furniture
@@ -386,10 +442,11 @@ export function ProductDetail() {
               max-height keeps it from ever exceeding the viewport, with margin below. */}
           <div className="w-full flex flex-col self-start">
             <motion.div
+              ref={photoBoxRef}
               className="relative rounded-[28px] overflow-hidden bg-[#EDE9E2] max-h-[calc(var(--app-svh)-200px)]"
               initial={false}
               animate={{ height: Math.max(740, infoColHeight ?? 740) }}
-              transition={reduceMotion ? { duration: 0 } : { type: "spring", stiffness: 260, damping: 32 }}
+              transition={reduceMotion || !settled ? { duration: 0 } : { type: "spring", stiffness: 260, damping: 32 }}
               style={{ boxShadow: "0 20px 44px -20px rgba(45,36,30,0.18)" }}
             >
               {images.length > 0 && (
@@ -398,7 +455,12 @@ export function ProductDetail() {
                 <div
                   ref={zoomRef}
                   className={`absolute inset-0 ${photoZoomed ? "cursor-zoom-out" : "cursor-zoom-in"}`}
+                  onPointerDown={(event) => { lastPointer.current = event.pointerType; }}
                   onClick={(event) => {
+                    if (lastPointer.current === "touch" || lastPointer.current === "pen") {
+                      setViewerIndex(safeImageIndex);
+                      return;
+                    }
                     aimZoom(event);
                     setPhotoZoomed((zoomed) => !zoomed);
                   }}
@@ -418,13 +480,18 @@ export function ProductDetail() {
                 </div>
               )}
               {images.length > 0 && !photoZoomed && (
-                <span
-                  aria-hidden="true"
-                  className="pointer-events-none absolute bottom-4 right-4 rounded-full bg-white/90 px-3 py-1.5 text-[#2D241E] uppercase"
+                <button
+                  type="button"
+                  onPointerDown={(event) => { lastPointer.current = event.pointerType; }}
+                  onClick={() => {
+                    if (lastPointer.current === "touch" || lastPointer.current === "pen") setViewerIndex(safeImageIndex);
+                    else setPhotoZoomed(true);
+                  }}
+                  className="absolute bottom-4 right-4 rounded-full bg-white/90 px-3 py-1.5 text-[#2D241E] uppercase cursor-pointer"
                   style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "0.62rem", letterSpacing: "0.12em" }}
                 >
                   ⤢ {t("product.zoomHint")}
-                </span>
+                </button>
               )}
 
               {/* Badges */}
@@ -447,6 +514,21 @@ export function ProductDetail() {
                 )}
               </div>
             </motion.div>
+            {viewerIndex !== null && images.length > 0 && (
+              <PhotoViewer
+                photos={images}
+                startIndex={viewerIndex}
+                alt={`${productName(product, locale)} – ${selectedColorLabel}`}
+                getOrigin={(i) => {
+                  const box = photoBoxRef.current;
+                  const photo = images[i];
+                  if (!box || !photo) return null;
+                  return { rect: box.getBoundingClientRect(), objectPosition: `${(photo.focalX ?? 0.5) * 100}% ${(photo.focalY ?? 0.5) * 100}%` };
+                }}
+                onBeforeClose={(i) => setActiveImage(i)}
+                onClose={() => setViewerIndex(null)}
+              />
+            )}
 
             {/* Thumbnail strip — fallback for md (below lg rail) */}
             <div className="flex gap-2.5 mt-3 lg:hidden">
@@ -620,7 +702,8 @@ export function ProductDetail() {
               {furnitureList.length > 0 && (
                 <motion.div
                   animate={{ height: showFurniture ? furnitureContentHeight : 0, opacity: showFurniture ? 1 : 0 }}
-                  transition={{ duration: reduceMotion ? 0 : 0.35, ease: easing }}
+                  transition={{ duration: reduceMotion || !settled ? 0 : 0.35, ease: easing }}
+                  initial={false}
                   className="overflow-hidden"
                 >
                   <div ref={furnitureContentRef} aria-hidden={!showFurniture} style={{ pointerEvents: showFurniture ? undefined : "none" }}>

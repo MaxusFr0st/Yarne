@@ -9,10 +9,11 @@ import {
   loadCareContent,
   type CareContent,
 } from "../../utils/careContent";
+import { CARE_SEED } from "../../utils/careSeed";
 
 /** The care guide of the product's material, with the product already chosen; null for a product no material lists. */
 export function useProductCarePath(productId: string | undefined): string | null {
-  const [content, setContent] = useState<CareContent | null>(getInitialCareContent);
+  const [content, setContent] = useState<CareContent | null>(() => getInitialCareContent() ?? CARE_SEED);
 
   useEffect(() => {
     let cancelled = false;
