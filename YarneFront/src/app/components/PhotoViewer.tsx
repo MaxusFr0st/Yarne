@@ -10,6 +10,8 @@ export type PhotoOrigin = {
   objectPosition: string;
   /** How much of the photo's bottom the page covers (the info sheet overlaps it); the copy is cut there on the page end. */
   coveredBottom?: number;
+  /** The page photo's corner radius in px, so the copy rounds into it instead of landing square. */
+  radius?: number;
 };
 
 type PhotoViewerProps = {
@@ -140,6 +142,8 @@ export function PhotoViewer({ photos, startIndex, alt, getOrigin, onBeforeClose,
       toPosition: string,
       fromCut: number,
       toCut: number,
+      fromRadius: number,
+      toRadius: number,
       done: () => void,
     ) => {
       const fly = flyRef.current;
@@ -159,13 +163,15 @@ export function PhotoViewer({ photos, startIndex, alt, getOrigin, onBeforeClose,
       img.style.transition = "none";
       set(from, fromPosition);
       fly.style.clipPath = cut(fromCut);
+      fly.style.borderRadius = `${fromRadius}px`;
       fly.style.visibility = "visible";
       void fly.offsetWidth; // start from `from` before moving
       const motion = `${FLIGHT_MS}ms ${EASE}`;
-      fly.style.transition = `transform ${motion}, width ${motion}, height ${motion}, clip-path ${motion}`;
+      fly.style.transition = `transform ${motion}, width ${motion}, height ${motion}, clip-path ${motion}, border-radius ${motion}`;
       img.style.transition = `object-position ${motion}`;
       set(to, toPosition);
       fly.style.clipPath = cut(toCut);
+      fly.style.borderRadius = `${toRadius}px`;
       let finished = false;
       const finish = () => {
         if (finished) return;
@@ -196,7 +202,7 @@ export function PhotoViewer({ photos, startIndex, alt, getOrigin, onBeforeClose,
         onClose(index);
         return;
       }
-      flight(landedRect(index), origin.rect, "50% 50%", origin.objectPosition, 0, origin.coveredBottom ?? 0, () => {
+      flight(landedRect(index), origin.rect, "50% 50%", origin.objectPosition, 0, origin.coveredBottom ?? 0, 0, origin.radius ?? 0, () => {
         // Landed on the page photo. Removing the copy at once made the page snap: Safari only
         // repaints what was under the full-screen viewer (the gallery dots, the sheet's rounded
         // corners, the part under its bar) once it is gone. So the copy dissolves over the page,
@@ -218,7 +224,7 @@ export function PhotoViewer({ photos, startIndex, alt, getOrigin, onBeforeClose,
         setPhase("open");
         return;
       }
-      flight(origin.rect, landedRect(startIndex), origin.objectPosition, "50% 50%", origin.coveredBottom ?? 0, 0, () => setPhase("open"));
+      flight(origin.rect, landedRect(startIndex), origin.objectPosition, "50% 50%", origin.coveredBottom ?? 0, 0, origin.radius ?? 0, 0, () => setPhase("open"));
     });
     closeRef.current?.focus({ preventScroll: true });
     const onKey = (event: KeyboardEvent) => {
@@ -368,7 +374,7 @@ export function PhotoViewer({ photos, startIndex, alt, getOrigin, onBeforeClose,
     {/* The sand background on its own plain layer, like the cart's backdrop: on iPhone Safari
         paints a plain fixed layer down under its bar, but cuts the viewer (it holds moving photos)
         off short of it, which let the page show through there. */}
-    <div aria-hidden="true" className="fixed inset-x-0 top-0 z-[120]" style={{ height: "calc(var(--app-svh) + var(--browser-bar-b))", ...backdrop }}>
+    <div aria-hidden="true" className="fixed inset-x-0 top-0 z-[120]" style={{ height: "calc(var(--app-svh) + var(--browser-bar-b))", minHeight: "100lvh", ...backdrop }}>
       {/* Exactly the cart's setup: the backdrop alone still stopped short of the bar on iPhone,
           an explicit strip from the screen line down is what Safari paints under it. */}
       <div className="absolute inset-x-0" style={{ top: "var(--app-svh)", height: "var(--browser-bar-b)", backgroundColor: "inherit" }} />

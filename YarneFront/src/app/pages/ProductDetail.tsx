@@ -39,6 +39,11 @@ import {
 import type { Product, ProductImage } from "../types/product";
 
 const easing = [0.25, 0.1, 0.25, 1] as const;
+/** Fades the thumbnail column out over 56px at each end that has more thumbnails past it. */
+function railMask({ top, bottom }: { top: boolean; bottom: boolean }) {
+  return `linear-gradient(to bottom, ${top ? "transparent 0, #000 56px" : "#000 0"}, ${bottom ? "#000 calc(100% - 56px), transparent 100%" : "#000 100%"})`;
+}
+
 export function ProductDetail() {
   const { t } = useTranslation();
   const reduceMotion = useReducedMotion();
@@ -86,11 +91,14 @@ export function ProductDetail() {
   // fit, nothing about it changes.
   const railRef = useRef<HTMLDivElement>(null);
   const [photoBoxHeight, setPhotoBoxHeight] = useState<number | null>(null);
-  const [railHasMore, setRailHasMore] = useState(false);
+  // Which ends of the column have thumbnails hidden past them.
+  const [railFade, setRailFade] = useState({ top: false, bottom: false });
   const checkRail = useCallback(() => {
     const rail = railRef.current;
     if (!rail) return;
-    setRailHasMore(rail.scrollHeight - rail.scrollTop - rail.clientHeight > 1);
+    const top = rail.scrollTop > 1;
+    const bottom = rail.scrollHeight - rail.scrollTop - rail.clientHeight > 1;
+    setRailFade((was) => (was.top === top && was.bottom === bottom ? was : { top, bottom }));
   }, []);
   /** Points the zoom at the mouse: set directly on the element, so moving the mouse never re-renders. */
   const aimZoom = (event: React.MouseEvent<HTMLDivElement>) => {
@@ -401,8 +409,14 @@ export function ProductDetail() {
           <div
             ref={railRef}
             onScroll={checkRail}
-            className="flex flex-col gap-2.5 overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden p-[2px] -m-[2px]"
-            style={{ maxHeight: photoBoxHeight ? photoBoxHeight + 4 : undefined }}
+            className="flex flex-col gap-2.5 overflow-y-auto overscroll-contain touch-pan-y [scrollbar-width:none] [&::-webkit-scrollbar]:hidden p-[2px] -m-[2px]"
+            style={{
+              maxHeight: photoBoxHeight ? photoBoxHeight + 4 : undefined,
+              // The thumbnails themselves fade at an end with more past it, so the fade moves with
+              // them; a swipe on the column scrolls only the column, never the page.
+              WebkitMaskImage: railFade.top || railFade.bottom ? railMask(railFade) : undefined,
+              maskImage: railFade.top || railFade.bottom ? railMask(railFade) : undefined,
+            }}
           >
             {images.map((img, i) => (
               <button
@@ -423,13 +437,6 @@ export function ProductDetail() {
               </button>
             ))}
           </div>
-            {railHasMore && (
-              <div
-                aria-hidden="true"
-                className="pointer-events-none absolute inset-x-0 bottom-0 h-16 rounded-b-2xl"
-                style={{ background: "linear-gradient(to bottom, rgba(245,242,237,0), #F5F2ED)" }}
-              />
-            )}
           </div>
 
           {/* Col 2: main image — height tracks the info column so it resizes with the furniture
@@ -523,7 +530,11 @@ export function ProductDetail() {
                   const box = photoBoxRef.current;
                   const photo = images[i];
                   if (!box || !photo) return null;
-                  return { rect: box.getBoundingClientRect(), objectPosition: `${(photo.focalX ?? 0.5) * 100}% ${(photo.focalY ?? 0.5) * 100}%` };
+                  return {
+                    rect: box.getBoundingClientRect(),
+                    objectPosition: `${(photo.focalX ?? 0.5) * 100}% ${(photo.focalY ?? 0.5) * 100}%`,
+                    radius: parseFloat(getComputedStyle(box).borderTopLeftRadius) || 0,
+                  };
                 }}
                 onBeforeClose={(i) => setActiveImage(i)}
                 onClose={() => setViewerIndex(null)}
