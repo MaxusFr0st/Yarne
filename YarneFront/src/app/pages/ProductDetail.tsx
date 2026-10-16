@@ -409,7 +409,7 @@ export function ProductDetail() {
           <div
             ref={railRef}
             onScroll={checkRail}
-            className="flex flex-col gap-2.5 overflow-y-auto overscroll-contain touch-pan-y [scrollbar-width:none] [&::-webkit-scrollbar]:hidden p-[2px] -m-[2px]"
+            className="flex flex-col gap-2.5 overflow-y-auto touch-pan-y [scrollbar-width:none] [&::-webkit-scrollbar]:hidden p-[2px] -m-[2px]"
             style={{
               maxHeight: photoBoxHeight ? photoBoxHeight + 4 : undefined,
               // The thumbnails themselves fade at an end with more past it, so the fade moves with

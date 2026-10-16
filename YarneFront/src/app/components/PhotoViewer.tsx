@@ -29,7 +29,8 @@ const MAX_SCALE = 4;
 const SWIPE_DISTANCE = 0.18; // of the screen width
 // Fast start, gentle landing: opening, closing and sliding between photos all use it.
 const EASE = "cubic-bezier(0.32, 0.72, 0, 1)";
-const FLIGHT_MS = 420;
+// Longer on a tablet or computer: the photo travels much further there, and 420ms looked rushed.
+const FLIGHT_MS = typeof window !== "undefined" && window.innerWidth >= 768 ? 600 : 420;
 const FADE_OUT_MS = 180;
 const BACKGROUND = "243, 239, 232"; // #F3EFE8
 
@@ -122,8 +123,11 @@ export function PhotoViewer({ photos, startIndex, alt, getOrigin, onBeforeClose,
     const root = rootRef.current;
     const width = root?.clientWidth ?? window.innerWidth;
     const height = root?.clientHeight ?? window.innerHeight;
-    const img = imageRefs.current[i];
-    const ratio = img && img.naturalWidth && img.naturalHeight ? img.naturalWidth / img.naturalHeight : 3 / 4;
+    // The photo's own shape: from the viewer's copy if loaded, else from the travelling copy (the
+    // page already showed it, so it is in hand). Guessing a shape made the photo land a little off
+    // and jump into place.
+    const known = [imageRefs.current[i], flyImgRef.current].find((img) => img && img.naturalWidth && img.naturalHeight);
+    const ratio = known ? known.naturalWidth / known.naturalHeight : 3 / 4;
     const w = Math.min(width, height * ratio);
     const h = w / ratio;
     return { left: (width - w) / 2, top: (height - h) / 2, width: w, height: h };
@@ -219,13 +223,25 @@ export function PhotoViewer({ photos, startIndex, alt, getOrigin, onBeforeClose,
   // Grow out of the page photo, focus the close button; Escape closes; the page behind cannot scroll.
   useEffect(() => {
     const origin = getOrigin(startIndex);
-    const cancel = nextFrame(() => {
-      if (!origin) {
-        setPhase("open");
-        return;
-      }
-      flight(origin.rect, landedRect(startIndex), origin.objectPosition, "50% 50%", origin.coveredBottom ?? 0, 0, origin.radius ?? 0, 0, () => setPhase("open"));
+    let stopped = false;
+    let cancelFrame = () => {};
+    // Start once the travelling copy is decoded (it is the page's photo, so this is at once or near
+    // it; capped at 200ms): its first frames no longer stutter, and its shape is known for landing.
+    const ready = flyImgRef.current?.decode?.().catch(() => undefined) ?? Promise.resolve();
+    void Promise.race([ready, new Promise((resolve) => window.setTimeout(resolve, 200))]).then(() => {
+      if (stopped) return;
+      cancelFrame = nextFrame(() => {
+        if (!origin) {
+          setPhase("open");
+          return;
+        }
+        flight(origin.rect, landedRect(startIndex), origin.objectPosition, "50% 50%", origin.coveredBottom ?? 0, 0, origin.radius ?? 0, 0, () => setPhase("open"));
+      });
     });
+    const cancel = () => {
+      stopped = true;
+      cancelFrame();
+    };
     closeRef.current?.focus({ preventScroll: true });
     const onKey = (event: KeyboardEvent) => {
       if (event.key === "ArrowRight") setIndex((i) => Math.min(photos.length - 1, i + 1));
