@@ -363,10 +363,10 @@ export function PhotoViewer({ photos, startIndex, alt, getOrigin, onBeforeClose,
       role="dialog"
       aria-modal="true"
       aria-label={alt}
-      className="fixed left-0 top-0 z-[120] w-full overflow-hidden select-none"
+      // Exactly as tall as the part Safari actually shows of it (it cuts this layer off at the large
+      // viewport line), so the photo is centred in what the shopper sees; below that is the backdrop.
+      className="fixed left-0 top-0 z-[120] h-[var(--app-svh)] supports-[height:100lvh]:h-lvh w-full overflow-hidden select-none"
       style={{
-        // Like the cart: the frozen screen height plus the strip under Safari's bar, so it reaches the bottom.
-        height: "calc(var(--app-svh) + var(--browser-bar-b))",
         touchAction: "none",
         overscrollBehavior: "contain",
       }}
@@ -406,7 +406,7 @@ export function PhotoViewer({ photos, startIndex, alt, getOrigin, onBeforeClose,
       {photos.length > 1 && (
         <div
           className="absolute left-1/2 -translate-x-1/2 flex gap-1 transition-opacity duration-200"
-          style={{ bottom: "calc(var(--browser-bar-b) + 18px)", opacity: phase === "open" ? 1 : 0 }}
+          style={{ bottom: "calc(max(100lvh - var(--app-svh), 0px) + 18px)", opacity: phase === "open" ? 1 : 0 }}
           aria-hidden="true"
         >
           {photos.map((_, i) => (
