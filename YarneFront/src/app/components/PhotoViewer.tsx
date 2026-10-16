@@ -52,9 +52,11 @@ function nextFrame(cb: () => void): () => void {
 /**
  * Phones: a product's photos over the whole screen (opened by a tap on the gallery). Swipe between
  * photos, two fingers to zoom in (1x to 4x) and one finger to look around while zoomed. No double
- * tap. It is as tall as the screen with the browser's bars hidden (100lvh), so it runs under
- * Safari's floating bars like the page does, and that height never changes while the bars slide
- * in and out, so the photo does not resize.
+ * tap. Like the cart and the other full-screen panels it is the frozen screen height plus the strip
+ * under Safari's floating bar (--app-svh + --browser-bar-b), so it runs under the bar to the very
+ * bottom and never resizes while the bars slide. Safari cuts anything moved with a CSS transform
+ * off at the large-viewport line, short of that bottom, so the photos, the slide between them, the
+ * zoom and the opening copy are all placed with left/top/width/height instead of transforms.
  */
 export function PhotoViewer({ photos, startIndex, alt, getOrigin, onBeforeClose, onClose }: PhotoViewerProps) {
   const { t } = useTranslation();
@@ -84,8 +86,8 @@ export function PhotoViewer({ photos, startIndex, alt, getOrigin, onBeforeClose,
     (offsetPx: number, animate: boolean) => {
       const track = trackRef.current;
       if (!track) return;
-      track.style.transition = animate && duration ? `transform ${duration}ms ${EASE}` : "none";
-      track.style.transform = `translate3d(calc(${-index * 100}% + ${offsetPx}px), 0, 0)`;
+      track.style.transition = animate && duration ? `left ${duration}ms ${EASE}` : "none";
+      track.style.left = `calc(${-index * 100}% + ${offsetPx}px)`;
     },
     [index, duration],
   );
@@ -94,8 +96,12 @@ export function PhotoViewer({ photos, startIndex, alt, getOrigin, onBeforeClose,
     const img = imageRefs.current[index];
     if (!img) return;
     const { scale, x, y } = zoom.current;
-    img.style.transition = animate && duration ? `transform 220ms ${EASE}` : "none";
-    img.style.transform = `translate3d(${x}px, ${y}px, 0) scale(${scale})`;
+    const motion = `220ms ${EASE}`;
+    img.style.transition = animate && duration ? `left ${motion}, top ${motion}, width ${motion}, height ${motion}` : "none";
+    img.style.left = `calc(${(1 - scale) * 50}% + ${x}px)`;
+    img.style.top = `calc(${(1 - scale) * 50}% + ${y}px)`;
+    img.style.width = `${scale * 100}%`;
+    img.style.height = `${scale * 100}%`;
   }, [index, duration]);
 
   /** Keeps a zoomed photo covering the screen: it cannot be dragged past its own edges. */
@@ -148,7 +154,8 @@ export function PhotoViewer({ photos, startIndex, alt, getOrigin, onBeforeClose,
         return;
       }
       const set = (box: typeof from, position: string) => {
-        fly.style.transform = `translate3d(${box.left}px, ${box.top}px, 0)`;
+        fly.style.left = `${box.left}px`;
+        fly.style.top = `${box.top}px`;
         fly.style.width = `${box.width}px`;
         fly.style.height = `${box.height}px`;
         img.style.objectPosition = position;
@@ -161,7 +168,7 @@ export function PhotoViewer({ photos, startIndex, alt, getOrigin, onBeforeClose,
       fly.style.visibility = "visible";
       void fly.offsetWidth; // start from `from` before moving
       const motion = `${FLIGHT_MS}ms ${EASE}`;
-      fly.style.transition = `transform ${motion}, width ${motion}, height ${motion}, clip-path ${motion}`;
+      fly.style.transition = `left ${motion}, top ${motion}, width ${motion}, height ${motion}, clip-path ${motion}`;
       img.style.transition = `object-position ${motion}`;
       set(to, toPosition);
       fly.style.clipPath = cut(toCut);
@@ -242,7 +249,8 @@ export function PhotoViewer({ photos, startIndex, alt, getOrigin, onBeforeClose,
     imageRefs.current.forEach((img, i) => {
       if (img && i !== index) {
         img.style.transition = "none";
-        img.style.transform = "";
+        img.style.left = img.style.top = "";
+        img.style.width = img.style.height = "";
       }
     });
     zoom.current = { scale: 1, x: 0, y: 0 };
@@ -352,8 +360,9 @@ export function PhotoViewer({ photos, startIndex, alt, getOrigin, onBeforeClose,
       role="dialog"
       aria-modal="true"
       aria-label={alt}
-      className="fixed left-0 top-0 z-[120] h-[var(--app-svh)] supports-[height:100lvh]:h-lvh w-full overflow-hidden select-none"
+      className="fixed left-0 top-0 z-[120] w-full overflow-hidden select-none"
       style={{
+        height: "calc(var(--app-svh) + var(--browser-bar-b))",
         backgroundColor: `rgba(${BACKGROUND}, ${phase === "closing" ? 0 : 1})`,
         animation: phase === "opening" && duration ? `photo-viewer-in ${FLIGHT_MS}ms ${EASE} both` : undefined,
         transition: duration ? `background-color ${FLIGHT_MS}ms ${EASE}` : undefined,
@@ -365,7 +374,7 @@ export function PhotoViewer({ photos, startIndex, alt, getOrigin, onBeforeClose,
       onPointerUp={onPointerUp}
       onPointerCancel={onPointerUp}
     >
-      <div ref={trackRef} className="flex h-full" style={{ willChange: "transform", transform: `translate3d(${-startIndex * 100}%, 0, 0)`, visibility: phase === "open" ? "visible" : "hidden" }}>
+      <div ref={trackRef} className="relative flex h-full" style={{ left: `${-startIndex * 100}%`, visibility: phase === "open" ? "visible" : "hidden" }}>
         {photos.map((photo, i) => (
           <div key={`${photo.src}-${i}`} className="relative h-full w-full shrink-0 overflow-hidden">
             <img
@@ -375,7 +384,6 @@ export function PhotoViewer({ photos, startIndex, alt, getOrigin, onBeforeClose,
               draggable={false}
               decoding="async"
               className="absolute inset-0 h-full w-full object-contain"
-              style={{ transformOrigin: "50% 50%", willChange: i === index ? "transform" : undefined }}
             />
           </div>
         ))}
@@ -396,7 +404,7 @@ export function PhotoViewer({ photos, startIndex, alt, getOrigin, onBeforeClose,
       {photos.length > 1 && (
         <div
           className="absolute left-1/2 -translate-x-1/2 flex gap-1 transition-opacity duration-200"
-          style={{ bottom: "calc(max(100lvh - 100svh, env(safe-area-inset-bottom, 0px)) + 18px)", opacity: phase === "open" ? 1 : 0 }}
+          style={{ bottom: "calc(var(--browser-bar-b) + 18px)", opacity: phase === "open" ? 1 : 0 }}
           aria-hidden="true"
         >
           {photos.map((_, i) => (
@@ -414,7 +422,7 @@ export function PhotoViewer({ photos, startIndex, alt, getOrigin, onBeforeClose,
         ref={flyRef}
         aria-hidden="true"
         className="pointer-events-none absolute left-0 top-0 overflow-hidden"
-        style={{ visibility: "hidden", willChange: "transform, width, height", display: phase === "open" ? "none" : "block" }}
+        style={{ visibility: "hidden", display: phase === "open" ? "none" : "block" }}
       >
         <img ref={flyImgRef} src={flySrc} alt="" draggable={false} className="h-full w-full object-cover" />
       </div>
