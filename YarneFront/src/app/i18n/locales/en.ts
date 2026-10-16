@@ -145,6 +145,8 @@ const en = {
     decreaseQuantity: "Decrease quantity",
     increaseQuantity: "Increase quantity",
     quantity: "Quantity: {{count}}",
+    unavailable: "No longer available",
+    removeUnavailable: "Remove the unavailable item to check out",
   },
   checkout: {
     signInTitle: "Sign in to checkout",
@@ -254,6 +256,7 @@ const en = {
     deliveryPickerLoading: "Loading branches…",
     errors: {
       unableToPlaceOrder: "Unable to place order right now.",
+      itemUnavailable: "One of the items in your bag has just become unavailable. Remove it and try again.",
       tooManyAttempts: "Too many attempts. Please try again in a few minutes.",
     },
   },

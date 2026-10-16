@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
-import { ArrowRight, Package } from "lucide-react";
+import { ArrowRight, Package, X } from "lucide-react";
+import { useUnavailableCartLines } from "../hooks/useUnavailableCartLines";
 import { useTranslation } from "react-i18next";
 import { createOrder, fetchNovaPoshtaShippingPrice, newClientRequestId, orderEurTotal, type OrderDto } from "../api/orders";
 import { fetchCustomerProfile } from "../api/auth";
@@ -179,7 +180,7 @@ const MISSING_OUTLINE = { boxShadow: "0 0 0 1px rgba(242,184,184,0.85)" } as con
 export function CheckoutPage() {
   const { t } = useTranslation();
   const locale = useLocale();
-  const { cartItems, cartTotal, cartEurTotal, isLoggedIn, user, clearCart } = useApp();
+  const { cartItems, cartTotal, cartEurTotal, isLoggedIn, user, clearCart, removeFromCart } = useApp();
   // Session-scoped so an accidental reload no longer wipes a half-filled checkout.
   const [email, setEmail] = useSessionState(S.email, "");
   const [recipientFirstName, setRecipientFirstName] = useSessionState(S.firstName, "");
@@ -239,9 +240,15 @@ export function CheckoutPage() {
     ? mergePlacedOrderDisplay(placedOrder, orderSnapshot)
     : cartItems;
 
-  const displaySubtotal = placedOrder ? Number(placedOrder.total) || snapshotTotal : cartTotal;
+  // Lines the shop no longer sells: greyed with a ×, left out of the total; the order waits until they are removed.
+  const unavailable = useUnavailableCartLines(placedOrder ? [] : cartItems);
+  const goneItems = placedOrder ? [] : cartItems.filter((item) => unavailable.has(item.cartId));
+  const goneTotal = goneItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
+  const goneEurTotal = goneItems.reduce((sum, item) => sum + (item.eurPrice ?? 0) * item.quantity, 0);
+
+  const displaySubtotal = placedOrder ? Number(placedOrder.total) || snapshotTotal : cartTotal - goneTotal;
   const displayTotal = displaySubtotal;
-  const displaySubtotalEur = placedOrder ? (placedOrder.eurTotal ?? orderEurTotal(placedOrder)) : cartEurTotal;
+  const displaySubtotalEur = placedOrder ? (placedOrder.eurTotal ?? orderEurTotal(placedOrder)) : cartEurTotal == null ? cartEurTotal : cartEurTotal - goneEurTotal;
   const displayTotalEur = displaySubtotalEur;
   // Delivery abroad is paid in euro whatever the site language; within Ukraine the language decides what is shown (and hryvnia is paid).
   const payInEuro = placedOrder ? placedOrder.paymentCurrency === "EUR" : abroad;
@@ -436,7 +443,7 @@ export function CheckoutPage() {
   const requestIdRef = useRef<{ id: string; cart: string } | null>(null);
 
   const placeOrder = async () => {
-    if (cartItems.length === 0 || placingOrder) return;
+    if (cartItems.length === 0 || placingOrder || goneItems.length > 0) return;
     const gap = firstMissing();
     if (gap) {
       setMissing(gap);
@@ -519,7 +526,7 @@ export function CheckoutPage() {
       // Only a 4xx carries a sentence written for the customer; anything else is the server failing.
       const refused = e instanceof ApiRequestError && e.status >= 400 && e.status < 500;
       const tooMany = e instanceof ApiRequestError && e.status === 429;
-      setError(tooMany ? t("checkout.errors.tooManyAttempts") : abroad && refused && /euro price/i.test(e.message) ? t("checkout.abroad.noEuroPrice", { email: contactContent.email }) : refused ? e.message : t("checkout.errors.unableToPlaceOrder"));
+      setError(tooMany ? t("checkout.errors.tooManyAttempts") : refused && /is not available|was not found/i.test(e.message) ? t("checkout.errors.itemUnavailable") : abroad && refused && /euro price/i.test(e.message) ? t("checkout.abroad.noEuroPrice", { email: contactContent.email }) : refused ? e.message : t("checkout.errors.unableToPlaceOrder"));
     } finally {
       setPlacingOrder(false);
     }
@@ -625,6 +632,7 @@ export function CheckoutPage() {
             {activeItems.map((item) => {
               const productHref = item.productId ? `/product/${item.productId}` : "/collection";
               const imageSrc = item.image || ORDER_ITEM_PLACEHOLDER;
+              const gone = unavailable.has(item.cartId);
               return (
                 <LangLink
                   key={item.cartId}
@@ -636,10 +644,14 @@ export function CheckoutPage() {
                       upload to 3/4 before it reaches us. A 4:5 box left ~2px of background
                       down each side; this fills exactly, with object-contain still there so a
                       differently-shaped legacy image letterboxes rather than losing pixels. */}
-                  <div className="w-[60px] h-[80px] md:w-[68px] md:h-[90px] rounded-[12px] overflow-hidden bg-[#F8F5F0] flex-shrink-0">
+                  <div
+                    className="w-[60px] h-[80px] md:w-[68px] md:h-[90px] rounded-[12px] overflow-hidden bg-[#F8F5F0] flex-shrink-0"
+                    style={gone ? { opacity: 0.55, filter: "grayscale(0.6)" } : undefined}
+                  >
                     <ImageWithFallback src={imageSrc} alt={item.name} className="w-full h-full object-contain" />
                   </div>
                   <div className="flex-1 min-w-0">
+                    <div style={gone ? { opacity: 0.55 } : undefined}>
                     <p className="text-[#2D241E] truncate" style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "1.05rem", fontWeight: 500 }}>
                       {item.name}
                     </p>
@@ -650,7 +662,28 @@ export function CheckoutPage() {
                       variant="compact"
                       className="mt-1"
                     />
+                    </div>
+                    {gone && (
+                      <p className="text-[#4A0E0E] text-xs mt-1" style={{ fontFamily: "'DM Sans', sans-serif" }}>
+                        {t("cart.unavailable")}
+                      </p>
+                    )}
                   </div>
+                  {gone && (
+                    <button
+                      type="button"
+                      aria-label={t("cart.removeItem")}
+                      onClick={(event) => {
+                        // The row is a link to the product; this button only removes the line.
+                        event.preventDefault();
+                        event.stopPropagation();
+                        removeFromCart(item.cartId);
+                      }}
+                      className="shrink-0 w-8 h-8 flex items-center justify-center text-[#4A0E0E] hover:opacity-70 transition-opacity cursor-pointer"
+                    >
+                      <X size={14} />
+                    </button>
+                  )}
                 </LangLink>
               );
             })}
@@ -975,6 +1008,11 @@ export function CheckoutPage() {
 
               {/* The button leaves with the fields it submits — left in its own branch it
                   vanished on the first frame while everything above it was still closing. */}
+              {goneItems.length > 0 && (
+                <p className="mt-4 text-center" style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "0.72rem", color: "rgba(245,242,237,0.55)" }}>
+                  {t("cart.removeUnavailable")}
+                </p>
+              )}
               {error && (
                 <p className="mt-4 text-sm" style={{ fontFamily: "'DM Sans', sans-serif", color: "#F2B8B8" }}>
                   {error}
@@ -983,7 +1021,7 @@ export function CheckoutPage() {
               <button
                 onClick={placeOrder}
                 // Never greyed out for an unfinished form: pressing it points at the first thing still missing.
-                disabled={placingOrder || cartItems.length === 0 || abroadMissingEuro}
+                disabled={placingOrder || cartItems.length === 0 || abroadMissingEuro || goneItems.length > 0}
                 className="mt-6 w-full h-[52px] rounded-[26px] uppercase transition-opacity duration-300 disabled:opacity-60 cursor-pointer"
                 style={{ backgroundColor: "#F5F2ED", color: "#4A0E0E", fontFamily: "'DM Sans', sans-serif", fontSize: "0.75rem", letterSpacing: "0.14em" }}
               >

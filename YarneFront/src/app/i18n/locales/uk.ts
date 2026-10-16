@@ -147,6 +147,8 @@ const uk: Translations = {
     decreaseQuantity: "Зменшити кількість",
     increaseQuantity: "Збільшити кількість",
     quantity: "Кількість: {{count}}",
+    unavailable: "Більше не доступний",
+    removeUnavailable: "Приберіть недоступний товар, щоб оформити замовлення",
   },
   checkout: {
     signInTitle: "Увійдіть, щоб оформити замовлення",
@@ -258,6 +260,7 @@ const uk: Translations = {
     deliveryPickerLoading: "Завантаження відділень…",
     errors: {
       unableToPlaceOrder: "Наразі не вдалося оформити замовлення.",
+      itemUnavailable: "Один із товарів у кошику щойно став недоступним. Приберіть його та спробуйте ще раз.",
       tooManyAttempts: "Забагато спроб. Спробуйте за кілька хвилин.",
     },
   },

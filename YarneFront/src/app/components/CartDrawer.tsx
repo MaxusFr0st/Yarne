@@ -10,6 +10,7 @@ import { useLocale } from "../i18n/useLocale";
 import { useTouchMobileLayout } from "../hooks/useTouchMobileLayout";
 import { useBodyScrollLock } from "../hooks/useBodyScrollLock";
 import { useProducts } from "../hooks/useProducts";
+import { useUnavailableCartLines } from "../hooks/useUnavailableCartLines";
 import { localizedCatalogName } from "../utils/localizedName";
 import { productName } from "../utils/productText";
 
@@ -27,6 +28,12 @@ export function CartDrawer() {
   const drawerRef = useRef<HTMLDivElement>(null);
   const closeRef = useRef<HTMLButtonElement>(null);
   const { products } = useProducts();
+  // Lines the shop no longer sells: greyed, left out of the total, and checkout waits until they are removed.
+  const unavailable = useUnavailableCartLines(cartItems);
+  const goneItems = cartItems.filter((item) => unavailable.has(item.cartId));
+  const shownTotal = cartTotal - goneItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
+  const shownEurTotal =
+    cartEurTotal == null ? cartEurTotal : cartEurTotal - goneItems.reduce((sum, item) => sum + (item.eurPrice ?? 0) * item.quantity, 0);
   const liveById = useMemo(() => new Map(products.map((product) => [product.id, product])), [products]);
   // The live product, so the name follows the language; a line whose product is gone keeps the name it was added with.
   const lineName = (item: (typeof cartItems)[number]) => {
@@ -190,7 +197,10 @@ export function CartDrawer() {
                       transition={{ duration: 0.3, ease: [0.25, 0.1, 0.25, 1] }}
                     >
                       {/* Image */}
-                      <div className="w-16 h-20 md:w-24 md:h-32 rounded-xl md:rounded-2xl overflow-hidden flex-shrink-0 bg-[#EDE9E2]">
+                      <div
+                        className="w-16 h-20 md:w-24 md:h-32 rounded-xl md:rounded-2xl overflow-hidden flex-shrink-0 bg-[#EDE9E2] transition-[opacity,filter] duration-300"
+                        style={unavailable.has(item.cartId) ? { opacity: 0.55, filter: "grayscale(0.6)" } : undefined}
+                      >
                         <ImageWithFallback
                           src={item.image}
                           alt={lineName(item)}
@@ -201,6 +211,7 @@ export function CartDrawer() {
                       {/* Info */}
                       <div className="flex-1 flex flex-col justify-between py-0.5 md:py-1 min-w-0">
                         <div>
+                        <div style={unavailable.has(item.cartId) ? { opacity: 0.55 } : undefined}>
                           <p
                             className="text-[#2D241E] truncate"
                             style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "clamp(0.92rem, 3.6vw, 1.05rem)", fontWeight: 500, lineHeight: 1.3 }}
@@ -229,9 +240,16 @@ export function CartDrawer() {
                             </span>
                           </div>
                         </div>
+                        {unavailable.has(item.cartId) && (
+                          <p className="text-[#4A0E0E] text-xs mt-1" style={{ fontFamily: "'DM Sans', sans-serif" }}>
+                            {t("cart.unavailable")}
+                          </p>
+                        )}
+                        </div>
 
                         <div className="flex items-center justify-between mt-2 md:mt-0">
-                          {/* Qty Controls */}
+                          {/* Qty Controls (none for a line that is no longer sold) */}
+                          {unavailable.has(item.cartId) ? <span /> : (
                           <div className="flex items-center gap-2 md:gap-3">
                             <button
                               type="button"
@@ -259,18 +277,22 @@ export function CartDrawer() {
                               <Plus size={11} />
                             </button>
                           </div>
+                          )}
 
                           <div className="flex items-center gap-2 md:gap-3">
-                            <PriceTag
-                              amount={item.price * item.quantity}
-                              eurAmount={item.eurPrice != null ? item.eurPrice * item.quantity : null}
-                              locale={locale}
-                              variant="line"
-                            />
+                            {!unavailable.has(item.cartId) && (
+                              <PriceTag
+                                amount={item.price * item.quantity}
+                                eurAmount={item.eurPrice != null ? item.eurPrice * item.quantity : null}
+                                locale={locale}
+                                variant="line"
+                              />
+                            )}
                             <button
                               onClick={() => removeFromCart(item.cartId)}
                               aria-label={t("cart.removeItem")}
-                              className="text-[#2D241E]/30 hover:text-[#4A0E0E] transition-colors"
+                              // The one thing to do on a line that is no longer sold: the same ×, in burgundy.
+                              className={`${unavailable.has(item.cartId) ? "text-[#4A0E0E]" : "text-[#2D241E]/30"} hover:text-[#4A0E0E] transition-colors`}
                             >
                               <X size={14} />
                             </button>
@@ -293,20 +315,21 @@ export function CartDrawer() {
                   >
                     {t("cart.subtotal")}
                   </span>
-                  <PriceTag amount={cartTotal} eurAmount={cartEurTotal} locale={locale} variant="emphasis" withUnit />
+                  <PriceTag amount={shownTotal} eurAmount={shownEurTotal} locale={locale} variant="emphasis" withUnit />
                 </div>
                 <p
                   className="text-[#2D241E]/[0.68] text-xs text-center"
                   style={{ fontFamily: "'DM Sans', sans-serif" }}
                 >
-                  {t("cart.shippingTaxesCheckout")}
+                  {goneItems.length > 0 ? t("cart.removeUnavailable") : t("cart.shippingTaxesCheckout")}
                 </p>
                 <button
+                  disabled={goneItems.length > 0}
                   onClick={() => {
                     closeCart();
                     navigate("/checkout");
                   }}
-                  className="w-full py-3.5 md:py-4 rounded-full flex items-center justify-center gap-3 text-white transition-all duration-300 hover:opacity-90"
+                  className="w-full py-3.5 md:py-4 rounded-full flex items-center justify-center gap-3 text-white transition-all duration-300 hover:opacity-90 disabled:opacity-35 disabled:hover:opacity-35"
                   style={{ backgroundColor: "#2D241E", fontFamily: "'DM Sans', sans-serif", fontSize: "0.8rem", letterSpacing: "0.15em" }}
                 >
                   <span className="uppercase tracking-widest">{t("cart.proceedToCheckout")}</span>
