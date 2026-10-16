@@ -28,6 +28,7 @@ const SWIPE_DISTANCE = 0.18; // of the screen width
 // Fast start, gentle landing: opening, closing and sliding between photos all use it.
 const EASE = "cubic-bezier(0.32, 0.72, 0, 1)";
 const FLIGHT_MS = 420;
+const FADE_OUT_MS = 180;
 const BACKGROUND = "243, 239, 232"; // #F3EFE8
 
 type Point = { x: number; y: number };
@@ -195,7 +196,17 @@ export function PhotoViewer({ photos, startIndex, alt, getOrigin, onBeforeClose,
         onClose(index);
         return;
       }
-      flight(landedRect(index), origin.rect, "50% 50%", origin.objectPosition, 0, origin.coveredBottom ?? 0, () => onClose(index));
+      flight(landedRect(index), origin.rect, "50% 50%", origin.objectPosition, 0, origin.coveredBottom ?? 0, () => {
+        // Landed on the page photo. Removing the copy at once made the page snap: Safari only
+        // repaints what was under the full-screen viewer (the gallery dots, the sheet's rounded
+        // corners, the part under its bar) once it is gone. So the copy dissolves over the page,
+        // which has those frames to paint underneath, and only then the viewer goes.
+        const fly = flyRef.current;
+        if (!fly) return onClose(index);
+        fly.style.transition = `opacity ${FADE_OUT_MS}ms ease-out`;
+        fly.style.opacity = "0";
+        window.setTimeout(() => onClose(index), FADE_OUT_MS + 20);
+      });
     });
   }, [phase, index, photos, getOrigin, onBeforeClose, onClose, flight, landedRect, resetZoom]);
 
