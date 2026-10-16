@@ -1528,6 +1528,17 @@ const server = createServer(async (req, res) => {
       return;
     }
 
+    // yarne-acc.com/ has no page of its own: send it to the visitor's language on the server
+    // (302, since it depends on the visitor), instead of after the page's code has loaded.
+    // Search engines and first-time visitors carry no cookie and get Ukrainian, the site default.
+    if (pathname === "/") {
+      const chosen = /(?:^|;\s*)yarne_locale=(uk|en)(?:;|$)/.exec(req.headers.cookie ?? "")?.[1] ?? "uk";
+      applyCommonHeaders(res);
+      res.writeHead(302, { Location: `/${chosen}${url.search}`, "Cache-Control": "private, no-store", Vary: "Cookie" });
+      res.end();
+      return;
+    }
+
     const redirectTo = (await numericProductRedirect(pathname, url.search)) ?? (await legacyCollectionRedirect(pathname, url.searchParams));
     if (redirectTo) {
       applyCommonHeaders(res);

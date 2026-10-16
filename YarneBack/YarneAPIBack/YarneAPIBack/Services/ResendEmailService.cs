@@ -80,12 +80,32 @@ public class ResendEmailService : IEmailService
         return false;
     }
 
+    /// <summary>
+    /// Waits before the second and third try. A hiccup at Resend (a timeout, a 429 or a 5xx) used to
+    /// mean the customer simply got no email; the send runs in the background, so waiting costs nobody.
+    /// </summary>
+    internal static TimeSpan[] RetryDelays = [TimeSpan.FromSeconds(2), TimeSpan.FromSeconds(10)];
+
     private async Task SendHtmlEmailAsync(string toEmail, string subject, string htmlBody, List<string> bccEmails, EmailThreading.Headers threading, CancellationToken ct)
+    {
+        for (var attempt = 0; ; attempt++)
+        {
+            var retryable = await TrySendHtmlEmailAsync(toEmail, subject, htmlBody, bccEmails, threading, ct);
+            if (!retryable || attempt >= RetryDelays.Length) return;
+            _logger.LogWarning("Resend: trying {Email} again in {Delay}s (attempt {Attempt}).", toEmail, RetryDelays[attempt].TotalSeconds, attempt + 2);
+            await Task.Delay(RetryDelays[attempt], ct);
+        }
+    }
+
+    /// <summary>One try. Returns true when it failed in a way worth trying again.</summary>
+    private async Task<bool> TrySendHtmlEmailAsync(string toEmail, string subject, string htmlBody, List<string> bccEmails, EmailThreading.Headers threading, CancellationToken ct)
     {
         try
         {
             var client = _httpClientFactory.CreateClient();
             client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", _apiKey);
+            // The same key on every try: if a try did reach Resend before failing, the next one is not sent twice.
+            client.DefaultRequestHeaders.Add("Idempotency-Key", threading.MessageId.Trim('<', '>'));
 
             // Threading headers; Resend may replace Message-ID with its own, in which case the matching subject and
             // In-Reply-To/References still group the emails.
@@ -117,14 +137,21 @@ public class ResendEmailService : IEmailService
                     toEmail,
                     (int)response.StatusCode,
                     responseBody);
-                return;
+                var status = (int)response.StatusCode;
+                return status == 429 || status >= 500;
             }
 
             _logger.LogInformation("Order confirmation email sent to {Email} (Resend).", toEmail);
+            return false;
+        }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
+        {
+            return false;
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Resend failed sending email to {Email}.", toEmail);
+            return true;
         }
     }
 }

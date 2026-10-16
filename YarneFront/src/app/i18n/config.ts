@@ -7,6 +7,8 @@ export const DEFAULT_LOCALE: Locale = "uk";
 export const FALLBACK_LOCALE: Locale = "en";
 
 export const LOCALE_STORAGE_KEY = "yarne.locale.v1";
+/** The same choice as a cookie, so the server can send a bare yarne-acc.com/ to the right language. */
+export const LOCALE_COOKIE = "yarne_locale";
 
 export function isLocale(value: unknown): value is Locale {
   return (

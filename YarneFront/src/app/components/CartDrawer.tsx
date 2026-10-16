@@ -234,6 +234,8 @@ export function CartDrawer() {
                           {/* Qty Controls */}
                           <div className="flex items-center gap-2 md:gap-3">
                             <button
+                              type="button"
+                              aria-label={t("cart.decreaseQuantity")}
                               onClick={() => updateQuantity(item.cartId, item.quantity - 1)}
                               className="w-6 h-6 md:w-7 md:h-7 rounded-full border border-[#2D241E]/20 flex items-center justify-center hover:border-[#2D241E]/60 transition-colors"
                             >
@@ -242,10 +244,15 @@ export function CartDrawer() {
                             <span
                               className="text-[#2D241E] w-4 text-center text-sm"
                               style={{ fontFamily: "'DM Sans', sans-serif" }}
+                              // Read out after + or −, so a screen reader hears the new amount.
+                              aria-live="polite"
+                              aria-label={t("cart.quantity", { count: item.quantity })}
                             >
                               {item.quantity}
                             </span>
                             <button
+                              type="button"
+                              aria-label={t("cart.increaseQuantity")}
                               onClick={() => updateQuantity(item.cartId, item.quantity + 1)}
                               className="w-6 h-6 md:w-7 md:h-7 rounded-full border border-[#2D241E]/20 flex items-center justify-center hover:border-[#2D241E]/60 transition-colors"
                             >

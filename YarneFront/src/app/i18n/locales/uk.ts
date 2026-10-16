@@ -144,6 +144,9 @@ const uk: Translations = {
     proceedToCheckout: "Перейти до оформлення",
     closeDrawer: "Закрити кошик",
     removeItem: "Видалити товар",
+    decreaseQuantity: "Зменшити кількість",
+    increaseQuantity: "Збільшити кількість",
+    quantity: "Кількість: {{count}}",
   },
   checkout: {
     signInTitle: "Увійдіть, щоб оформити замовлення",

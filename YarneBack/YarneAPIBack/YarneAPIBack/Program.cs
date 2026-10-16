@@ -345,6 +345,10 @@ app.Use(async (context, next) =>
     context.Response.Headers["X-Frame-Options"] = "DENY";
     context.Response.Headers["Referrer-Policy"] = "no-referrer";
     context.Response.Headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()";
+    // This server is data for the shop, not pages: keep it out of search results. Product photos
+    // under /uploads are left indexable, since they appear on the shop's own pages and in Google Images.
+    if (!context.Request.Path.StartsWithSegments("/uploads"))
+        context.Response.Headers["X-Robots-Tag"] = "noindex, nofollow";
     await next();
 });
 app.UseCors();
@@ -353,6 +357,11 @@ app.UseRateLimiter();
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
+
+// Search engines: nothing here but product photos is meant for them.
+app.MapGet("/robots.txt", () => Results.Text("User-agent: *\nAllow: /uploads/\nDisallow: /\n", "text/plain"))
+    .DisableRateLimiting()
+    .AllowAnonymous();
 
 // Railway probes /healthz during startup while migrations run.
 // Keep this endpoint always-200 and listen BEFORE bootstrap so probes succeed.

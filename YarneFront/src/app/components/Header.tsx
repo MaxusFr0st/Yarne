@@ -366,7 +366,8 @@ export function Header() {
                 <button
                   onClick={openCart}
                   className="relative before:content-[''] before:absolute before:-top-0.5 before:-bottom-0.5 before:-left-px before:-right-0.5 flex items-center justify-center w-10 h-10 rounded-full text-[#2D241E] hover:bg-[#2D241E]/5 transition-colors duration-200 cursor-pointer"
-                  aria-label={t("header.cart")}
+                  // The number on the icon is said too: "Кошик, 2 товари".
+                  aria-label={cartCount > 0 ? `${t("header.cart")}, ${t("cart.itemCount", { count: cartCount })}` : t("header.cart")}
                 >
                   <ShoppingBag size={20} strokeWidth={1.5} />
                   {cartCount > 0 && (
@@ -386,7 +387,8 @@ export function Header() {
               <button
                 onClick={openCart}
                 className="relative hidden md:flex text-[#2D241E] hover:text-[#4A0E0E] transition-colors duration-300 cursor-pointer"
-                aria-label={t("header.cart")}
+                // The number on the icon is said too: "Кошик, 2 товари".
+                  aria-label={cartCount > 0 ? `${t("header.cart")}, ${t("cart.itemCount", { count: cartCount })}` : t("header.cart")}
               >
                 <ShoppingBag size={20} strokeWidth={1.5} />
                 {cartCount > 0 && (

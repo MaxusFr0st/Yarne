@@ -90,8 +90,24 @@ public class SmtpEmailService : IEmailService
         return false;
     }
 
+    /// <summary>Waits before the second and third try, as in ResendEmailService.</summary>
+    internal static TimeSpan[] RetryDelays = [TimeSpan.FromSeconds(2), TimeSpan.FromSeconds(10)];
+
     private async Task SendHtmlEmailAsync(string toEmail, string subject, string htmlBody, List<string> bccEmails, EmailThreading.Headers threading, CancellationToken ct)
     {
+        for (var attempt = 0; ; attempt++)
+        {
+            var retryable = await TrySendHtmlEmailAsync(toEmail, subject, htmlBody, bccEmails, threading, ct);
+            if (!retryable || attempt >= RetryDelays.Length || ct.IsCancellationRequested) return;
+            _logger.LogWarning("SMTP: trying {Email} again in {Delay}s (attempt {Attempt}).", toEmail, RetryDelays[attempt].TotalSeconds, attempt + 2);
+            await Task.Delay(RetryDelays[attempt], ct);
+        }
+    }
+
+    /// <summary>One try. Returns true when it failed before the message was handed over, so a retry cannot send it twice.</summary>
+    private async Task<bool> TrySendHtmlEmailAsync(string toEmail, string subject, string htmlBody, List<string> bccEmails, EmailThreading.Headers threading, CancellationToken ct)
+    {
+        var sent = false;
         using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
         timeoutCts.CancelAfter(DefaultSmtpTimeout);
         var timeoutToken = timeoutCts.Token;
@@ -126,14 +142,18 @@ public class SmtpEmailService : IEmailService
 
             _logger.LogInformation("SMTP send message to {Email}.", toEmail);
             await client.SendAsync(mailMessage, timeoutToken);
+            sent = true;
 
             await client.DisconnectAsync(true, timeoutToken);
 
             _logger.LogInformation("Order confirmation email sent to {Email}.", toEmail);
+            return false;
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to send email to {Email} via {Host}:{Port}.", toEmail, _smtpHost, _smtpPort);
+            // Failing only on the goodbye after a successful send is not a reason to send again.
+            return !sent;
         }
     }
 }

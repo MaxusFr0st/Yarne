@@ -142,6 +142,9 @@ const en = {
     proceedToCheckout: "Proceed to Checkout",
     closeDrawer: "Close bag",
     removeItem: "Remove item",
+    decreaseQuantity: "Decrease quantity",
+    increaseQuantity: "Increase quantity",
+    quantity: "Quantity: {{count}}",
   },
   checkout: {
     signInTitle: "Sign in to checkout",
