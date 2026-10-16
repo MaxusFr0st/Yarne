@@ -358,10 +358,7 @@ export function PhotoViewer({ photos, startIndex, alt, getOrigin, onBeforeClose,
   };
 
   const backdrop = {
-    // Never fully opaque (0.98, the page behind is invisible through it): over a fully opaque
-    // layer Safari stops drawing the page, and on close the part near its bar (the add-to-bag
-    // button) came back a moment late, with a visible snap.
-    backgroundColor: `rgba(${BACKGROUND}, ${phase === "closing" ? 0 : 0.98})`,
+    backgroundColor: `rgba(${BACKGROUND}, ${phase === "closing" ? 0 : 1})`,
     animation: phase === "opening" && duration ? `photo-viewer-in ${FLIGHT_MS}ms ${EASE} both` : undefined,
     transition: duration ? `background-color ${FLIGHT_MS}ms ${EASE}` : undefined,
   };
@@ -371,7 +368,11 @@ export function PhotoViewer({ photos, startIndex, alt, getOrigin, onBeforeClose,
     {/* The sand background on its own plain layer, like the cart's backdrop: on iPhone Safari
         paints a plain fixed layer down under its bar, but cuts the viewer (it holds moving photos)
         off short of it, which let the page show through there. */}
-    <div aria-hidden="true" className="fixed inset-x-0 top-0 z-[120]" style={{ height: "calc(var(--app-svh) + var(--browser-bar-b))", ...backdrop }} />
+    <div aria-hidden="true" className="fixed inset-x-0 top-0 z-[120]" style={{ height: "calc(var(--app-svh) + var(--browser-bar-b))", ...backdrop }}>
+      {/* Exactly the cart's setup: the backdrop alone still stopped short of the bar on iPhone,
+          an explicit strip from the screen line down is what Safari paints under it. */}
+      <div className="absolute inset-x-0" style={{ top: "var(--app-svh)", height: "var(--browser-bar-b)", backgroundColor: "inherit" }} />
+    </div>
     <div
       ref={rootRef}
       role="dialog"
