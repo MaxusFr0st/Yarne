@@ -358,7 +358,10 @@ export function PhotoViewer({ photos, startIndex, alt, getOrigin, onBeforeClose,
   };
 
   const backdrop = {
-    backgroundColor: `rgba(${BACKGROUND}, ${phase === "closing" ? 0 : 1})`,
+    // Never fully opaque (0.98, the page behind is invisible through it): over a fully opaque
+    // layer Safari stops drawing the page, and on close the part near its bar (the add-to-bag
+    // button) came back a moment late, with a visible snap.
+    backgroundColor: `rgba(${BACKGROUND}, ${phase === "closing" ? 0 : 0.98})`,
     animation: phase === "opening" && duration ? `photo-viewer-in ${FLIGHT_MS}ms ${EASE} both` : undefined,
     transition: duration ? `background-color ${FLIGHT_MS}ms ${EASE}` : undefined,
   };
