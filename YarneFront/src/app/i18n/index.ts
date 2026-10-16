@@ -9,10 +9,8 @@ import uk from "./locales/uk";
 import {
   DEFAULT_LOCALE,
   FALLBACK_LOCALE,
-  LOCALE_COOKIE,
   LOCALE_STORAGE_KEY,
   SUPPORTED_LOCALES,
-  isLocale,
 } from "./config";
 
 void i18n
@@ -39,20 +37,6 @@ void i18n
     },
     react: { useSuspense: false },
   });
-
-// Mirror the language in a cookie (the server cannot read localStorage): yarne-acc.com/ is then
-// sent to /en for a visitor who uses English, and to /uk for everyone else, before any script runs.
-function rememberLocale(lng: string | undefined) {
-  const locale = lng?.split("-")[0];
-  if (typeof document === "undefined" || !isLocale(locale)) return;
-  document.cookie = `${LOCALE_COOKIE}=${locale}; Path=/; Max-Age=31536000; SameSite=Lax; Secure`;
-}
-i18n.on("languageChanged", rememberLocale);
-try {
-  rememberLocale(window.localStorage.getItem(LOCALE_STORAGE_KEY) ?? undefined);
-} catch {
-  // storage may be disabled
-}
 
 export default i18n;
 export { LOCALE_STORAGE_KEY };
