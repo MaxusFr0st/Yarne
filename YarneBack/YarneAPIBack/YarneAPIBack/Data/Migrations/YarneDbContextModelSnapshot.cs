@@ -2063,6 +2063,7 @@ namespace YarneAPIBack.Data.Migrations
                         .HasColumnType("bigint");
 
                     b.Property<string>("PaymentCurrency")
+                        .IsRequired()
                         .HasMaxLength(3)
                         .HasColumnType("character varying(3)");
 

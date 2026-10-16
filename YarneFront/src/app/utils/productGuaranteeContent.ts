@@ -1,4 +1,4 @@
-import { fetchStorefrontSetting, saveStorefrontSetting } from "../api/storefrontSettings";
+import { fetchStorefrontSetting, peekServedStorefrontSetting, saveStorefrontSetting } from "../api/storefrontSettings";
 import type { Locale } from "../i18n/config";
 
 export const PRODUCT_GUARANTEE_CONTENT_KEY = "yarne.product.guarantee.v1";
@@ -54,6 +54,8 @@ export function getDefaultProductGuaranteeContent(): ProductGuaranteeContent {
 
 function readLocalProductGuarantee(): ProductGuaranteeContent {
   if (typeof window === "undefined") return getEmptyProductGuaranteeContent();
+  const served = peekServedStorefrontSetting(PRODUCT_GUARANTEE_CONTENT_KEY);
+  if (served) return normalizeProductGuaranteeContent(served.value ?? {});
   const raw = window.localStorage.getItem(PRODUCT_GUARANTEE_CONTENT_KEY);
   if (raw == null) return getEmptyProductGuaranteeContent();
   try {

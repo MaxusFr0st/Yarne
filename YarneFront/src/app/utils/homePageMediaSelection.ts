@@ -1,4 +1,4 @@
-import { fetchStorefrontSetting, saveStorefrontSetting } from "../api/storefrontSettings";
+import { fetchStorefrontSetting, peekServedStorefrontSetting, saveStorefrontSetting } from "../api/storefrontSettings";
 import { normalizeStoredMediaUrl } from "./storefrontMedia";
 
 export const HOME_PAGE_MEDIA_KEY = "yarne.home.media.v1";
@@ -39,6 +39,8 @@ export function getInitialHomePageMediaSelection(): HomePageMediaSelection {
 
 function readLocalHomePageMedia(): HomePageMediaSelection {
   if (typeof window === "undefined") return getDefaultHomePageMediaSelection();
+  const served = peekServedStorefrontSetting(HOME_PAGE_MEDIA_KEY);
+  if (served) return normalizeHomePageMediaSelection(served.value ?? {});
   const raw = window.localStorage.getItem(HOME_PAGE_MEDIA_KEY);
   if (raw == null) return getDefaultHomePageMediaSelection();
   try {

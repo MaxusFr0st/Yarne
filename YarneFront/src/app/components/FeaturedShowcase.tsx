@@ -27,6 +27,7 @@ import {
   type ShowcaseProductSlot,
   type ShowcaseTextSlot,
   getShowcaseTextForLocale,
+  getShowcaseSlotText,
   SHOWCASE_STORY_HREF,
 } from "../utils/featuredShowcaseSelection";
 import { useTouchMobileLayout } from "../hooks/useTouchMobileLayout";
@@ -118,8 +119,9 @@ function ProductTile({ slot, product, fallbackTitle, variant, priority = false }
           ? "object-[center_40%] max-md:object-[center_34%]"
           : "object-[center_38%] max-md:object-[center_30%]";
 
-  const eyebrow = slot.eyebrow.trim();
-  const ctaLabel = slot.ctaLabel.trim();
+  const slotText = getShowcaseSlotText(slot, locale);
+  const eyebrow = slotText.eyebrow.trim();
+  const ctaLabel = slotText.ctaLabel.trim();
 
   return (
     <LangLink

@@ -191,6 +191,16 @@ public static class DatabaseBootstrap
             logger.LogError(focalEx, "FocalPoint columns still missing after bootstrap; /api/products will 500 until fixed.");
         }
 
+        // The owner's approved shop texts: only fields still holding the old text change, so this is safe on every start.
+        try
+        {
+            await StorefrontTextFixes.ApplyAsync(db, logger, cancellationToken);
+        }
+        catch (Exception textEx)
+        {
+            logger.LogError(textEx, "Approved storefront text fixes could not be written.");
+        }
+
         if (runStartupDbPatches)
         {
             await ApplyStartupPatchesAsync(db, logger, app.Environment, cancellationToken);

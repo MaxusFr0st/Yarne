@@ -1,4 +1,4 @@
-import { fetchStorefrontSetting, saveStorefrontSetting } from "../api/storefrontSettings";
+import { fetchStorefrontSetting, peekServedStorefrontSetting, saveStorefrontSetting } from "../api/storefrontSettings";
 
 export const CAROUSEL_PRODUCT_CODES_KEY = "yarne.carousel.productCodes.v1";
 
@@ -12,6 +12,8 @@ function readLocalCarousel(): { configured: boolean; productCodes: string[] } {
   if (typeof window === "undefined") {
     return { configured: false, productCodes: [] };
   }
+  const served = peekServedStorefrontSetting<string[]>(CAROUSEL_PRODUCT_CODES_KEY);
+  if (served) return { configured: served.value != null, productCodes: normalizeCodes(served.value) };
   const raw = window.localStorage.getItem(CAROUSEL_PRODUCT_CODES_KEY);
   if (raw == null) return { configured: false, productCodes: [] };
   try {

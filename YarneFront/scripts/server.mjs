@@ -106,18 +106,21 @@ const productDescription = (product, lang) => inLang(lang, product.description, 
 const productMaterial = (product, lang) => cleanText(inLang(lang, product.material, product.materialEn));
 const productCategory = (product, lang) => cleanText(inLang(lang, product.categoryName, product.categoryNameEn));
 
-// JSON-LD sits inside a <script>: "<" must never be able to close it.
-function jsonLdScript(data) {
-  const json = JSON.stringify(data)
+// JSON inside a <script>: "<" must never be able to close it.
+function scriptJson(data) {
+  return JSON.stringify(data)
     .replace(/</g, "\\u003c")
     .replace(/>/g, "\\u003e")
     .replace(/&/g, "\\u0026")
     .replace(/\u2028/g, "\\u2028")
     .replace(/\u2029/g, "\\u2029");
-  return `<script type="application/ld+json">${json}</script>`;
 }
 
-// Same rules as src/app/i18n/format.ts (hryvnia: the storefront shows UAH everywhere for now).
+function jsonLdScript(data) {
+  return `<script type="application/ld+json">${scriptJson(data)}</script>`;
+}
+
+// Same rules as src/app/i18n/format.ts: hryvnia, or euros where the English site shows them.
 function hryvniaUnit(amount) {
   const whole = Math.floor(Math.abs(amount));
   const mod100 = whole % 100;
@@ -128,13 +131,14 @@ function hryvniaUnit(amount) {
   return "гривень";
 }
 
-function formatPrice(amount, lang) {
+function formatPrice(amount, lang, currency = "UAH") {
   const safe = Number.isFinite(Number(amount)) ? Number(amount) : 0;
   const digits = Number.isInteger(safe) ? 0 : 2;
   const number = new Intl.NumberFormat(lang === "uk" ? "uk-UA" : "en-IE", {
     minimumFractionDigits: digits,
     maximumFractionDigits: digits,
   }).format(safe);
+  if (currency === "EUR") return `€${number}`;
   return lang === "uk" ? `₴ ${number} ${hryvniaUnit(safe)}` : `₴${number}`;
 }
 
@@ -180,12 +184,14 @@ function once(key, load) {
   return promise;
 }
 
-async function getSetting(key) {
-  if (!apiUrl) return null;
-  const cached = settingCache.get(key);
-  if (cached && Date.now() - cached.fetchedAt <= CACHE_TTL_MS) return cached.value;
+// Saved texts go into every page (pageSettingsScript), so an owner's edit should show within
+// seconds: a copy younger than this is used as is; an older one is used once more while a fresh
+// one is fetched; one much older (a quiet night) is waited for instead.
+const SETTING_FRESH_MS = 30 * 1000;
+const SETTING_STALE_MAX_MS = 10 * 60 * 1000;
 
-  await once(`setting:${key}`, async () => {
+function fetchSetting(key) {
+  return once(`setting:${key}`, async () => {
     try {
       const res = await fetch(`${apiUrl}/api/storefront-settings/${key}`);
       if (res.ok) {
@@ -198,7 +204,45 @@ async function getSetting(key) {
       // keep the previous cached value (or null) on failure
     }
   });
+}
+
+async function getSetting(key) {
+  if (!apiUrl) return null;
+  const cached = settingCache.get(key);
+  const age = cached ? Date.now() - cached.fetchedAt : Infinity;
+  if (age > SETTING_STALE_MAX_MS) await fetchSetting(key);
+  else if (age > SETTING_FRESH_MS) void fetchSetting(key);
   return settingCache.get(key)?.value ?? null;
+}
+
+// The saved shop texts a page shows, written into its HTML for src/app/api/storefrontSettings.ts:
+// the first frame then shows the owner's current words, never the built-in defaults or an older
+// copy that gets swapped a moment later. The care guide is large and only goes to care pages.
+const PAGE_SETTING_KEYS = [
+  "yarne.home.copy.v1",
+  "yarne.home.media.v1",
+  "yarne.why.v1",
+  "yarne.featuredShowcase.v1",
+  "yarne.carousel.productCodes.v1",
+  STATIC_PAGES_KEY,
+  DELIVERY_CONTENT_KEY,
+  CONTACT_CONTENT_KEY,
+  PRODUCT_GUARANTEE_KEY,
+  GUARANTEE_CONTENT_KEY,
+  SHARE_DEFAULT_KEY,
+];
+
+async function pageSettingsScript(pathname) {
+  if (!apiUrl || /^\/admin(\/|$)/.test(pathname)) return "";
+  const keys = /^\/(uk|en)\/pages\/care(\/|$)/.test(pathname) ? [...PAGE_SETTING_KEYS, CARE_CONTENT_KEY] : PAGE_SETTING_KEYS;
+  await Promise.all(keys.map((key) => getSetting(key)));
+  const settings = {};
+  // Only answers the API actually gave (null = never saved). A key the API could not be asked
+  // about is left out, and the page asks for it itself as before.
+  for (const key of keys) if (settingCache.has(key)) settings[key] = settingCache.get(key).value;
+  return Object.keys(settings).length
+    ? `<script type="application/json" id="yarne-settings">${scriptJson(settings)}</script>`
+    : "";
 }
 
 const getShareDefault = () => getSetting(SHARE_DEFAULT_KEY);
@@ -634,6 +678,20 @@ function priceOf(product, color, withLace) {
   return Number(product.price);
 }
 
+// The price the page itself shows (src/app/utils/variantStock.ts resolveDisplayEurPrice): euros on
+// the English site when the product has a € price, hryvnia otherwise. Google compares the two.
+function offerOf(product, color, withLace, lang) {
+  if (lang === "en") {
+    const eur = withLace
+      ? (color?.eurPriceWithLace ?? color?.eurPrice ?? product.eurPrice)
+      : (color?.eurPrice ?? product.eurPrice);
+    if (eur != null && Number(eur) > 0) return { amount: Number(eur), currency: "EUR" };
+  }
+  return { amount: priceOf(product, color, withLace), currency: "UAH" };
+}
+
+const formatOffer = (offer, lang) => formatPrice(offer.amount, lang, offer.currency);
+
 function breadcrumbLd(lang, trail) {
   return {
     "@context": "https://schema.org",
@@ -755,7 +813,7 @@ function productListHtml(products, lang) {
     products.map((product) => {
       const color = defaultColorOf(product);
       const material = productMaterial(product, lang);
-      return `${link(lang, `/product/${encodeURIComponent(product.productCode)}`, productName(product, lang))} — ${escapeHtml(formatPrice(priceOf(product, color, false), lang))}${material ? ` (${escapeHtml(material)})` : ""}`;
+      return `${link(lang, `/product/${encodeURIComponent(product.productCode)}`, productName(product, lang))} — ${escapeHtml(formatOffer(offerOf(product, color, false, lang), lang))}${material ? ` (${escapeHtml(material)})` : ""}`;
     }),
   );
 }
@@ -770,10 +828,10 @@ function productContent(product, lang, extras) {
   const hardware = (product.furnitureColors ?? []).map((item) => catalogName(item.name, item.nameUk, lang)).filter(Boolean);
   const facts = [];
   if (material) facts.push(`${escapeHtml(w.material)}: ${escapeHtml(material)}`);
-  facts.push(`${escapeHtml(w.price)}: ${escapeHtml(formatPrice(priceOf(product, color, false), lang))}`);
+  facts.push(`${escapeHtml(w.price)}: ${escapeHtml(formatOffer(offerOf(product, color, false, lang), lang))}`);
   if (product.lace) {
     facts.push(
-      `${escapeHtml(w.strap)}: ${escapeHtml(w.withoutStrap)} ${escapeHtml(formatPrice(priceOf(product, color, false), lang))}, ${escapeHtml(w.withStrap)} ${escapeHtml(formatPrice(priceOf(product, color, true), lang))}`,
+      `${escapeHtml(w.strap)}: ${escapeHtml(w.withoutStrap)} ${escapeHtml(formatOffer(offerOf(product, color, false, lang), lang))}, ${escapeHtml(w.withStrap)} ${escapeHtml(formatOffer(offerOf(product, color, true, lang), lang))}`,
     );
   }
   if (colors.length) facts.push(`${escapeHtml(w.colours)}: ${escapeHtml(colors.join(", "))}`);
@@ -808,6 +866,7 @@ function productLd(product, lang, canonical) {
     .map((src) => toAbsoluteImageUrl(src, undefined));
   const colors = (product.colors ?? []).map((item) => catalogName(item.name, item.nameUk, lang)).filter(Boolean);
   const description = cleanText(productDescription(product, lang));
+  const offer = offerOf(product, color, false, lang);
   return {
     "@context": "https://schema.org",
     "@type": "Product",
@@ -822,8 +881,8 @@ function productLd(product, lang, canonical) {
     offers: {
       "@type": "Offer",
       url: canonical,
-      price: priceOf(product, color, false),
-      priceCurrency: "UAH",
+      price: offer.amount,
+      priceCurrency: offer.currency,
       availability: product.isActive === false ? "https://schema.org/OutOfStock" : "https://schema.org/InStock",
       itemCondition: "https://schema.org/NewCondition",
     },
@@ -1259,9 +1318,10 @@ async function renderHtml(req, pathname) {
     const shareDefault = await getShareDefault();
     page.description = shareDefault?.description || PAGE_SEO[page.lang].home.description;
   }
+  const settings = await pageSettingsScript(pathname);
   const html = indexHtml
     .replace(/<html lang="[^"]*">/, `<html lang="${page.lang}">`)
-    .replace("<title>Yarné</title>", () => buildMetaBlock(page));
+    .replace("<title>Yarné</title>", () => buildMetaBlock(page) + (settings ? `\n      ${settings}` : ""));
   return {
     status: page.status,
     body: page.content ? html.replace('<div id="root"></div>', () => `<div id="root">${page.content}</div>`) : html,

@@ -103,8 +103,8 @@ public partial class Order
     public string? DeliveryAddress { get; set; }
 
     /// <summary>Set when the owner has seen the bank transfer arrive. A mark, not a status; only for orders paid by transfer.</summary>
-    /// <summary>The currency the customer pays in: "EUR" for orders delivered abroad (to a euro IBAN), otherwise "UAH" (null on old orders). The accounting currency (CurrencyCode) and TotalCents stay hryvnia either way.</summary>
-    public string? PaymentCurrency { get; set; }
+    /// <summary>The currency the customer pays in: "EUR" for orders delivered abroad (to a euro IBAN), otherwise "UAH"; never empty (older orders were filled with UAH). The accounting currency (CurrencyCode) and TotalCents stay hryvnia either way.</summary>
+    public string PaymentCurrency { get; set; } = "UAH";
 
     /// <summary>For a EUR order: the total in euro cents, a snapshot of the per-product € prices taken when it was placed.</summary>
     public long? EurTotalCents { get; set; }

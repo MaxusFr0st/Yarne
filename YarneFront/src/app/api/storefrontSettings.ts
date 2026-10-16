@@ -9,7 +9,38 @@ const inFlight = new Map<string, Promise<unknown>>();
 // instead of built-in defaults that get swapped a moment later.
 const CACHE_PREFIX = "yarne.cache:";
 
+/**
+ * The saved texts scripts/server.mjs wrote into this page's HTML: the server's answers when the
+ * page was sent, so the first frame shows the owner's current words. Kept up to date by every
+ * later answer and save, so a page opened later in the same visit never goes back to them.
+ */
+let served: Record<string, unknown> | null | undefined;
+
+function servedSettings(): Record<string, unknown> | null {
+  if (served !== undefined) return served;
+  served = null;
+  try {
+    const text = typeof document === "undefined" ? null : document.getElementById("yarne-settings")?.textContent;
+    if (text) served = JSON.parse(text) as Record<string, unknown>;
+  } catch {
+    // A page without them just starts from the last answer this browser saw.
+  }
+  return served;
+}
+
+function peekServed<T>(key: string): { value: T | null } | undefined {
+  const all = servedSettings();
+  return all && key in all ? { value: (all[key] ?? null) as T | null } : undefined;
+}
+
+/** The answer for `key` served with this page (or a newer one since), for code that keeps its own copy. */
+export function peekServedStorefrontSetting<T>(key: string): { value: T | null } | undefined {
+  return peekServed<T>(key);
+}
+
 function remember(key: string, value: unknown): void {
+  const all = servedSettings();
+  if (all) all[key] = value ?? null;
   try {
     window.localStorage.setItem(CACHE_PREFIX + key, JSON.stringify(value ?? null));
   } catch {
@@ -17,8 +48,13 @@ function remember(key: string, value: unknown): void {
   }
 }
 
-/** The last server answer for `key`, or undefined when this browser has never had one. */
+/**
+ * The current answer for `key` as far as this page knows: the one served with the page (or a
+ * newer one since), else the last one this browser saw; undefined when there is neither.
+ */
 export function peekStorefrontSetting<T>(key: string): { value: T | null } | undefined {
+  const current = peekServed<T>(key);
+  if (current) return current;
   try {
     const raw = window.localStorage.getItem(CACHE_PREFIX + key);
     return raw == null ? undefined : { value: JSON.parse(raw) as T | null };
@@ -32,12 +68,12 @@ function settingEndpoint(key: string): string {
 }
 
 /**
- * The server's current answer for `key`, if it has already arrived for this page load (asked
- * for by src/early.ts before the app started). Undefined while it is still on its way.
+ * The server's current answer for `key` for this page load: asked for by src/early.ts before
+ * the app started, or served with the page. Undefined while it is still on its way.
  */
 export function peekCurrentStorefrontSetting<T>(key: string): { value: T | null } | undefined {
   const early = peekEarlyResponse<{ value?: T }>(settingEndpoint(key));
-  return early && { value: early.value.value ?? null };
+  return early ? { value: early.value.value ?? null } : peekServed<T>(key);
 }
 
 export async function fetchStorefrontSetting<T>(key: string): Promise<T | null> {

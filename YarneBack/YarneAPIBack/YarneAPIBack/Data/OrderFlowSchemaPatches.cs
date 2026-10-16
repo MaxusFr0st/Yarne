@@ -51,6 +51,30 @@ public static class OrderFlowSchemaPatches
         CREATE INDEX IF NOT EXISTS "IX_OrderMakingPhoto_OrderId" ON "OrderMakingPhoto" ("OrderId");
         """;
 
+    /// <summary>
+    /// Every order is paid in hryvnia or euros, so PaymentCurrency is always UAH or EUR. Orders from
+    /// before the column existed were paid in hryvnia (euros came with delivery abroad), so an empty
+    /// one becomes UAH, or EUR on an order delivered abroad. Safe to run again: it only fills gaps.
+    /// </summary>
+    internal const string PaymentCurrencyRequiredSql =
+        """
+        UPDATE "Order"
+        SET "PaymentCurrency" = CASE
+            WHEN upper(trim("PaymentCurrency")) IN ('UAH', 'EUR') THEN upper(trim("PaymentCurrency"))
+            WHEN "IsForeignDelivery" THEN 'EUR'
+            ELSE 'UAH'
+        END
+        WHERE "PaymentCurrency" IS NULL OR "PaymentCurrency" NOT IN ('UAH', 'EUR');
+        ALTER TABLE "Order" ALTER COLUMN "PaymentCurrency" SET DEFAULT 'UAH';
+        ALTER TABLE "Order" ALTER COLUMN "PaymentCurrency" SET NOT NULL;
+        DO $$
+        BEGIN
+            IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'CK_Order_PaymentCurrency') THEN
+                ALTER TABLE "Order" ADD CONSTRAINT "CK_Order_PaymentCurrency" CHECK ("PaymentCurrency" IN ('UAH', 'EUR'));
+            END IF;
+        END $$;
+        """;
+
     public static async Task ForceEnsureAsync(YarneDbContext db, ILogger logger, CancellationToken cancellationToken = default)
     {
         if (!db.Database.IsNpgsql())
@@ -58,5 +82,15 @@ public static class OrderFlowSchemaPatches
 
         await db.Database.ExecuteSqlRawAsync(EnsureSql, cancellationToken);
         logger.LogInformation("Order flow schema ensured (tracking, payment, foreign delivery, euro, making-of photos).");
+
+        // Apart from the columns above, so a problem here can never leave them missing.
+        try
+        {
+            await db.Database.ExecuteSqlRawAsync(PaymentCurrencyRequiredSql, cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Could not make Order.PaymentCurrency required (UAH or EUR).");
+        }
     }
 }

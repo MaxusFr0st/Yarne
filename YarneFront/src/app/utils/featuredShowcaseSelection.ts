@@ -1,16 +1,29 @@
-import { fetchStorefrontSetting, saveStorefrontSetting } from "../api/storefrontSettings";
+import { fetchStorefrontSetting, peekServedStorefrontSetting, saveStorefrontSetting } from "../api/storefrontSettings";
 import { normalizeStoredMediaUrl } from "./storefrontMedia";
 
 export const FEATURED_SHOWCASE_SELECTION_KEY = "yarne.featuredShowcase.v1";
 
+/**
+ * A product tile. `eyebrow` and `ctaLabel` are the Ukrainian texts (they were the only ones before
+ * English existed, so saved tiles keep working); `eyebrowEn` and `ctaLabelEn` are the English ones.
+ */
 export type ShowcaseProductSlot = {
   imageUrl: string;
   productCode: string;
   eyebrow: string;
   ctaLabel: string;
+  eyebrowEn: string;
+  ctaLabelEn: string;
   focalX: number;
   focalY: number;
 };
+
+/** The tile's texts in the visitor's language. An empty English text stays empty: never the Ukrainian one. */
+export function getShowcaseSlotText(slot: ShowcaseProductSlot, locale: string): { eyebrow: string; ctaLabel: string } {
+  return locale === "en"
+    ? { eyebrow: slot.eyebrowEn, ctaLabel: slot.ctaLabelEn }
+    : { eyebrow: slot.eyebrow, ctaLabel: slot.ctaLabel };
+}
 
 export type ShowcaseTextLocaleCopy = { eyebrow: string; heading: string; ctaLabel: string };
 
@@ -38,6 +51,8 @@ const EMPTY_SLOT_1: ShowcaseProductSlot = {
   productCode: "",
   eyebrow: "",
   ctaLabel: "",
+  eyebrowEn: "",
+  ctaLabelEn: "",
   focalX: 0.5,
   focalY: 0.35,
 };
@@ -47,6 +62,8 @@ const EMPTY_SLOT_2: ShowcaseProductSlot = {
   productCode: "",
   eyebrow: "",
   ctaLabel: "",
+  eyebrowEn: "",
+  ctaLabelEn: "",
   focalX: 0.5,
   focalY: 0.35,
 };
@@ -102,6 +119,8 @@ const EMPTY_SLOT_4: ShowcaseProductSlot = {
   productCode: "",
   eyebrow: "",
   ctaLabel: "",
+  eyebrowEn: "",
+  ctaLabelEn: "",
   focalX: 0.5,
   focalY: 0.35,
 };
@@ -117,6 +136,8 @@ function normalizeProductSlot(value: unknown, fallback: ShowcaseProductSlot): Sh
     productCode: normalizeString(source.productCode, fallback.productCode),
     eyebrow: normalizeString(source.eyebrow, fallback.eyebrow),
     ctaLabel: normalizeString(source.ctaLabel, fallback.ctaLabel),
+    eyebrowEn: normalizeString(source.eyebrowEn, fallback.eyebrowEn),
+    ctaLabelEn: normalizeString(source.ctaLabelEn, fallback.ctaLabelEn),
     focalX: typeof source.focalX === "number" ? source.focalX : fallback.focalX,
     focalY: typeof source.focalY === "number" ? source.focalY : fallback.focalY,
   };
@@ -191,6 +212,8 @@ export function getDefaultFeaturedShowcaseSelection(): FeaturedShowcaseSelection
 
 function readLocalFeaturedShowcase(): FeaturedShowcaseSelection {
   if (typeof window === "undefined") return getDefaultFeaturedShowcaseSelection();
+  const served = peekServedStorefrontSetting(FEATURED_SHOWCASE_SELECTION_KEY);
+  if (served) return normalizeFeaturedShowcaseSelection(served.value ?? {});
   const raw = window.localStorage.getItem(FEATURED_SHOWCASE_SELECTION_KEY);
   if (raw == null) return getDefaultFeaturedShowcaseSelection();
   try {

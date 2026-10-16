@@ -3624,6 +3624,12 @@ export function AdminPage() {
   const [showcaseUploading, setShowcaseUploading] = useState<Record<string, boolean>>({});
   const [showcaseUploadError, setShowcaseUploadError] = useState<string | null>(null);
   const [showcaseTextLocale, setShowcaseTextLocale] = useState<Locale>("uk");
+  /** Which language each product tile's eyebrow and button fields edit (the switch on each tile). */
+  const [showcaseSlotLocale, setShowcaseSlotLocale] = useState<Record<"slot1" | "slot2" | "slot4", Locale>>({
+    slot1: "uk",
+    slot2: "uk",
+    slot4: "uk",
+  });
   const [homePageMedia, setHomePageMedia] = useState<HomePageMediaSelection>(
     getDefaultHomePageMediaSelection
   );
@@ -5254,6 +5260,26 @@ export function AdminPage() {
                               )}
                             </div>
 
+                            <div className="flex items-center gap-2">
+                              {(["en", "uk"] as const).map((locale) => (
+                                <button
+                                  key={locale}
+                                  type="button"
+                                  onClick={() => setShowcaseSlotLocale((prev) => ({ ...prev, [key]: locale }))}
+                                  className="px-4 py-2 rounded-full text-xs uppercase tracking-widest transition-all"
+                                  style={{
+                                    fontFamily: "'DM Sans', sans-serif",
+                                    letterSpacing: "0.1em",
+                                    backgroundColor: showcaseSlotLocale[key] === locale ? "#2D241E" : "transparent",
+                                    color: showcaseSlotLocale[key] === locale ? "#F5F2ED" : "#2D241E",
+                                    border: showcaseSlotLocale[key] === locale ? "1.5px solid #2D241E" : "1.5px solid rgba(45,36,30,0.2)",
+                                  }}
+                                >
+                                  {locale === "en" ? "English" : "Ukrainian"}
+                                </button>
+                              ))}
+                            </div>
+
                             <div className="grid sm:grid-cols-2 gap-3">
                               <div>
                                 <p className="text-[#2D241E]/45 text-xs uppercase tracking-widest mb-1.5" style={{ fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.1em" }}>
@@ -5261,8 +5287,13 @@ export function AdminPage() {
                                 </p>
                                 <input
                                   type="text"
-                                  value={slot.eyebrow}
-                                  onChange={(e) => updateShowcaseProductSlot(key, { eyebrow: e.target.value })}
+                                  value={showcaseSlotLocale[key] === "en" ? slot.eyebrowEn : slot.eyebrow}
+                                  onChange={(e) =>
+                                    updateShowcaseProductSlot(
+                                      key,
+                                      showcaseSlotLocale[key] === "en" ? { eyebrowEn: e.target.value } : { eyebrow: e.target.value },
+                                    )
+                                  }
                                   placeholder={isLarge ? "New Season" : ""}
                                   className="w-full rounded-[14px] border bg-transparent px-3 py-2.5 text-[#2D241E] focus:outline-none"
                                   style={{ borderColor: "rgba(45,36,30,0.15)", fontFamily: "'DM Sans', sans-serif", fontSize: "0.85rem" }}
@@ -5274,8 +5305,13 @@ export function AdminPage() {
                                 </p>
                                 <input
                                   type="text"
-                                  value={slot.ctaLabel}
-                                  onChange={(e) => updateShowcaseProductSlot(key, { ctaLabel: e.target.value })}
+                                  value={showcaseSlotLocale[key] === "en" ? slot.ctaLabelEn : slot.ctaLabel}
+                                  onChange={(e) =>
+                                    updateShowcaseProductSlot(
+                                      key,
+                                      showcaseSlotLocale[key] === "en" ? { ctaLabelEn: e.target.value } : { ctaLabel: e.target.value },
+                                    )
+                                  }
                                   placeholder={isLarge ? "Discover" : ""}
                                   className="w-full rounded-[14px] border bg-transparent px-3 py-2.5 text-[#2D241E] focus:outline-none"
                                   style={{ borderColor: "rgba(45,36,30,0.15)", fontFamily: "'DM Sans', sans-serif", fontSize: "0.85rem" }}

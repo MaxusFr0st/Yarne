@@ -1,4 +1,4 @@
-import { fetchStorefrontSetting, saveStorefrontSetting } from "../api/storefrontSettings";
+import { fetchStorefrontSetting, peekServedStorefrontSetting, saveStorefrontSetting } from "../api/storefrontSettings";
 import type { Locale } from "../i18n/config";
 import en from "../i18n/locales/en";
 import uk from "../i18n/locales/uk";
@@ -96,6 +96,8 @@ export function getDefaultStaticPagesCopy(): StaticPagesCopy {
 
 function readLocalStaticPagesCopy(): StaticPagesCopy {
   if (typeof window === "undefined") return getDefaultStaticPagesCopy();
+  const served = peekServedStorefrontSetting(STATIC_PAGE_COPY_KEY);
+  if (served) return normalizeStaticPagesCopy(served.value ?? {});
   const raw = window.localStorage.getItem(STATIC_PAGE_COPY_KEY);
   if (raw == null) return getDefaultStaticPagesCopy();
   try {

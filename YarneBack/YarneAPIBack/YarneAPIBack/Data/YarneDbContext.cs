@@ -345,7 +345,7 @@ public partial class YarneDbContext : DbContext
             entity.Property(e => e.DeliveryPostalCode).HasMaxLength(20);
             entity.Property(e => e.DeliveryAddress).HasMaxLength(500);
             entity.Property(e => e.ReceiptKey).HasMaxLength(200);
-            entity.Property(e => e.PaymentCurrency).HasMaxLength(3);
+            entity.Property(e => e.PaymentCurrency).HasMaxLength(3).IsRequired();
             entity.Property(e => e.ReceiptContentType).HasMaxLength(50);
             entity.Property(e => e.PaymentChoice).HasMaxLength(16);
             entity.Property(e => e.CancelReason).HasMaxLength(500);
