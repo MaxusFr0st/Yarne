@@ -346,7 +346,18 @@ export function PhotoViewer({ photos, startIndex, alt, getOrigin, onBeforeClose,
     else placeTrack(0, true);
   };
 
+  const backdrop = {
+    backgroundColor: `rgba(${BACKGROUND}, ${phase === "closing" ? 0 : 1})`,
+    animation: phase === "opening" && duration ? `photo-viewer-in ${FLIGHT_MS}ms ${EASE} both` : undefined,
+    transition: duration ? `background-color ${FLIGHT_MS}ms ${EASE}` : undefined,
+  };
+
   return createPortal(
+    <>
+    {/* The sand background on its own plain layer, like the cart's backdrop: on iPhone Safari
+        paints a plain fixed layer down under its bar, but cuts the viewer (it holds moving photos)
+        off short of it, which let the page show through there. */}
+    <div aria-hidden="true" className="fixed inset-x-0 top-0 z-[120]" style={{ height: "calc(var(--app-svh) + var(--browser-bar-b))", ...backdrop }} />
     <div
       ref={rootRef}
       role="dialog"
@@ -356,9 +367,6 @@ export function PhotoViewer({ photos, startIndex, alt, getOrigin, onBeforeClose,
       style={{
         // Like the cart: the frozen screen height plus the strip under Safari's bar, so it reaches the bottom.
         height: "calc(var(--app-svh) + var(--browser-bar-b))",
-        backgroundColor: `rgba(${BACKGROUND}, ${phase === "closing" ? 0 : 1})`,
-        animation: phase === "opening" && duration ? `photo-viewer-in ${FLIGHT_MS}ms ${EASE} both` : undefined,
-        transition: duration ? `background-color ${FLIGHT_MS}ms ${EASE}` : undefined,
         touchAction: "none",
         overscrollBehavior: "contain",
       }}
@@ -420,7 +428,8 @@ export function PhotoViewer({ photos, startIndex, alt, getOrigin, onBeforeClose,
       >
         <img ref={flyImgRef} src={flySrc} alt="" draggable={false} className="h-full w-full object-cover" />
       </div>
-    </div>,
+    </div>
+    </>,
     document.body,
   );
 }
