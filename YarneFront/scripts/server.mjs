@@ -1513,6 +1513,11 @@ const server = createServer(async (req, res) => {
 
     // Answered here, ahead of the "has a file extension" rule below.
     if (pathname === "/sitemap.xml") return sendText(res, await buildSitemap(), "application/xml; charset=utf-8");
+    // Railway's own health check (railway.toml). Always 200, touches nothing else.
+    if (pathname === "/healthz") {
+      res.writeHead(200, { "Content-Type": "text/plain; charset=utf-8", "Cache-Control": "no-store" }).end("ok");
+      return;
+    }
     if (pathname === "/robots.txt") return sendText(res, buildRobots(), "text/plain; charset=utf-8");
     if (pathname === "/llms.txt") return sendText(res, await buildLlms(), "text/plain; charset=utf-8");
     if (pathname === "/feeds/google-uk.xml") return sendText(res, await buildFeed("uk"), "application/xml; charset=utf-8");
@@ -1525,6 +1530,22 @@ const server = createServer(async (req, res) => {
     // Any path with a file extension is a static asset (js/css/images/...).
     if (extname(pathname)) {
       await serveStaticFile(req, res, pathname);
+      return;
+    }
+
+    // yarne-acc.com/ has no page of its own: send it to the visitor's language on the server
+    // (302, since it depends on the visitor), instead of after the page's code has loaded.
+    // Search engines and first-time visitors carry no cookie and get Ukrainian, the site default.
+    // Railway checks "/" too when the check address is unset or old; it must keep getting the
+    // page, not a redirect (a redirect failed its check on 16 October). Its probe comes from
+    // healthcheck.railway.app with "RailwayHealthCheck" in its user agent.
+    const railwayProbe =
+      /^healthcheck\.railway\.app(?::\d+)?$/i.test(req.headers.host ?? "") || /RailwayHealthCheck/i.test(req.headers["user-agent"] ?? "");
+    if (pathname === "/" && !railwayProbe) {
+      const chosen = /(?:^|;\s*)yarne_locale=(uk|en)(?:;|$)/.exec(req.headers.cookie ?? "")?.[1] ?? "uk";
+      applyCommonHeaders(res);
+      res.writeHead(302, { Location: `/${chosen}${url.search}`, "Cache-Control": "private, no-store", Vary: "Cookie" });
+      res.end();
       return;
     }
 
