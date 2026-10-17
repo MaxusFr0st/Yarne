@@ -20,7 +20,6 @@ const NOVA_POST_ORIGINS = ["https://integration-widget.novapost.com", "https://*
 
 const connectSrc = new Set([
   "'self'",
-  "https://ipwho.is",
   "https://accounts.google.com",
   "https://oauth2.googleapis.com",
   "https://www.googleapis.com",

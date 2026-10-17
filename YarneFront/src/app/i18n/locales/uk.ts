@@ -260,6 +260,8 @@ const uk: Translations = {
     deliveryPickerTitle: "Відділення Нової пошти",
     deliveryPickerClose: "Закрити вибір відділення",
     deliveryPickerLoading: "Завантаження відділень…",
+    deliveryPickerFailed: "Карта не завантажилась. Спробуйте ще раз",
+    deliveryPickerRetry: "Спробувати ще раз",
     errors: {
       unableToPlaceOrder: "Наразі не вдалося оформити замовлення.",
       itemUnavailable: "Один із товарів у кошику щойно став недоступним. Приберіть його та спробуйте ще раз.",
