@@ -20,7 +20,7 @@ import {
   SANS,
   SERIF,
 } from "../components/care/careUi";
-import { useContactContent, useGuaranteeContent } from "../hooks/useCareServiceContent";
+import { useCareRequestContent, useContactContent, useGuaranteeContent } from "../hooks/useCareServiceContent";
 import { firstVisitRevealStyle } from "../hooks/useFirstVisitReady";
 import { usePageTitle } from "../hooks/usePageTitle";
 import { LangLink } from "../i18n/LangLink";
@@ -52,6 +52,7 @@ export function CareGuaranteePage() {
   const reduceMotion = useReducedMotion();
   const guarantee = useGuaranteeContent();
   const contact = useContactContent();
+  const careRequest = useCareRequestContent().content;
   const ready = guarantee.ready && contact.ready;
   const terms = guarantee.content;
   const { phone, email } = contact.content;
@@ -294,7 +295,7 @@ export function CareGuaranteePage() {
                 </a>
               )}
               <a
-                href={mailtoHref(email, t("care.request.templateSubject"))}
+                href={mailtoHref(email, careText(careRequest.templateSubject, locale))}
                 className={`${PILL} ${phone ? PILL_OUTLINE_ON_INK : PILL_CREAM} h-[52px] px-[26px] justify-between`}
               >
                 {t("care.guarantee.emailUs")}

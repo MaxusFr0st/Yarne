@@ -92,10 +92,12 @@ public static class StorefrontTextFixes
             applied += changed;
         }
 
-        // The Terms page as saved data, once: its text was built into the site until now.
-        if (!await db.AppSettings.AnyAsync(s => s.Key == StorefrontPageSeeds.TermsKey, cancellationToken))
+        // Pages whose words were built into the site until now, saved once: Terms, Privacy, Request care.
+        var newPages = StorefrontNewPages.Pages.Select(p => (p.Key, p.Json)).Prepend((StorefrontPageSeeds.TermsKey, StorefrontPageSeeds.TermsJson)).ToList();
+        foreach (var (key, json) in newPages)
         {
-            db.AppSettings.Add(new AppSetting { Key = StorefrontPageSeeds.TermsKey, ValueJson = StorefrontPageSeeds.TermsJson.Trim(), UpdatedAt = DateTime.UtcNow });
+            if (await db.AppSettings.AnyAsync(s => s.Key == key, cancellationToken)) continue;
+            db.AppSettings.Add(new AppSetting { Key = key, ValueJson = json.Trim(), UpdatedAt = DateTime.UtcNow });
             applied++;
         }
 

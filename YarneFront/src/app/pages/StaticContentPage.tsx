@@ -2,7 +2,7 @@ import { AlertCircle, CreditCard, Home as HomeIcon, Plane, RotateCcw, Scissors }
 import { useTranslation } from "react-i18next";
 import { ScrollReveal } from "../components/ScrollReveal";
 import { LABEL, PILL, PILL_CREAM, PILL_OUTLINE_ON_INK, SERIF, SANS } from "../components/care/careUi";
-import { useContactContent, useDeliveryContent, useTermsContent } from "../hooks/useCareServiceContent";
+import { useContactContent, useDeliveryContent, usePrivacyContent, useTermsContent } from "../hooks/useCareServiceContent";
 import { firstVisitRevealStyle } from "../hooks/useFirstVisitReady";
 import { usePageTitle } from "../hooks/usePageTitle";
 import { useLocale } from "../i18n/useLocale";
@@ -244,47 +244,32 @@ function LegalLayout({ eyebrow, title, updated, summary, sections }: { eyebrow: 
   );
 }
 
-function TermsPage() {
+/** Terms and Privacy: each its own saved setting, edited in Admin → Care, shown in the same layout. */
+function LegalPage({ kind }: { kind: "terms" | "privacy" }) {
   const { t } = useTranslation();
   const locale = useLocale();
   const reduced = useReducedMotion() ?? false;
-  const { content: terms, ready } = useTermsContent();
+  const terms = useTermsContent();
+  const privacy = usePrivacyContent();
+  const { content, ready } = kind === "terms" ? terms : privacy;
   const { content: contact } = useContactContent();
   const text = (value: L10n) => careText(value, locale);
-  const updated = terms.lastUpdated
+  const updated = content.lastUpdated
     ? t("pages.legal.lastUpdated", {
-        date: new Intl.DateTimeFormat(locale === "uk" ? "uk-UA" : "en-GB", { month: "long", year: "numeric" }).format(new Date(`${terms.lastUpdated}-01T12:00:00`)),
+        date: new Intl.DateTimeFormat(locale === "uk" ? "uk-UA" : "en-GB", { month: "long", year: "numeric" }).format(new Date(`${content.lastUpdated}-01T12:00:00`)),
       })
     : "";
   return (
     <div style={firstVisitRevealStyle(ready, reduced)}>
       <LegalLayout
-        eyebrow={t("pages.terms.eyebrow")}
-        title={t("pages.terms.title")}
+        eyebrow={t(`pages.${kind}.eyebrow`)}
+        title={t(`pages.${kind}.title`)}
         updated={updated}
-        summary={terms.summary.map(text).filter(Boolean)}
-        sections={terms.sections.map((section) => ({ heading: text(section.heading), paragraphs: paragraphsOf(text(section.body), contact.email) }))}
+        summary={content.summary.map(text).filter(Boolean)}
+        sections={content.sections.map((section) => ({ heading: text(section.heading), paragraphs: paragraphsOf(text(section.body), contact.email) }))}
       />
     </div>
   );
-}
-
-
-function PrivacyPage() {
-  const { t } = useTranslation();
-  const { content: contact } = useContactContent();
-  // Privacy comes from the locale files: headings are marked { heading: true } between the paragraphs.
-  const items = t("pages.privacy.paragraphs", { returnObjects: true, email: contact.email }) as (string | { heading: boolean; text: string })[];
-  const sections: LegalSection[] = [];
-  for (const item of Array.isArray(items) ? items : []) {
-    if (typeof item === "string") {
-      if (sections.length === 0) sections.push({ heading: "", paragraphs: [] });
-      sections[sections.length - 1].paragraphs.push(item);
-    } else if (item.heading) {
-      sections.push({ heading: item.text, paragraphs: [] });
-    }
-  }
-  return <LegalLayout eyebrow={t("pages.privacy.eyebrow")} title={t("pages.privacy.title")} updated={t("pages.privacy.lastUpdated")} summary={[]} sections={sections} />;
 }
 
 export function StaticContentPage({ pageKey }: Props) {
@@ -295,9 +280,7 @@ export function StaticContentPage({ pageKey }: Props) {
     <main style={{ backgroundColor: "#F5F2ED", minHeight: "var(--app-svh)", ...SANS }} className="text-[#2D241E]">
       <section className="pt-24 pb-14 md:pt-32 md:pb-20">
         <div className="max-w-[1120px] mx-auto px-[18px] md:px-16">
-          <ScrollReveal>
-            {pageKey === "delivery" ? <DeliveryPage /> : pageKey === "terms" ? <TermsPage /> : <PrivacyPage />}
-          </ScrollReveal>
+          <ScrollReveal>{pageKey === "delivery" ? <DeliveryPage /> : <LegalPage kind={pageKey} />}</ScrollReveal>
         </div>
       </section>
     </main>

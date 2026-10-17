@@ -70,4 +70,20 @@ public class StorefrontPageSeedsTests
         Assert.Equal("abroad", root["sections"]![3]!["icon"]!.GetValue<string>());
         Assert.False(StorefrontPageSeeds.ReorderDelivery(root));
     }
+
+    [Fact]
+    public void Privacy_and_request_care_are_saved_pages_with_both_languages()
+    {
+        foreach (var page in StorefrontNewPages.Pages)
+        {
+            Assert.Contains(page.Key, StorefrontSettingsService.AllowedKeys);
+            var json = JsonNode.Parse(page.Json)!;
+            Assert.NotNull(json);
+        }
+        var privacy = JsonNode.Parse(StorefrontNewPages.Pages[0].Json)!;
+        Assert.Equal(8, privacy["sections"]!.AsArray().Count);
+        var request = JsonNode.Parse(StorefrontNewPages.Pages[1].Json)!;
+        Assert.Equal(4, request["ready"]!.AsArray().Count);
+        Assert.Contains('\n', request["templateBody"]!["uk"]!.GetValue<string>());
+    }
 }

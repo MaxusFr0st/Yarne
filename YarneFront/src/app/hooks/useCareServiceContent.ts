@@ -9,7 +9,24 @@ import {
   type GuaranteeContent,
 } from "../utils/guaranteeContent";
 import { DELIVERY_CONTENT_KEY, DELIVERY_SEED, getInitialDeliveryContent, loadDeliveryContent, type DeliveryContent } from "../utils/deliveryContent";
-import { TERMS_CONTENT_KEY, TERMS_SEED, getInitialTermsContent, loadTermsContent, type TermsContent } from "../utils/termsContent";
+import {
+  PRIVACY_CONTENT_KEY,
+  PRIVACY_SEED,
+  TERMS_CONTENT_KEY,
+  TERMS_SEED,
+  getInitialPrivacyContent,
+  getInitialTermsContent,
+  loadPrivacyContent,
+  loadTermsContent,
+  type TermsContent,
+} from "../utils/termsContent";
+import {
+  CARE_REQUEST_CONTENT_KEY,
+  CARE_REQUEST_SEED,
+  getInitialCareRequestContent,
+  loadCareRequestContent,
+  type CareRequestContent,
+} from "../utils/careRequestContent";
 import { useFirstVisitReady } from "./useFirstVisitReady";
 
 /**
@@ -53,4 +70,12 @@ export function useDeliveryContent(): { content: DeliveryContent; ready: boolean
 
 export function useTermsContent(): { content: TermsContent; ready: boolean } {
   return useStoredContent(TERMS_CONTENT_KEY, getInitialTermsContent, loadTermsContent, TERMS_SEED);
+}
+
+export function usePrivacyContent(): { content: TermsContent; ready: boolean } {
+  return useStoredContent(PRIVACY_CONTENT_KEY, getInitialPrivacyContent, loadPrivacyContent, PRIVACY_SEED);
+}
+
+export function useCareRequestContent(): { content: CareRequestContent; ready: boolean } {
+  return useStoredContent(CARE_REQUEST_CONTENT_KEY, getInitialCareRequestContent, loadCareRequestContent, CARE_REQUEST_SEED);
 }

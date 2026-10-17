@@ -173,6 +173,8 @@ const STATIC_PAGES_KEY = "yarne.staticPages.v1";
 const CONTACT_CONTENT_KEY = "yarne.contact.v1";
 const DELIVERY_CONTENT_KEY = "yarne.delivery.v1";
 const TERMS_CONTENT_KEY = "yarne.terms.v1";
+const PRIVACY_CONTENT_KEY = "yarne.privacy.v1";
+const CARE_REQUEST_CONTENT_KEY = "yarne.careRequest.v1";
 const CACHE_TTL_MS = 5 * 60 * 1000;
 // A product that does not exist is remembered for less: it may be added a minute later.
 const MISSING_TTL_MS = 60 * 1000;
@@ -239,6 +241,8 @@ const PAGE_SETTING_KEYS = [
   GUARANTEE_CONTENT_KEY,
   SHARE_DEFAULT_KEY,
   TERMS_CONTENT_KEY,
+  PRIVACY_CONTENT_KEY,
+  CARE_REQUEST_CONTENT_KEY,
 ];
 
 async function pageSettingsScript(pathname) {
@@ -1202,14 +1206,24 @@ async function describePage(route, reqUrl) {
     }
 
     case "privacy": {
-      const contact = await getSetting(CONTACT_CONTENT_KEY);
+      // The text the owner edits in the admin; the built-in summary until it has been saved.
+      const [saved, contact] = await Promise.all([getSetting(PRIVACY_CONTENT_KEY), getSetting(CONTACT_CONTENT_KEY)]);
+      const email = contactEmail(contact);
+      const sections = Array.isArray(saved?.sections) ? saved.sections : [];
+      const body = sections
+        .map((section) => {
+          const heading = localized(section?.heading, lang);
+          const text = String(localized(section?.body, lang)).split("{{email}}").join(email);
+          return (heading ? `<h2>${escapeHtml(heading)}</h2>` : "") + paragraphsOf(text).map(para).join("");
+        })
+        .join("");
       return {
         status: 200,
         lang,
         title: withSiteName(seo.privacy.title),
         description: seo.privacy.description,
         suffix: "/pages/privacy",
-        content: contentBlock(`<h1>${escapeHtml(w.privacy)}</h1>${privacyHtml(lang, contactEmail(contact))}${siteLinks(lang)}`),
+        content: contentBlock(`<h1>${escapeHtml(w.privacy)}</h1>${body || privacyHtml(lang, email)}${siteLinks(lang)}`),
       };
     }
 
@@ -1318,9 +1332,17 @@ async function careContent(kind, lang) {
         list([link(lang, "/pages/care/request", w.requestCare), link(lang, "/pages/care", w.careGuides)]),
     );
   }
-  const contact = await getSetting(CONTACT_CONTENT_KEY);
+  // The page's own words are edited in the admin (yarne.careRequest.v1); the built-in line until saved.
+  const [contact, page] = await Promise.all([getSetting(CONTACT_CONTENT_KEY), getSetting(CARE_REQUEST_CONTENT_KEY)]);
+  const titled = (items) =>
+    (Array.isArray(items) ? items : [])
+      .map((item) => [localized(item?.title, lang), localized(item?.text, lang)].filter(Boolean).join(": "))
+      .filter(Boolean);
+  const title = [localized(page?.titleLine1, lang), localized(page?.titleLine2, lang)].filter(Boolean).join(" ") || w.requestTitle;
   return contentBlock(
-    `<h1>${escapeHtml(w.requestTitle)}</h1>${para(w.requestIntro)}${contactHtml(lang, contact)}` +
+    `<h1>${escapeHtml(title)}</h1>${para(localized(page?.intro, lang) || w.requestIntro)}${contactHtml(lang, contact)}` +
+      (titled(page?.ready).length ? list(titled(page.ready).map(escapeHtml)) : "") +
+      (titled(page?.next).length ? list(titled(page.next).map(escapeHtml)) : "") +
       list([link(lang, "/pages/care/guarantee", w.guaranteeTerms), link(lang, "/pages/care", w.careGuides)]),
   );
 }

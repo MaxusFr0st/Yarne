@@ -17,12 +17,12 @@ import {
   SANS,
   SERIF,
 } from "../components/care/careUi";
-import { useContactContent } from "../hooks/useCareServiceContent";
+import { useCareRequestContent, useContactContent } from "../hooks/useCareServiceContent";
 import { firstVisitRevealStyle } from "../hooks/useFirstVisitReady";
 import { usePageTitle } from "../hooks/usePageTitle";
 import { LangLink } from "../i18n/LangLink";
 import { useLocale } from "../i18n/useLocale";
-import { careText } from "../utils/careContent";
+import { careText, type L10n } from "../utils/careContent";
 import { mailtoHref } from "../utils/contactContent";
 
 type Item = { title: string; text: string };
@@ -40,15 +40,19 @@ export function CareRequestPage() {
   const locale = useLocale();
   usePageTitle(t("care.request.breadcrumb"));
   const reduceMotion = useReducedMotion();
-  const { content: contact, ready } = useContactContent();
+  const { content: contact, ready: contactReady } = useContactContent();
+  // The page's own words (Admin → Care): title, intro, what to have ready, the template, what happens next.
+  const { content: page, ready: pageReady } = useCareRequestContent();
+  const ready = contactReady && pageReady;
+  const text = (value: L10n) => careText(value, locale);
   const { phone, phoneDisplay, email, instagramHandle, instagramUrl } = contact;
   const hours = careText(contact.hours, locale);
   const replyTime = careText(contact.replyTime, locale);
 
-  const readyItems = t("care.request.ready", { returnObjects: true }) as Item[];
-  const nextSteps = t("care.request.next", { returnObjects: true }) as Item[];
-  const subject = t("care.request.templateSubject");
-  const body = t("care.request.templateBody");
+  const readyItems: Item[] = page.ready.map((item) => ({ title: text(item.title), text: text(item.text) }));
+  const nextSteps: Item[] = page.next.map((item) => ({ title: text(item.title), text: text(item.text) }));
+  const subject = text(page.templateSubject);
+  const body = page.templateBody[locale] || page.templateBody[locale === "uk" ? "en" : "uk"];
   const templateHref = mailtoHref(email, subject, body);
 
   // "Copied" for two seconds, on the button that was pressed.
@@ -171,12 +175,12 @@ export function CareRequestPage() {
               {t("care.request.eyebrow")}
             </p>
             <h1 className="font-normal text-[44px] md:text-[clamp(56px,5.6vw,80px)] leading-none md:leading-[0.98] tracking-[-0.02em]" style={SERIF}>
-              {t("care.request.titleLine1")} <br className="hidden md:inline" />
-              <span className="italic font-light">{t("care.request.titleLine2")}</span>
+              {text(page.titleLine1)} <br className="hidden md:inline" />
+              <span className="italic font-light">{text(page.titleLine2)}</span>
             </h1>
           </div>
           <div className="max-w-[420px] flex flex-col gap-4 lg:pb-2">
-            <p className="text-[14.5px] md:text-base leading-[1.6] md:leading-[1.65] text-[#2D241E]/72">{t("care.request.intro")}</p>
+            <p className="text-[14.5px] md:text-base leading-[1.6] md:leading-[1.65] text-[#2D241E]/72">{text(page.intro)}</p>
             <LangLink
               to={CARE_GUARANTEE_PATH}
               className={`hidden md:inline-flex self-start h-10 pl-3 pr-4 items-center gap-2 rounded-full bg-[#EDE9E2] text-[13px] text-[#2D241E] hover:bg-[#E5E0D8] transition-colors ${FOCUS_RING}`}

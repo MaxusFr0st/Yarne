@@ -1,0 +1,196 @@
+{
+  "privacy": {
+    "version": 1,
+    "lastUpdated": "2026-10",
+    "summary": [],
+    "sections": [
+      {
+        "heading": {
+          "uk": "",
+          "en": ""
+        },
+        "body": {
+          "uk": "Ця сторінка пояснює, які дані ми збираємо на yarne-acc.com, навіщо, і як із ними поводимося.",
+          "en": "This page explains what data we collect on yarne-acc.com, why, and how we handle it."
+        }
+      },
+      {
+        "heading": {
+          "uk": "Хто ми",
+          "en": "Who we are"
+        },
+        "body": {
+          "uk": "Yarné — майстерня в'язаних аксесуарів. Написати нам: {{email}}.",
+          "en": "Yarné is an atelier of knitted accessories. Contact: {{email}}."
+        }
+      },
+      {
+        "heading": {
+          "uk": "Які дані ми отримуємо",
+          "en": "What data we receive"
+        },
+        "body": {
+          "uk": "Коли ви оформлюєте замовлення: ім'я та прізвище, номер телефону, електронну адресу, місто й відділення або адресу доставки, склад замовлення.\n\nКоли ви підтверджуєте оплату переказом: фото квитанції.\n\nКоли ви створюєте акаунт: ім'я, електронну адресу, телефон і пароль. Пароль зберігається у зашифрованому вигляді; ми його не бачимо. Якщо ви входите через Google, ми отримуємо від Google ваше ім'я та електронну адресу.\n\nКоли ви пишете нам або залишаєте запит на догляд: те, що ви вказали у зверненні.",
+          "en": "When you place an order: your name, phone number, email address, city and branch or delivery address, and the order contents.\n\nWhen you confirm a bank transfer: a photo of the receipt.\n\nWhen you create an account: your name, email, phone and password. The password is stored encrypted; we cannot see it. If you sign in with Google, we receive your name and email from Google.\n\nWhen you write to us or send a care request: whatever you put in the message."
+        }
+      },
+      {
+        "heading": {
+          "uk": "Навіщо",
+          "en": "Why"
+        },
+        "body": {
+          "uk": "Щоб прийняти, виготовити й відправити ваше замовлення, повідомляти про його статус електронною поштою, виконувати гарантію та відповідати на звернення. Ми не надсилаємо рекламних розсилок.",
+          "en": "To accept, make and ship your order, email you its status, honour the guarantee and answer your messages. We send no marketing emails."
+        }
+      },
+      {
+        "heading": {
+          "uk": "Кому ми передаємо дані",
+          "en": "Who we share data with"
+        },
+        "body": {
+          "uk": "Перевізнику (Нова пошта, Nova Post або інший, узгоджений із вами): ім'я, телефон і адресу доставки.\n\nСервісам, на яких працює сайт: хостинг, сховище файлів і сервіс надсилання листів. Вони обробляють дані лише для роботи сайту.\n\nМи не продаємо ваші дані й не передаємо їх рекламним компаніям.",
+          "en": "The carrier (Nova Poshta, Nova Post, or another agreed with you): name, phone and delivery address.\n\nThe services the site runs on: hosting, file storage and the email sending service. They process data only to run the site.\n\nWe do not sell your data or pass it to advertisers."
+        }
+      },
+      {
+        "heading": {
+          "uk": "Скільки зберігаємо",
+          "en": "How long we keep it"
+        },
+        "body": {
+          "uk": "Фото квитанції — 30 днів після завершення замовлення, далі видаляється автоматично.\n\nФото процесу виготовлення, зроблені на ваш запит, — до позначки «Отримано».\n\nДані замовлення — доки це потрібно для виконання гарантії та обліку.\n\nАкаунт — доки ви його не видалите.",
+          "en": "Receipt photo: 30 days after the order is finished, then deleted automatically.\n\nMaking-of photos taken at your request: until the order is marked Received.\n\nOrder data: for as long as it is needed for the guarantee and our records.\n\nAccount: until you delete it."
+        }
+      },
+      {
+        "heading": {
+          "uk": "Файли на вашому пристрої",
+          "en": "Files on your device"
+        },
+        "body": {
+          "uk": "Сайт зберігає на пристрої лише необхідне для роботи: вхід в акаунт, кошик і вибрану мову. Рекламних чи аналітичних файлів cookie немає.",
+          "en": "The site stores only what it needs to work: your sign-in, your bag and your chosen language. There are no advertising or analytics cookies."
+        }
+      },
+      {
+        "heading": {
+          "uk": "Ваші права",
+          "en": "Your rights"
+        },
+        "body": {
+          "uk": "Ви можете попросити показати, виправити або видалити ваші дані. Напишіть на {{email}} — ми відповімо протягом 30 днів.",
+          "en": "You can ask us to show, correct or delete your data. Write to {{email}} and we will reply within 30 days."
+        }
+      }
+    ]
+  },
+  "careRequest": {
+    "version": 1,
+    "titleLine1": {
+      "uk": "Щось пішло не так?",
+      "en": "Something went wrong?"
+    },
+    "titleLine2": {
+      "uk": "Давайте обговоримо.",
+      "en": "Let's talk it through."
+    },
+    "intro": {
+      "uk": "Зателефонуйте або напишіть нам. Ми разом оглянемо ваш виріб, домовимося, що йому потрібно, і пояснимо умови — ще до того, як ви щось надішлете.",
+      "en": "Call or write to us. We'll look at your piece together, agree what it needs and explain the terms, before you send anything."
+    },
+    "ready": [
+      {
+        "title": {
+          "uk": "Номер замовлення",
+          "en": "Your order number"
+        },
+        "text": {
+          "uk": "Або ім'я та email, з якими ви замовляли.",
+          "en": "Or the name and email you ordered with."
+        }
+      },
+      {
+        "title": {
+          "uk": "Назву виробу",
+          "en": "The name of your piece"
+        },
+        "text": {
+          "uk": "Наприклад, Grand Bag. Її видно в замовленні.",
+          "en": "For example, Grand Bag. It's on your order."
+        }
+      },
+      {
+        "title": {
+          "uk": "2–3 фото при денному світлі",
+          "en": "2–3 photos in daylight"
+        },
+        "text": {
+          "uk": "Усю сумку і крупний план проблеми.",
+          "en": "The whole bag, and a close-up of the problem."
+        }
+      },
+      {
+        "title": {
+          "uk": "Що сталося",
+          "en": "What happened"
+        },
+        "text": {
+          "uk": "Достатньо одного-двох речень.",
+          "en": "A sentence or two is enough."
+        }
+      }
+    ],
+    "templateSubject": {
+      "uk": "Запит Yarné Care",
+      "en": "Yarné Care request"
+    },
+    "templateBody": {
+      "uk": "Вітаю, Yarné!\n\nНомер мого замовлення: \nМій виріб: \nЩо сталося: \n\nДодаю кілька фото.\n",
+      "en": "Hello Yarné,\n\nMy order number is: \nMy piece: \nWhat happened: \n\nI've attached a few photos.\n"
+    },
+    "next": [
+      {
+        "title": {
+          "uk": "Ми відповідаємо",
+          "en": "We reply"
+        },
+        "text": {
+          "uk": "Протягом одного робочого дня.",
+          "en": "Within one business day."
+        }
+      },
+      {
+        "title": {
+          "uk": "Домовляємося про умови",
+          "en": "We agree the terms"
+        },
+        "text": {
+          "uk": "Що ми зробимо, скільки часу це займе і чи покриває це гарантія.",
+          "en": "What we'll do, how long it takes, and whether it's covered."
+        }
+      },
+      {
+        "title": {
+          "uk": "Ви надсилаєте виріб",
+          "en": "You send it to us"
+        },
+        "text": {
+          "uk": "Ми детально пояснимо як.",
+          "en": "We explain exactly how."
+        }
+      },
+      {
+        "title": {
+          "uk": "Він повертається до вас",
+          "en": "It comes back to you"
+        },
+        "text": {
+          "uk": "Зазвичай протягом 2–3 тижнів.",
+          "en": "Usually within 2–3 weeks."
+        }
+      }
+    ]
+  }
+}

@@ -13,7 +13,23 @@ import {
   type DeliveryContent,
   type DeliveryIcon,
 } from "../../utils/deliveryContent";
-import { TERMS_LIMITS, TERMS_SEED, loadTermsContent, persistTermsContent, type TermsContent } from "../../utils/termsContent";
+import {
+  PRIVACY_SEED,
+  TERMS_LIMITS,
+  TERMS_SEED,
+  loadPrivacyContent,
+  loadTermsContent,
+  persistPrivacyContent,
+  persistTermsContent,
+  type TermsContent,
+} from "../../utils/termsContent";
+import {
+  CARE_REQUEST_LIMITS,
+  CARE_REQUEST_SEED,
+  loadCareRequestContent,
+  persistCareRequestContent,
+  type CareRequestContent,
+} from "../../utils/careRequestContent";
 import {
   GUARANTEE_ICONS,
   GUARANTEE_LIMITS,
@@ -424,15 +440,26 @@ function DeliveryPageEditor({ locale, onError }: Props & { locale: Locale }) {
   );
 }
 
-function TermsPageEditor({ locale, onError }: Props & { locale: Locale }) {
-  const state = useSettingDraft(loadTermsContent, persistTermsContent, TERMS_SEED, onError, "Failed to save the Terms & Conditions page to the server.");
+type LegalEditorProps = Props & {
+  locale: Locale;
+  title: string;
+  path: string;
+  load: () => Promise<TermsContent | null>;
+  persist: (content: TermsContent) => Promise<TermsContent>;
+  seed: TermsContent;
+  failed: string;
+};
+
+/** Terms & Conditions and Privacy Policy: the same kind of page, each saved on its own. */
+function LegalPageEditor({ locale, onError, title, path, load, persist, seed, failed }: LegalEditorProps) {
+  const state = useSettingDraft(load, persist, seed, onError, failed);
   const { draft } = state;
   const patch = (change: Partial<TermsContent>) => state.setDraft((prev) => ({ ...prev, ...change }));
   return (
     <EditorCard
-      title="Terms & Conditions page"
-      note="The numbered sections of /pages/terms, with the 'In short' points above them. Separate paragraphs with a blank line; {{email}} becomes the contact email."
-      path="/pages/terms"
+      title={title}
+      note={`The numbered sections of ${path}, with optional 'In short' points above them. A section without a heading is an unnumbered opening. Separate paragraphs with a blank line; {{email}} becomes the contact email.`}
+      path={path}
       locale={locale}
       state={state}
     >
@@ -442,7 +469,7 @@ function TermsPageEditor({ locale, onError }: Props & { locale: Locale }) {
         <Hint>Shown as “Last updated: July 2026”. Empty hides it.</Hint>
       </div>
       <div className="rounded-[24px] p-5" style={CARD_STYLE}>
-        <L10nList label="In short" items={draft.summary} locale={locale} onChange={(summary) => patch({ summary })} max={TERMS_LIMITS.summary} addLabel="Add point" maxLength={TERMS_LIMITS.summaryItem} />
+        <L10nList label="In short (optional)" items={draft.summary} locale={locale} onChange={(summary) => patch({ summary })} max={TERMS_LIMITS.summary} addLabel="Add point" maxLength={TERMS_LIMITS.summaryItem} />
       </div>
       <RowList
         title="Sections"
@@ -464,6 +491,53 @@ function TermsPageEditor({ locale, onError }: Props & { locale: Locale }) {
           </>
         )}
       </RowList>
+    </EditorCard>
+  );
+}
+
+function CareRequestEditor({ locale, onError }: Props & { locale: Locale }) {
+  const state = useSettingDraft(loadCareRequestContent, persistCareRequestContent, CARE_REQUEST_SEED, onError, "Failed to save the Request care page to the server.");
+  const { draft } = state;
+  const patch = (change: Partial<CareRequestContent>) => state.setDraft((prev) => ({ ...prev, ...change }));
+  const L = CARE_REQUEST_LIMITS;
+  const itemList = (title: string, note: string, key: "ready" | "next", addLabel: string) => (
+    <RowList
+      title={title}
+      note={note}
+      items={draft[key]}
+      onChange={(list) => patch({ [key]: list })}
+      max={L.items}
+      addLabel={addLabel}
+      create={() => ({ title: emptyL10n(), text: emptyL10n() })}
+    >
+      {(item, update) => (
+        <div className="grid md:grid-cols-[minmax(0,1fr)_minmax(0,2fr)] gap-2">
+          <L10nField label="Title" value={item.title} locale={locale} maxLength={L.itemTitle} onChange={(value) => update({ ...item, title: value })} />
+          <L10nField label="Text" value={item.text} locale={locale} maxLength={L.itemText} onChange={(value) => update({ ...item, text: value })} />
+        </div>
+      )}
+    </RowList>
+  );
+  return (
+    <EditorCard
+      title="Request care page"
+      note="The words of /pages/care/request. The phone, email and Instagram come from Contact details above."
+      path="/pages/care/request"
+      locale={locale}
+      state={state}
+    >
+      <div className="grid md:grid-cols-2 gap-4">
+        <L10nField label="Title, first line" value={draft.titleLine1} locale={locale} maxLength={L.title} onChange={(titleLine1) => patch({ titleLine1 })} />
+        <L10nField label="Title, second line (italic)" value={draft.titleLine2} locale={locale} maxLength={L.title} onChange={(titleLine2) => patch({ titleLine2 })} />
+      </div>
+      <L10nField label="Line under the title" value={draft.intro} locale={locale} rows={2} maxLength={L.intro} onChange={(intro) => patch({ intro })} />
+      {itemList("Have these ready", "What to prepare before getting in touch.", "ready", "Add item")}
+      <div className="rounded-[24px] p-5 space-y-4" style={CARD_STYLE}>
+        <SectionTitle title="Email template" note="Opened by “Open in email” and copied by “Copy text”." />
+        <L10nField label="Subject" value={draft.templateSubject} locale={locale} maxLength={L.subject} onChange={(templateSubject) => patch({ templateSubject })} />
+        <L10nField label="Text" value={draft.templateBody} locale={locale} rows={7} maxLength={L.body} onChange={(templateBody) => patch({ templateBody })} />
+      </div>
+      {itemList("What happens next", "Numbered steps after the customer writes.", "next", "Add step")}
     </EditorCard>
   );
 }
@@ -552,7 +626,27 @@ export function AdminCareServiceEditors({ onError }: Props) {
       <GuaranteeTermsEditor locale={locale} onError={onError} />
       <ContactDetailsEditor locale={locale} onError={onError} />
       <DeliveryPageEditor locale={locale} onError={onError} />
-      <TermsPageEditor locale={locale} onError={onError} />
+      <CareRequestEditor locale={locale} onError={onError} />
+      <LegalPageEditor
+        locale={locale}
+        onError={onError}
+        title="Terms & Conditions page"
+        path="/pages/terms"
+        load={loadTermsContent}
+        persist={persistTermsContent}
+        seed={TERMS_SEED}
+        failed="Failed to save the Terms & Conditions page to the server."
+      />
+      <LegalPageEditor
+        locale={locale}
+        onError={onError}
+        title="Privacy Policy page"
+        path="/pages/privacy"
+        load={loadPrivacyContent}
+        persist={persistPrivacyContent}
+        seed={PRIVACY_SEED}
+        failed="Failed to save the Privacy Policy page to the server."
+      />
       <PaymentDetailsEditor locale={locale} onError={onError} />
     </div>
   );

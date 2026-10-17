@@ -1,6 +1,7 @@
 import { fetchStorefrontSetting, peekStorefrontSetting, saveStorefrontSetting } from "../api/storefrontSettings";
 import { asRecord, normalizeL10n, normalizeL10nList, trimmedText, type L10n } from "./careContent";
 import legalTerms from "../../../scripts/legal-terms.json";
+import pageSeeds from "../../../scripts/page-seeds.json";
 
 // The backend whitelists setting keys (StorefrontSettingsService.AllowedKeys).
 export const TERMS_CONTENT_KEY = "yarne.terms.v1";
@@ -77,5 +78,34 @@ export async function loadTermsContent(): Promise<TermsContent | null> {
 export async function persistTermsContent(content: TermsContent): Promise<TermsContent> {
   const normalized = normalizeTermsContent(content);
   await saveStorefrontSetting(TERMS_CONTENT_KEY, normalized);
+  return normalized;
+}
+
+// ---------------------------------------------------------------------------------------------
+// Privacy Policy: the same kind of page (sections, last updated), with its own setting.
+// ---------------------------------------------------------------------------------------------
+
+export const PRIVACY_CONTENT_KEY = "yarne.privacy.v1";
+
+/** The same words the API saves at its first start (scripts/page-seeds.json); shown only until that answer is here. */
+export const PRIVACY_SEED: TermsContent = normalizeTermsContent(pageSeeds.privacy);
+
+export function getInitialPrivacyContent(): TermsContent | null {
+  const saved = peekStorefrontSetting(PRIVACY_CONTENT_KEY)?.value;
+  return saved == null ? null : normalizeTermsContent(saved);
+}
+
+export async function loadPrivacyContent(): Promise<TermsContent | null> {
+  try {
+    const remote = await fetchStorefrontSetting<TermsContent>(PRIVACY_CONTENT_KEY);
+    return remote == null ? null : normalizeTermsContent(remote);
+  } catch {
+    return getInitialPrivacyContent();
+  }
+}
+
+export async function persistPrivacyContent(content: TermsContent): Promise<TermsContent> {
+  const normalized = normalizeTermsContent(content);
+  await saveStorefrontSetting(PRIVACY_CONTENT_KEY, normalized);
   return normalized;
 }
