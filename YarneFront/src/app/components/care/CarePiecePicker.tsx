@@ -88,10 +88,11 @@ export function CarePiecePicker({ materialName, options, selected, onSelect }: P
             setOpen(true);
           }
         }}
-        className={`h-[52px] pl-4 pr-[18px] rounded-full border border-[#2D241E]/20 bg-[#F5F2ED] flex items-center gap-3 text-sm cursor-pointer hover:border-[#2D241E]/40 transition-colors ${FOCUS_RING}`}
+        className={`min-h-[52px] py-2 pl-4 pr-[18px] rounded-full border border-[#2D241E]/20 bg-[#F5F2ED] flex items-center gap-3 text-sm cursor-pointer hover:border-[#2D241E]/40 transition-colors ${FOCUS_RING}`}
       >
         <ShoppingBag size={18} strokeWidth={1.5} className="shrink-0" aria-hidden />
-        <span className="grow text-left truncate">{current?.name ?? allLabel}</span>
+        {/* Wraps to a second line in a narrow column (tablet) rather than cutting the name off. */}
+        <span className="grow min-w-0 text-left leading-tight line-clamp-2">{current?.name ?? allLabel}</span>
         <ChevronDown
           size={16}
           strokeWidth={1.5}

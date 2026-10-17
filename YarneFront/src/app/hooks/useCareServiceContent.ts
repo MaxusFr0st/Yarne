@@ -9,6 +9,7 @@ import {
   type GuaranteeContent,
 } from "../utils/guaranteeContent";
 import { DELIVERY_CONTENT_KEY, DELIVERY_SEED, getInitialDeliveryContent, loadDeliveryContent, type DeliveryContent } from "../utils/deliveryContent";
+import { TERMS_CONTENT_KEY, TERMS_SEED, getInitialTermsContent, loadTermsContent, type TermsContent } from "../utils/termsContent";
 import { useFirstVisitReady } from "./useFirstVisitReady";
 
 /**
@@ -48,4 +49,8 @@ export function useContactContent(): { content: ContactContent; ready: boolean }
 
 export function useDeliveryContent(): { content: DeliveryContent; ready: boolean } {
   return useStoredContent(DELIVERY_CONTENT_KEY, getInitialDeliveryContent, loadDeliveryContent, DELIVERY_SEED);
+}
+
+export function useTermsContent(): { content: TermsContent; ready: boolean } {
+  return useStoredContent(TERMS_CONTENT_KEY, getInitialTermsContent, loadTermsContent, TERMS_SEED);
 }

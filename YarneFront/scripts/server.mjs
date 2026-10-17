@@ -172,6 +172,7 @@ const PRODUCT_GUARANTEE_KEY = "yarne.product.guarantee.v1";
 const STATIC_PAGES_KEY = "yarne.staticPages.v1";
 const CONTACT_CONTENT_KEY = "yarne.contact.v1";
 const DELIVERY_CONTENT_KEY = "yarne.delivery.v1";
+const TERMS_CONTENT_KEY = "yarne.terms.v1";
 const CACHE_TTL_MS = 5 * 60 * 1000;
 // A product that does not exist is remembered for less: it may be added a minute later.
 const MISSING_TTL_MS = 60 * 1000;
@@ -237,6 +238,7 @@ const PAGE_SETTING_KEYS = [
   PRODUCT_GUARANTEE_KEY,
   GUARANTEE_CONTENT_KEY,
   SHARE_DEFAULT_KEY,
+  TERMS_CONTENT_KEY,
 ];
 
 async function pageSettingsScript(pathname) {
@@ -1176,9 +1178,19 @@ async function describePage(route, reqUrl) {
     }
 
     case "terms": {
-      const contact = await getSetting(CONTACT_CONTENT_KEY);
+      // The text the owner edits in the admin; the shared file until it has been saved.
+      const [saved, contact] = await Promise.all([getSetting(TERMS_CONTENT_KEY), getSetting(CONTACT_CONTENT_KEY)]);
       const email = contactEmail(contact);
-      const terms = (LEGAL_TERMS[lang]?.paragraphs ?? []).map((text) => para(String(text).split("{{email}}").join(email))).join("");
+      const fill = (text) => String(text).split("{{email}}").join(email);
+      const sections = Array.isArray(saved?.sections) ? saved.sections : [];
+      const terms = sections.length
+        ? sections
+            .map((section) => {
+              const heading = localized(section?.heading, lang);
+              return (heading ? `<h2>${escapeHtml(heading)}</h2>` : "") + paragraphsOf(fill(localized(section?.body, lang))).map(para).join("");
+            })
+            .join("")
+        : (LEGAL_TERMS[lang]?.paragraphs ?? []).map((text) => para(fill(text))).join("");
       return {
         status: 200,
         lang,

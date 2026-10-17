@@ -251,7 +251,7 @@ function ProductCardInner({
 
           {(product.colors.length > 1 || activeColorLabel) && (
           <div
-            className={`flex items-center gap-2 ${isCarouselCard ? "mt-2 py-1.5 pl-1 -ml-1" : "mt-3"} ${previewMode ? "overflow-x-auto pb-1 -mx-0.5 px-0.5" : ""}`}
+            className={`flex flex-wrap items-center gap-x-2 gap-y-1 ${isCarouselCard ? "mt-2 py-1.5 pl-1 -ml-1" : "mt-3"} ${previewMode ? "overflow-x-auto pb-1 -mx-0.5 px-0.5" : ""}`}
           >
             {product.colors.map((color, i) => {
               const colorLabel = localizedCatalogName(color.name, color.nameUk, locale);
@@ -278,11 +278,11 @@ function ProductCardInner({
               />
               );
             })}
-            {/* Was shrink-0, which meant a long colour name ("Вершковий" beside five swatches)
-                refused to shrink and simply ran out of the card into the one next to it on a
-                two-up mobile grid. It now yields and ellipsises; the swatches keep their size. */}
+            {/* The colour name sits beside the swatches when it fits and moves to its own line under
+                them when it doesn't (always on phones), so it is never cut to "Butter…". Truncation
+                is only the last resort for a name wider than the whole card. */}
             <span
-              className="text-[#2D241E]/[0.68] text-xs ml-1 min-w-0 truncate"
+              className="text-[#2D241E]/[0.68] text-xs ml-1 max-md:ml-0 max-md:basis-full max-w-full truncate"
               style={{ fontFamily: "'DM Sans', sans-serif" }}
               title={activeColorLabel}
             >

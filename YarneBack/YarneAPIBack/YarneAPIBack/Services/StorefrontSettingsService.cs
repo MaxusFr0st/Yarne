@@ -23,6 +23,7 @@ public class StorefrontSettingsService : IStorefrontSettingsService
         "yarne.contact.v1",
         "yarne.payment.v1",
         "yarne.delivery.v1",
+        "yarne.terms.v1",
     };
 
     private readonly YarneDbContext _context;

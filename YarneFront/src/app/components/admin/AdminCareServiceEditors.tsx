@@ -4,7 +4,16 @@ import type { Locale } from "../../i18n/config";
 import { emptyL10n, type L10n } from "../../utils/careContent";
 import { CONTACT_SEED, loadContactContent, persistContactContent, type ContactContent } from "../../utils/contactContent";
 import { loadPaymentContent, PAYMENT_SEED, persistPaymentContent } from "../../utils/paymentContent";
-import { DELIVERY_LIMITS, DELIVERY_SEED, loadDeliveryContent, persistDeliveryContent } from "../../utils/deliveryContent";
+import {
+  DELIVERY_ICONS,
+  DELIVERY_LIMITS,
+  DELIVERY_SEED,
+  loadDeliveryContent,
+  persistDeliveryContent,
+  type DeliveryContent,
+  type DeliveryIcon,
+} from "../../utils/deliveryContent";
+import { TERMS_LIMITS, TERMS_SEED, loadTermsContent, persistTermsContent, type TermsContent } from "../../utils/termsContent";
 import {
   GUARANTEE_ICONS,
   GUARANTEE_LIMITS,
@@ -338,32 +347,118 @@ function ContactDetailsEditor({ locale, onError }: Props & { locale: Locale }) {
   );
 }
 
+const DELIVERY_ICON_LABELS: Record<DeliveryIcon, string> = {
+  none: "No icon",
+  making: "Scissors (making)",
+  ukraine: "House (Ukraine)",
+  abroad: "Plane (abroad)",
+  returns: "Arrow (returns)",
+  defect: "Warning (defect)",
+  payment: "Card (payment)",
+};
+
 function DeliveryPageEditor({ locale, onError }: Props & { locale: Locale }) {
   const state = useSettingDraft(loadDeliveryContent, persistDeliveryContent, DELIVERY_SEED, onError, "Failed to save the Delivery & Returns page to the server.");
   const { draft } = state;
+  const patch = (change: Partial<DeliveryContent>) => state.setDraft((prev) => ({ ...prev, ...change }));
   return (
     <EditorCard
       title="Delivery & Returns page"
-      note="The page's sections in order, each a heading and a text. Separate paragraphs with a blank line; {{email}} becomes the contact email."
+      note="The line under the title, the facts at the top, then the sections in order. Separate paragraphs with a blank line; {{email}} becomes the contact email."
       path="/pages/delivery"
       locale={locale}
       state={state}
     >
+      <L10nField label="Line under the title" value={draft.intro} locale={locale} rows={2} maxLength={DELIVERY_LIMITS.intro} onChange={(intro) => patch({ intro })} />
+
+      <RowList
+        title="At a glance"
+        note="Up to four facts in a row at the top: a short value and what it means."
+        items={draft.glance}
+        onChange={(glance) => patch({ glance })}
+        max={DELIVERY_LIMITS.glance}
+        addLabel="Add fact"
+        create={() => ({ value: emptyL10n(), label: emptyL10n() })}
+      >
+        {(row, update) => (
+          <div className="grid md:grid-cols-[200px_minmax(0,1fr)] gap-2">
+            <L10nField label="Value" value={row.value} locale={locale} maxLength={DELIVERY_LIMITS.glanceValue} onChange={(value) => update({ ...row, value })} hint='E.g. "14 days".' />
+            <L10nField label="What it means" value={row.label} locale={locale} maxLength={DELIVERY_LIMITS.glanceLabel} onChange={(label) => update({ ...row, label })} />
+          </div>
+        )}
+      </RowList>
+
       <RowList
         title="Sections"
+        note="One card each. A section with steps spans the full width on a computer."
         items={draft.sections}
-        onChange={(sections) => state.setDraft((prev) => ({ ...prev, sections }))}
+        onChange={(sections) => patch({ sections })}
         max={DELIVERY_LIMITS.sections}
         addLabel="Add section"
-        create={() => ({ heading: emptyL10n(), body: emptyL10n() })}
+        create={() => ({ icon: "none" as DeliveryIcon, heading: emptyL10n(), body: emptyL10n(), steps: [] })}
       >
         {(section, update, index) => (
           <>
+            <div className="max-w-[240px]">
+              <Label>Icon</Label>
+              <select value={section.icon} onChange={(e) => update({ ...section, icon: e.target.value as DeliveryIcon })} className={INPUT_CLASS} style={INPUT_STYLE}>
+                {DELIVERY_ICONS.map((icon) => (
+                  <option key={icon} value={icon}>
+                    {DELIVERY_ICON_LABELS[icon]}
+                  </option>
+                ))}
+              </select>
+            </div>
             {/* Both languages at once: the page is read in either, so neither is left to a language switch. */}
             {(["uk", "en"] as const).map((lang) => (
               <div key={lang} className="grid md:grid-cols-[minmax(0,1fr)_minmax(0,2fr)] gap-2">
                 <L10nField label={`Heading ${index + 1} (${lang})`} value={section.heading} locale={lang} maxLength={DELIVERY_LIMITS.heading} onChange={(heading) => update({ ...section, heading })} />
                 <L10nField label={`Text (${lang})`} value={section.body} locale={lang} rows={5} maxLength={DELIVERY_LIMITS.body} onChange={(body) => update({ ...section, body })} />
+              </div>
+            ))}
+            <L10nList label="Numbered steps (optional)" items={section.steps} locale={locale} onChange={(steps) => update({ ...section, steps })} max={DELIVERY_LIMITS.steps} addLabel="Add step" maxLength={DELIVERY_LIMITS.step} numbered />
+          </>
+        )}
+      </RowList>
+    </EditorCard>
+  );
+}
+
+function TermsPageEditor({ locale, onError }: Props & { locale: Locale }) {
+  const state = useSettingDraft(loadTermsContent, persistTermsContent, TERMS_SEED, onError, "Failed to save the Terms & Conditions page to the server.");
+  const { draft } = state;
+  const patch = (change: Partial<TermsContent>) => state.setDraft((prev) => ({ ...prev, ...change }));
+  return (
+    <EditorCard
+      title="Terms & Conditions page"
+      note="The numbered sections of /pages/terms, with the 'In short' points above them. Separate paragraphs with a blank line; {{email}} becomes the contact email."
+      path="/pages/terms"
+      locale={locale}
+      state={state}
+    >
+      <div className="max-w-[220px]">
+        <Label>Last updated</Label>
+        <input type="month" value={draft.lastUpdated} onChange={(e) => patch({ lastUpdated: e.target.value })} className={INPUT_CLASS} style={INPUT_STYLE} />
+        <Hint>Shown as “Last updated: July 2026”. Empty hides it.</Hint>
+      </div>
+      <div className="rounded-[24px] p-5" style={CARD_STYLE}>
+        <L10nList label="In short" items={draft.summary} locale={locale} onChange={(summary) => patch({ summary })} max={TERMS_LIMITS.summary} addLabel="Add point" maxLength={TERMS_LIMITS.summaryItem} />
+      </div>
+      <RowList
+        title="Sections"
+        note="Numbered 01, 02… in this order, and listed beside the text on a computer."
+        items={draft.sections}
+        onChange={(sections) => patch({ sections })}
+        max={TERMS_LIMITS.sections}
+        addLabel="Add section"
+        create={() => ({ heading: emptyL10n(), body: emptyL10n() })}
+      >
+        {(section, update, index) => (
+          <>
+            {(["uk", "en"] as const).map((lang) => (
+              <div key={lang} className="grid md:grid-cols-[minmax(0,1fr)_minmax(0,2fr)] gap-2">
+                <L10nField label={`Heading ${index + 1} (${lang})`} value={section.heading} locale={lang} maxLength={TERMS_LIMITS.heading} onChange={(heading) => update({ ...section, heading })} />
+                <L10nField label={`Text (${lang})`} value={section.body} locale={lang} rows={4} maxLength={TERMS_LIMITS.body} onChange={(body) => update({ ...section, body })} />
               </div>
             ))}
           </>
@@ -457,6 +552,7 @@ export function AdminCareServiceEditors({ onError }: Props) {
       <GuaranteeTermsEditor locale={locale} onError={onError} />
       <ContactDetailsEditor locale={locale} onError={onError} />
       <DeliveryPageEditor locale={locale} onError={onError} />
+      <TermsPageEditor locale={locale} onError={onError} />
       <PaymentDetailsEditor locale={locale} onError={onError} />
     </div>
   );

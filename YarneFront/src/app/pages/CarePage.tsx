@@ -330,10 +330,11 @@ export function CarePage() {
                   {pieces.length > 0 && (
                     <p className="px-2 pt-4 flex gap-3 items-baseline text-[13px] text-[#2D241E]/72">
                       <span className={`${LABEL} text-[0.72rem] shrink-0`}>{t("care.pieces")}</span>
-                      <span>
+                      {/* Each name wraps as a whole onto the next row (tablet width), never over another one. */}
+                      <span className="flex flex-wrap gap-y-1">
                         {pieces.map((piece, i) => (
-                          <span key={piece.id}>
-                            {i > 0 && ", "}
+                          <span key={piece.id} className="whitespace-nowrap">
+                            {i > 0 && <span className="whitespace-pre">, </span>}
                             <LangLink
                               to={`/product/${piece.id}`}
                               className="text-[#2D241E] underline underline-offset-2 hover:text-[#4A0E0E]"

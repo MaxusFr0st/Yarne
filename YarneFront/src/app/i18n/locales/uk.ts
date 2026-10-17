@@ -471,6 +471,16 @@ const uk: Translations = {
     delivery: {
       eyebrow: "Допомога",
       title: "Доставка та повернення",
+      contactEyebrow: "Питання",
+      contactTitle: "Напишіть або зателефонуйте нам, перш ніж щось надсилати.",
+      write: "Написати",
+      call: "Зателефонувати",
+    },
+    // Terms and Privacy pages.
+    legal: {
+      inShort: "Коротко",
+      contents: "Розділи",
+      lastUpdated: "Останнє оновлення: {{date}}",
     },
     terms: {
       eyebrow: "Правові умови",

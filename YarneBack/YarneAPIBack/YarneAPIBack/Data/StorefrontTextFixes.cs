@@ -3,6 +3,7 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using YarneAPIBack.Models;
 
 namespace YarneAPIBack.Data;
 
@@ -62,7 +63,7 @@ public static class StorefrontTextFixes
 
     public static async Task ApplyAsync(YarneDbContext db, ILogger logger, CancellationToken cancellationToken = default)
     {
-        var keys = Fixes.Select(f => f.Key).Distinct().ToList();
+        var keys = Fixes.Select(f => f.Key).Concat(StorefrontPageSeeds.Additions.Select(a => a.Key)).Distinct().ToList();
         var rows = await db.AppSettings.Where(s => keys.Contains(s.Key)).ToListAsync(cancellationToken);
         var applied = 0;
         foreach (var row in rows)
@@ -81,11 +82,20 @@ public static class StorefrontTextFixes
             var changed = 0;
             foreach (var fix in Fixes.Where(f => f.Key == row.Key))
                 if (TryApply(root, fix)) changed++;
+            foreach (var addition in StorefrontPageSeeds.Additions.Where(a => a.Key == row.Key))
+                if (StorefrontPageSeeds.TryAdd(root, addition)) changed++;
             if (changed == 0) continue;
 
             row.ValueJson = root.ToJsonString(WriteOptions);
             row.UpdatedAt = DateTime.UtcNow;
             applied += changed;
+        }
+
+        // The Terms page as saved data, once: its text was built into the site until now.
+        if (!await db.AppSettings.AnyAsync(s => s.Key == StorefrontPageSeeds.TermsKey, cancellationToken))
+        {
+            db.AppSettings.Add(new AppSetting { Key = StorefrontPageSeeds.TermsKey, ValueJson = StorefrontPageSeeds.TermsJson.Trim(), UpdatedAt = DateTime.UtcNow });
+            applied++;
         }
 
         if (applied > 0)

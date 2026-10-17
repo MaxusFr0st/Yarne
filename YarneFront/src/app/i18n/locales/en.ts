@@ -461,6 +461,16 @@ const en = {
     delivery: {
       eyebrow: "Help",
       title: "Delivery & Returns",
+      contactEyebrow: "Questions",
+      contactTitle: "Write or call us before you send anything.",
+      write: "Write to us",
+      call: "Call",
+    },
+    // Terms and Privacy pages.
+    legal: {
+      inShort: "In short",
+      contents: "Sections",
+      lastUpdated: "Last updated: {{date}}",
     },
     terms: {
       eyebrow: "Legal",
