@@ -254,6 +254,8 @@ const en = {
     deliveryPickerTitle: "Nova Poshta branch",
     deliveryPickerClose: "Close branch picker",
     deliveryPickerLoading: "Loading branches…",
+    deliveryPickerFailed: "The map didn’t load. Try again",
+    deliveryPickerRetry: "Try again",
     errors: {
       unableToPlaceOrder: "Unable to place order right now.",
       itemUnavailable: "One of the items in your bag has just become unavailable. Remove it and try again.",
