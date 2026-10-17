@@ -1,3 +1,5 @@
+import { useEffect } from "react";
+import { useLocation } from "react-router";
 import { useTranslation } from "react-i18next";
 
 /**
@@ -6,6 +8,19 @@ import { useTranslation } from "react-i18next";
  */
 export function SkipToContent() {
   const { t } = useTranslation();
+  const { pathname } = useLocation();
+
+  // The link points at #main: each page's <main> gets that id and can take focus, so the target
+  // exists for browsers and checkers too (the click handler below still does the jump itself).
+  useEffect(() => {
+    const frame = requestAnimationFrame(() => {
+      const main = document.querySelector<HTMLElement>("main");
+      if (!main) return;
+      if (!main.id) main.id = "main";
+      if (!main.hasAttribute("tabindex")) main.setAttribute("tabindex", "-1");
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [pathname]);
 
   // Handled here rather than as a #hash link, so the address and the scroll logic stay untouched.
   const skip = (event: React.MouseEvent<HTMLAnchorElement>) => {

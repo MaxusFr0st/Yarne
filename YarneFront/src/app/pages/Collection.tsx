@@ -61,7 +61,6 @@ export function Collection() {
 
 function CollectionPage() {
   const { t } = useTranslation();
-  usePageTitle(t("seo.collectionTitle"));
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useLangNavigate();
   const locale = useLocale();
@@ -140,6 +139,12 @@ function CollectionPage() {
   }, [slug, slugCollection, slugCategory, waitingForSlug, productsLoading, error, searchParams, navigate]);
 
   // A category page has no tab of its own: none is highlighted, and its name shows as a chip instead.
+  // Same titles as scripts/server.mjs: a category page is named after its category.
+  usePageTitle(
+    slugCategory
+      ? t("seo.categoryTitle", { name: locale === "en" ? slugCategory.name.toLowerCase() : slugCategory.name })
+      : t("seo.collectionTitle"),
+  );
   const activeTab = slugCategory ? "" : validCollectionId ? String(validCollectionId) : ALL_PRODUCTS_TAB;
   // The list could not be loaded (not just empty): offer to try again instead of "no pieces".
   const loadFailed = !loading && Boolean(error) && products.length === 0;

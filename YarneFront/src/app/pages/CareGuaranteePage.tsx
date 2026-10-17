@@ -28,6 +28,7 @@ import { useLocale } from "../i18n/useLocale";
 import { careText } from "../utils/careContent";
 import { mailtoHref } from "../utils/contactContent";
 import { formatGuaranteeDate, type GuaranteeIcon } from "../utils/guaranteeContent";
+import { useIsMdUp } from "../hooks/useIsMdUp";
 
 function IncludeIcon({ icon }: { icon: GuaranteeIcon }) {
   if (icon === "knit") return <CareKnitIcon />;
@@ -41,6 +42,10 @@ function IncludeIcon({ icon }: { icon: GuaranteeIcon }) {
  * questions come from Admin → Care → Guarantee terms; the phone and email from Contact details.
  */
 export function CareGuaranteePage() {
+  // "At a glance" is drawn twice (phone and wider) and CSS shows one; only that one is a heading.
+  const isMdUp = useIsMdUp();
+  const GlancePhoneTag = isMdUp ? "p" : "h2";
+  const GlanceWideTag = isMdUp ? "h2" : "p";
   const { t } = useTranslation();
   const locale = useLocale();
   usePageTitle(t("care.guarantee.breadcrumb"));
@@ -61,7 +66,7 @@ export function CareGuaranteePage() {
   const steps = terms.steps.map((step) => ({ title: text(step.title), text: text(step.text) }));
 
   const requestButton = (className: string) => (
-    <LangLink to={CARE_REQUEST_PATH} className={`${PILL} ${PILL_INK} h-[52px] px-[26px] ${className}`}>
+    <LangLink to={CARE_REQUEST_PATH} className={`${PILL} ${PILL_INK} h-[50px] md:h-[52px] px-[26px] ${className}`}>
       {t("care.landing.service.request")}
       <ArrowRight size={16} strokeWidth={1.5} aria-hidden />
     </LangLink>
@@ -123,16 +128,16 @@ export function CareGuaranteePage() {
               >
                 <div className="flex justify-between items-center">
                   <p className={`hidden md:block ${LABEL} text-[11.5px]`}>{t("care.guarantee.yourGuarantee")}</p>
-                  <h2 className="md:hidden font-normal text-[26px]" style={SERIF}>
+                  <GlancePhoneTag className="md:hidden font-normal text-[26px]" style={SERIF}>
                     {t("care.guarantee.glanceTitle")}
-                  </h2>
+                  </GlancePhoneTag>
                   <span className="w-[38px] h-[38px] md:w-11 md:h-11 rounded-full bg-[#2D241E] text-[#F5F2ED] flex items-center justify-center">
                     <ShieldCheck size={19} strokeWidth={1.5} aria-hidden />
                   </span>
                 </div>
-                <h2 className="hidden md:block font-normal text-[34px] leading-[1.05]" style={SERIF}>
+                <GlanceWideTag className="hidden md:block font-normal text-[34px] leading-[1.05]" style={SERIF}>
                   {t("care.guarantee.glanceTitle")}
-                </h2>
+                </GlanceWideTag>
                 <dl>
                   {terms.glance.map((row, index) => (
                     <div

@@ -6,6 +6,7 @@ import { useTranslation } from "react-i18next";
 import { useLocale } from "../i18n/useLocale";
 import { PriceTag } from "../components/PriceTag";
 import { useProduct, useProducts } from "../hooks/useProducts";
+import { usePageTitle } from "../hooks/usePageTitle";
 import { useCart } from "../context/AppContext";
 import { getDefaultColorIndex, getDefaultFurnitureColorIndex } from "../utils/productColorIndex";
 import { ImageWithFallback } from "../components/figma/ImageWithFallback";
@@ -13,6 +14,7 @@ import { CrossfadeImage } from "../components/figma/CrossfadeImage";
 import { ProductCard } from "../components/ProductCard";
 import { LangLink } from "../i18n/LangLink";
 import { MobileProductDetailView } from "../components/MobileProductDetailView";
+import { useIsMdUp } from "../hooks/useIsMdUp";
 import { getSupplementaryProductDetails, hasSupplementaryProductDetails } from "../utils/productDetails";
 import { MobileRelatedProducts } from "../components/MobileRelatedProducts";
 import { ProductGuaranteeBlock } from "../components/ProductGuaranteeBlock";
@@ -53,6 +55,9 @@ export function ProductDetail() {
   const location = useLocation();
   const { addToCart } = useCart();
   const { product, loading, error, notFound, refetch } = useProduct(id);
+  usePageTitle(product ? productName(product, locale) : null);
+  // Both layouts are in the page and CSS shows one; the shown one carries the page heading.
+  const DesktopNameTag = useIsMdUp() ? "h1" : "p";
   const { products } = useProducts();
   const related = useMemo(() => {
     const fromApi = product?.suggestedProducts ?? [];
@@ -441,7 +446,7 @@ export function ProductDetail() {
                 <ImageWithFallback
                   src={img.src}
                   focal={{ x: img.focalX, y: img.focalY }}
-                  alt={`${selectedColorLabel} - ${i + 1}`}
+                  alt={`${productName(product, locale)} – ${selectedColorLabel} – ${i + 1}`}
                   className="w-full h-full object-cover"
                 />
               </button>
@@ -567,7 +572,7 @@ export function ProductDetail() {
                   <ImageWithFallback
                     src={img.src}
                     focal={{ x: img.focalX, y: img.focalY }}
-                    alt={`${selectedColorLabel} - ${i + 1}`}
+                    alt={`${productName(product, locale)} – ${selectedColorLabel} – ${i + 1}`}
                     className="w-full h-full object-cover"
                   />
                 </button>
@@ -587,12 +592,12 @@ export function ProductDetail() {
                 className="text-[#2D241E]/[0.68] uppercase"
                 style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "0.72rem", letterSpacing: "0.18em" }}
               />
-              <h1
+              <DesktopNameTag
                 className="text-[#2D241E] text-pretty mt-2.5"
                 style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "clamp(1.9rem, 3.4vw, 2.7rem)", fontWeight: 500, lineHeight: 1.05 }}
               >
                 {productName(product, locale)}
-              </h1>
+              </DesktopNameTag>
               <p
                 className="text-[#2D241E]/[0.68] mt-2"
                 style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "0.85rem" }}

@@ -1,6 +1,7 @@
 "use client";
 
 import { Toaster as Sonner, ToasterProps } from "sonner";
+import { useTranslation } from "react-i18next";
 
 /**
  * Sonner's default look is unstyled shadcn boilerplate (--popover, --primary,
@@ -10,8 +11,10 @@ import { Toaster as Sonner, ToasterProps } from "sonner";
  * rather than in theme.css, since those global tokens aren't the app's system.
  */
 const Toaster = ({ ...props }: ToasterProps) => {
+  const { t } = useTranslation();
   return (
     <Sonner
+      containerAriaLabel={t("notifications")}
       position="bottom-center"
       mobileOffset={{ bottom: "calc(env(safe-area-inset-bottom, 0px) + 16px)" }}
       toastOptions={{

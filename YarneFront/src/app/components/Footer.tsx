@@ -26,7 +26,8 @@ function TikTokIcon({ size = 18 }: { size?: number }) {
 }
 
 const linkClassName =
-  "text-[#2D241E]/[0.68] hover:text-[#4A0E0E] transition-colors duration-300 text-sm";
+  // The taller invisible tap area fills the gap between rows (space-y-3), so links stay easy to hit on phones.
+  "relative before:content-[''] before:absolute before:inset-x-0 before:-inset-y-1.5 text-[#2D241E]/[0.68] hover:text-[#4A0E0E] transition-colors duration-300 text-sm";
 
 export function Footer() {
   const { t } = useTranslation();
@@ -147,7 +148,7 @@ export function Footer() {
               href={INSTAGRAM_URL}
               target="_blank"
               rel="noopener noreferrer"
-              className="text-[#2D241E]/[0.68] hover:text-[#4A0E0E] transition-colors cursor-pointer"
+              className="relative before:content-[''] before:absolute before:-inset-2 text-[#2D241E]/[0.68] hover:text-[#4A0E0E] transition-colors cursor-pointer"
               aria-label="Instagram"
             >
               <Instagram size={18} strokeWidth={1.5} />
@@ -156,7 +157,7 @@ export function Footer() {
               href={TIKTOK_URL}
               target="_blank"
               rel="noopener noreferrer"
-              className="text-[#2D241E]/[0.68] hover:text-[#4A0E0E] transition-colors cursor-pointer"
+              className="relative before:content-[''] before:absolute before:-inset-2 text-[#2D241E]/[0.68] hover:text-[#4A0E0E] transition-colors cursor-pointer"
               aria-label="TikTok"
             >
               <TikTokIcon size={18} />

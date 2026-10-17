@@ -1,9 +1,11 @@
 import { motion } from "motion/react";
+import { usePageTitle } from "../hooks/usePageTitle";
 import { useTranslation } from "react-i18next";
 import { LangLink } from "../i18n/LangLink";
 
 export function NotFound() {
   const { t } = useTranslation();
+  usePageTitle(t("notFound.title"));
   return (
     <main
       className="min-h-[var(--app-svh)] flex flex-col items-center justify-center text-center px-6"

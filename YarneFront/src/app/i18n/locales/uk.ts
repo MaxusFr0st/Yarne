@@ -1,3 +1,5 @@
+// The Terms text is shared with scripts/server.mjs, which writes it into the page for crawlers.
+import legalTerms from "../../../../scripts/legal-terms.json";
 // Ukrainian translations. Mirror of `en.ts` — same shape, translated values.
 
 import type { Translations } from "./en";
@@ -472,16 +474,7 @@ const uk: Translations = {
       eyebrow: "Правові умови",
       title: "Умови використання",
       lastUpdated: "Останнє оновлення: липень 2026",
-      paragraphs: [
-        "Користуючись yarne-acc.com і оформлюючи замовлення, ви погоджуєтеся з цими Умовами. Якщо не погоджуєтесь — не користуйтеся сайтом.",
-        "Описи товарів, ціни та наявність можуть змінюватися без попередження. Ми можемо відмовити або скасувати замовлення при помилках у ціні, підозрі на шахрайство або нестачі товару.",
-        "На сайті кошти не списуються. Після того як замовлення прийнято, ви обираєте оплату переказом на картку або при отриманні в Новій пошті. Ви відповідаєте за коректні контактні та адресні дані.",
-        "Ризик втрати переходить до вас після передачі посилки перевізнику. Терміни доставки є орієнтовними.",
-        "Повернення приймаються лише за умовами сторінки «Доставка та повернення».",
-        "Контент сайту — зображення, тексти, брендинг — належить Yarné або правовласникам і не може копіюватися без дозволу.",
-        "У межах, дозволених законом, Yarné не несе відповідальності за непрямі збитки від використання сайту чи товарів. Ваші законні права споживача не обмежуються.",
-        "Ці умови регулюються законодавством країни, де працює Yarné. Питання: {{email}}.",
-      ],
+      paragraphs: legalTerms.uk.paragraphs,
     },
     privacy: {
       eyebrow: "Правові умови",
@@ -819,6 +812,9 @@ const uk: Translations = {
     deliveryTitle: "Доставка Новою поштою та повернення",
     termsTitle: "Умови використання та замовлення",
     privacyTitle: "Політика конфіденційності",
+    categoryTitle: "{{name}} ручної роботи — в'язані вироби",
+    checkoutTitle: "Оформлення замовлення",
+    accountTitle: "Мій кабінет",
   },
   // The shop could not be reached: shown instead of an empty collection or a blank product page.
   loadError: {
@@ -828,6 +824,8 @@ const uk: Translations = {
     retry: "Спробувати ще раз",
     toCollection: "До колекції",
   },
+  // Read out by screen readers for the pop-up messages area.
+  notifications: "Сповіщення",
   notFound: {
     title: "Сторінку не знайдено",
     text: "Сторінку, яку ви шукаєте, перенесено, або її тут ніколи й не було.",

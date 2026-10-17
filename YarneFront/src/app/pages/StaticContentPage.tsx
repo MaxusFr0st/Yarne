@@ -40,7 +40,7 @@ export function StaticContentPage({ pageKey }: Props) {
         <div className="max-w-[760px] mx-auto px-6 md:px-10">
           <ScrollReveal>
             <SectionEyebrow className="mb-4">{t(`pages.${pageKey}.eyebrow`)}</SectionEyebrow>
-            <SectionTitle className="mb-6">{t(`pages.${pageKey}.title`)}</SectionTitle>
+            <SectionTitle as="h1" className="mb-6">{t(`pages.${pageKey}.title`)}</SectionTitle>
             <div className="space-y-5">
               {Array.isArray(paragraphs) &&
                 paragraphs.map((paragraph, index) => (

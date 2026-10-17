@@ -1,3 +1,5 @@
+// The Terms text is shared with scripts/server.mjs, which writes it into the page for crawlers.
+import legalTerms from "../../../../scripts/legal-terms.json";
 // English translations.
 // Keep keys short and grouped by surface (header, footer, home, etc.).
 // Add a key here, then mirror it in `uk.ts`.
@@ -462,16 +464,7 @@ const en = {
       eyebrow: "Legal",
       title: "Terms & Conditions",
       lastUpdated: "Last updated: July 2026",
-      paragraphs: [
-        "By accessing yarne-acc.com and placing an order, you agree to these Terms & Conditions. If you do not agree, please do not use our website.",
-        "All product descriptions, prices, and availability are subject to change without notice. We reserve the right to refuse or cancel orders in cases of pricing errors, suspected fraud, or stock limitations.",
-        "Nothing is charged on the site. After your order is accepted, you choose to pay by bank transfer or on pickup at Nova Poshta. You are responsible for providing accurate shipping and contact details.",
-        "Risk of loss passes to you upon delivery to the carrier. Delivery times are estimates only and may vary due to customs, weather, or carrier delays.",
-        "Returns are accepted only under the conditions stated on our Delivery & Returns page.",
-        "Content on this site — including images, copy, and branding — is owned by Yarné or its licensors and may not be reproduced without permission.",
-        "To the fullest extent permitted by law, Yarné is not liable for indirect or consequential damages arising from use of the site or products. Nothing in these terms limits your statutory consumer rights.",
-        "These terms are governed by the laws applicable where Yarné operates. For questions, contact {{email}}.",
-      ],
+      paragraphs: legalTerms.en.paragraphs,
     },
     privacy: {
       eyebrow: "Legal",
@@ -801,6 +794,9 @@ const en = {
     deliveryTitle: "Delivery in Ukraine by Nova Poshta and returns",
     termsTitle: "Terms and conditions of use and ordering",
     privacyTitle: "Privacy Policy",
+    categoryTitle: "Handmade knitted {{name}}",
+    checkoutTitle: "Checkout",
+    accountTitle: "My Account",
   },
   // The shop could not be reached: shown instead of an empty collection or a blank product page.
   loadError: {
@@ -810,6 +806,8 @@ const en = {
     retry: "Try again",
     toCollection: "To the collection",
   },
+  // Read out by screen readers for the pop-up messages area.
+  notifications: "Notifications",
   notFound: {
     title: "Page not found",
     text: "The page you're looking for has moved, or perhaps it was never here to begin with.",

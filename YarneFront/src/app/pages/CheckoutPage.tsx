@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { usePageTitle } from "../hooks/usePageTitle";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { ArrowRight, Package, X } from "lucide-react";
 import { useUnavailableCartLines } from "../hooks/useUnavailableCartLines";
@@ -179,6 +180,7 @@ const MISSING_OUTLINE = { boxShadow: "0 0 0 1px rgba(242,184,184,0.85)" } as con
 
 export function CheckoutPage() {
   const { t } = useTranslation();
+  usePageTitle(t("seo.checkoutTitle"));
   const locale = useLocale();
   const { cartItems, cartTotal, cartEurTotal, isLoggedIn, user, clearCart, removeFromCart } = useApp();
   // Session-scoped so an accidental reload no longer wipes a half-filled checkout.
@@ -547,12 +549,12 @@ export function CheckoutPage() {
           <h1 className="text-[#2D241E] mb-3" style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "2rem", fontWeight: 400 }}>
             {t("checkout.emptyTitle")}
           </h1>
-          <p className="text-[#2D241E]/50 mb-8" style={{ fontFamily: "'DM Sans', sans-serif", lineHeight: 1.7 }}>
+          <p className="text-[#2D241E]/75 mb-8" style={{ fontFamily: "'DM Sans', sans-serif", lineHeight: 1.7 }}>
             {t("checkout.emptySubtitle")}
           </p>
           <LangLink
             to="/collection"
-            className="inline-flex items-center gap-2 px-8 py-4 rounded-full text-[#F5F2ED] uppercase tracking-widest transition-all duration-300 hover:opacity-90"
+            className="inline-flex items-center gap-2 px-8 py-0 min-h-[50px] rounded-full text-[#F5F2ED] uppercase tracking-widest transition-all duration-300 hover:opacity-90"
             style={{ backgroundColor: "#2D241E", fontFamily: "'DM Sans', sans-serif", fontSize: "0.78rem", letterSpacing: "0.13em" }}
           >
             <span>{t("checkout.goShopping")}</span>

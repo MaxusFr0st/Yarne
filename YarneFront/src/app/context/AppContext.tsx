@@ -14,6 +14,7 @@ import {
   loginWithGoogle as apiLoginWithGoogle,
   logout as apiLogout,
   fetchAuthSession,
+  fetchSessionHint,
 } from "../api/auth";
 import { clearLegacyAuthStorage, tryRefreshSession } from "../api/client";
 import { ApiRequestError } from "../api/errors";
@@ -158,6 +159,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     let cancelled = false;
 
     const hydrate = async () => {
+      // No sign-in cookie at all: a visitor who never signed in. Asking /me would only fail with 401.
+      const hint = await fetchSessionHint().catch(() => null);
+      if (cancelled) return;
+      if (hint && !hint.hasSession) {
+        clearClientAuth();
+        setAuthHydrated(true);
+        return;
+      }
       const delaysMs = [0, 500, 1200];
       for (let attempt = 0; attempt < delaysMs.length; attempt++) {
         if (delaysMs[attempt] > 0) {

@@ -44,7 +44,19 @@ public static class StorefrontTextFixes
         new("yarne.featuredShowcase.v1", "slot2.ctaLabelEn", null, "View"),
         new("yarne.staticPages.v1", "ourHistory.uk.paragraphs.0", "YARNE був заснований у 2025 році з однією простою ідеєю — створити в'язану сумку, яка не виглядатиме звично.", "YARNÉ був заснований у 2025 році з однією простою ідеєю — створити в'язану сумку, яка не виглядатиме звично."),
         new("yarne.staticPages.v1", "ourHistory.en.paragraphs.3", "For us, an accessorie is more than a functional object. It is the finishing accent of a look — the detail that draws attention without excess words and remains relevant regardless of season.", "For us, an accessory is more than a functional object. It is the finishing accent of a look — the detail that draws attention without excess words and remains relevant regardless of season."),
+        new("yarne.why.v1", "uk.items.0.caption", "Пляжний костюм", "Diva — містка в'язана сумка"),
+        new("yarne.why.v1", "en.items.0.caption", "Beachwear Set", "Diva — roomy hand-knitted bag"),
+        new("yarne.why.v1", "uk.items.1.word", "Cherie", "Chérie"),
+        new("yarne.why.v1", "en.items.1.word", "Cherie", "Chérie"),
+        new("yarne.why.v1", "uk.items.1.caption", "Cherie — в'язана міні-сумка", "Chérie — в'язана міні-сумка"),
+        new("yarne.why.v1", "en.items.1.caption", "Cherie — hand-knitted mini bag", "Chérie — hand-knitted mini bag"),
     ];
+
+    internal const string ProductTidySql =
+        """
+        UPDATE "Product" SET "Name" = btrim("Name") WHERE "Name" <> btrim("Name");
+        UPDATE "Product" SET "Material" = 'Трикотажна пряжа (100%-бавовна)' WHERE "Material" = 'трикотажна пряжа (100%-бавовна)';
+        """;
 
     private static readonly JsonSerializerOptions WriteOptions = new() { Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping };
 

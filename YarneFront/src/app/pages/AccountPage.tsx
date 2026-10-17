@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { usePageTitle } from "../hooks/usePageTitle";
 import { AnimatePresence, motion } from "motion/react";
 import { useTranslation } from "react-i18next";
 import {
@@ -278,6 +279,7 @@ function OrderRow({ order, productImageByCode }: { order: Order; productImageByC
 
 export function AccountPage() {
   const { t } = useTranslation();
+  usePageTitle(t("seo.accountTitle"));
   const locale = useLocale();
   const { user, isLoggedIn, openLogin, logout, setUserName } = useApp();
   const { products } = useProducts();

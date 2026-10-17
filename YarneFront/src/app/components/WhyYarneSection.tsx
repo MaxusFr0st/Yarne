@@ -801,11 +801,12 @@ export function WhyYarneSection() {
                     gap: isNarrow ? `clamp(8px,${sv(1.4)},14px)` : `clamp(10px,${sv(1.6)},18px)`,
                   }}
                 >
-                  <p
+                  <h3
                     style={{
                       margin: 0,
                       maxWidth: "24ch",
                       fontFamily: SERIF,
+                      fontWeight: "inherit",
                       fontSize: factTitleSize,
                       lineHeight: 1.02,
                       letterSpacing: "-0.012em",
@@ -814,7 +815,7 @@ export function WhyYarneSection() {
                     }}
                   >
                     {fact.title}
-                  </p>
+                  </h3>
 
                   {!fact.care && (
                     <p

@@ -416,3 +416,8 @@ html[data-restoring-scroll] .route-return {
 .checkout-input[aria-invalid="true"]:-webkit-autofill {
   -webkit-text-fill-color: #F2B8B8;
 }
+
+/* Skip to content: the page's <main> takes focus without drawing a ring around the whole page. */
+main[tabindex="-1"]:focus {
+  outline: none;
+}

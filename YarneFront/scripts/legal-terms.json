@@ -1,0 +1,26 @@
+{
+  "en": {
+    "paragraphs": [
+      "By accessing yarne-acc.com and placing an order, you agree to these Terms & Conditions. If you do not agree, please do not use our website.",
+      "All product descriptions, prices, and availability are subject to change without notice. We reserve the right to refuse or cancel orders in cases of pricing errors, suspected fraud, or stock limitations.",
+      "Nothing is charged on the site. After your order is accepted, you choose to pay by bank transfer or on pickup at Nova Poshta. You are responsible for providing accurate shipping and contact details.",
+      "Risk of loss passes to you upon delivery to the carrier. Delivery times are estimates only and may vary due to customs, weather, or carrier delays.",
+      "Returns are accepted only under the conditions stated on our Delivery & Returns page.",
+      "Content on this site — including images, copy, and branding — is owned by Yarné or its licensors and may not be reproduced without permission.",
+      "To the fullest extent permitted by law, Yarné is not liable for indirect or consequential damages arising from use of the site or products. Nothing in these terms limits your statutory consumer rights.",
+      "These terms are governed by the laws applicable where Yarné operates. For questions, contact {{email}}."
+    ]
+  },
+  "uk": {
+    "paragraphs": [
+      "Користуючись yarne-acc.com і оформлюючи замовлення, ви погоджуєтеся з цими Умовами. Якщо не погоджуєтесь — не користуйтеся сайтом.",
+      "Описи товарів, ціни та наявність можуть змінюватися без попередження. Ми можемо відмовити або скасувати замовлення при помилках у ціні, підозрі на шахрайство або нестачі товару.",
+      "На сайті кошти не списуються. Після того як замовлення прийнято, ви обираєте оплату переказом на картку або при отриманні в Новій пошті. Ви відповідаєте за коректні контактні та адресні дані.",
+      "Ризик втрати переходить до вас після передачі посилки перевізнику. Терміни доставки є орієнтовними.",
+      "Повернення приймаються лише за умовами сторінки «Доставка та повернення».",
+      "Контент сайту — зображення, тексти, брендинг — належить Yarné або правовласникам і не може копіюватися без дозволу.",
+      "У межах, дозволених законом, Yarné не несе відповідальності за непрямі збитки від використання сайту чи товарів. Ваші законні права споживача не обмежуються.",
+      "Ці умови регулюються законодавством країни, де працює Yarné. Питання: {{email}}."
+    ]
+  }
+}

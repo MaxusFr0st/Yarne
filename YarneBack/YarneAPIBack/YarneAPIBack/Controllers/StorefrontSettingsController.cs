@@ -80,9 +80,10 @@ public class StorefrontSettingsController : ControllerBase
         if (AdminOnlyKeys.Contains(key) && !User.IsInRole("Admin"))
             return NotFound();
 
+        // Never saved: answered as an empty value rather than 404, so the shop's pages log no errors.
         var valueJson = await _settings.GetValueJsonAsync(key, ct);
         if (valueJson == null)
-            return NotFound();
+            return Ok(new { key, value = (object?)null });
 
         return Ok(new { key, value = ParseJson(valueJson) });
     }

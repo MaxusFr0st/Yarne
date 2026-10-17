@@ -74,6 +74,7 @@ export function ProductGuaranteeBlock({
           style={{ fontFamily: "'DM Sans', sans-serif" }}
         >
           {t("product.guarantee.readMore")}
+          <span className="sr-only"> — {title}</span>
         </LangLink>
       </div>
     </div>

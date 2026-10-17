@@ -264,7 +264,7 @@ export function CarePage() {
                     <p className="max-w-[500px] text-[15px] leading-[1.6] opacity-85">{t("care.landing.service.text")}</p>
                   </div>
                   <div className="flex flex-wrap gap-3">
-                    <LangLink to={CARE_REQUEST_PATH} className={`${PILL} ${PILL_CREAM} h-[52px] px-[26px] justify-center`}>
+                    <LangLink to={CARE_REQUEST_PATH} className={`${PILL} ${PILL_CREAM} h-[50px] md:h-[52px] px-[26px] justify-center`}>
                       {t("care.landing.service.request")}
                       <ArrowRight size={16} strokeWidth={1.5} aria-hidden />
                     </LangLink>

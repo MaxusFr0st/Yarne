@@ -128,7 +128,7 @@ export function SectionEyebrow({ children, className = "" }: SectionEyebrowProps
 type SectionTitleProps = {
   children: ReactNode;
   className?: string;
-  as?: "h2" | "h3";
+  as?: "h1" | "h2" | "h3";
 };
 
 export function SectionTitle({ children, className = "", as: Tag = "h2" }: SectionTitleProps) {

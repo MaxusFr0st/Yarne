@@ -43,6 +43,8 @@ const LOCALES = ["uk", "en"];
 const DEFAULT_LANG = "uk";
 
 const indexHtml = await readFile(join(distDir, "index.html"), "utf8");
+// The Terms & Conditions text, the same file the app's locale files use.
+const LEGAL_TERMS = JSON.parse(await readFile(join(dirname(fileURLToPath(import.meta.url)), "legal-terms.json"), "utf8"));
 const extraHeaders = await loadServeJsonHeaders();
 
 const MIME_TYPES = {
@@ -80,9 +82,14 @@ function escapeHtml(value) {
   })[c]);
 }
 
+// Search snippets and share cards: end on a whole sentence when one fits, else on a whole word.
 function truncate(text, max) {
   if (!text || text.length <= max) return text ?? "";
-  return `${text.slice(0, max - 1).trimEnd()}…`;
+  const cut = text.slice(0, max - 1);
+  const sentenceEnd = Math.max(cut.lastIndexOf(". "), cut.lastIndexOf("! "), cut.lastIndexOf("? "));
+  if (sentenceEnd >= max * 0.6) return cut.slice(0, sentenceEnd + 1);
+  const space = cut.lastIndexOf(" ");
+  return `${(space >= max * 0.6 ? cut.slice(0, space) : cut).replace(/[\s,;:—–-]+$/, "")}…`;
 }
 
 // Names and descriptions come from an admin form: stray trailing spaces and line breaks would
@@ -248,11 +255,24 @@ async function pageSettingsScript(pathname) {
 const getShareDefault = () => getSetting(SHARE_DEFAULT_KEY);
 
 // All products the shop shows, or null when the API cannot be reached (and nothing is cached).
+// Products, like settings, answer from the last copy while a fresh one is fetched: a page never
+// waits on the API unless the copy is missing or very old.
+const PRODUCT_FRESH_MS = 60 * 1000;
+
 async function getProducts() {
   if (!apiUrl) return null;
-  if (productList.value && Date.now() - productList.fetchedAt <= CACHE_TTL_MS) return productList.value;
+  const age = productList.value ? Date.now() - productList.fetchedAt : Infinity;
+  if (age <= PRODUCT_FRESH_MS) return productList.value;
+  if (age <= SETTING_STALE_MAX_MS) {
+    void fetchProducts();
+    return productList.value;
+  }
+  await fetchProducts();
+  return productList.value;
+}
 
-  await once("products", async () => {
+function fetchProducts() {
+  return once("products", async () => {
     try {
       const res = await fetch(`${apiUrl}/api/products`);
       if (res.ok) {
@@ -266,7 +286,6 @@ async function getProducts() {
       // keep the previous list on failure
     }
   });
-  return productList.value;
 }
 
 // The shop's collections ([{ id, name }]), or null when the API cannot be reached (and nothing is cached).
@@ -325,8 +344,20 @@ function rememberProduct(keys, entry) {
 async function getProduct(id) {
   if (!apiUrl) return { status: "error" };
   const cached = productCache.get(id);
-  if (cached && Date.now() - cached.fetchedAt <= (cached.status === "ok" ? CACHE_TTL_MS : MISSING_TTL_MS)) return cached;
+  const age = cached ? Date.now() - cached.fetchedAt : Infinity;
+  if (cached?.status === "ok") {
+    if (age <= PRODUCT_FRESH_MS) return cached;
+    if (age <= SETTING_STALE_MAX_MS) {
+      void fetchOneProduct(id, cached);
+      return cached;
+    }
+  } else if (cached && age <= MISSING_TTL_MS) {
+    return cached;
+  }
+  return fetchOneProduct(id, cached);
+}
 
+function fetchOneProduct(id, cached) {
   return once(`product:${id}`, async () => {
     try {
       const res = await fetch(`${apiUrl}/api/products/${encodeURIComponent(id)}`);
@@ -713,6 +744,15 @@ const organizationLd = (contact) => ({
   url: `${SITE_ORIGIN}/`,
   logo: `${SITE_ORIGIN}${LOGO_PATH}`,
   sameAs: [INSTAGRAM_URL, TIKTOK_URL],
+  // Same rule as the Delivery & Returns page: 14 days, unworn, the buyer pays the return postage.
+  hasMerchantReturnPolicy: {
+    "@type": "MerchantReturnPolicy",
+    applicableCountry: "UA",
+    returnPolicyCategory: "https://schema.org/MerchantReturnFiniteReturnWindow",
+    merchantReturnDays: 14,
+    returnMethod: "https://schema.org/ReturnByMail",
+    returnFees: "https://schema.org/ReturnFeesCustomerResponsibility",
+  },
   contactPoint: {
     "@type": "ContactPoint",
     contactType: "customer service",
@@ -1135,15 +1175,19 @@ async function describePage(route, reqUrl) {
       };
     }
 
-    case "terms":
+    case "terms": {
+      const contact = await getSetting(CONTACT_CONTENT_KEY);
+      const email = contactEmail(contact);
+      const terms = (LEGAL_TERMS[lang]?.paragraphs ?? []).map((text) => para(String(text).split("{{email}}").join(email))).join("");
       return {
         status: 200,
         lang,
-        title: withSiteName(seo[route.kind].title),
-        description: seo[route.kind].description,
-        suffix: `/pages/${route.kind}`,
-        content: contentBlock(`<h1>${escapeHtml(w[route.kind])}</h1>${para(w[`${route.kind}Summary`])}${siteLinks(lang)}`),
+        title: withSiteName(seo.terms.title),
+        description: seo.terms.description,
+        suffix: "/pages/terms",
+        content: contentBlock(`<h1>${escapeHtml(w.terms)}</h1>${terms || para(w.termsSummary)}${siteLinks(lang)}`),
       };
+    }
 
     case "privacy": {
       const contact = await getSetting(CONTACT_CONTENT_KEY);
@@ -1609,10 +1653,28 @@ const server = createServer(async (req, res) => {
       return;
     }
 
+    // One address per page: "/uk/collection/" goes to "/uk/collection".
+    if (pathname.length > 1 && pathname.endsWith("/")) {
+      applyCommonHeaders(res);
+      res.writeHead(301, { Location: `${encodeURI(pathname.replace(/\/+$/, "")) || "/"}${url.search}`, "Cache-Control": "public, max-age=300" });
+      res.end();
+      return;
+    }
+
     const redirectTo = (await numericProductRedirect(pathname, url.search)) ?? (await legacyCollectionRedirect(pathname, url.searchParams));
     if (redirectTo) {
       applyCommonHeaders(res);
       res.writeHead(301, { Location: redirectTo, "Cache-Control": "public, max-age=300" });
+      res.end();
+      return;
+    }
+
+    // An address without a language ("/collection") goes to the visitor's language, like "/".
+    const firstSegment = pathname.split("/").filter(Boolean)[0]?.toLowerCase();
+    if (firstSegment && !LOCALES.includes(firstSegment) && firstSegment !== "admin" && matchPage(pathname.split("/").filter(Boolean), DEFAULT_LANG)) {
+      const chosen = /(?:^|;\s*)yarne_locale=(uk|en)(?:;|$)/.exec(req.headers.cookie ?? "")?.[1] ?? DEFAULT_LANG;
+      applyCommonHeaders(res);
+      res.writeHead(302, { Location: `/${chosen}${encodeURI(pathname)}${url.search}`, "Cache-Control": "private, no-store", Vary: "Cookie" });
       res.end();
       return;
     }

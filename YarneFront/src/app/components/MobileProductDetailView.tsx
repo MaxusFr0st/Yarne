@@ -23,6 +23,7 @@ import { SizePanel, hasSizeMeasurements } from "./SizePanel";
 import { LangLink } from "../i18n/LangLink";
 import { getStableViewportHeight } from "../utils/stableViewport";
 import { markPhotoLoaded } from "../utils/photoQueue";
+import { useIsMdUp } from "../hooks/useIsMdUp";
 
 /** Duration of the sheet's glide back down off the image. */
 const SHEET_SLIDE_MS = 700;
@@ -91,6 +92,8 @@ export function MobileProductDetailView({
   onAddToBag,
   guaranteeContent,
 }: MobileProductDetailViewProps) {
+  // The page heading belongs to whichever layout CSS shows (ProductDetail.tsx has the other).
+  const MobileNameTag = useIsMdUp() ? "p" : "h1";
   const { t } = useTranslation();
   const reduceMotion = useReducedMotion();
   const touchMobile = useTouchMobileLayout();
@@ -463,11 +466,11 @@ export function MobileProductDetailView({
             style={{
               fontFamily: "'DM Sans', sans-serif",
               letterSpacing: "0.18em",
-              fontSize: "clamp(0.72rem, 2.4vw, 0.74rem)",
+              fontSize: "clamp(0.78rem, 2.6vw, 0.8rem)",
             }}
           />
 
-          <h1
+          <MobileNameTag
             className="text-[#2D241E] min-w-0 shrink-0"
             style={{
               fontFamily: "'Cormorant Garamond', serif",
@@ -477,7 +480,7 @@ export function MobileProductDetailView({
             }}
           >
             {productName(product, locale)}
-          </h1>
+          </MobileNameTag>
 
           <MobileAccordionSection
             title={t("product.description")}
@@ -491,7 +494,7 @@ export function MobileProductDetailView({
                   className="text-[#2D241E]/[0.68]"
                   style={{
                     fontFamily: "'DM Sans', sans-serif",
-                    fontSize: "clamp(0.76rem, 2.85vw, 0.88rem)",
+                    fontSize: "clamp(0.8125rem, 3.1vw, 0.9rem)",
                     lineHeight: 1.45,
                   }}
                 >
@@ -503,7 +506,7 @@ export function MobileProductDetailView({
                   className="text-[#2D241E]/[0.68]"
                   style={{
                     fontFamily: "'DM Sans', sans-serif",
-                    fontSize: "clamp(0.78rem, 3vw, 0.9rem)",
+                    fontSize: "clamp(0.906rem, 3.6vw, 0.95rem)",
                     lineHeight: 1.5,
                     whiteSpace: "pre-line",
                   }}
@@ -527,7 +530,7 @@ export function MobileProductDetailView({
                     className="flex items-start gap-[clamp(8px,2vw,10px)] text-[#2D241E]/[0.68]"
                     style={{
                       fontFamily: "'DM Sans', sans-serif",
-                      fontSize: "clamp(0.78rem, 3vw, 0.9rem)",
+                      fontSize: "clamp(0.906rem, 3.6vw, 0.95rem)",
                       lineHeight: 1.5,
                     }}
                   >
@@ -541,7 +544,7 @@ export function MobileProductDetailView({
                     className="flex items-start gap-[clamp(8px,2vw,10px)] text-[#2D241E]/[0.68]"
                     style={{
                       fontFamily: "'DM Sans', sans-serif",
-                      fontSize: "clamp(0.78rem, 3vw, 0.9rem)",
+                      fontSize: "clamp(0.906rem, 3.6vw, 0.95rem)",
                       lineHeight: 1.5,
                     }}
                   >
@@ -567,7 +570,7 @@ export function MobileProductDetailView({
                 style={{
                   fontFamily: "'DM Sans', sans-serif",
                   letterSpacing: "0.14em",
-                  fontSize: "clamp(0.72rem, 2.4vw, 0.74rem)",
+                  fontSize: "clamp(0.78rem, 2.6vw, 0.8rem)",
                 }}
               >
                 {t("product.colour")}
@@ -576,7 +579,7 @@ export function MobileProductDetailView({
                 className="text-[#2D241E]/[0.68]"
                 style={{
                   fontFamily: "'DM Sans', sans-serif",
-                  fontSize: "clamp(0.76rem, 2.85vw, 0.88rem)",
+                  fontSize: "clamp(0.8125rem, 3.1vw, 0.9rem)",
                 }}
               >
                   <AnimatePresence mode="wait">
@@ -644,7 +647,7 @@ export function MobileProductDetailView({
                 style={{
                   fontFamily: "'DM Sans', sans-serif",
                   letterSpacing: "0.14em",
-                  fontSize: "clamp(0.72rem, 2.4vw, 0.74rem)",
+                  fontSize: "clamp(0.78rem, 2.6vw, 0.8rem)",
                 }}
               >
                 {t("product.lace.label")}
@@ -723,7 +726,7 @@ export function MobileProductDetailView({
                   style={{
                     fontFamily: "'DM Sans', sans-serif",
                     letterSpacing: "0.14em",
-                    fontSize: "clamp(0.72rem, 2.4vw, 0.74rem)",
+                    fontSize: "clamp(0.78rem, 2.6vw, 0.8rem)",
                   }}
                 >
                   {t("product.furniture")}
@@ -732,7 +735,7 @@ export function MobileProductDetailView({
                   className="text-[#2D241E]/[0.68]"
                   style={{
                     fontFamily: "'DM Sans', sans-serif",
-                    fontSize: "clamp(0.76rem, 2.85vw, 0.88rem)",
+                    fontSize: "clamp(0.8125rem, 3.1vw, 0.9rem)",
                   }}
                 >
                   <AnimatePresence mode="wait">
@@ -805,7 +808,7 @@ export function MobileProductDetailView({
                   style={{
                     fontFamily: "'DM Sans', sans-serif",
                     letterSpacing: "0.14em",
-                    fontSize: "clamp(0.72rem, 2.4vw, 0.74rem)",
+                    fontSize: "clamp(0.78rem, 2.6vw, 0.8rem)",
                   }}
                 >
                   {t("product.size")}
@@ -966,7 +969,7 @@ export function MobileProductDetailView({
 const accordionHeaderStyle = {
   fontFamily: "'DM Sans', sans-serif",
   letterSpacing: "0.14em",
-  fontSize: "clamp(0.72rem, 2.4vw, 0.74rem)",
+  fontSize: "clamp(0.78rem, 2.6vw, 0.8rem)",
 } as const;
 
 type MobileAccordionSectionProps = {

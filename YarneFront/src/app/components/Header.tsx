@@ -196,7 +196,7 @@ export function Header() {
                   <LangLink
                     key={link.key}
                     to={link.href}
-                    className="text-[#2D241E] text-sm tracking-widest uppercase hover:text-[#4A0E0E] transition-colors duration-300"
+                    className="relative before:content-[''] before:absolute before:inset-x-0 before:-inset-y-3 text-[#2D241E] text-sm tracking-widest uppercase hover:text-[#4A0E0E] transition-colors duration-300"
                     style={{ fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.12em" }}
                   >
                     {link.label}
@@ -296,7 +296,7 @@ export function Header() {
                 <LangLink
                   key={link.key}
                   to={link.href}
-                  className="text-[#2D241E] text-sm tracking-widest uppercase hover:text-[#4A0E0E] transition-colors duration-300"
+                  className="relative before:content-[''] before:absolute before:inset-x-0 before:-inset-y-3 text-[#2D241E] text-sm tracking-widest uppercase hover:text-[#4A0E0E] transition-colors duration-300"
                   style={{ fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.12em" }}
                 >
                   {link.label}
@@ -305,7 +305,7 @@ export function Header() {
               {isAdmin && (
                 <LangLink
                   to="/admin"
-                  className="text-[#2D241E] text-sm tracking-widest uppercase hover:text-[#4A0E0E] transition-colors duration-300"
+                  className="relative before:content-[''] before:absolute before:inset-x-0 before:-inset-y-3 text-[#2D241E] text-sm tracking-widest uppercase hover:text-[#4A0E0E] transition-colors duration-300"
                   style={{ fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.12em" }}
                 >
                   {t("header.admin")}
@@ -314,7 +314,7 @@ export function Header() {
               <LanguageSwitcher className="ml-1" />
               <button
                 onClick={() => setSearchOpen(true)}
-                className="hidden md:flex text-[#2D241E] hover:text-[#4A0E0E] transition-colors duration-300"
+                className="relative before:content-[''] before:absolute before:-inset-3 hidden md:flex text-[#2D241E] hover:text-[#4A0E0E] transition-colors duration-300"
                 aria-label={t("header.search")}
               >
                 <Search size={20} strokeWidth={1.5} />
@@ -322,7 +322,7 @@ export function Header() {
               {isLoggedIn ? (
                 <LangLink
                   to="/account"
-                  className="hidden md:flex text-[#2D241E] hover:text-[#4A0E0E] transition-colors duration-300"
+                  className="relative before:content-[''] before:absolute before:-inset-3 hidden md:flex text-[#2D241E] hover:text-[#4A0E0E] transition-colors duration-300"
                   aria-label={t("header.myAccount")}
                   title={user?.name ? `${t("header.myAccount")} — ${user.name}` : t("header.myAccount")}
                 >
@@ -331,7 +331,7 @@ export function Header() {
               ) : (
                 <button
                   onClick={openLogin}
-                  className="hidden md:flex text-[#2D241E] hover:text-[#4A0E0E] transition-colors duration-300"
+                  className="relative before:content-[''] before:absolute before:-inset-3 hidden md:flex text-[#2D241E] hover:text-[#4A0E0E] transition-colors duration-300"
                   aria-label={t("header.signIn")}
                   title={t("header.signIn")}
                 >
@@ -386,7 +386,7 @@ export function Header() {
               {/* Desktop cart */}
               <button
                 onClick={openCart}
-                className="relative hidden md:flex text-[#2D241E] hover:text-[#4A0E0E] transition-colors duration-300 cursor-pointer"
+                className="relative before:content-[''] before:absolute before:-inset-3 hidden md:flex text-[#2D241E] hover:text-[#4A0E0E] transition-colors duration-300 cursor-pointer"
                 // The number on the icon is said too: "Кошик, 2 товари".
                   aria-label={cartCount > 0 ? `${t("header.cart")}, ${t("cart.itemCount", { count: cartCount })}` : t("header.cart")}
               >

@@ -39,6 +39,17 @@ public class AuthController : ControllerBase
         _logger = logger;
     }
 
+    /// <summary>
+    /// Whether this browser holds a sign-in at all (either cookie), read before /me so a signed-out
+    /// visitor's page load makes no request that fails with 401 (each one is an error in the console).
+    /// Says nothing about whether the cookies are still valid: /me and /refresh decide that.
+    /// </summary>
+    [HttpGet("session-hint")]
+    [AllowAnonymous]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    public ActionResult<object> SessionHint() =>
+        Ok(new { hasSession = Request.Cookies.ContainsKey(AuthCookie.Name) || Request.Cookies.ContainsKey(AuthCookie.RefreshName) });
+
     [HttpGet("me")]
     [Authorize]
     [ProducesResponseType(typeof(CustomerProfileResponse), StatusCodes.Status200OK)]

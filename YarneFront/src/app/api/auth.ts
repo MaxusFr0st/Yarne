@@ -42,6 +42,11 @@ export interface CustomerProfileResponse {
   phoneNumber: string | null;
 }
 
+/** Whether this browser holds a sign-in cookie at all; lets a signed-out page load skip /me and /refresh (and their 401s). */
+export async function fetchSessionHint(): Promise<{ hasSession: boolean }> {
+  return apiRequest<{ hasSession: boolean }>("/api/auth/session-hint", { skipAuthExpire: true });
+}
+
 export async function fetchAuthSession(): Promise<AuthSessionResponse> {
   return apiRequest<AuthSessionResponse>("/api/auth/me", { skipAuthExpire: true });
 }

@@ -23,6 +23,7 @@ WORKDIR /app
 COPY --from=build /app/dist ./dist
 COPY scripts/generate-serve-headers.mjs ./scripts/generate-serve-headers.mjs
 COPY scripts/server.mjs ./scripts/server.mjs
+COPY scripts/legal-terms.json ./scripts/legal-terms.json
 COPY scripts/docker-entrypoint.sh ./scripts/docker-entrypoint.sh
 RUN chmod +x ./scripts/docker-entrypoint.sh
 

@@ -47,6 +47,8 @@ type ProductTileProps = {
   priority?: boolean;
 };
 
+// Tiles load as they come near the screen: the section sits below the home page's first screen, and
+// its photos should not compete with the hero for a phone's bandwidth.
 function ProductTile({ slot, product, fallbackTitle, variant, priority = false }: ProductTileProps) {
   const { t } = useTranslation();
   const locale = useLocale();
@@ -355,7 +357,6 @@ function MagazineSpread({
           product={slot1Product}
           fallbackTitle="Grand Bag"
           variant="large"
-          priority
         />
       </motion.div>
 
@@ -371,7 +372,6 @@ function MagazineSpread({
           product={slot2Product}
           fallbackTitle="Femmora Mini"
           variant="medium"
-          priority
         />
       </motion.div>
 
@@ -397,7 +397,6 @@ function MagazineSpread({
           product={slot4Product}
           fallbackTitle="Dva Shopper"
           variant="wide"
-          priority
         />
       </motion.div>
     </div>
@@ -601,7 +600,6 @@ export function FeaturedShowcase() {
               product={slot1Product}
               fallbackTitle="Handcrafted for you"
               variant="large"
-              priority
             />
           </div>
 
@@ -612,7 +610,6 @@ export function FeaturedShowcase() {
                 product={slot2Product}
                 fallbackTitle="Femmora"
                 variant="medium"
-                priority
               />
             </div>
 
@@ -626,7 +623,6 @@ export function FeaturedShowcase() {
                 product={slot4Product}
                 fallbackTitle="Boxy Clutch"
                 variant="medium"
-                priority
               />
             </div>
           </div>
