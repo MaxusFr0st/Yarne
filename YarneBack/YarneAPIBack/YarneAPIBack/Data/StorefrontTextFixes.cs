@@ -52,7 +52,7 @@ public static class StorefrontTextFixes
         new("yarne.why.v1", "en.items.1.caption", "Cherie — hand-knitted mini bag", "Chérie — hand-knitted mini bag"),
     ];
 
-    internal const string ProductTidySql =
+    public const string ProductTidySql =
         """
         UPDATE "Product" SET "Name" = btrim("Name") WHERE "Name" <> btrim("Name");
         UPDATE "Product" SET "Material" = 'Трикотажна пряжа (100%-бавовна)' WHERE "Material" = 'трикотажна пряжа (100%-бавовна)';
@@ -88,9 +88,15 @@ public static class StorefrontTextFixes
             applied += changed;
         }
 
-        if (applied == 0) return;
-        await db.SaveChangesAsync(cancellationToken);
-        logger.LogInformation("Storefront texts: {Count} approved text fixes written.", applied);
+        if (applied > 0)
+        {
+            await db.SaveChangesAsync(cancellationToken);
+            logger.LogInformation("Storefront texts: {Count} approved text fixes written.", applied);
+        }
+
+        // Product data tidy-ups: a stray space after a name, and one material written in lower case.
+        var tidied = await db.Database.ExecuteSqlRawAsync(ProductTidySql, cancellationToken);
+        if (tidied > 0) logger.LogInformation("Storefront texts: {Count} product fields tidied.", tidied);
     }
 
     /// <summary>Sets the field when it still holds <see cref="Fix.Old"/>; returns whether it changed.</summary>

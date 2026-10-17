@@ -57,5 +57,15 @@ public class StorefrontTextFixesTests
         }
     }
 
+    [Fact]
+    public void Product_tidy_up_only_touches_names_with_stray_spaces_and_the_lower_case_material()
+    {
+        var sql = StorefrontTextFixes.ProductTidySql;
+
+        Assert.Contains("""WHERE "Name" <> btrim("Name")""", sql);
+        Assert.Contains("""WHERE "Material" = 'трикотажна пряжа (100%-бавовна)'""", sql);
+        Assert.DoesNotContain("{", sql);
+    }
+
     private static readonly IReadOnlySet<string> StorefrontSettingsServiceKeys = YarneAPIBack.Services.StorefrontSettingsService.AllowedKeys;
 }
