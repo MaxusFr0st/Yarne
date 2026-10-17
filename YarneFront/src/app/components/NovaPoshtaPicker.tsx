@@ -4,8 +4,6 @@ import { DeliverySheet, DeliveryTrigger } from "./DeliverySheet";
 
 const WIDGET_ORIGIN = "https://widget.novapost.com";
 const WIDGET_URL = "https://widget.novapost.com/division/index.html";
-/** How long to wait on the location prompt before opening the widget uncentred. */
-const GEO_WAIT_MS = 5_000;
 /** How long the widget gets to load before the sheet offers a retry instead. */
 const LOAD_WAIT_MS = 10_000;
 /**
@@ -60,18 +58,12 @@ export function NovaPoshtaPicker({
   const [frameLoaded, setFrameLoaded] = useState(false);
   /** True once the sheet has finished animating in — gates the iframe mount. */
   const [entered, setEntered] = useState(false);
-  const [geoSettled, setGeoSettled] = useState(false);
   const [loadFailed, setLoadFailed] = useState(false);
   /** Bumped by "Try again" to remount the iframe. */
   const [frameKey, setFrameKey] = useState(0);
-  const [coords, setCoords] = useState<{ latitude: number | ""; longitude: number | "" }>({
-    latitude: "",
-    longitude: "",
-  });
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const postedRef = useRef(false);
   const loadedRef = useRef(false);
-  const geoTimerRef = useRef<number | undefined>(undefined);
 
   const handleMessage = useCallback(
     (event: MessageEvent<NovaPoshtaWidgetMessage>) => {
@@ -98,46 +90,33 @@ export function NovaPoshtaPicker({
     return () => window.removeEventListener("message", handleMessage);
   }, [open, handleMessage]);
 
-  // The widget reads its starting place only once, 500 ms after it mounts: placeName first,
-  // otherwise latitude/longitude, which it resolves to the nearest branch's city and centres
-  // the map on. A postMessage sent after that is ignored for centring (it was always late
-  // here, so the map never moved), but the same keys in the frame's query string are read
-  // synchronously at startup. So the location goes in the URL, and the frame is mounted only
-  // once geolocation has settled.
-  const widgetSrc = (() => {
-    const params = new URLSearchParams();
-    if (value?.cityName) params.set("placeName", value.cityName);
-    if (coords.latitude !== "" && coords.longitude !== "") {
-      params.set("latitude", String(coords.latitude));
-      params.set("longitude", String(coords.longitude));
-    }
-    const query = params.toString();
-    return query ? `${WIDGET_URL}?${query}` : WIDGET_URL;
-  })();
+  // The widget reads its starting place once, at startup, from its query string: a city
+  // already chosen reopens the picker there. (Shopper geolocation was tried and removed: the
+  // widget only maps it to the nearest Ukrainian branch, which is useless abroad, and shoppers
+  // saw a location prompt that changed nothing visible.)
+  const widgetSrc = value?.cityName
+    ? `${WIDGET_URL}?${new URLSearchParams({ placeName: value.cityName })}`
+    : WIDGET_URL;
 
   // The config message still goes EXACTLY ONCE per open (it carries our domain). Posting a
   // second one into an already-initialised widget leaves it stuck on its loading state.
   useEffect(() => {
-    if (!open || !frameLoaded || !geoSettled || postedRef.current) return;
+    if (!open || !frameLoaded || postedRef.current) return;
     postedRef.current = true;
     iframeRef.current?.contentWindow?.postMessage(
       {
         placeName: value?.cityName ?? "",
-        latitude: coords.latitude,
-        longitude: coords.longitude,
         domain: window.location.hostname,
       },
       WIDGET_ORIGIN
     );
-  }, [open, frameLoaded, geoSettled, coords, value?.cityName]);
-
-  useEffect(() => () => clearTimeout(geoTimerRef.current), []);
+  }, [open, frameLoaded, value?.cityName]);
 
   // The widget only messages us when a branch is picked, and a blocked or unreachable frame
   // still fires `load` (on Chrome's error page), so neither tells us it worked. Instead: no
   // `load` within LOAD_WAIT_MS, or a no-cors request for the widget page failing at the
   // network level, means the map is not coming and the sheet offers a retry.
-  const frameMounted = open && entered && geoSettled;
+  const frameMounted = open && entered;
   useEffect(() => {
     if (!frameMounted) return;
     let cancelled = false;
@@ -168,36 +147,7 @@ export function NovaPoshtaPicker({
     setFrameLoaded(false);
     setLoadFailed(false);
     setEntered(false);
-    setGeoSettled(false);
-    setCoords({ latitude: "", longitude: "" });
     setOpen(true);
-
-    if (!navigator.geolocation) {
-      setGeoSettled(true);
-      return;
-    }
-    // An unanswered prompt must not hold the picker hostage: settle anyway after the cap and
-    // open uncentred. A grant that lands after the cap is ignored: the frame is already
-    // mounted, and changing its src would reload it under the shopper.
-    clearTimeout(geoTimerRef.current);
-    let timedOut = false;
-    geoTimerRef.current = window.setTimeout(() => {
-      timedOut = true;
-      setGeoSettled(true);
-    }, GEO_WAIT_MS);
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        if (timedOut) return;
-        clearTimeout(geoTimerRef.current);
-        setCoords({ latitude: position.coords.latitude, longitude: position.coords.longitude });
-        setGeoSettled(true);
-      },
-      () => {
-        clearTimeout(geoTimerRef.current);
-        setGeoSettled(true);
-      },
-      { enableHighAccuracy: false, timeout: GEO_WAIT_MS, maximumAge: 300_000 }
-    );
   }, []);
 
   const closeSheet = useCallback(() => setOpen(false), []);
@@ -262,13 +212,12 @@ export function NovaPoshtaPicker({
               laying out a third-party document is a long main-thread frame, and starting
               it on the same tick as the slide was what made the opening stutter. The
               loading label above covers the extra beat. */}
-          {entered && geoSettled && !loadFailed && (
+          {entered && !loadFailed && (
             <iframe
               key={frameKey}
               ref={iframeRef}
               title={t("checkout.deliveryPickerTitle")}
               src={widgetSrc}
-              allow="geolocation"
               onLoad={() => {
                 loadedRef.current = true;
                 setFrameLoaded(true);
