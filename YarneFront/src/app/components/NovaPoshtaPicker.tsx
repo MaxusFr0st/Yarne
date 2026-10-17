@@ -92,15 +92,25 @@ export function NovaPoshtaPicker({
     return () => window.removeEventListener("message", handleMessage);
   }, [open, handleMessage]);
 
-  // Config goes to the widget EXACTLY ONCE per open, and only once both the frame has
-  // loaded and geolocation has settled (granted, refused, or timed out).
-  //
-  // Nova Poshta's own integration posts a single config on load and nothing after. Posting a
-  // second one into an already-initialised widget leaves it stuck on its loading state — which
-  // is what happened when an earlier version here sent empty coordinates on load and then
-  // re-sent real ones the moment the user approved the prompt. So we wait for the answer
-  // instead of correcting ourselves afterwards, and postedRef makes a late grant a no-op
-  // rather than a second message.
+  // The widget reads its starting place only once, 500 ms after it mounts: placeName first,
+  // otherwise latitude/longitude, which it resolves to the nearest branch's city and centres
+  // the map on. A postMessage sent after that is ignored for centring (it was always late
+  // here, so the map never moved), but the same keys in the frame's query string are read
+  // synchronously at startup. So the location goes in the URL, and the frame is mounted only
+  // once geolocation has settled.
+  const widgetSrc = (() => {
+    const params = new URLSearchParams();
+    if (value?.cityName) params.set("placeName", value.cityName);
+    if (coords.latitude !== "" && coords.longitude !== "") {
+      params.set("latitude", String(coords.latitude));
+      params.set("longitude", String(coords.longitude));
+    }
+    const query = params.toString();
+    return query ? `${WIDGET_URL}?${query}` : WIDGET_URL;
+  })();
+
+  // The config message still goes EXACTLY ONCE per open (it carries our domain). Posting a
+  // second one into an already-initialised widget leaves it stuck on its loading state.
   useEffect(() => {
     if (!open || !frameLoaded || !geoSettled || postedRef.current) return;
     postedRef.current = true;
@@ -130,12 +140,17 @@ export function NovaPoshtaPicker({
       return;
     }
     // An unanswered prompt must not hold the picker hostage: settle anyway after the cap and
-    // open uncentred. ponytail: a grant that lands after the cap is ignored rather than
-    // re-posted — remount the iframe on late coords if that ever proves worth the reload.
+    // open uncentred. A grant that lands after the cap is ignored: the frame is already
+    // mounted, and changing its src would reload it under the shopper.
     clearTimeout(geoTimerRef.current);
-    geoTimerRef.current = window.setTimeout(() => setGeoSettled(true), GEO_WAIT_MS);
+    let timedOut = false;
+    geoTimerRef.current = window.setTimeout(() => {
+      timedOut = true;
+      setGeoSettled(true);
+    }, GEO_WAIT_MS);
     navigator.geolocation.getCurrentPosition(
       (position) => {
+        if (timedOut) return;
         clearTimeout(geoTimerRef.current);
         setCoords({ latitude: position.coords.latitude, longitude: position.coords.longitude });
         setGeoSettled(true);
@@ -189,11 +204,11 @@ export function NovaPoshtaPicker({
               laying out a third-party document is a long main-thread frame, and starting
               it on the same tick as the slide was what made the opening stutter. The
               loading label above covers the extra beat. */}
-          {entered && (
+          {entered && geoSettled && (
             <iframe
               ref={iframeRef}
               title={t("checkout.deliveryPickerTitle")}
-              src={WIDGET_URL}
+              src={widgetSrc}
               allow="geolocation"
               onLoad={() => setFrameLoaded(true)}
               className="w-full block border-0 absolute inset-x-0 top-0"
