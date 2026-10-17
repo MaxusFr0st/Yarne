@@ -84,6 +84,7 @@ public static class StorefrontTextFixes
                 if (TryApply(root, fix)) changed++;
             foreach (var addition in StorefrontPageSeeds.Additions.Where(a => a.Key == row.Key))
                 if (StorefrontPageSeeds.TryAdd(root, addition)) changed++;
+            if (row.Key == "yarne.delivery.v1" && StorefrontPageSeeds.ReorderDelivery(root)) changed++;
             if (changed == 0) continue;
 
             row.ValueJson = root.ToJsonString(WriteOptions);

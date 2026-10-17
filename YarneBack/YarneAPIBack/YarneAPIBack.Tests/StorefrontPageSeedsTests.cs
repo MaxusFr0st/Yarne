@@ -57,4 +57,17 @@ public class StorefrontPageSeedsTests
         });
         Assert.Contains(StorefrontPageSeeds.TermsKey, StorefrontSettingsService.AllowedKeys);
     }
+
+    [Fact]
+    public void Returns_moves_after_delivery_in_ukraine_only_from_the_saved_order()
+    {
+        var root = SavedDelivery();
+        foreach (var addition in StorefrontPageSeeds.Additions)
+            StorefrontPageSeeds.TryAdd(root, addition);
+
+        Assert.True(StorefrontPageSeeds.ReorderDelivery(root));
+        Assert.Equal("returns", root["sections"]![2]!["icon"]!.GetValue<string>());
+        Assert.Equal("abroad", root["sections"]![3]!["icon"]!.GetValue<string>());
+        Assert.False(StorefrontPageSeeds.ReorderDelivery(root));
+    }
 }

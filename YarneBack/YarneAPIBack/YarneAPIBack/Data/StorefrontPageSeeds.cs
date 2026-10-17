@@ -48,6 +48,23 @@ public static class StorefrontPageSeeds
         {"version":1,"lastUpdated":"2026-07","summary":[{"uk":"На сайті кошти не списуються: ви оплачуєте після того, як ми приймемо замовлення.","en":"Nothing is charged on the site; you pay after we accept the order."},{"uk":"Повернення — за умовами сторінки «Доставка та повернення»: 14 днів, без слідів носіння.","en":"Returns follow the Delivery & Returns page: 14 days, unworn."},{"uk":"Ці умови ніколи не обмежують ваших прав споживача.","en":"Your rights as a consumer are never limited by these terms."}],"sections":[{"heading":{"uk":"Згода з умовами","en":"Agreement"},"body":{"uk":"Користуючись yarne-acc.com і оформлюючи замовлення, ви погоджуєтеся з цими Умовами. Якщо не погоджуєтесь — не користуйтеся сайтом.","en":"By accessing yarne-acc.com and placing an order, you agree to these Terms & Conditions. If you do not agree, please do not use our website."}},{"heading":{"uk":"Товари й ціни","en":"Products and prices"},"body":{"uk":"Описи товарів, ціни та наявність можуть змінюватися без попередження. Ми можемо відмовити або скасувати замовлення при помилках у ціні, підозрі на шахрайство або нестачі товару.","en":"All product descriptions, prices, and availability are subject to change without notice. We reserve the right to refuse or cancel orders in cases of pricing errors, suspected fraud, or stock limitations."}},{"heading":{"uk":"Оплата","en":"Payment"},"body":{"uk":"На сайті кошти не списуються. Після того як замовлення прийнято, ви обираєте оплату переказом на картку або при отриманні в Новій пошті. Ви відповідаєте за коректні контактні та адресні дані.","en":"Nothing is charged on the site. After your order is accepted, you choose to pay by bank transfer or on pickup at Nova Poshta. You are responsible for providing accurate shipping and contact details."}},{"heading":{"uk":"Доставка й ризики","en":"Delivery and risk"},"body":{"uk":"Ризик втрати переходить до вас після передачі посилки перевізнику. Терміни доставки є орієнтовними.","en":"Risk of loss passes to you upon delivery to the carrier. Delivery times are estimates only and may vary due to customs, weather, or carrier delays."}},{"heading":{"uk":"Повернення","en":"Returns"},"body":{"uk":"Повернення приймаються лише за умовами сторінки «Доставка та повернення».","en":"Returns are accepted only under the conditions stated on our Delivery & Returns page."}},{"heading":{"uk":"Матеріали сайту","en":"Site content"},"body":{"uk":"Контент сайту — зображення, тексти, брендинг — належить Yarné або правовласникам і не може копіюватися без дозволу.","en":"Content on this site — including images, copy, and branding — is owned by Yarné or its licensors and may not be reproduced without permission."}},{"heading":{"uk":"Відповідальність","en":"Liability"},"body":{"uk":"У межах, дозволених законом, Yarné не несе відповідальності за непрямі збитки від використання сайту чи товарів. Ваші законні права споживача не обмежуються.","en":"To the fullest extent permitted by law, Yarné is not liable for indirect or consequential damages arising from use of the site or products. Nothing in these terms limits your statutory consumer rights."}},{"heading":{"uk":"Право та контакти","en":"Law and contact"},"body":{"uk":"Ці умови регулюються законодавством країни, де працює Yarné. Питання: {{email}}.","en":"These terms are governed by the laws applicable where Yarné operates. For questions, contact {{email}}."}}]}
         """;
 
+    /// <summary>
+    /// Returns right after Delivery in Ukraine, as in the approved design, so the wide Returns card does not leave
+    /// "Delivery abroad" alone in its row. Only when the sections are still in the order they were saved in
+    /// (by their icons); an order the owner chose stays. Returns whether it moved anything.
+    /// </summary>
+    public static bool ReorderDelivery(JsonNode root)
+    {
+        if (root["sections"] is not JsonArray sections) return false;
+        string[] saved = ["making", "ukraine", "abroad", "returns", "defect"];
+        var icons = sections.Select(s => s?["icon"]?.GetValue<string>()).ToArray();
+        if (!icons.SequenceEqual(saved)) return false;
+        var returns = sections[3]!;
+        sections.RemoveAt(3);
+        sections.Insert(2, returns);
+        return true;
+    }
+
     /// <summary>Puts <see cref="Addition.Json"/> at the path when nothing is there; returns whether it did.</summary>
     public static bool TryAdd(JsonNode root, Addition addition)
     {
